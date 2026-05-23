@@ -1,0 +1,301 @@
+{
+  "1": {
+    "inputs": {
+      "text": "{\"status\": \"success\", \"task_id\": \"97ff821c0ada4e46a3484754f7f71df0\", \"model\": \"gemini-3.1-flash-image-preview\", \"mode\": \"img2img\", \"prompt\": \"\\u7edd\\u5bf9\\u4fdd\\u7559\\u56fe1\\u7684\\u6240\\u6709\\u5185\\u5bb9\\uff0c\\u5305\\u62ec\\u4eba\\u7269\\u3001\\u8eab\\u4f53\\u3001\\u670d\\u88c5\\u3001\\u914d\\u9970\\u3001\\u53d1\\u578b\\u3001\\u80cc\\u666f\\u3001\\u6784\\u56fe\\u3001\\u52a8\\u4f5c\\u3001\\u5149\\u5f71\\u3001\\u8272\\u5f69\\u3001\\u6c1b\\u56f4\\u3001\\u573a\\u666f\\u7ec6\\u8282\\uff0c\\u4e00\\u4e1d\\u4e00\\u6beb\\u90fd\\u4e0d\\u80fd\\u4fee\\u6539\\u3001\\u6dfb\\u52a0\\u3001\\u5220\\u9664\\uff01\\u4ec5\\u6267\\u884c\\u978b\\u5b50\\u66ff\\u6362\\u64cd\\u4f5c\\u3002\\n\\n1.\\u7cbe\\u51c6\\u6362\\u978b\\uff1a\\u5c06\\u56fe2\\u7684\\u978b\\u5b50\\uff0c\\u81ea\\u7136\\u5b8c\\u6574\\u5730\\u66ff\\u6362\\u5230\\u56fe1\\u4eba\\u7269\\u7684\\u811a\\u90e8\\uff0c\\u66ff\\u6362\\u540e\\u7684\\u978b\\u5b50\\u5b8c\\u5168\\u8d34\\u5408\\u56fe1\\u4eba\\u7269\\u7684\\u811a\\u90e8\\u5f62\\u6001\\u3001\\u52a8\\u4f5c\\u89d2\\u5ea6\\u3001\\u900f\\u89c6\\u5173\\u7cfb\\uff0c\\u4e25\\u4e1d\\u5408\\u7f1d\\u65e0\\u53d8\\u5f62\\u3002\\n\\n2.\\u5b8c\\u7f8e\\u9002\\u914d\\uff1a\\u66ff\\u6362\\u540e\\u7684\\u978b\\u5b50\\u5fc5\\u987b\\u4e0e\\u56fe1\\u7684\\u5149\\u6e90\\u65b9\\u5411\\u3001\\u5149\\u5f71\\u660e\\u6697\\u3001\\u8272\\u5f69\\u8272\\u8c03\\u3001\\u6750\\u8d28\\u8d28\\u611f 100% \\u5339\\u914d\\uff0c\\u978b\\u5b50\\u8fb9\\u7f18\\u4e0e\\u88e4\\u811a / \\u889c\\u5b50 / \\u76ae\\u80a4\\u8fc7\\u6e21\\u81ea\\u7136\\u65e0\\u75d5\\uff0c\\u65e0\\u4efb\\u4f55\\u8fdd\\u548c\\u611f\\u3001\\u5931\\u771f\\u3001\\u9519\\u4f4d\\uff0c\\u771f\\u5b9e\\u81ea\\u7136\\u5982\\u540c\\u539f\\u751f\\u62cd\\u6444\\u3002\\n\\n3.\\u9ad8\\u6e05\\u8f93\\u51fa\\uff1a\\u5b8c\\u6210\\u6362\\u978b\\u540e\\uff0c\\u4e25\\u683c\\u6309\\u7167\\u56fe1\\u7684\\u539f\\u59cb\\u753b\\u9762\\u6bd4\\u4f8b\\uff0c\\u8fdb\\u884c\\u9ad8\\u6e05\\u4fee\\u590d\\u653e\\u5927\\uff0c\\u6781\\u81f4\\u63d0\\u5347\\u753b\\u9762\\u6574\\u4f53\\u6e05\\u6670\\u5ea6\\u3001\\u978b\\u5b50\\u7ec6\\u8282\\u4e0e\\u6574\\u4f53\\u8d28\\u611f\\uff0c\\u8f93\\u51fa\\u9ad8\\u6e05\\u6210\\u54c1\\u3002\\n\\n\\u7edd\\u5bf9\\u7981\\u6b62\\u91cd\\u7ed8\\u753b\\u9762\\uff0c\\u7edd\\u5bf9\\u7981\\u6b62\\u6539\\u53d8\\u9664\\u978b\\u5b50\\u4e4b\\u5916\\u7684\\u4efb\\u4f55\\u5143\\u7d20\\uff0c\\u4ec5\\u6267\\u884c\\u978b\\u5b50\\u66ff\\u6362 + \\u6309\\u539f\\u6bd4\\u4f8b\\u9ad8\\u6e05\\u653e\\u5927\\u4fee\\u590d\\u3002\", \"aspect_ratio\": \"auto\", \"image_size\": \"2K\", \"seed\": 247524292, \"images_count\": 1, \"image_url\": \"https://webstatic.aiproxy.vip/output/20260520/97115/eacf9a0a-6ad8-4b18-8c6e-65f4c6277350.jpg\", \"all_urls\": [\"https://webstatic.aiproxy.vip/output/20260520/97115/eacf9a0a-6ad8-4b18-8c6e-65f4c6277350.jpg\"]}",
+      "anything": [
+        "3",
+        3
+      ]
+    },
+    "class_type": "easy showAnything",
+    "_meta": {
+      "title": "展示任何"
+    }
+  },
+  "3": {
+    "inputs": {
+      "prompt": [
+        "4",
+        0
+      ],
+      "mode": "img2img",
+      "model": "gemini-3.1-flash-image-preview",
+      "aspect_ratio": "auto",
+      "image_size": "2K",
+      "apikey": "sk-wAN6JSG0y8ErJ5ymKKjU8TRWrkWy9s8vMoOeb0GpfQt696f1",
+      "task_id": "",
+      "response_format": "url",
+      "seed": 2057402392,
+      "skip_error": false,
+      "image1": [
+        "20",
+        1
+      ],
+      "image2": [
+        "10",
+        0
+      ]
+    },
+    "class_type": "Comfly_gemini_3_1_flash_image_edit_S2A",
+    "_meta": {
+      "title": "Zhenzhen Gemini 3.1 Flash Image Edit S2A"
+    }
+  },
+  "4": {
+    "inputs": {
+      "prompt": "绝对保留图1的所有内容，包括人物、身体、服装、配饰、发型、背景、构图、动作、光影、色彩、氛围、场景细节，一丝一毫都不能修改、添加、删除！仅执行鞋子替换操作。\n\n1.精准换鞋：将图2的鞋子，自然完整地替换到图1人物的脚部，替换后的鞋子完全贴合图1人物的脚部形态、动作角度、透视关系，严丝合缝无变形。\n\n2.完美适配：替换后的鞋子必须与图1的光源方向、光影明暗、色彩色调、材质质感 100% 匹配，鞋子边缘与裤脚 / 袜子 / 皮肤过渡自然无痕，无任何违和感、失真、错位，真实自然如同原生拍摄。\n\n3.高清输出：完成换鞋后，严格按照图1的原始画面比例，进行高清修复放大，极致提升画面整体清晰度、鞋子细节与整体质感，输出高清成品。\n\n绝对禁止重绘画面，绝对禁止改变除鞋子之外的任何元素，仅执行鞋子替换 + 按原比例高清放大修复。"
+    },
+    "class_type": "CR Prompt Text",
+    "_meta": {
+      "title": "⚙️ CR Prompt Text"
+    }
+  },
+  "7": {
+    "inputs": {
+      "filename_prefix": "ComfyUI",
+      "images": [
+        "3",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "保存图像"
+    }
+  },
+  "8": {
+    "inputs": {
+      "text": "https://webstatic.aiproxy.vip/output/20260520/97115/eacf9a0a-6ad8-4b18-8c6e-65f4c6277350.jpg",
+      "anything": [
+        "3",
+        1
+      ]
+    },
+    "class_type": "easy showAnything",
+    "_meta": {
+      "title": "展示任何"
+    }
+  },
+  "9": {
+    "inputs": {
+      "text": "97ff821c0ada4e46a3484754f7f71df0",
+      "anything": [
+        "3",
+        2
+      ]
+    },
+    "class_type": "easy showAnything",
+    "_meta": {
+      "title": "展示任何"
+    }
+  },
+  "10": {
+    "inputs": {
+      "image": "a82f78c7ac88046d7faab8ab22933dac5aba3c974bc012c01bce49e4dd70d356.png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "加载图像"
+    }
+  },
+  "13": {
+    "inputs": {
+      "image": "image (2).png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "加载图像"
+    }
+  },
+  "14": {
+    "inputs": {
+      "filename_prefix": "ComfyUI",
+      "images": [
+        "22",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "保存图像"
+    }
+  },
+  "15": {
+    "inputs": {
+      "mask": [
+        "18",
+        1
+      ]
+    },
+    "class_type": "MaskPreview",
+    "_meta": {
+      "title": "预览遮罩"
+    }
+  },
+  "16": {
+    "inputs": {
+      "images": [
+        "18",
+        0
+      ]
+    },
+    "class_type": "PreviewImage",
+    "_meta": {
+      "title": "预览图像"
+    }
+  },
+  "17": {
+    "inputs": {
+      "model": "microsoft/Florence-2-base",
+      "precision": "fp16",
+      "attention": "sdpa",
+      "convert_to_safetensors": false
+    },
+    "class_type": "DownloadAndLoadFlorence2Model",
+    "_meta": {
+      "title": "DownloadAndLoadFlorence2Model"
+    }
+  },
+  "18": {
+    "inputs": {
+      "text_input": "both feet",
+      "task": "caption_to_phrase_grounding",
+      "fill_mask": true,
+      "keep_model_loaded": false,
+      "max_new_tokens": 1024,
+      "num_beams": 3,
+      "do_sample": true,
+      "output_mask_select": "",
+      "seed": 639899176327338,
+      "image": [
+        "13",
+        0
+      ],
+      "florence2_model": [
+        "17",
+        0
+      ]
+    },
+    "class_type": "Florence2Run",
+    "_meta": {
+      "title": "Florence2Run"
+    }
+  },
+  "19": {
+    "inputs": {
+      "mask": [
+        "20",
+        2
+      ]
+    },
+    "class_type": "MaskPreview",
+    "_meta": {
+      "title": "预览遮罩"
+    }
+  },
+  "20": {
+    "inputs": {
+      "context_expand_pixels": 20,
+      "context_expand_factor": 1,
+      "fill_mask_holes": true,
+      "blur_mask_pixels": 16,
+      "invert_mask": false,
+      "blend_pixels": 16,
+      "rescale_algorithm": "bicubic",
+      "mode": "forced size",
+      "force_width": 2048,
+      "force_height": 2048,
+      "rescale_factor": 1,
+      "min_width": 512,
+      "min_height": 512,
+      "max_width": 1024,
+      "max_height": 1024,
+      "padding": 32,
+      "image": [
+        "13",
+        0
+      ],
+      "mask": [
+        "24",
+        0
+      ]
+    },
+    "class_type": "InpaintCrop",
+    "_meta": {
+      "title": "(OLD 💀, use the new ✂️ Inpaint Crop node)"
+    }
+  },
+  "21": {
+    "inputs": {
+      "images": [
+        "20",
+        1
+      ]
+    },
+    "class_type": "PreviewImage",
+    "_meta": {
+      "title": "预览图像"
+    }
+  },
+  "22": {
+    "inputs": {
+      "rescale_algorithm": "bislerp",
+      "stitch": [
+        "20",
+        0
+      ],
+      "inpainted_image": [
+        "3",
+        0
+      ]
+    },
+    "class_type": "InpaintStitch",
+    "_meta": {
+      "title": "(OLD 💀, use the new ✂️ Inpaint Stitch node)"
+    }
+  },
+  "23": {
+    "inputs": {
+      "rgthree_comparer": {
+        "images": [
+          {
+            "name": "A",
+            "selected": true,
+            "url": "/api/view?filename=rgthree.compare._temp_qjulp_00003_.png&type=temp&subfolder=&rand=0.9176327300709631"
+          },
+          {
+            "name": "B",
+            "selected": true,
+            "url": "/api/view?filename=rgthree.compare._temp_qjulp_00004_.png&type=temp&subfolder=&rand=0.02391062329824034"
+          }
+        ]
+      },
+      "image_a": [
+        "22",
+        0
+      ],
+      "image_b": [
+        "13",
+        0
+      ]
+    },
+    "class_type": "Image Comparer (rgthree)",
+    "_meta": {
+      "title": "Image Comparer (rgthree)"
+    }
+  },
+  "24": {
+    "inputs": {
+      "expand": 200,
+      "tapered_corners": false,
+      "mask": [
+        "18",
+        1
+      ]
+    },
+    "class_type": "GrowMask",
+    "_meta": {
+      "title": "扩展遮罩"
+    }
+  }
+}

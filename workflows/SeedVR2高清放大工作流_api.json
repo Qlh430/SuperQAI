@@ -1,0 +1,115 @@
+{
+  "1011": {
+    "inputs": {
+      "images": [
+        "1076",
+        0
+      ]
+    },
+    "class_type": "PreviewImage",
+    "_meta": {
+      "title": "Preview Image"
+    }
+  },
+  "1012": {
+    "inputs": {
+      "tiled_vae": true,
+      "vae_tile_size": 512,
+      "vae_tile_overlap": 64,
+      "preserve_vram": true,
+      "cache_model": true,
+      "enable_debug": true
+    },
+    "class_type": "SeedVR2ExtraArgs",
+    "_meta": {
+      "title": "SeedVR2 Extra Args"
+    }
+  },
+  "1017": {
+    "inputs": {
+      "model": "seedvr2_ema_7b_fp8_e4m3fn_mixed_block35_fp16.safetensors",
+      "seed": 9527,
+      "new_resolution": 2048,
+      "batch_size": 5,
+      "images": [
+        "1076",
+        0
+      ],
+      "block_swap_config": [
+        "1020",
+        0
+      ],
+      "extra_args": [
+        "1012",
+        0
+      ]
+    },
+    "class_type": "SeedVR2",
+    "_meta": {
+      "title": "SeedVR2 Video Upscaler"
+    }
+  },
+  "1020": {
+    "inputs": {
+      "blocks_to_swap": 16,
+      "use_non_blocking": true,
+      "offload_io_components": false
+    },
+    "class_type": "SeedVR2BlockSwap",
+    "_meta": {
+      "title": "SeedVR2 BlockSwap Config"
+    }
+  },
+  "1076": {
+    "inputs": {
+      "image": "585556aad48da2f52309ecd5b0c3745a15fdd84a2f72fd3e3b9abc79985d0777.png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Load Image"
+    }
+  },
+  "1078": {
+    "inputs": {
+      "filename_prefix": "seedvr2 修复",
+      "images": [
+        "1017",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "Save Image"
+    }
+  },
+  "1156": {
+    "inputs": {
+      "rgthree_comparer": {
+        "images": [
+          {
+            "name": "A",
+            "selected": true,
+            "url": "/view?filename=rgthree.compare._temp_cfdsf_00003_oaqpo_1775802089.jpg&type=temp&subfolder=&rand=0.9811190171655285&Rh-Comfy-Auth=eyJ1c2VySWQiOiIwODBiZGM0NDM1YTY0YzM1ZjhmMTZmZTNiYWNjMDdiNiIsInNpZ25FeHBpcmUiOjE3NzY0MDUxMjExNzAsInRzIjoxNzc1ODAwMzIxMTcwLCJzaWduIjoiOGQwMjE5NWY3M2VkMTA4NzRkNTI4ODc0MzZjNTE1NTUifQ==&Rh-Identify=080bdc4435a64c35f8f16fe3bacc07b6"
+          },
+          {
+            "name": "B",
+            "selected": true,
+            "url": "/view?filename=rgthree.compare._temp_cfdsf_00004_pqctq_1775802091.jpg&type=temp&subfolder=&rand=0.10288767062673132&Rh-Comfy-Auth=eyJ1c2VySWQiOiIwODBiZGM0NDM1YTY0YzM1ZjhmMTZmZTNiYWNjMDdiNiIsInNpZ25FeHBpcmUiOjE3NzY0MDUxMjExNzAsInRzIjoxNzc1ODAwMzIxMTcwLCJzaWduIjoiOGQwMjE5NWY3M2VkMTA4NzRkNTI4ODc0MzZjNTE1NTUifQ==&Rh-Identify=080bdc4435a64c35f8f16fe3bacc07b6"
+          }
+        ]
+      },
+      "image_a": [
+        "1017",
+        0
+      ],
+      "image_b": [
+        "1076",
+        0
+      ]
+    },
+    "class_type": "Image Comparer (rgthree)",
+    "_meta": {
+      "title": "Image Comparer (rgthree)"
+    }
+  }
+}

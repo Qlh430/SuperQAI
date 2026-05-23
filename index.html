@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>在线生图工作台</title>
+    <script>
+      (() => {
+        const saved = localStorage.getItem("ai-theme-mode") || "system";
+        const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+        document.documentElement.dataset.themeMode = saved;
+        document.documentElement.dataset.theme = saved === "system" ? (prefersDark ? "dark" : "light") : saved;
+      })();
+    </script>
+    <link rel="stylesheet" href="./styles.css?v=20260523-preview-zoom" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <aside class="rail" aria-label="功能导航">
+        <div class="rail-logo" aria-hidden="true"><img src="./logo.png" alt="" /></div>
+
+        <nav class="rail-nav">
+          <button class="nav-item active" type="button" data-tool="image">
+            <span class="nav-icon">⊙</span>
+            <span>在线生图</span>
+          </button>
+          <button class="nav-item" type="button" data-tool="upscale">
+            <span class="nav-icon">⇧</span>
+            <span>高清放大</span>
+          </button>
+          <button class="nav-item" type="button" data-tool="upscale2">
+            <span class="nav-icon">⇪</span>
+            <span>高清放大2</span>
+          </button>
+          <button class="nav-item" type="button" data-tool="shoeSwap">
+            <span class="nav-icon">↔</span>
+            <span>换鞋</span>
+          </button>
+          <button class="nav-item" type="button" data-tool="chat">
+            <span class="nav-icon">□</span>
+            <span>GPT 对话</span>
+          </button>
+        </nav>
+
+        <section class="theme-panel" aria-label="主题">
+          <div class="theme-copy">
+            <strong>主题</strong>
+            <span>使用浅色、深色，或匹配系统设置</span>
+          </div>
+          <div class="theme-options" role="group" aria-label="主题选择">
+            <button class="theme-option" type="button" data-theme-choice="light">浅色</button>
+            <button class="theme-option" type="button" data-theme-choice="dark">深色</button>
+            <button class="theme-option" type="button" data-theme-choice="system">系统</button>
+          </div>
+        </section>
+
+        <div class="rail-foot">
+          <span class="mode-dot" aria-hidden="true"></span>
+          <strong>AI Studio</strong>
+        </div>
+      </aside>
+
+      <section class="stage">
+        <section class="tool-view active" id="imageView" data-view="image">
+          <header class="studio-header">
+            <div>
+              <h1>在线生图</h1>
+            </div>
+          </header>
+
+          <div class="image-workspace">
+            <form class="image-control" id="imageForm">
+              <section class="field-block">
+                <div class="block-label">提示词</div>
+                <textarea id="imagePrompt" rows="6" placeholder="例如：给图中加一个键盘，保持原图光影和真实摄影质感"></textarea>
+              </section>
+
+              <section class="field-block">
+                <div class="block-label">参考图像</div>
+                <div class="reference-grid">
+                  <button class="reference-slot" type="button" data-ref-index="0"><span>+</span><strong>主图</strong></button>
+                  <button class="reference-slot" type="button" data-ref-index="1"><span>+</span><strong>参考 A</strong></button>
+                  <button class="reference-slot" type="button" data-ref-index="2"><span>+</span><strong>参考 B</strong></button>
+                </div>
+                <input id="referenceFileInput" type="file" accept="image/*" hidden />
+              </section>
+
+              <section class="control-card">
+                <label>
+                  <span>模型</span>
+                  <select id="imageModel"></select>
+                </label>
+
+                <div class="size-row">
+                  <span>尺寸</span>
+                  <select id="imageSize">
+                    <option value="1024x1024">1:1</option>
+                    <option value="1024x1536">2:3</option>
+                    <option value="1536x1024">3:2</option>
+                    <option value="1024x1792">9:16</option>
+                    <option value="1792x1024">16:9</option>
+                  </select>
+                  <select id="imageResolution" aria-label="生成图片大小">
+                    <option value="1">1K</option>
+                    <option value="2">2K</option>
+                    <option value="4">4K</option>
+                  </select>
+                </div>
+
+                <div class="size-row count-row">
+                  <span>张数</span>
+                  <input id="imageCount" type="number" value="1" min="1" max="4" step="1" aria-label="生成张数" />
+                </div>
+
+                <label class="remember-line">
+                  <input id="rememberImage" type="checkbox" />
+                  <span>记住图片偏好</span>
+                </label>
+              </section>
+
+              <button class="primary-action" id="generateButton" type="submit">
+                <span>⚡</span>
+                生成图片
+              </button>
+              <p class="status-line" id="imageStatus">正在读取图片模型...</p>
+            </form>
+
+            <section class="preview-panel">
+              <div class="preview-frame" id="imageStage" aria-live="polite">
+                <div class="empty-state">
+                  <span>图片预览</span>
+                  <p>生成结果会显示在这里，并自动保存到本地 output 文件夹。</p>
+                </div>
+              </div>
+              <button id="clearImages" class="preview-clear" type="button" title="清空">×</button>
+            </section>
+
+            <aside class="history-panel">
+              <div class="history-head">
+                <span>历史记录</span>
+                <button id="clearImageHistory" type="button">清空</button>
+              </div>
+              <div class="image-history" id="imageHistory"></div>
+            </aside>
+          </div>
+        </section>
+
+        <section class="tool-view" id="upscaleView" data-view="upscale">
+          <header class="studio-header">
+            <div>
+              <h1>高清放大</h1>
+            </div>
+          </header>
+
+          <div class="upscale-workspace">
+            <form class="upscale-control" id="upscaleForm">
+              <section class="field-block">
+                <div class="block-label">输入图片</div>
+                <button class="upscale-drop" id="upscaleDrop" type="button">
+                  <span>+</span>
+                  <strong>上传需要高清放大的图片</strong>
+                  <small>TTP · ComfyUI</small>
+                  <img id="upscaleInputPreview" alt="待放大图片预览" hidden />
+                </button>
+                <input id="upscaleFileInput" type="file" accept="image/*" hidden />
+              </section>
+
+              <button class="primary-action" id="upscaleButton" type="submit">
+                <span>⇧</span>
+                开始高清放大
+              </button>
+              <div class="upscale-progress" id="upscaleProgress" aria-hidden="true">
+                <span id="upscaleProgressBar"></span>
+              </div>
+              <p class="status-line" id="upscaleStatus">请先上传图片。</p>
+            </form>
+
+            <section class="preview-panel upscale-preview">
+              <div class="preview-frame" id="upscaleStage" aria-live="polite">
+                <div class="empty-state">
+                  <span>放大结果</span>
+                  <p>ComfyUI 完成后，高清图片会显示在这里并保存到本地 output 文件夹。</p>
+                </div>
+              </div>
+              <button id="clearUpscale" class="preview-clear" type="button" title="清空">×</button>
+            </section>
+          </div>
+        </section>
+
+        <section class="tool-view" id="upscale2View" data-view="upscale2">
+          <header class="studio-header">
+            <div>
+              <h1>高清放大2</h1>
+            </div>
+          </header>
+
+          <div class="upscale-workspace">
+            <form class="upscale-control" id="upscale2Form">
+              <section class="field-block">
+                <div class="block-label">输入图片</div>
+                <button class="upscale-drop" id="upscale2Drop" type="button">
+                  <span>+</span>
+                  <strong>上传需要高清放大的图片</strong>
+                  <small>SeedVR2 · ComfyUI</small>
+                  <img id="upscale2InputPreview" alt="待放大图片预览" hidden />
+                </button>
+                <input id="upscale2FileInput" type="file" accept="image/*" hidden />
+              </section>
+
+              <button class="primary-action" id="upscale2Button" type="submit">
+                <span>⇪</span>
+                开始高清放大2
+              </button>
+              <div class="upscale-progress" id="upscale2Progress" aria-hidden="true">
+                <span id="upscale2ProgressBar"></span>
+              </div>
+              <p class="status-line" id="upscale2Status">请先上传图片。</p>
+            </form>
+
+            <section class="preview-panel upscale-preview">
+              <div class="preview-frame" id="upscale2Stage" aria-live="polite">
+                <div class="empty-state">
+                  <span>放大结果</span>
+                  <p>SeedVR2 工作流完成后，高清图片会显示在这里并保存到本地 output 文件夹。</p>
+                </div>
+              </div>
+              <button id="clearUpscale2" class="preview-clear" type="button" title="清空">×</button>
+            </section>
+          </div>
+        </section>
+
+        <section class="tool-view" id="shoeSwapView" data-view="shoeSwap">
+          <header class="studio-header">
+            <div>
+              <h1>换鞋</h1>
+            </div>
+          </header>
+
+          <div class="upscale-workspace">
+            <form class="upscale-control" id="shoeSwapForm">
+              <section class="field-block">
+                <div class="block-label">人物原图</div>
+                <button class="upscale-drop" id="shoeSwapPersonDrop" type="button">
+                  <span>+</span>
+                  <strong>上传需要换鞋的人物图</strong>
+                  <small>图1 · 保持人物和场景不变</small>
+                  <img id="shoeSwapPersonPreview" alt="人物图预览" hidden />
+                </button>
+                <input id="shoeSwapPersonInput" type="file" accept="image/*" hidden />
+              </section>
+
+              <section class="field-block">
+                <div class="block-label">鞋子参考图</div>
+                <div class="shoe-reference-row">
+                  <div class="shoe-examples" aria-label="鞋子示例图">
+                    <button class="shoe-example" type="button" data-shoe-example="/assets/examples/shoe-sneaker.png" data-shoe-name="运动鞋示例.png">
+                      <img src="./assets/examples/shoe-sneaker.png" alt="运动鞋示例" />
+                      <span>运动鞋</span>
+                    </button>
+                    <button class="shoe-example" type="button" data-shoe-example="/assets/examples/shoe-heel.png" data-shoe-name="高跟鞋示例.png">
+                      <img src="./assets/examples/shoe-heel.png" alt="高跟鞋示例" />
+                      <span>高跟鞋</span>
+                    </button>
+                  </div>
+                  <button class="upscale-drop" id="shoeSwapShoeDrop" type="button">
+                    <span>+</span>
+                    <strong>上传鞋子参考图</strong>
+                    <small>图2 · 只提取鞋子样式</small>
+                    <img id="shoeSwapShoePreview" alt="鞋子图预览" hidden />
+                  </button>
+                </div>
+                <input id="shoeSwapShoeInput" type="file" accept="image/*" hidden />
+              </section>
+
+              <button class="primary-action" id="shoeSwapButton" type="submit">
+                <span>↔</span>
+                开始换鞋
+              </button>
+              <div class="upscale-progress" id="shoeSwapProgress" aria-hidden="true">
+                <span id="shoeSwapProgressBar"></span>
+              </div>
+              <p class="status-line" id="shoeSwapStatus">请先上传人物原图和鞋子参考图。</p>
+            </form>
+
+            <section class="preview-panel upscale-preview">
+              <div class="preview-frame" id="shoeSwapStage" aria-live="polite">
+                <div class="empty-state">
+                  <span>换鞋结果</span>
+                  <p>ComfyUI 完成后，换鞋图片会显示在这里并保存到本地 output 文件夹。</p>
+                </div>
+              </div>
+              <button id="clearShoeSwap" class="preview-clear" type="button" title="清空">×</button>
+            </section>
+          </div>
+        </section>
+
+        <section class="tool-view" id="chatView" data-view="chat">
+          <header class="studio-header">
+            <div>
+              <h1>GPT 对话</h1>
+            </div>
+            <div class="header-actions">
+              <button id="newChat" class="text-action" type="button">新对话</button>
+              <button id="clearChat" class="text-action" type="button">清空当前</button>
+            </div>
+          </header>
+
+          <div class="chat-workspace">
+            <aside class="history-panel chat-history-panel">
+              <div class="history-head">
+                <span>历史记录</span>
+                <button id="clearChatHistory" type="button">清空</button>
+              </div>
+              <div class="chat-history" id="chatHistory"></div>
+            </aside>
+
+            <section class="chat-panel">
+              <div class="messages" id="messages" aria-live="polite">
+                <article class="message assistant">
+                  <span>Assistant</span>
+                  <p>你好，我已经准备好了。直接输入你的问题就可以开始。</p>
+                </article>
+              </div>
+
+              <form class="chat-composer" id="chatForm">
+                <div class="attachment-list" id="chatAttachments"></div>
+                <input id="chatFileInput" type="file" multiple hidden />
+                <textarea id="chatPrompt" rows="4" placeholder="例如：帮我写一个产品介绍文案"></textarea>
+                <label class="composer-model">
+                  <span>对话模型</span>
+                  <select id="chatModel"></select>
+                </label>
+                <div class="composer-actions">
+                  <div class="chat-tools">
+                    <button id="attachButton" class="attach-button" type="button">＋ 上传图片和文件</button>
+                    <p id="chatStatus">正在读取模型列表...</p>
+                  </div>
+                  <button id="sendButton" type="submit">发送</button>
+                </div>
+              </form>
+            </section>
+          </div>
+        </section>
+
+        <div class="mini-status">
+          <span></span>
+          在线
+        </div>
+      </section>
+    </main>
+
+    <div class="lightbox" id="lightbox" hidden>
+      <button class="lightbox-close" id="lightboxClose" type="button">×</button>
+      <img id="lightboxImage" alt="图片预览" />
+      <a class="lightbox-download" id="lightboxDownload" href="#" download>下载图片</a>
+    </div>
+
+    <script src="./script.js?v=20260523-preview-zoom"></script>
+  </body>
+</html>

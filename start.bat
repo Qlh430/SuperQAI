@@ -1,0 +1,32 @@
+@echo off
+setlocal
+
+cd /d "%~dp0"
+
+if not exist ".env" (
+  echo Missing .env file.
+  echo Copy .env.example to .env and fill your API settings first.
+  pause
+  exit /b 1
+)
+
+where node >nul 2>nul
+if errorlevel 1 (
+  echo Node.js was not found.
+  echo Please install Node.js 18 or newer, then run this launcher again.
+  pause
+  exit /b 1
+)
+
+echo Starting AI Studio...
+start "AI Studio Server" cmd /k "cd /d ""%~dp0"" && node server.js"
+
+ping -n 3 127.0.0.1 >nul
+start "" "http://localhost:3099"
+
+echo Website opened: http://localhost:3099
+echo LAN addresses:
+for /f "tokens=2 delims=:" %%A in ('ipconfig ^| findstr /c:"IPv4"') do (
+  echo http://%%A:3099
+)
+pause

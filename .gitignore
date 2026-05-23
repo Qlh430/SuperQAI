@@ -1,0 +1,32 @@
+# Secrets and local machine config
+.env
+*.local
+
+# Runtime logs
+*.log
+server-*.log
+server.*.log
+npm-debug.log*
+
+# Build and portable packages
+dist/
+*.zip
+
+# Generated images and user data
+output/
+data/*.json
+data/*.bak-*
+
+# Temporary files
+tmp/
+*.tmp
+tmp_api_doc.pdf
+
+# Dependencies
+node_modules/
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
