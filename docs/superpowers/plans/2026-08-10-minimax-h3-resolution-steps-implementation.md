@@ -28,19 +28,19 @@
 - Consumes: raw API fields `aspect_ratio`, `megapixels`, and `steps`.
 - Produces: normalized `{ aspectRatio, megapixels, steps }` and workflow mutations at nodes `219` and `229`.
 
-- [ ] **Step 1: Write failing assertions**
+- [x] **Step 1: Write failing assertions**
 
 Add assertions that all eight aspect ratios normalize unchanged, `steps: 8` is retained, invalid steps become 4, and `prepareMinimaxH3Workflow` writes `request.steps` to `workflow["219"].inputs.steps`.
 
-- [ ] **Step 2: Verify the assertions fail**
+- [x] **Step 2: Verify the assertions fail**
 
 Run `node tools/check-minimax-h3-video.js`. Expected: an assertion fails because `steps` is missing and the additional aspect ratios currently fall back to `16:9`.
 
-- [ ] **Step 3: Implement minimal normalization and workflow mutation**
+- [x] **Step 3: Implement minimal normalization and workflow mutation**
 
 Extend `ASPECT_RATIOS` with `2:3`, `3:2`, `3:4`, `4:3`, and `21:9`; normalize `steps` to 4 or 8; return it from `normalizeMinimaxH3Request`; write it to scheduler node 219 in `prepareMinimaxH3Workflow`.
 
-- [ ] **Step 4: Verify the focused contract passes**
+- [x] **Step 4: Verify the focused contract passes**
 
 Run `node tools/check-minimax-h3-video.js`. Expected: `MiniMax H3 canvas video checks passed`.
 
@@ -56,19 +56,19 @@ Run `node tools/check-minimax-h3-video.js`. Expected: `MiniMax H3 canvas video c
 - Consumes: H3 node options and datasets `minimaxH3AspectRatio`, `minimaxH3Megapixels`, and `minimaxH3Steps`.
 - Produces: eight aspect choices, two resolution choices, two scheduler choices, `.canvas-h3-resolution-hint`, serialized `minimaxH3Steps`, and API payload field `steps`.
 
-- [ ] **Step 1: Write failing static and browser assertions**
+- [x] **Step 1: Write failing static and browser assertions**
 
 Require all eight aspect values, the labels `快速 · 标准分辨率`, `高清 · 高分辨率`, `快速 · 4 步`, and `高质量 · 8 步`, the `minimaxH3Steps` persistence contract, and payload fields for megapixels and steps. In Playwright, create an H3 node with `3:2`, `1.0`, and `8`, restore it, assert the displayed hint is `预计输出：1248 × 832`, and assert the generation request contains the same three independent values.
 
-- [ ] **Step 2: Verify tests fail for the missing controls**
+- [x] **Step 2: Verify tests fail for the missing controls**
 
 Run `node tools/check-minimax-h3-video.js` and, with the local app available, `node tools/check-minimax-h3-ui.js`. Expected: missing label/state/payload assertions fail.
 
-- [ ] **Step 3: Implement the canvas behavior**
+- [x] **Step 3: Implement the canvas behavior**
 
 Add an aspect-ratio tuple map and a calculation helper mirroring ComfyUI: `scale = sqrt(megapixels * 1024 * 1024 / (wRatio * hRatio))`, then round each dimension to the nearest multiple of 32. Render all aspect choices, renamed resolution choices, a scheduler select, and the expected-size hint. Refresh only the hint when aspect or resolution changes. Add `minimaxH3Steps` to render defaults, serialization, both restore/import paths, copy/paste options, and the H3 POST body.
 
-- [ ] **Step 4: Verify focused static and browser checks pass**
+- [x] **Step 4: Verify focused static and browser checks pass**
 
 Run `node tools/check-minimax-h3-video.js` and `node tools/check-minimax-h3-ui.js`. Expected: both exit 0 and the browser check produces updated desktop/mobile screenshots without page errors.
 
@@ -83,14 +83,14 @@ Run `node tools/check-minimax-h3-video.js` and `node tools/check-minimax-h3-ui.j
 - Consumes: completed changes from Tasks 1 and 2.
 - Produces: fresh syntax, focused, and full-project verification evidence.
 
-- [ ] **Step 1: Run syntax checks**
+- [x] **Step 1: Run syntax checks**
 
 Run `node --check minimax-h3-workflow.js`, `node --check script.js`, and `node --check server.js`. Expected: all exit 0 without output.
 
-- [ ] **Step 2: Run the full project check**
+- [x] **Step 2: Run the full project check**
 
 Run `npm run check`. Expected: exit 0 with every listed check passing.
 
-- [ ] **Step 3: Review the final diff**
+- [x] **Step 3: Review the final diff**
 
 Run `git diff --check` and inspect `git diff -- script.js styles.css minimax-h3-workflow.js tools/check-minimax-h3-video.js tools/check-minimax-h3-ui.js`. Expected: no whitespace errors and only the approved H3 behavior changes.
