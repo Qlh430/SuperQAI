@@ -29,23 +29,23 @@
 - Consumes: `normalizeMinimaxH3Request({ prompt, images, videos, audios, ...options })`.
 - Produces: a normalized request whose three reference arrays may all be empty, and a ComfyUI workflow without reference loader nodes when those arrays are empty.
 
-- [ ] **Step 1: Write failing normalization assertions**
+- [x] **Step 1: Write failing normalization assertions**
 
 Replace the assertion that `normalizeMinimaxH3Request({ prompt: "x" })` throws with an assertion that the returned prompt is `"x"` and all three reference arrays are empty. Replace the connected-media/no-tags failure assertion with checks that the prompt remains unchanged and all connected-but-unmentioned media is filtered out. Keep the invalid `<Video 2>` assertion unchanged.
 
-- [ ] **Step 2: Write a failing text-only workflow assertion**
+- [x] **Step 2: Write a failing text-only workflow assertion**
 
 Prepare a request with `prompt: "A cinematic night walk"`, empty reference arrays, and valid generation settings. Assert that the resulting workflow has no `LoadImage`, `LoadVideo`, `GetVideoComponents`, or `LoadAudio` nodes and that node `222` contains no keys beginning with `ref_images.`, `ref_videos.`, `ref_video_audios.`, or `ref_audios.`.
 
-- [ ] **Step 3: Run the focused check and verify RED**
+- [x] **Step 3: Run the focused check and verify RED**
 
 Run `node tools/check-minimax-h3-video.js`. Expected: FAIL with the current `MiniMax H3 requires at least one reference image, video, or audio clip.` error.
 
-- [ ] **Step 4: Implement the minimal server fix**
+- [x] **Step 4: Implement the minimal server fix**
 
 Delete the empty-reference rejection in `normalizeMinimaxH3Request`. In `selectPromptReferences`, keep the tag loop, out-of-range validation, filtering, sorting, and remapping, but remove the final `selectedCount` rejection so no-tag prompts return `{ prompt: internalPrompt, images: [], videos: [], audios: [] }`.
 
-- [ ] **Step 5: Run the focused check and verify GREEN**
+- [x] **Step 5: Run the focused check and verify GREEN**
 
 Run `node tools/check-minimax-h3-video.js`. Expected: `MiniMax H3 canvas video checks passed`.
 
@@ -60,19 +60,19 @@ Run `node tools/check-minimax-h3-video.js`. Expected: `MiniMax H3 canvas video c
 - Consumes: an H3 node with a non-empty prompt and zero incoming media references.
 - Produces: a POST body with empty `images`, `videos`, and `audios`, while the existing reference path still sends only mentioned media.
 
-- [ ] **Step 1: Write failing frontend assertions**
+- [x] **Step 1: Write failing frontend assertions**
 
 Add a static assertion that `script.js` does not contain `setCanvasH3Status(node, "至少连接一项参考素材"` and does contain `输入描述即可生成，参考素材可选`. Extend the browser test with a dedicated no-media H3 node, submit `雨夜街道上的电影感跟拍镜头`, and assert the intercepted request contains the exact prompt and three empty arrays.
 
-- [ ] **Step 2: Run frontend checks and verify RED**
+- [x] **Step 2: Run frontend checks and verify RED**
 
 Run `node tools/check-minimax-h3-video.js`; then start the app on port 3107 and run `node tools/check-minimax-h3-ui.js` with the bundled Playwright `NODE_PATH`. Expected: the static check fails on the existing no-media guard, and the browser path cannot submit a text-only request.
 
-- [ ] **Step 3: Implement the minimal canvas fix**
+- [x] **Step 3: Implement the minimal canvas fix**
 
 Remove only the `if (!refs.images.length && !refs.videos.length && !refs.audios.length)` block from `runCanvasMinimaxH3Node`. Change the intro to `文生视频 · 多模态参考生成` and the footer status to `输入描述即可生成，参考素材可选`. Preserve prompt validation, reference-tag validation, capacity checks, and the existing request body.
 
-- [ ] **Step 4: Run focused static and browser checks and verify GREEN**
+- [x] **Step 4: Run focused static and browser checks and verify GREEN**
 
 Run `node tools/check-minimax-h3-video.js` and `node tools/check-minimax-h3-ui.js`. Expected: both exit 0; the text-only intercepted request has empty media arrays, the reference request still contains its prompt tags, and an invalid reference tag still blocks generation.
 
@@ -89,14 +89,14 @@ Run `node tools/check-minimax-h3-video.js` and `node tools/check-minimax-h3-ui.j
 - Consumes: completed server and canvas changes.
 - Produces: fresh syntax, focused browser, and full-project verification evidence.
 
-- [ ] **Step 1: Run syntax checks**
+- [x] **Step 1: Run syntax checks**
 
 Run `node --check minimax-h3-workflow.js`, `node --check script.js`, and `node --check server.js`. Expected: all exit 0 without syntax errors.
 
-- [ ] **Step 2: Run the full project check**
+- [x] **Step 2: Run the full project check**
 
 Run `npm run check`. Expected: exit 0 with every listed check passing.
 
-- [ ] **Step 3: Review scope and whitespace**
+- [x] **Step 3: Review scope and whitespace**
 
 Run `git diff --check` and inspect the H3-related snippets in the five files above. Expected: no whitespace errors, no change to upload security or output validation, and no remaining text-only media guard.
