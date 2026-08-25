@@ -15,7 +15,9 @@ function listen(server) {
 }
 
 function requestJson(port, pathname, options = {}) {
-  const body = options.body === undefined ? "" : JSON.stringify(options.body);
+  const body = options.rawBody === undefined
+    ? (options.body === undefined ? "" : JSON.stringify(options.body))
+    : String(options.rawBody);
   return new Promise((resolve, reject) => {
     const request = http.request({
       hostname: "127.0.0.1",
@@ -33,7 +35,7 @@ function requestJson(port, pathname, options = {}) {
       response.on("end", () => {
         let data = {};
         try { data = JSON.parse(text || "{}"); } catch { data = text; }
-        resolve({ status: response.statusCode, data });
+        resolve({ status: response.statusCode, data, text });
       });
     });
     request.once("error", reject);
@@ -158,6 +160,21 @@ async function waitFor(port, pathname, predicate, diagnostics) {
     });
     assert.equal(applied.status, 200);
     assert.equal(applied.data.boardRevision, 1);
+
+    const streamedExport = await requestJson(port, "/api/canvas/boards/new-endpoint/export");
+    assert.equal(streamedExport.status, 200);
+    assert.equal(streamedExport.data.format, "canvas-paged-v1");
+    assert.equal(streamedExport.data.nodes.length, 1);
+    const streamedImport = await requestJson(port, "/api/canvas/import?boardId=imported-endpoint", {
+      method: "POST",
+      rawBody: streamedExport.text,
+    });
+    assert.equal(streamedImport.status, 201, JSON.stringify(streamedImport.data));
+    assert.equal(streamedImport.data.boardId, "imported-endpoint");
+    assert.equal(streamedImport.data.nodeCount, 1);
+    const importedMeta = await requestJson(port, "/api/canvas/boards/imported-endpoint/meta");
+    assert.equal(importedMeta.status, 200);
+    assert.equal(importedMeta.data.nodeCount, 1);
 
     const stale = await requestJson(port, "/api/canvas/boards/new-endpoint/operations", {
       method: "POST",

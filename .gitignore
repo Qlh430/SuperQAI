@@ -17,6 +17,13 @@ output/
 data/*.json
 data/*.bak-*
 
+# Local canvas database and transient benchmark state
+data/*.db
+data/*.db-wal
+data/*.db-shm
+*.pid
+tmp/canvas-pressure/
+
 # Temporary files
 tmp/
 *.tmp
