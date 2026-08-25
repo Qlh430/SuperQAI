@@ -75,9 +75,9 @@ function boardRow(boardId) {
   const id = requiredId(boardId, "Board");
   const row = prepare(`
     SELECT pk, external_id, title, viewport_json, revision, schema_version,
-           migration_state, validation_hash, created_at, updated_at
+           migration_state, validation_hash, created_at, updated_at, deleted_at
       FROM boards
-     WHERE external_id = ? AND deleted_at IS NULL
+     WHERE external_id = ?
   `).get(id);
   if (!row) throw codedError("board_not_found", `Canvas board not found: ${id}`);
   return row;
@@ -94,6 +94,7 @@ function toBoardMeta(row) {
     validationHash: row.validation_hash || "",
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    deletedAt: row.deleted_at || "",
     nodeCount: Number(row.node_count || 0),
     connectionCount: Number(row.connection_count || 0),
   };
@@ -591,7 +592,7 @@ const handlers = {
              (SELECT COUNT(*) FROM nodes n WHERE n.board_pk = b.pk) AS node_count,
              (SELECT COUNT(*) FROM connections c WHERE c.board_pk = b.pk) AS connection_count
         FROM boards b
-       WHERE b.deleted_at IS NULL AND b.migration_state = 'active'
+       WHERE b.migration_state = 'active'
        ORDER BY b.updated_at DESC, b.pk DESC
     `).all();
     return rows.map(toBoardMeta);
@@ -909,6 +910,50 @@ const handlers = {
        WHERE pk = ? AND migration_state != 'active'
     `).run(`error:${String(message || "Legacy migration failed.").slice(0, 480)}`, nowIso(), row.pk);
     return { boardId: id, state: "failed", recorded: true };
+  },
+
+  setBoardTrashState({ boardId, operationId, trashed } = {}) {
+    const board = boardRow(boardId);
+    const requestId = requiredId(operationId, "Operation");
+    const existing = prepare(`
+      SELECT result_json FROM board_operations
+       WHERE board_pk = ? AND operation_id = ?
+    `).get(board.pk, requestId);
+    if (existing) return parseJson(existing.result_json, {});
+    const timestamp = nowIso();
+    const revision = Number(board.revision) + 1;
+    const deletedAt = trashed ? timestamp : null;
+    database.exec("BEGIN IMMEDIATE");
+    try {
+      prepare(`
+        UPDATE boards SET deleted_at = ?, revision = ?, updated_at = ? WHERE pk = ?
+      `).run(deletedAt, revision, timestamp, board.pk);
+      const result = toBoardMeta({
+        ...board,
+        deleted_at: deletedAt,
+        revision,
+        updated_at: timestamp,
+      });
+      prepare(`
+        INSERT INTO board_operations(
+          board_pk, operation_id, base_revision, operation_type,
+          request_json, result_json, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        board.pk,
+        requestId,
+        Number(board.revision),
+        trashed ? "board.trash" : "board.restore",
+        JSON.stringify({ boardId: board.external_id, trashed: Boolean(trashed) }),
+        JSON.stringify(result),
+        timestamp,
+      );
+      database.exec("COMMIT");
+      return result;
+    } catch (error) {
+      try { database.exec("ROLLBACK"); } catch {}
+      throw error;
+    }
   },
 
   close() {

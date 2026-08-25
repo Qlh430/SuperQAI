@@ -128,6 +128,10 @@ function createCanvasRepository({
     return invoke("failLegacyImport", input);
   }
 
+  function setBoardTrashState(input) {
+    return invoke("setBoardTrashState", input);
+  }
+
   function close() {
     if (closePromise) return closePromise;
     closePromise = (async () => {
@@ -160,6 +164,7 @@ function createCanvasRepository({
     exportImportedBoard,
     activateImportedBoard,
     failLegacyImport,
+    setBoardTrashState,
     invoke,
     close,
   };
