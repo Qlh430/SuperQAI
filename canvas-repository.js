@@ -80,6 +80,34 @@ function createCanvasRepository({
     return invoke("quickCheck");
   }
 
+  function createBoard(board) {
+    return invoke("createBoard", board);
+  }
+
+  function listBoards() {
+    return invoke("listBoards");
+  }
+
+  function getBoardMeta(boardId) {
+    return invoke("getBoardMeta", { boardId });
+  }
+
+  function applyOperations(input) {
+    return invoke("applyOperations", input);
+  }
+
+  function queryViewport(input) {
+    return invoke("queryViewport", input);
+  }
+
+  function exportBoardPage(input) {
+    return invoke("exportBoardPage", input);
+  }
+
+  function getOperationStatuses(operationIds) {
+    return invoke("getOperationStatuses", { operationIds });
+  }
+
   function close() {
     if (closePromise) return closePromise;
     closePromise = (async () => {
@@ -100,6 +128,13 @@ function createCanvasRepository({
   return {
     ready,
     quickCheck,
+    createBoard,
+    listBoards,
+    getBoardMeta,
+    applyOperations,
+    queryViewport,
+    exportBoardPage,
+    getOperationStatuses,
     invoke,
     close,
   };
