@@ -108,6 +108,26 @@ function createCanvasRepository({
     return invoke("getOperationStatuses", { operationIds });
   }
 
+  function beginLegacyImport(input) {
+    return invoke("beginLegacyImport", input);
+  }
+
+  function importLegacyBatch(input) {
+    return invoke("importLegacyBatch", input);
+  }
+
+  function exportImportedBoard(input) {
+    return invoke("exportImportedBoard", input);
+  }
+
+  function activateImportedBoard(input) {
+    return invoke("activateImportedBoard", input);
+  }
+
+  function failLegacyImport(input) {
+    return invoke("failLegacyImport", input);
+  }
+
   function close() {
     if (closePromise) return closePromise;
     closePromise = (async () => {
@@ -135,6 +155,11 @@ function createCanvasRepository({
     queryViewport,
     exportBoardPage,
     getOperationStatuses,
+    beginLegacyImport,
+    importLegacyBatch,
+    exportImportedBoard,
+    activateImportedBoard,
+    failLegacyImport,
     invoke,
     close,
   };

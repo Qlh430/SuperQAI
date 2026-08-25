@@ -468,6 +468,91 @@ function queryMaterializedLod(boardPk, bounds, requestedLevel) {
   return [...grouped.values()];
 }
 
+function removeBoardStorage(boardPk) {
+  prepare(`DELETE FROM node_spatial WHERE pk IN (SELECT pk FROM nodes WHERE board_pk = ?)`)
+    .run(boardPk);
+  prepare(`DELETE FROM connection_spatial WHERE pk IN (SELECT pk FROM connections WHERE board_pk = ?)`)
+    .run(boardPk);
+  prepare("DELETE FROM boards WHERE pk = ?").run(boardPk);
+}
+
+function requireMigratingBoard(boardId) {
+  const board = boardRow(boardId);
+  if (board.migration_state !== "migrating") {
+    throw codedError(
+      "legacy_migration_state_invalid",
+      `Canvas ${board.external_id} is not in the migrating state.`,
+    );
+  }
+  return board;
+}
+
+function importLegacyNode(boardPk, item, zOrder, timestamp) {
+  const id = requiredId(item?.id, "Legacy node");
+  const x = finiteNumber(item?.x, 0, "Legacy node x");
+  const y = finiteNumber(item?.y, 0, "Legacy node y");
+  const width = finiteNumber(item?.width, 0, "Legacy node width");
+  const height = finiteNumber(item?.height, 0, "Legacy node height");
+  if (width < 0 || height < 0) {
+    throw codedError("invalid_node_geometry", "Legacy node width and height cannot be negative.");
+  }
+  const kind = String(item?.kind || "unknown");
+  const inserted = prepare(`
+    INSERT INTO nodes(
+      board_pk, external_id, z_order, kind, x, y, width, height,
+      revision, payload_json, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)
+  `).run(
+    boardPk,
+    id,
+    Math.trunc(finiteNumber(item?.zOrder ?? item?.z, zOrder, "Legacy node z-order")),
+    kind,
+    x,
+    y,
+    width,
+    height,
+    JSON.stringify(item),
+    timestamp,
+    timestamp,
+  );
+  const pk = Number(inserted.lastInsertRowid);
+  writeSpatial("node_spatial", pk, { left: x, top: y, right: x + width, bottom: y + height });
+  changeLodContribution(boardPk, { external_id: id, kind, x, y, width, height }, 1, 0);
+}
+
+function importLegacyConnection(boardPk, item, storageIndex, timestamp) {
+  const fromId = requiredId(item?.from, "Legacy connection source");
+  const toId = requiredId(item?.to, "Legacy connection target");
+  const from = readNode(boardPk, fromId);
+  const to = readNode(boardPk, toId);
+  if (!from || !to) {
+    throw codedError(
+      "connection_endpoint_missing",
+      `Legacy connection references missing endpoint ${!from ? fromId : toId}.`,
+    );
+  }
+  const externalId = String(item?.id || `@legacy:${storageIndex}`);
+  const inserted = prepare(`
+    INSERT INTO connections(
+      board_pk, external_id, from_id, to_id, revision,
+      payload_json, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, 1, ?, ?, ?)
+  `).run(
+    boardPk,
+    externalId,
+    fromId,
+    toId,
+    JSON.stringify(item),
+    timestamp,
+    timestamp,
+  );
+  writeSpatial(
+    "connection_spatial",
+    Number(inserted.lastInsertRowid),
+    getConnectionBounds(nodeRect(from), nodeRect(to)),
+  );
+}
+
 const handlers = {
   ready() {
     return { schemaVersion: readSchemaVersion(database) };
@@ -506,7 +591,7 @@ const handlers = {
              (SELECT COUNT(*) FROM nodes n WHERE n.board_pk = b.pk) AS node_count,
              (SELECT COUNT(*) FROM connections c WHERE c.board_pk = b.pk) AS connection_count
         FROM boards b
-       WHERE b.deleted_at IS NULL
+       WHERE b.deleted_at IS NULL AND b.migration_state = 'active'
        ORDER BY b.updated_at DESC, b.pk DESC
     `).all();
     return rows.map(toBoardMeta);
@@ -714,6 +799,116 @@ const handlers = {
         ? { operationId, committed: true, boardId: row.board_id, result: parseJson(row.result_json, {}) }
         : { operationId, committed: false };
     });
+  },
+
+  beginLegacyImport({ board, backupFile } = {}) {
+    const id = requiredId(board?.id, "Legacy board");
+    const timestamp = nowIso();
+    database.exec("BEGIN IMMEDIATE");
+    try {
+      const existing = prepare(`
+        SELECT pk, migration_state FROM boards WHERE external_id = ?
+      `).get(id);
+      if (existing?.migration_state === "active") {
+        throw codedError("board_already_active", `Canvas board is already active: ${id}`);
+      }
+      if (existing) removeBoardStorage(existing.pk);
+      prepare(`
+        INSERT INTO boards(
+          external_id, title, viewport_json, revision, schema_version,
+          migration_state, validation_hash, created_at, updated_at, deleted_at
+        ) VALUES (?, ?, ?, 0, ?, 'migrating', ?, ?, ?, ?)
+      `).run(
+        id,
+        String(board?.title || "Untitled canvas"),
+        JSON.stringify(board?.viewport || { x: 0, y: 0, scale: 1 }),
+        readSchemaVersion(database),
+        backupFile ? `backup:${String(backupFile).slice(-500)}` : null,
+        String(board?.createdAt || timestamp),
+        String(board?.updatedAt || timestamp),
+        board?.deletedAt ? String(board.deletedAt) : null,
+      );
+      database.exec("COMMIT");
+      return toBoardMeta(boardRow(id));
+    } catch (error) {
+      try { database.exec("ROLLBACK"); } catch {}
+      throw error;
+    }
+  },
+
+  importLegacyBatch({ boardId, entity, items, offset } = {}) {
+    const board = requireMigratingBoard(boardId);
+    const batch = Array.isArray(items) ? items : [];
+    if (batch.length > 1000) {
+      throw codedError("legacy_batch_too_large", "Legacy import batches cannot exceed 1000 items.");
+    }
+    const start = Math.max(0, Math.trunc(Number(offset) || 0));
+    const timestamp = nowIso();
+    database.exec("BEGIN IMMEDIATE");
+    try {
+      if (entity === "nodes") {
+        batch.forEach((item, index) => importLegacyNode(board.pk, item, start + index, timestamp));
+      } else if (entity === "connections") {
+        batch.forEach((item, index) => importLegacyConnection(board.pk, item, start + index, timestamp));
+      } else {
+        throw codedError("invalid_import_entity", `Cannot import legacy entity: ${String(entity || "")}`);
+      }
+      prepare("UPDATE boards SET updated_at = ? WHERE pk = ?").run(timestamp, board.pk);
+      database.exec("COMMIT");
+      return { boardId: board.external_id, entity, imported: batch.length, offset: start };
+    } catch (error) {
+      try { database.exec("ROLLBACK"); } catch {}
+      throw error;
+    }
+  },
+
+  exportImportedBoard({ boardId } = {}) {
+    const board = boardRow(boardId);
+    const nodes = prepare(`
+      SELECT payload_json FROM nodes WHERE board_pk = ? ORDER BY pk
+    `).all(board.pk).map((row) => parseJson(row.payload_json, {}));
+    const connections = prepare(`
+      SELECT payload_json FROM connections WHERE board_pk = ? ORDER BY pk
+    `).all(board.pk).map((row) => parseJson(row.payload_json, {}));
+    return { boardId: board.external_id, nodes, connections };
+  },
+
+  activateImportedBoard({ boardId, validation } = {}) {
+    const board = requireMigratingBoard(boardId);
+    const timestamp = nowIso();
+    const validationHash = String(validation?.hash || "");
+    if (!validationHash) {
+      throw codedError("legacy_validation_missing", "Legacy import cannot activate without validation.");
+    }
+    database.exec("BEGIN IMMEDIATE");
+    try {
+      prepare(`
+        UPDATE boards
+           SET migration_state = 'validated', validation_hash = ?, updated_at = ?
+         WHERE pk = ?
+      `).run(validationHash, timestamp, board.pk);
+      prepare(`
+        UPDATE boards SET migration_state = 'active', updated_at = ?
+         WHERE pk = ? AND migration_state = 'validated'
+      `).run(timestamp, board.pk);
+      database.exec("COMMIT");
+      return toBoardMeta(boardRow(board.external_id));
+    } catch (error) {
+      try { database.exec("ROLLBACK"); } catch {}
+      throw error;
+    }
+  },
+
+  failLegacyImport({ boardId, message } = {}) {
+    const id = requiredId(boardId, "Legacy board");
+    const row = prepare("SELECT pk FROM boards WHERE external_id = ?").get(id);
+    if (!row) return { boardId: id, state: "failed", recorded: false };
+    prepare(`
+      UPDATE boards
+         SET migration_state = 'failed', validation_hash = ?, updated_at = ?
+       WHERE pk = ? AND migration_state != 'active'
+    `).run(`error:${String(message || "Legacy migration failed.").slice(0, 480)}`, nowIso(), row.pk);
+    return { boardId: id, state: "failed", recorded: true };
   },
 
   close() {
