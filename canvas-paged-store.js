@@ -83,6 +83,7 @@
       this.accessOrder = new Map();
       this.estimatedBytes = 0;
       this.activeGeneration = null;
+      this.boardRevision = 0;
       this.lodPage = null;
       this.loadedRects = [];
     }
@@ -237,6 +238,9 @@
         && generationNumber(generation) < generationNumber(this.activeGeneration)
       ) return false;
       this.activeGeneration = generation;
+      if (Number.isFinite(Number(page.boardRevision))) {
+        this.boardRevision = Number(page.boardRevision);
+      }
       if (page.mode === "lod") {
         this.lodPage = cloneSerializable(page);
         if (page.bounds) this.rememberCoverage(page.bounds, page.truncated);
@@ -296,6 +300,9 @@
     }
 
     ackOperations(result = {}) {
+      if (Number.isFinite(Number(result.boardRevision))) {
+        this.boardRevision = Number(result.boardRevision);
+      }
       for (const item of Array.isArray(result.results) ? result.results : []) {
         const operationId = String(item?.operationId || "");
         const pending = this.pendingOperations.get(operationId);
@@ -390,6 +397,7 @@
       this.loadedRects = [];
       this.estimatedBytes = 0;
       this.activeGeneration = null;
+      this.boardRevision = 0;
       this.lodPage = null;
     }
   }

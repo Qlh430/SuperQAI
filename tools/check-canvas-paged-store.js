@@ -13,6 +13,7 @@ const store = new CanvasPagedStore({
 });
 store.applyViewportPage({
   generation: "1",
+  boardRevision: 1,
   bounds: { left: -100, top: -100, right: 500, bottom: 500 },
   mode: "detail",
   nodes: [node("a", 0), node("b", 100), node("c", 200, { futureField: { keep: true } })],
@@ -48,10 +49,12 @@ assert.equal(store.has("d"), true);
 assert.equal(store.has("c"), false);
 assert.equal(store.getPendingOperations().length, 1);
 store.ackOperations({
+  boardRevision: 2,
   results: [{ operationId: "move-b", status: "applied", entityRevision: 2 }],
 });
 assert.equal(store.getPendingOperations().length, 0);
 assert.equal(store.get("b").revision, 2);
+assert.equal(store.boardRevision, 2);
 
 const staleApplied = store.applyViewportPage({
   generation: "1",
