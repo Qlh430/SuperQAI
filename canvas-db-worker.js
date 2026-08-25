@@ -956,6 +956,25 @@ const handlers = {
     }
   },
 
+  deleteBoardPermanently({ boardId } = {}) {
+    const board = boardRow(boardId);
+    if (!board.deleted_at) {
+      throw codedError(
+        "board_not_trashed",
+        `Canvas board must be in trash before permanent deletion: ${board.external_id}`,
+      );
+    }
+    database.exec("BEGIN IMMEDIATE");
+    try {
+      removeBoardStorage(board.pk);
+      database.exec("COMMIT");
+      return { id: board.external_id, permanentlyDeleted: true };
+    } catch (error) {
+      try { database.exec("ROLLBACK"); } catch {}
+      throw error;
+    }
+  },
+
   close() {
     if (!database) return { closed: true };
     database.exec("PRAGMA wal_checkpoint(TRUNCATE)");

@@ -132,11 +132,22 @@ function createCanvasCommandService({ repository } = {}) {
     }
   }
 
+  async function deletePermanently(boardId) {
+    const id = requiredText(boardId, "boardId");
+    try {
+      return await repository.deleteBoardPermanently({ boardId: id });
+    } catch (error) {
+      if (error?.code === "board_not_trashed") error.status = 409;
+      throw mapCommandError(error);
+    }
+  }
+
   return {
     createBoard,
     apply,
     trash: (boardId, operationId) => setTrashState(boardId, operationId, true),
     restore: (boardId, operationId) => setTrashState(boardId, operationId, false),
+    deletePermanently,
   };
 }
 

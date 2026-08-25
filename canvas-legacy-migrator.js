@@ -109,6 +109,9 @@ function createCanvasLegacyMigrator({
       createdAt: String(board?.createdAt || ""),
       updatedAt: String(board?.updatedAt || ""),
       deletedAt: String(board?.deletedAt || ""),
+      viewport: board?.viewport && typeof board.viewport === "object"
+        ? { ...board.viewport }
+        : { x: 0, y: 0, scale: 1 },
       nodeCount: Array.isArray(board?.nodes) ? board.nodes.length : 0,
       connectionCount: Array.isArray(board?.connections) ? board.connections.length : 0,
     })).filter((board) => board.id);

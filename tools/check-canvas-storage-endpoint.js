@@ -189,6 +189,21 @@ async function waitFor(port, pathname, predicate, diagnostics) {
     });
     assert.equal(restored.status, 200);
     assert.equal(restored.data.deletedAt, "");
+
+    const trashedForDeletion = await requestJson(port, "/api/canvas/boards/new-endpoint/trash", {
+      method: "POST",
+      body: { operationId: "trash-new-permanently" },
+    });
+    assert.equal(trashedForDeletion.status, 200);
+    const permanentlyDeleted = await requestJson(port, "/api/canvas/boards/new-endpoint/permanent", {
+      method: "DELETE",
+    });
+    assert.equal(permanentlyDeleted.status, 200);
+    assert.equal(permanentlyDeleted.data.id, "new-endpoint");
+    assert.equal(permanentlyDeleted.data.permanentlyDeleted, true);
+    const afterPermanentDelete = await requestJson(port, "/api/canvas/boards");
+    assert.equal(afterPermanentDelete.data.boards.some((board) => board.id === "new-endpoint"), false);
+    assert.equal(afterPermanentDelete.data.trash.some((board) => board.id === "new-endpoint"), false);
     assert.equal(fs.existsSync(databaseFile), true);
   } finally {
     if (child.exitCode === null) {

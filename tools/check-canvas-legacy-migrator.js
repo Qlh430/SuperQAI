@@ -92,6 +92,7 @@ const {
       ["legacy-a", 2, 1],
       ["legacy-b", 0, 0],
     ]);
+    assert.deepEqual(summaries[0].viewport, sourceBoards[0].viewport);
     await assert.rejects(
       () => failingMigrator.ensureMigrated("legacy-a", (item) => progress.push(item)),
       (error) => error.code === "injected_migration_failure",

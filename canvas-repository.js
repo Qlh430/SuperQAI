@@ -132,6 +132,10 @@ function createCanvasRepository({
     return invoke("setBoardTrashState", input);
   }
 
+  function deleteBoardPermanently(input) {
+    return invoke("deleteBoardPermanently", input);
+  }
+
   function close() {
     if (closePromise) return closePromise;
     closePromise = (async () => {
@@ -165,6 +169,7 @@ function createCanvasRepository({
     activateImportedBoard,
     failLegacyImport,
     setBoardTrashState,
+    deleteBoardPermanently,
     invoke,
     close,
   };
