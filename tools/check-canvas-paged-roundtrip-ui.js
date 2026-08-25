@@ -210,7 +210,14 @@ async function openBoard(page) {
     console.log("Canvas paged migration and round-trip UI checks passed.");
   } finally {
     await browser?.close();
-    if (child.exitCode === null) child.kill();
+    if (child.exitCode === null) {
+      child.kill("SIGTERM");
+      await new Promise((resolve) => child.once("exit", resolve));
+    }
+    const resolved = path.resolve(directory);
+    if (resolved.startsWith(path.resolve(os.tmpdir()) + path.sep)) {
+      fs.rmSync(resolved, { recursive: true, force: true });
+    }
   }
 })().catch((error) => {
   console.error(error);

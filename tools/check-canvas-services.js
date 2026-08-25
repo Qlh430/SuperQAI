@@ -26,12 +26,25 @@ const { createCanvasCommandService } = require("../canvas-command-service");
   });
 
   let legacyActive = false;
+  let fullMetadataReads = 0;
+  let stateReads = 0;
   const calls = [];
   const repository = {
     async listBoards() {
       return [{ id: "active", title: "Active", migrationState: "active", deletedAt: "" }];
     },
     async getBoardMeta(boardId) {
+      fullMetadataReads += 1;
+      if (boardId === "active") return { id: "active", revision: 2, migrationState: "active", nodeCount: 50_000 };
+      if (boardId === "legacy" && legacyActive) {
+        return { id: "legacy", revision: 0, migrationState: "active", nodeCount: 2 };
+      }
+      const error = new Error("missing");
+      error.code = "board_not_found";
+      throw error;
+    },
+    async getBoardState(boardId) {
+      stateReads += 1;
       if (boardId === "active") return { id: "active", revision: 2, migrationState: "active" };
       if (boardId === "legacy" && legacyActive) {
         return { id: "legacy", revision: 0, migrationState: "active" };
@@ -112,6 +125,8 @@ const { createCanvasCommandService } = require("../canvas-command-service");
   assert.equal(page.generation, "0");
   assert.equal(calls.at(-1)[1].nodeLimit, 800);
   assert.equal(calls.at(-1)[1].connectionLimit, 1200);
+  assert.equal(fullMetadataReads, 0, "viewport readiness must not run full-board counts");
+  assert.ok(stateReads >= 3);
 
   await assert.rejects(
     () => commandService.apply("active", {

@@ -87,7 +87,9 @@ function createCanvasQueryService({ repository, migrator } = {}) {
     const id = String(boardId || "").trim();
     if (!id) throw serviceError("canvas_board_not_found", "Canvas board was not found.", 404);
     try {
-      const metadata = await repository.getBoardMeta(id);
+      const metadata = repository.getBoardState
+        ? await repository.getBoardState(id)
+        : await repository.getBoardMeta(id);
       if (metadata.migrationState === "active") return { metadata };
     } catch (error) {
       if (error?.code !== "board_not_found") throw mapQueryError(error);
@@ -117,7 +119,7 @@ function createCanvasQueryService({ repository, migrator } = {}) {
   async function getMeta(boardId) {
     const ready = await ensureReady(boardId);
     if (ready.migrating) return ready.migrating;
-    return ready.metadata;
+    return repository.getBoardMeta(String(boardId));
   }
 
   async function queryViewport(boardId, query) {

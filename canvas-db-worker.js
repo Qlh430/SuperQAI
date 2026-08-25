@@ -1,4 +1,5 @@
 const fs = require("node:fs");
+const os = require("node:os");
 const path = require("node:path");
 const { parentPort, workerData } = require("node:worker_threads");
 const { DatabaseSync } = require("node:sqlite");
@@ -18,6 +19,17 @@ const {
 if (!parentPort) throw new Error("Canvas database worker requires a parent port.");
 
 const dbPath = path.resolve(String(workerData?.dbPath || ""));
+const requestedTestFaultStage = String(workerData?.testFaultStage || "");
+const temporaryRoot = path.resolve(os.tmpdir());
+const relativeToTemporaryRoot = path.relative(temporaryRoot, dbPath);
+const isTemporaryDatabase = relativeToTemporaryRoot
+  && !relativeToTemporaryRoot.startsWith(`..${path.sep}`)
+  && relativeToTemporaryRoot !== ".."
+  && !path.isAbsolute(relativeToTemporaryRoot);
+if (requestedTestFaultStage && !isTemporaryDatabase) {
+  throw new Error("Canvas database fault injection is restricted to test temporary directories.");
+}
+const testFaultStage = isTemporaryDatabase ? requestedTestFaultStage : "";
 fs.mkdirSync(path.dirname(dbPath), { recursive: true });
 
 let database = new DatabaseSync(dbPath, {
@@ -28,6 +40,10 @@ configureDatabase(database);
 initializeSchema(database);
 
 const statementCache = new Map();
+
+function triggerTestFault(stage) {
+  if (testFaultStage === stage) process.exit(86);
+}
 
 function prepare(sql) {
   const key = String(sql);
@@ -335,16 +351,16 @@ function viewportNodeRows(boardPk, bounds, columns = "n.*") {
   return prepare(`
     SELECT ${columns}
       FROM node_spatial s
-      JOIN nodes n ON n.pk = s.pk
-     WHERE n.board_pk = ?
-       AND s.max_x >= ? AND s.min_x <= ?
+      CROSS JOIN nodes n ON n.pk = s.pk
+     WHERE s.max_x >= ? AND s.min_x <= ?
        AND s.max_y >= ? AND s.min_y <= ?
+       AND n.board_pk = ?
        AND n.x + n.width >= ? AND n.x <= ?
        AND n.y + n.height >= ? AND n.y <= ?
      ORDER BY n.z_order, n.pk
   `).all(
-    boardPk,
     bounds.left, bounds.right, bounds.top, bounds.bottom,
+    boardPk,
     bounds.left, bounds.right, bounds.top, bounds.bottom,
   );
 }
@@ -607,6 +623,10 @@ const handlers = {
     return toBoardMeta({ ...board, ...counts });
   },
 
+  getBoardState({ boardId } = {}) {
+    return toBoardMeta(boardRow(boardId));
+  },
+
   applyOperations({ boardId, baseRevision, operations } = {}) {
     const board = boardRow(boardId);
     const items = Array.isArray(operations) ? operations : [];
@@ -689,6 +709,7 @@ const handlers = {
           timestamp,
         );
       }
+      triggerTestFault("after_sql_before_commit");
       database.exec("COMMIT");
       return { boardRevision: nextRevision, results };
     } catch (error) {
@@ -703,15 +724,15 @@ const handlers = {
     const countRow = prepare(`
       SELECT COUNT(*) AS candidate_count
         FROM node_spatial s
-        JOIN nodes n ON n.pk = s.pk
-       WHERE n.board_pk = ?
-         AND s.max_x >= ? AND s.min_x <= ?
+        CROSS JOIN nodes n ON n.pk = s.pk
+       WHERE s.max_x >= ? AND s.min_x <= ?
          AND s.max_y >= ? AND s.min_y <= ?
+         AND n.board_pk = ?
          AND n.x + n.width >= ? AND n.x <= ?
          AND n.y + n.height >= ? AND n.y <= ?
     `).get(
-      board.pk,
       bounds.left, bounds.right, bounds.top, bounds.bottom,
+      board.pk,
       bounds.left, bounds.right, bounds.top, bounds.bottom,
     );
     const candidateCount = Number(countRow?.candidate_count || 0);
@@ -740,15 +761,14 @@ const handlers = {
     const connectionRows = prepare(`
       SELECT c.*
         FROM connection_spatial s
-        JOIN connections c ON c.pk = s.pk
-       WHERE c.board_pk = ?
-         AND s.max_x >= ? AND s.min_x <= ?
+        CROSS JOIN connections c ON c.pk = s.pk
+       WHERE s.max_x >= ? AND s.min_x <= ?
          AND s.max_y >= ? AND s.min_y <= ?
-       ORDER BY c.pk
+         AND c.board_pk = ?
        LIMIT ?
     `).all(
-      board.pk,
       bounds.left, bounds.right, bounds.top, bounds.bottom,
+      board.pk,
       connectionLimit + 1,
     );
     const truncated = visibleNodes.length > nodeLimit || connectionRows.length > connectionLimit;
@@ -829,6 +849,7 @@ const handlers = {
         String(board?.updatedAt || timestamp),
         board?.deletedAt ? String(board.deletedAt) : null,
       );
+      triggerTestFault("after_migration_begin_before_commit");
       database.exec("COMMIT");
       return toBoardMeta(boardRow(id));
     } catch (error) {
@@ -855,6 +876,7 @@ const handlers = {
         throw codedError("invalid_import_entity", `Cannot import legacy entity: ${String(entity || "")}`);
       }
       prepare("UPDATE boards SET updated_at = ? WHERE pk = ?").run(timestamp, board.pk);
+      triggerTestFault("after_import_sql_before_commit");
       database.exec("COMMIT");
       return { boardId: board.external_id, entity, imported: batch.length, offset: start };
     } catch (error) {

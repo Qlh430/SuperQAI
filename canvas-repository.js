@@ -11,11 +11,15 @@ function createCanvasRepository({
   dbPath,
   workerPath = path.join(__dirname, "canvas-db-worker.js"),
   requestTimeoutMs = 10_000,
+  testFaultStage = "",
 } = {}) {
   if (!dbPath) throw new Error("Canvas repository requires a database path.");
 
   const worker = new Worker(path.resolve(workerPath), {
-    workerData: { dbPath: path.resolve(dbPath) },
+    workerData: {
+      dbPath: path.resolve(dbPath),
+      testFaultStage: String(testFaultStage || ""),
+    },
   });
   const pending = new Map();
   let requestId = 0;
@@ -51,6 +55,7 @@ function createCanvasRepository({
     rejectPending(Object.assign(new Error(`Canvas repository worker exited with code ${code}.`), {
       code: "repository_worker_exit",
     }));
+    closed = true;
   });
 
   function invoke(method, params = {}) {
@@ -90,6 +95,10 @@ function createCanvasRepository({
 
   function getBoardMeta(boardId) {
     return invoke("getBoardMeta", { boardId });
+  }
+
+  function getBoardState(boardId) {
+    return invoke("getBoardState", { boardId });
   }
 
   function applyOperations(input) {
@@ -159,6 +168,7 @@ function createCanvasRepository({
     createBoard,
     listBoards,
     getBoardMeta,
+    getBoardState,
     applyOperations,
     queryViewport,
     exportBoardPage,
