@@ -167,7 +167,7 @@ function chooseLodLevel(scale, candidateCount) {
 
 function getTileAddress(level, x, y) {
   const safeLevel = Math.max(0, Math.trunc(finite(level)));
-  const tileSize = BASE_TILE_SIZE * (4 ** safeLevel);
+  const tileSize = BASE_TILE_SIZE * (2 ** safeLevel);
   return { level: safeLevel, tileX: Math.floor(finite(x) / tileSize), tileY: Math.floor(finite(y) / tileSize), tileSize };
 }
 
