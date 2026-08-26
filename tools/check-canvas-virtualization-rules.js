@@ -58,16 +58,15 @@ assert.deepEqual(
   { left: -100, top: -200, right: 300, bottom: 50 },
 );
 
-assert.equal(rules.chooseNodeLevel({ scale: 1, visibleCount: 30, pinned: false }), "full");
-assert.equal(rules.chooseNodeLevel({ scale: 0.45, visibleCount: 300, pinned: false }), "compact");
-assert.equal(rules.chooseNodeLevel({ scale: 0.2, visibleCount: 1200, pinned: false }), "overview");
-assert.equal(rules.chooseNodeLevel({ scale: 0.2, visibleCount: 1200, pinned: true }), "full");
-assert.equal(rules.chooseNodeLevel({ scale: 0.64, visibleCount: 100, previousLevel: "compact" }), "compact");
-assert.equal(rules.chooseNodeLevel({ scale: 0.65, visibleCount: 100, previousLevel: "compact" }), "full");
-assert.equal(rules.chooseNodeLevel({ scale: 0.62, visibleCount: 100, previousLevel: "full" }), "full");
-assert.equal(rules.chooseNodeLevel({ scale: 0.59, visibleCount: 100, previousLevel: "full" }), "compact");
-assert.equal(rules.chooseNodeLevel({ scale: 0.09, visibleCount: 186 }), "overview");
-assert.equal(rules.chooseNodeLevel({ scale: 0.74, visibleCount: 300 }), "compact");
-assert.equal(rules.chooseNodeLevel({ scale: 0.74, visibleCount: 801 }), "overview");
+for (const scale of [0.05, 0.11, 0.25, 0.55, 0.64, 0.65, 0.74, 1, 5]) {
+  assert.equal(rules.chooseNodeLevel({ scale, candidateCount: 94 }), "full");
+  assert.equal(rules.chooseNodeLevel({ scale, candidateCount: 800 }), "full");
+}
+assert.equal(rules.chooseNodeLevel({ scale: 0.11, candidateCount: 801 }), "scene");
+assert.equal(rules.chooseNodeLevel({ scale: 0.11, candidateCount: 50_000, pinned: true }), "full");
+
+// Keep the existing adapter input compatible while callers migrate to candidateCount.
+assert.equal(rules.chooseNodeLevel({ scale: 0.05, visibleCount: 186 }), "full");
+assert.equal(rules.chooseNodeLevel({ scale: 1, visibleCount: 801 }), "scene");
 
 console.log("Canvas virtualization rule checks passed.");

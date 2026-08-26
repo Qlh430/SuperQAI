@@ -1,8 +1,11 @@
 (function initCanvasViewportDataSource(root, factory) {
-  const api = factory();
+  const contract = typeof module === "object" && module.exports
+    ? require("./canvas-engine-contract")
+    : root?.CanvasEngineContract;
+  const api = factory(contract);
   if (typeof module === "object" && module.exports) module.exports = api;
   if (root) root.CanvasViewportDataSource = api.CanvasViewportDataSource;
-})(typeof globalThis !== "undefined" ? globalThis : this, function createViewportDataSource() {
+})(typeof globalThis !== "undefined" ? globalThis : this, function createViewportDataSource(engineContract) {
   function finite(value, fallback = 0) {
     const number = Number(value);
     return Number.isFinite(number) ? number : fallback;
@@ -43,10 +46,6 @@
       && outer.bottom >= inner.bottom;
   }
 
-  function lodBand(scale) {
-    return Math.max(0.01, finite(scale, 1)) < 0.3 ? "lod" : "detail";
-  }
-
   class CanvasViewportDataSource {
     constructor({
       fetchImpl,
@@ -55,6 +54,7 @@
       getBoardId,
       overscanFactor = 1.5,
       onStatus = () => {},
+      expectedEngineVersion = engineContract?.ENGINE_VERSION,
     } = {}) {
       if (typeof fetchImpl !== "function" || !store || typeof getBoardId !== "function") {
         throw new Error("CanvasViewportDataSource requires fetch, store, and board adapters.");
@@ -65,6 +65,7 @@
       this.getBoardId = getBoardId;
       this.overscanFactor = Math.max(1, finite(overscanFactor, 1.5));
       this.onStatus = typeof onStatus === "function" ? onStatus : () => {};
+      this.expectedEngineVersion = String(expectedEngineVersion || "");
       this.generation = 0;
       this.controller = null;
       this.controllerGeneration = "";
@@ -95,8 +96,12 @@
       if (!fulfilled || fulfilled.boardId !== boardId) return false;
       if (!containsRect(fulfilled.rect, rect)) return false;
       if (Number(this.store.boardRevision) !== Number(fulfilled.boardRevision)) return false;
-      return fulfilled.lodBand === lodBand(viewport.scale)
-        && fulfilled.mode === (this.store.lodPage ? "lod" : "detail");
+      const residentMode = this.store.scenePage
+        ? "scene"
+        : this.store.lodPage
+          ? "lod"
+          : "detail";
+      return fulfilled.mode === residentMode;
     }
 
     abortActive(emitStatus = true) {
@@ -145,6 +150,9 @@
           this.onStatus({ state: "loading", generation, error: null, progress: page.progress });
           return { ...page, generation };
         }
+        if (this.expectedEngineVersion) {
+          engineContract.assertCompatible(page?.engineVersion, this.expectedEngineVersion);
+        }
         const nextPage = { ...page, generation, bounds: rect };
         this.store.applyViewportPage(nextPage);
         this.lastFulfilled = {
@@ -152,7 +160,6 @@
           rect,
           boardRevision: Number(page.boardRevision || 0),
           mode: String(page.mode || "detail"),
-          lodBand: lodBand(viewport.scale),
         };
         this.onStatus({ state: "ready", generation, error: null });
         return nextPage;

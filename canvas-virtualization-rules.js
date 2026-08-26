@@ -90,15 +90,10 @@
     };
   }
 
-  function chooseNodeLevel({ scale, visibleCount, pinned, previousLevel } = {}) {
+  function chooseNodeLevel({ candidateCount, visibleCount, pinned } = {}) {
     if (pinned) return "full";
-    const count = finiteNumber(visibleCount);
-    if (count > 800) return "overview";
-    const value = finiteNumber(scale, 1);
-    if (value < 0.3) return "overview";
-    if (count > 220) return "compact";
-    if (previousLevel === "full" && value >= 0.6) return "full";
-    return value >= 0.65 ? "full" : "compact";
+    const count = finiteNumber(candidateCount, finiteNumber(visibleCount));
+    return count <= 800 ? "full" : "scene";
   }
 
   class GridSpatialIndex {
