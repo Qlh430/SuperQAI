@@ -11,7 +11,7 @@ const { createCanvasRepository } = require("../canvas-repository");
 
   try {
     const ready = await repository.ready();
-    assert.equal(ready.schemaVersion, 1);
+    assert.equal(ready.schemaVersion, 2);
     assert.deepEqual(await repository.quickCheck(), { ok: true, result: "ok" });
 
     await assert.rejects(

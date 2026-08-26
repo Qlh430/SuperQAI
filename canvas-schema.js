@@ -1,4 +1,4 @@
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;
 
 const SCHEMA_SQL = `
   CREATE TABLE IF NOT EXISTS boards (
@@ -7,7 +7,7 @@ const SCHEMA_SQL = `
     title TEXT NOT NULL,
     viewport_json TEXT NOT NULL,
     revision INTEGER NOT NULL DEFAULT 0,
-    schema_version INTEGER NOT NULL DEFAULT 1,
+    schema_version INTEGER NOT NULL DEFAULT 2,
     migration_state TEXT NOT NULL DEFAULT 'active'
       CHECK (migration_state IN ('pending','migrating','validated','active','failed')),
     validation_hash TEXT,
@@ -76,6 +76,15 @@ const SCHEMA_SQL = `
     UNIQUE(board_pk, node_id, resource_id)
   ) STRICT;
 
+  CREATE TABLE IF NOT EXISTS node_previews (
+    board_pk INTEGER NOT NULL REFERENCES boards(pk) ON DELETE CASCADE,
+    node_id TEXT NOT NULL,
+    source TEXT NOT NULL,
+    z_order INTEGER NOT NULL,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY(board_pk, node_id)
+  ) STRICT, WITHOUT ROWID;
+
   CREATE TABLE IF NOT EXISTS board_operations (
     pk INTEGER PRIMARY KEY,
     board_pk INTEGER NOT NULL REFERENCES boards(pk) ON DELETE CASCADE,
@@ -105,6 +114,8 @@ const SCHEMA_SQL = `
   CREATE INDEX IF NOT EXISTS connections_board_from_idx ON connections(board_pk, from_id);
   CREATE INDEX IF NOT EXISTS connections_board_to_idx ON connections(board_pk, to_id);
   CREATE INDEX IF NOT EXISTS board_operations_board_created_idx ON board_operations(board_pk, created_at);
+  CREATE INDEX IF NOT EXISTS node_previews_board_rank_idx
+    ON node_previews(board_pk, z_order DESC, updated_at DESC);
 `;
 
 function configureDatabase(db) {

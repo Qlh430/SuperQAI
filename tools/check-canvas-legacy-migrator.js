@@ -37,6 +37,7 @@ const {
           y: 40,
           width: 512,
           height: 512,
+          thumbnailSrc: "/legacy-thumb.webp",
           imageSrc: "/legacy.png",
         },
       ],
@@ -113,6 +114,10 @@ const {
     assert.equal(migrated.migrationState, "active");
     assert.equal(migrated.nodeCount, 2);
     assert.equal(migrated.connectionCount, 1);
+    assert.deepEqual(
+      (await repository.listBoards()).find((item) => item.id === "legacy-a").previewImages,
+      ["/legacy-thumb.webp"],
+    );
 
     const backups = fs.readdirSync(backupDirectory)
       .filter((name) => name.startsWith("canvas-boards.json.bak-"));
