@@ -30,6 +30,9 @@ assert.deepEqual(
 );
 
 assert.equal(rules.chooseLodLevel(1, 100), 0);
+assert.equal(rules.chooseLodLevel(0.09, 186), 0);
+assert.equal(rules.chooseLodLevel(0.05, 800), 0);
+assert.ok(rules.chooseLodLevel(0.64, 801) > 0);
 assert.ok(rules.chooseLodLevel(0.05, 50_000) > 0);
 assert.deepEqual(
   rules.getTileAddress(2, -1, 1025),

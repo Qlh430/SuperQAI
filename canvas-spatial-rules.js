@@ -42,10 +42,9 @@ function getConnectionBounds(fromRect, toRect) {
 }
 
 function chooseLodLevel(scale, candidateCount) {
-  const safeScale = Math.max(0.01, finite(scale, 1));
   const safeCount = Math.max(0, finite(candidateCount));
-  if (safeScale >= 0.3 && safeCount <= 800) return 0;
-  return Math.max(1, Math.ceil(Math.log2(Math.max(1, safeCount / 400, 0.3 / safeScale))));
+  if (safeCount <= 800) return 0;
+  return Math.max(1, Math.ceil(Math.log2(Math.max(1, safeCount / 400))));
 }
 
 function getTileAddress(level, x, y) {
