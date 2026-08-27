@@ -13,6 +13,9 @@ function fakeCanvas() {
     lineTo(...args) { commands.push(["lineTo", ...args]); },
     stroke(...args) { commands.push(["stroke", ...args]); },
     fillRect(...args) { commands.push(["fillRect", ...args]); },
+    roundRect(...args) { commands.push(["roundRect", ...args]); return this; },
+    fill(...args) { commands.push(["fill", ...args]); },
+    clip(...args) { commands.push(["clip", ...args]); },
     strokeRect(...args) { commands.push(["strokeRect", ...args]); },
     fillText(...args) { commands.push(["fillText", ...args]); },
     setTransform(...args) { commands.push(["setTransform", ...args]); },
@@ -55,7 +58,14 @@ function fakeCanvas() {
   assert.ok(Math.abs(firstNodeRect[1] - 695) < 0.001, "world coordinates should be local to viewport center");
   assert.ok(Math.abs(firstNodeRect[2] - 430) < 0.001, "world coordinates should be local to viewport center");
   assert.equal(layer.hitTest(720, 450)?.id, "tile-1");
-  assert.ok(context.commands.length <= 40, `primitive command count should be bounded: ${context.commands.length}`);
+  const labels = context.commands.filter((command) => command[0] === "fillText").map((command) => command[1]);
+  assert.ok(labels.some((label) => String(label).includes("图片")), `aggregate type is missing: ${labels}`);
+  assert.ok(labels.some((label) => String(label).includes("100")), `aggregate count is missing: ${labels}`);
+  const diagnostics = layer.getDiagnostics();
+  assert.equal(diagnostics.semanticCardCount, 2);
+  assert.equal(diagnostics.blankCardCount, 0);
+  assert.equal(diagnostics.aggregateNodeCount, 105);
+  assert.ok(context.commands.length <= 80, `primitive command count should be bounded: ${context.commands.length}`);
 
   layer.clear();
   assert.equal(layer.hitTest(720, 450), null);

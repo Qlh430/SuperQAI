@@ -2,15 +2,37 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
-const { DatabaseSync } = require("node:sqlite");
+const { execFileSync } = require("node:child_process");
 const { createCanvasRepository } = require("../canvas-repository");
+
+function runDatabaseInspection(dbPath, source) {
+  return JSON.parse(execFileSync(
+    process.execPath,
+    ["--disable-warning=ExperimentalWarning", "-e", source, dbPath],
+    { encoding: "utf8", windowsHide: true, timeout: 10_000 },
+  ));
+}
+
+async function removeTemporaryRoot(root) {
+  let lastError;
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    try {
+      fs.rmSync(root, { recursive: true, force: true });
+      return;
+    } catch (error) {
+      lastError = error;
+      await new Promise((resolve) => setTimeout(resolve, 100 * (attempt + 1)));
+    }
+  }
+  throw lastError;
+}
 
 (async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "canvas-node-previews-"));
   const dbPath = path.join(root, "canvas.db");
   let repository = createCanvasRepository({ dbPath, requestTimeoutMs: 10_000 });
   try {
-    assert.equal((await repository.ready()).schemaVersion, 2);
+    assert.equal((await repository.ready()).schemaVersion, 4);
     await repository.createBoard({ id: "preview-board", title: "Preview Board" });
     await repository.applyOperations({
       boardId: "preview-board",
@@ -49,27 +71,41 @@ const { createCanvasRepository } = require("../canvas-repository");
     assert.equal(Object.hasOwn(board, "nodes"), false);
 
     await repository.close();
-    const legacyDb = new DatabaseSync(dbPath);
-    const payloadBeforeBackfill = legacyDb
-      .prepare("SELECT external_id, payload_json FROM nodes ORDER BY pk")
-      .all();
-    legacyDb.exec("DROP TABLE node_previews; PRAGMA user_version = 1;");
-    legacyDb.close();
+    const payloadBeforeBackfill = runDatabaseInspection(dbPath, `
+      const { DatabaseSync } = require("node:sqlite");
+      const db = new DatabaseSync(process.argv[1]);
+      const payload = db.prepare("SELECT external_id, payload_json FROM nodes ORDER BY pk").all();
+      db.exec("DROP TABLE node_previews; PRAGMA user_version = 1;");
+      db.close();
+      process.stdout.write(JSON.stringify(payload));
+    `);
 
     repository = createCanvasRepository({ dbPath, requestTimeoutMs: 10_000 });
-    assert.equal((await repository.ready()).schemaVersion, 2);
+    assert.equal((await repository.ready()).schemaVersion, 4);
     listed = await repository.listBoards();
     board = listed.find((item) => item.id === "preview-board");
     assert.deepEqual(board.previewImages, ["/second-saved.webp", "/first-thumb.webp"]);
     await repository.close();
 
-    const backfilledDb = new DatabaseSync(dbPath, { readOnly: true });
-    const payloadAfterBackfill = backfilledDb
-      .prepare("SELECT external_id, payload_json FROM nodes ORDER BY pk")
-      .all();
-    assert.deepEqual(payloadAfterBackfill, payloadBeforeBackfill, "legacy preview backfill must not rewrite node payloads");
-    backfilledDb.close();
-
+    const backfilled = runDatabaseInspection(dbPath, `
+      const { DatabaseSync } = require("node:sqlite");
+      const db = new DatabaseSync(process.argv[1], { readOnly: true });
+      const value = {
+        payload: db.prepare("SELECT external_id, payload_json FROM nodes ORDER BY pk").all(),
+        previews: db.prepare("SELECT node_id, title FROM node_previews ORDER BY node_id").all(),
+      };
+      db.close();
+      process.stdout.write(JSON.stringify(value));
+    `);
+    assert.deepEqual(backfilled.payload, payloadBeforeBackfill, "legacy preview backfill must not rewrite node payloads");
+    assert.deepEqual(
+      backfilled.previews,
+      [
+        { node_id: "gallery-1", title: "图集" },
+        { node_id: "image-1", title: "图片" },
+        { node_id: "text-1", title: "keep" },
+      ],
+    );
     repository = createCanvasRepository({ dbPath, requestTimeoutMs: 10_000 });
     await repository.ready();
 
@@ -87,7 +123,7 @@ const { createCanvasRepository } = require("../canvas-repository");
     assert.deepEqual(board.previewImages, ["/first-thumb.webp"]);
   } finally {
     await repository.close().catch(() => {});
-    fs.rmSync(root, { recursive: true, force: true });
+    await removeTemporaryRoot(root);
   }
   console.log("Canvas node preview repository checks passed.");
 })().catch((error) => {

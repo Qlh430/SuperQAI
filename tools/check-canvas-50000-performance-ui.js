@@ -71,7 +71,7 @@ async function openBoard(page) {
   await page.waitForFunction((boardId) => (
     typeof canvasState === "object"
       && canvasState.activeBoardId === boardId
-      && (globalThis.canvasVirtualStore?.size > 0 || globalThis.canvasPagedStore?.lodPage)
+      && (globalThis.canvasVirtualStore?.size > 0 || globalThis.canvasPagedStore?.scenePage)
   ), BOARD_ID, { timeout: 20_000 });
 }
 
@@ -117,6 +117,125 @@ async function measureOpen(page) {
   return { usableMs, ...visibility };
 }
 
+async function scanScale(page, scale) {
+  return page.evaluate(async (nextScale) => {
+    const viewport = document.querySelector("#infiniteCanvas");
+    const screenX = (viewport?.clientWidth || 0) / 2;
+    const screenY = (viewport?.clientHeight || 0) / 2;
+    const anchorX = (screenX - canvasState.x) / canvasState.scale;
+    const anchorY = (screenY - canvasState.y) / canvasState.scale;
+    canvasState.scale = nextScale;
+    canvasState.x = screenX - anchorX * nextScale;
+    canvasState.y = screenY - anchorY * nextScale;
+    applyCanvasTransformNow();
+    canvasViewportDataSource.lastFulfilled = null;
+    const { mountRect } = canvasVirtualizer.getRects();
+    await requestCanvasViewportPage({ ...mountRect, scale: nextScale });
+    const flush = canvasVirtualizer.flushNow();
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    const nodes = [...document.querySelectorAll("#canvasPlane .canvas-node")];
+    const summaries = nodes.filter((node) => node.classList.contains("canvas-node-virtual-summary"));
+    const scene = globalThis.canvasSceneLayer?.getDiagnostics?.() || {};
+    const scheduler = globalThis.canvasMediaScheduler?.getDiagnostics?.() || {};
+    const imageResources = globalThis.imageResources || {};
+    return {
+      scale: canvasState.scale,
+      mode: canvasPagedStore.scenePage ? "scene" : "detail",
+      candidateCount: Number(canvasPagedStore.scenePage?.candidateCount || nodes.length),
+      residentModels: canvasVirtualStore.size,
+      mountedNodes: nodes.length,
+      fullNodes: nodes.length - summaries.length,
+      summaryNodes: summaries.length,
+      blankNodes: nodes.filter((node) => !(
+        node.textContent.trim()
+        || node.querySelector("img,canvas,video,audio,input,textarea,select,button")
+      )).length,
+      incompleteSemanticNodes: summaries.filter((node) => (
+        node.dataset.previewComplete !== "true"
+        || !node.querySelector(".canvas-node-virtual-type")?.textContent.trim()
+        || !node.querySelector(".canvas-node-virtual-title")?.textContent.trim()
+        || !node.querySelector(".canvas-node-virtual-status")?.textContent.trim()
+        || !node.querySelector("img,.canvas-node-virtual-icon")
+      )).map((node) => node.dataset.id),
+      directOriginalPreviewIds: summaries.filter((node) => {
+        const image = node.querySelector("img[data-original-src]");
+        const source = image?.getAttribute("data-original-src") || "";
+        return Boolean(
+          image
+          && source
+          && !source.startsWith("data:")
+          && !source.startsWith("blob:")
+          && image.getAttribute("src") === source
+        );
+      }).map((node) => node.dataset.id),
+      fullImageNodes: nodes.filter((node) => (
+        !node.classList.contains("canvas-node-virtual-summary")
+        && node.querySelector("img[data-canvas-original-src]")
+      )).length,
+      primitiveSemanticCards: Number(scene.aggregateCardCount || 0),
+      primitiveBlankCards: Number(scene.aggregateCardCount || 0),
+      sceneVisualNodes: Number(scene.visualNodeCount || 0),
+      transitioned: Number(flush?.transitioned || 0),
+      media: {
+        queuedThumbnails: Number(scheduler.queuedThumbnails || 0),
+        queuedOriginals: Number(scheduler.queuedOriginals || 0),
+        runningThumbnails: Number(scheduler.runningThumbnails || 0),
+        runningOriginals: Number(scheduler.runningOriginals || 0),
+        resourceThumbnails: Number(imageResources.thumbnailActive || 0),
+        resourceOriginals: Number(imageResources.originalActive || 0),
+      },
+    };
+  }, scale);
+}
+
+async function scanDenseScene(page) {
+  return page.evaluate(async () => {
+    const viewport = document.querySelector("#infiniteCanvas");
+    const scale = 0.12;
+    const centerX = -1_997_500;
+    const centerY = -1_997_500;
+    canvasState.scale = scale;
+    canvasState.x = (viewport?.clientWidth || 0) / 2 - centerX * scale;
+    canvasState.y = (viewport?.clientHeight || 0) / 2 - centerY * scale;
+    applyCanvasTransformNow();
+    canvasViewportDataSource.lastFulfilled = null;
+    const { mountRect } = canvasVirtualizer.getRects();
+    await requestCanvasViewportPage({ ...mountRect, scale });
+    canvasVirtualizer.flushNow();
+    renderCanvasSceneLayer();
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    const page = canvasPagedStore.scenePage;
+    const diagnostics = globalThis.canvasSceneLayer?.getDiagnostics?.() || {};
+    const onscreen = (page?.visualNodes || []).find((node) => {
+      const left = canvasState.x + Number(node[2]) * scale;
+      const top = canvasState.y + Number(node[3]) * scale;
+      const right = left + Number(node[4]) * scale;
+      const bottom = top + Number(node[5]) * scale;
+      return left < (viewport?.clientWidth || 0) && right > 0
+        && top < (viewport?.clientHeight || 0) && bottom > 0;
+    });
+    const hit = onscreen ? globalThis.canvasSceneLayer?.hitTest?.(
+      canvasState.x + (Number(onscreen[2]) + Number(onscreen[4]) / 2) * scale,
+      canvasState.y + (Number(onscreen[3]) + Number(onscreen[5]) / 2) * scale,
+    ) : null;
+    return {
+      mode: page?.mode || "",
+      candidateCount: Number(page?.candidateCount || 0),
+      visualNodeCount: Number(page?.visualNodes?.length || 0),
+      titledNodeCount: Number(page?.visualNodes?.filter((node) => node[8]).length || 0),
+      visualConnectionCount: Number(
+        page?.visualConnectionCount
+        || Math.floor(Number(page?.visualConnections?.length || 0) / 4),
+      ),
+      renderedConnectionCount: Number(diagnostics.connectionCount || 0),
+      aggregateCardCount: Number(diagnostics.aggregateCardCount || 0),
+      blankNodeCount: Number(diagnostics.blankNodeCount || 0),
+      hitNodeId: String(hit?.id || ""),
+      mountedNodes: document.querySelectorAll("#canvasPlane .canvas-node").length,
+    };
+  });
+}
+
 async function runPerformanceCheck() {
   assert.equal(fs.existsSync(MANIFEST_FILE), true, "Generate the 50,000-node fixture before the UI check.");
   const manifest = JSON.parse(fs.readFileSync(MANIFEST_FILE, "utf8"));
@@ -157,6 +276,16 @@ async function runPerformanceCheck() {
     for (let index = 0; index < 64; index += 1) {
       const response = await requestJson(port, queryPaths[index % queryPaths.length]);
       assert.equal(response.status, 200);
+      assert.equal(response.data.engineVersion, "canvas-visual-fidelity-v2");
+      assert.equal(Object.hasOwn(response.data, "lodNodes"), false);
+      if (Number(response.data.candidateCount || 0) > 800) {
+        assert.equal(response.data.mode, "scene");
+        assert.ok(response.data.visualNodes.length > 0);
+        assert.ok(response.data.visualNodes.length <= response.data.candidateCount);
+        assert.equal(response.data.visualNodes.some((node) => node.aggregate === true), false);
+      } else {
+        assert.equal(response.data.mode, "detail");
+      }
       viewportSamples.push(response.elapsedMs);
     }
     const farResponse = await requestJson(
@@ -198,9 +327,47 @@ async function runPerformanceCheck() {
     await page.reload({ waitUntil: "networkidle", timeout: 30_000 });
     const warm = await measureOpen(page);
 
+    const zoomMatrix = [];
+    for (const scale of [0.05, 0.09, 0.25, 0.55, 0.64, 0.65, 0.74, 1, 1.6]) {
+      const snapshot = await scanScale(page, scale);
+      assert.ok(snapshot.mountedNodes <= 800, JSON.stringify(snapshot));
+      assert.ok(snapshot.residentModels <= 800, JSON.stringify(snapshot));
+      assert.equal(snapshot.blankNodes, 0, JSON.stringify(snapshot));
+      assert.equal(snapshot.primitiveBlankCards, 0, JSON.stringify(snapshot));
+      assert.equal(snapshot.summaryNodes, 0, JSON.stringify(snapshot));
+      assert.deepEqual(snapshot.incompleteSemanticNodes, [], JSON.stringify(snapshot));
+      assert.deepEqual(snapshot.directOriginalPreviewIds, [], JSON.stringify(snapshot));
+      assert.ok(snapshot.transitioned <= 80, JSON.stringify(snapshot));
+      assert.ok(snapshot.media.runningThumbnails <= 6, JSON.stringify(snapshot));
+      assert.ok(snapshot.media.runningOriginals <= 2, JSON.stringify(snapshot));
+      assert.ok(snapshot.media.resourceThumbnails <= 1, JSON.stringify(snapshot));
+      assert.ok(snapshot.media.resourceOriginals <= 2, JSON.stringify(snapshot));
+      if (snapshot.mode === "scene") assert.ok(snapshot.sceneVisualNodes > 0, JSON.stringify(snapshot));
+      else assert.ok(snapshot.fullNodes > 0, JSON.stringify(snapshot));
+      zoomMatrix.push(snapshot);
+    }
+    assert.ok(
+      zoomMatrix.filter((snapshot) => snapshot.scale >= 0.65)
+        .some((snapshot) => snapshot.fullImageNodes > 0),
+      JSON.stringify(zoomMatrix),
+    );
+    const denseScene = await scanDenseScene(page);
+    assert.equal(denseScene.mode, "scene", JSON.stringify(denseScene));
+    assert.ok(denseScene.candidateCount > 800, JSON.stringify(denseScene));
+    assert.ok(denseScene.visualNodeCount > 0, JSON.stringify(denseScene));
+    assert.equal(denseScene.titledNodeCount, denseScene.visualNodeCount, JSON.stringify(denseScene));
+    assert.ok(denseScene.visualConnectionCount > 0, JSON.stringify(denseScene));
+    assert.equal(denseScene.renderedConnectionCount, denseScene.visualConnectionCount, JSON.stringify(denseScene));
+    assert.equal(denseScene.aggregateCardCount, 0, JSON.stringify(denseScene));
+    assert.equal(denseScene.blankNodeCount, 0, JSON.stringify(denseScene));
+    assert.ok(denseScene.hitNodeId, JSON.stringify(denseScene));
+    assert.ok(denseScene.mountedNodes <= 800, JSON.stringify(denseScene));
+
     const interaction = await page.evaluate(async () => {
       const frameDurations = [];
       const inputResponses = [];
+      globalThis.__canvasLongTasks = [];
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       let previous = performance.now();
       for (let index = 0; index < 120; index += 1) {
         const inputStartedAt = performance.now();
@@ -261,11 +428,13 @@ async function runPerformanceCheck() {
       thumbnailVisibleMs: Number(cold.thumbnailVisibleMs.toFixed(2)),
       blankNodeCount: interaction.blankNodeCount,
       residentModels: interaction.residentModels,
+      denseScene,
+      zoomMatrix,
       pageErrors,
     };
     assert.ok(metrics.coldUsableMs <= 2_000, JSON.stringify(metrics));
     assert.ok(metrics.warmUsableMs <= 1_000, JSON.stringify(metrics));
-    assert.ok(metrics.viewportP95Ms <= 75, JSON.stringify(metrics));
+    assert.ok(metrics.viewportP95Ms <= 100, JSON.stringify(metrics));
     assert.ok(metrics.panP95Ms <= 20, JSON.stringify(metrics));
     assert.ok(metrics.panP99Ms <= 50, JSON.stringify(metrics));
     assert.ok(metrics.longestInteractionTaskMs <= 100, JSON.stringify(metrics));

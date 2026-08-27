@@ -180,6 +180,13 @@ async function openBoard(page) {
       scheduleCanvasSave();
       await flushCanvasOperations();
     }, { nodeId: FAR_NODE_ID, text: EDITED_TEXT });
+    const metaAfterEdit = await requestJson(port, `/api/canvas/boards/${BOARD_ID}/meta`);
+    assert.equal(metaAfterEdit.status, 200);
+    assert.equal(
+      metaAfterEdit.data.connectionCount,
+      legacyBoard.connections.length,
+      "saving a paged viewport deleted a connection whose remote endpoint was not resident",
+    );
     assert.ok(operationBodies.length >= 1, "editing should send an incremental operation batch");
     operationBodies.forEach((body) => {
       assert.equal(body.board, undefined);

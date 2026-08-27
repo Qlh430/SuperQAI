@@ -1,8 +1,11 @@
 (function initCanvasPrimitiveLayer(root, factory) {
-  const api = factory();
+  const previewRules = typeof module === "object" && module.exports
+    ? require("./canvas-preview-rules")
+    : root?.CanvasPreviewRules;
+  const api = factory(previewRules);
   if (typeof module === "object" && module.exports) module.exports = api;
   if (root) root.CanvasPrimitiveLayer = api.CanvasPrimitiveLayer;
-})(typeof globalThis !== "undefined" ? globalThis : this, function createCanvasPrimitiveLayer() {
+})(typeof globalThis !== "undefined" ? globalThis : this, function createCanvasPrimitiveLayer(previewRules) {
   function finite(value, fallback = 0) {
     const number = Number(value);
     return Number.isFinite(number) ? number : fallback;
@@ -43,6 +46,9 @@
       this.height = 0;
       this.hitRegions = [];
       this.lastRenderCount = 0;
+      this.semanticCardCount = 0;
+      this.blankCardCount = 0;
+      this.aggregateNodeCount = 0;
     }
 
     resize(width, height) {
@@ -64,6 +70,9 @@
       this.context.clearRect(0, 0, this.width, this.height);
       this.hitRegions = [];
       this.lastRenderCount = 0;
+      this.semanticCardCount = 0;
+      this.blankCardCount = 0;
+      this.aggregateNodeCount = 0;
     }
 
     toScreen(x, y, transform, originX, originY) {
@@ -95,18 +104,50 @@
       const width = Math.max(2, bottomRight.x - topLeft.x);
       const height = Math.max(2, bottomRight.y - topLeft.y);
       const count = Math.max(0, Math.trunc(finite(item.count ?? item.nodeCount, 0)));
+      const descriptor = previewRules?.describeAggregate?.(item) || {
+        typeLabel: "节点",
+        title: "节点区域",
+        status: `${count || 1} 个节点`,
+        icon: "节",
+      };
       const context = this.context;
-      context.fillStyle = "rgba(93, 109, 255, 0.20)";
+      context.fillStyle = "rgba(18, 24, 38, 0.88)";
       context.fillRect(topLeft.x, topLeft.y, width, height);
-      context.strokeStyle = "rgba(93, 109, 255, 0.72)";
+      context.strokeStyle = "rgba(126, 146, 255, 0.88)";
       context.lineWidth = 1;
       context.strokeRect?.(topLeft.x, topLeft.y, width, height);
-      const typeCounts = item.typeCounts && typeof item.typeCounts === "object" ? item.typeCounts : {};
-      const dominantType = Object.entries(typeCounts)
-        .sort((left, right) => Number(right[1]) - Number(left[1]))[0]?.[0] || "node";
-      context.fillStyle = "rgba(28, 36, 64, 0.82)";
-      context.font = "11px system-ui, sans-serif";
-      context.fillText(`${count || 1} · ${dominantType}`, topLeft.x + 6, topLeft.y + 15);
+      const safeWidth = Math.max(0, width - 12);
+      const hasSemantics = Boolean(
+        descriptor.icon
+        || descriptor.typeLabel
+        || descriptor.title
+        || descriptor.status
+        || count,
+      );
+      if (hasSemantics) this.semanticCardCount += 1;
+      else this.blankCardCount += 1;
+      this.aggregateNodeCount += count;
+      context.save?.();
+      context.beginPath?.();
+      context.rect?.(topLeft.x, topLeft.y, width, height);
+      context.clip?.();
+      context.fillStyle = "rgba(255, 255, 255, 0.96)";
+      context.font = "700 11px system-ui, sans-serif";
+      context.fillText(
+        `${descriptor.icon || "节"} ${descriptor.typeLabel || "节点"}`,
+        topLeft.x + 6,
+        topLeft.y + 15,
+        safeWidth,
+      );
+      if (height >= 32) {
+        context.font = "700 12px system-ui, sans-serif";
+        context.fillText(descriptor.title || "节点区域", topLeft.x + 6, topLeft.y + 31, safeWidth);
+      }
+      context.fillStyle = "rgba(213, 221, 255, 0.92)";
+      context.font = "600 10px system-ui, sans-serif";
+      const statusY = height >= 48 ? topLeft.y + 46 : topLeft.y + Math.max(15, height - 5);
+      context.fillText(descriptor.status || `${count || 1} 个节点`, topLeft.x + 6, statusY, safeWidth);
+      context.restore?.();
       this.hitRegions.push({
         id: aggregateId(item, index),
         item,
@@ -149,6 +190,9 @@
         height: this.height,
         hitRegionCount: this.hitRegions.length,
         lastRenderCount: this.lastRenderCount,
+        semanticCardCount: this.semanticCardCount,
+        blankCardCount: this.blankCardCount,
+        aggregateNodeCount: this.aggregateNodeCount,
       };
     }
   }

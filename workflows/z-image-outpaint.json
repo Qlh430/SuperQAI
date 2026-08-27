@@ -1,0 +1,393 @@
+{
+  "3": {
+    "inputs": {
+      "clip_name": "qwen_3_4b.safetensors",
+      "type": "lumina2",
+      "device": "default"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": "加载CLIP"
+    }
+  },
+  "5": {
+    "inputs": {
+      "vae_name": "z_image_vae.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "加载VAE"
+    }
+  },
+  "210": {
+    "inputs": {
+      "unet_name": "z_image_turbo_bf16.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "UNet加载器"
+    }
+  },
+  "356": {
+    "inputs": {
+      "text": "你是一位专业的AI图像生成提示词工程师。请详细描述这张图像的主体、前景、中景、背景、构图、视觉引导、色调、光影氛围等细节并创作出具有深度、氛围和艺术感的图像提示词。\n\n要求：中文提示词，不要出现对图像水印的描述，不要出现无关的文字和符号，不需要总结，限制在600字以内",
+      "model": "Qwen3-VL-4B-Instruct",
+      "quantization": "none",
+      "keep_model_loaded": false,
+      "temperature": 0.7,
+      "max_new_tokens": 2048,
+      "min_pixels": 200704,
+      "max_pixels": 1003520,
+      "seed": 100,
+      "attention": "sdpa",
+      "image": [
+        "562",
+        0
+      ]
+    },
+    "class_type": "Qwen3_VQA",
+    "_meta": {
+      "title": "Qwen3 VQA"
+    }
+  },
+  "357": {
+    "inputs": {
+      "text_0": "画面主体为两位身着米色系度假装的女性，坐在海边木制凉亭的藤椅上，姿态自然放松，面带微笑，彼此交谈。前景是她们脚边的编织草帽与草编手提包，包旁散落着两杯白葡萄酒与小盘点心，细节精致而生活化。中景是木制矮桌与藤椅结构，线条简洁自然，与人物服饰形成和谐统一的度假风格。背景为朦胧的海景，沙滩与海浪在柔和光线下延伸至远方，几株细叶植物点缀其间，营造出宁静的海滨氛围。构图采用三分法，人物居中偏右，视线引导自然流向右侧的海景，形成视觉延伸。视觉引导由人物的视线与桌上的酒杯共同构建，引人沉浸于对话与放松的场景。整体色调以暖米白、浅棕、沙黄为主，辅以海天的淡蓝灰，形成柔和统一的视觉基调。光影来自斜阳，柔和地洒在人物肌肤与衣物褶皱上，制造出细腻的明暗过渡，增强立体感与温暖感。氛围静谧、慵懒、浪漫，充满地中海度假风情，传递出悠闲与亲密的情感联结，富有艺术感与沉浸式体验。",
+      "text": [
+        "356",
+        0
+      ]
+    },
+    "class_type": "ShowText|pysssss",
+    "_meta": {
+      "title": "Show Text 🐍"
+    }
+  },
+  "359": {
+    "inputs": {
+      "purge_cache": true,
+      "purge_models": true,
+      "anything": [
+        "357",
+        0
+      ]
+    },
+    "class_type": "LayerUtility: PurgeVRAM V2",
+    "_meta": {
+      "title": "图层工具：清除VRAM V2"
+    }
+  },
+  "553": {
+    "inputs": {
+      "conditioning": [
+        "594",
+        0
+      ]
+    },
+    "class_type": "ConditioningZeroOut",
+    "_meta": {
+      "title": "条件零化"
+    }
+  },
+  "560": {
+    "inputs": {
+      "strength": 1,
+      "model": [
+        "661",
+        0
+      ]
+    },
+    "class_type": "DifferentialDiffusion",
+    "_meta": {
+      "title": "差异扩散DifferentialDiffusion"
+    }
+  },
+  "562": {
+    "inputs": {
+      "image": "Image (4) (1).png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "加载图像"
+    }
+  },
+  "564": {
+    "inputs": {
+      "mode": "always",
+      "volume": 0.3,
+      "file": "notify.mp3",
+      "any": [
+        "593",
+        0
+      ]
+    },
+    "class_type": "PlaySound|pysssss",
+    "_meta": {
+      "title": "PlaySound 🐍"
+    }
+  },
+  "566": {
+    "inputs": {
+      "aspect_ratio": "original",
+      "proportional_width": 1,
+      "proportional_height": 1,
+      "fit": "crop",
+      "method": "lanczos",
+      "round_to_multiple": "16",
+      "scale_to_side": "shortest",
+      "scale_to_length": 1024,
+      "background_color": "#000000",
+      "image": [
+        "562",
+        0
+      ]
+    },
+    "class_type": "LayerUtility: ImageScaleByAspectRatio V2",
+    "_meta": {
+      "title": "图层工具：按宽高比缩放 V2"
+    }
+  },
+  "576": {
+    "inputs": {
+      "seed": 9527,
+      "steps": 10,
+      "cfg": 1,
+      "sampler_name": "euler_ancestral",
+      "scheduler": "sgm_uniform",
+      "denoise": 1,
+      "model": [
+        "560",
+        0
+      ],
+      "positive": [
+        "594",
+        0
+      ],
+      "negative": [
+        "553",
+        0
+      ],
+      "latent_image": [
+        "663",
+        0
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "K采样器"
+    }
+  },
+  "579": {
+    "inputs": {
+      "samples": [
+        "576",
+        0
+      ],
+      "vae": [
+        "5",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE解码"
+    }
+  },
+  "583": {
+    "inputs": {
+      "mask_opacity": 0.5,
+      "mask_color": "299,299,299",
+      "pass_through": false,
+      "image": [
+        "595",
+        0
+      ],
+      "mask": [
+        "595",
+        1
+      ]
+    },
+    "class_type": "ImageAndMaskPreview",
+    "_meta": {
+      "title": "ImageAndMaskPreview"
+    }
+  },
+  "588": {
+    "inputs": {
+      "purge_cache": true,
+      "purge_models": true,
+      "anything": [
+        "593",
+        0
+      ]
+    },
+    "class_type": "LayerUtility: PurgeVRAM V2",
+    "_meta": {
+      "title": "图层工具：清除VRAM V2"
+    }
+  },
+  "591": {
+    "inputs": {
+      "filename_prefix": "z_image 扩展",
+      "images": [
+        "593",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "保存图像"
+    }
+  },
+  "592": {
+    "inputs": {
+      "rgthree_comparer": {
+        "images": [
+          {
+            "name": "A",
+            "selected": true,
+            "url": "/api/view?filename=rgthree.compare._temp_nybat_00001_.png&type=temp&subfolder=&rand=0.6906290036682214"
+          },
+          {
+            "name": "B",
+            "selected": true,
+            "url": "/api/view?filename=rgthree.compare._temp_nybat_00002_.png&type=temp&subfolder=&rand=0.6027698235832608"
+          }
+        ]
+      },
+      "image_a": [
+        "593",
+        0
+      ],
+      "image_b": [
+        "595",
+        0
+      ]
+    },
+    "class_type": "Image Comparer (rgthree)",
+    "_meta": {
+      "title": "Image Comparer (rgthree)"
+    }
+  },
+  "593": {
+    "inputs": {
+      "blend_overlap": 25,
+      "image1": [
+        "595",
+        0
+      ],
+      "image2": [
+        "579",
+        0
+      ],
+      "mask": [
+        "595",
+        1
+      ]
+    },
+    "class_type": "LanPaint_MaskBlend",
+    "_meta": {
+      "title": "LanPaint Mask Blend"
+    }
+  },
+  "594": {
+    "inputs": {
+      "text": [
+        "359",
+        0
+      ],
+      "clip": [
+        "3",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP文本编码"
+    }
+  },
+  "595": {
+    "inputs": {
+      "left": 200,
+      "top": 0,
+      "right": 200,
+      "bottom": 0,
+      "feathering": 100,
+      "image": [
+        "566",
+        0
+      ]
+    },
+    "class_type": "ImagePadForOutpaint",
+    "_meta": {
+      "title": "外补画板"
+    }
+  },
+  "596": {
+    "inputs": {
+      "mask": [
+        "595",
+        1
+      ]
+    },
+    "class_type": "MaskPreview",
+    "_meta": {
+      "title": "预览遮罩"
+    }
+  },
+  "661": {
+    "inputs": {
+      "strength": 1.0000000000000002,
+      "model": [
+        "210",
+        0
+      ],
+      "model_patch": [
+        "662",
+        0
+      ],
+      "vae": [
+        "5",
+        0
+      ],
+      "inpaint_image": [
+        "595",
+        0
+      ],
+      "mask": [
+        "595",
+        1
+      ]
+    },
+    "class_type": "ZImageFunControlnet",
+    "_meta": {
+      "title": "ZImageFunControlnet"
+    }
+  },
+  "662": {
+    "inputs": {
+      "name": "Z-Image-Turbo-Fun-Controlnet-Union-2.1-2601-8steps.safetensors"
+    },
+    "class_type": "ModelPatchLoader",
+    "_meta": {
+      "title": "加载模型补丁"
+    }
+  },
+  "663": {
+    "inputs": {
+      "pixels": [
+        "595",
+        0
+      ],
+      "vae": [
+        "5",
+        0
+      ]
+    },
+    "class_type": "VAEEncode",
+    "_meta": {
+      "title": "VAE编码"
+    }
+  }
+}

@@ -68,7 +68,7 @@ assert.equal(store.getMounted("a"), null);
 viewport = { ...viewport, x: 0, scale: 0.2 };
 virtualizer.schedule();
 frames.shift()();
-assert.equal(store.getMountedLevel("a"), "overview");
+assert.equal(store.getMountedLevel("a"), "full");
 
 const ensured = virtualizer.ensureMounted("b", "full");
 assert.equal(ensured.id, "b");
@@ -139,7 +139,7 @@ overviewVirtualizer.schedule();
 while (overviewFrames.length) overviewFrames.shift()();
 assert.ok(overviewStore.mountedSize > 100, "overview clustering must preserve the board's spatial shape");
 assert.ok(overviewStore.mountedSize <= 800, `overview DOM cap exceeded: ${overviewStore.mountedSize}`);
-assert.ok(overviewStore.mountedIds().every((id) => overviewStore.getMountedLevel(id) === "overview"));
+assert.ok(overviewStore.mountedIds().every((id) => overviewStore.getMountedLevel(id) === "full"));
 
 const hysteresisStore = new CanvasVirtualStore({ rules });
 hysteresisStore.load([{ id: "semantic", kind: "image", x: 0, y: 0, width: 320, height: 240 }]);
@@ -173,7 +173,7 @@ const hysteresisVirtualizer = new CanvasVirtualizer({
   now: () => 0,
 });
 hysteresisVirtualizer.flushNow();
-assert.equal(hysteresisStore.getMountedLevel("semantic"), "compact");
+assert.equal(hysteresisStore.getMountedLevel("semantic"), "full");
 hysteresisViewport = { ...hysteresisViewport, scale: 0.65 };
 hysteresisVirtualizer.flushNow();
 assert.equal(hysteresisStore.getMountedLevel("semantic"), "full");
@@ -182,12 +182,8 @@ hysteresisVirtualizer.flushNow();
 assert.equal(hysteresisStore.getMountedLevel("semantic"), "full");
 hysteresisViewport = { ...hysteresisViewport, scale: 0.59 };
 hysteresisVirtualizer.flushNow();
-assert.equal(hysteresisStore.getMountedLevel("semantic"), "compact");
-assert.ok(hysteresisReplacements.every((item) => item.oldWasPresentDuringReplace));
-failNextReplacement = true;
-hysteresisViewport = { ...hysteresisViewport, scale: 0.65 };
-hysteresisVirtualizer.flushNow();
-assert.equal(hysteresisStore.getMountedLevel("semantic"), "compact", "failed replacement must retain old content");
+assert.equal(hysteresisStore.getMountedLevel("semantic"), "full");
+assert.deepEqual(hysteresisReplacements, [], "zoom must not replace complete nodes with another representation");
 
 function createDensityVirtualizer(count) {
   const densityStore = new CanvasVirtualStore({ rules });
@@ -218,7 +214,7 @@ function createDensityVirtualizer(count) {
 const density800 = createDensityVirtualizer(800);
 density800.densityVirtualizer.flushNow();
 assert.equal(density800.densityStore.mountedSize, 800, "800 candidates must remain individual");
-assert.ok(density800.densityStore.mountedIds().every((id) => density800.densityStore.getMountedLevel(id) === "compact"));
+assert.ok(density800.densityStore.mountedIds().every((id) => density800.densityStore.getMountedLevel(id) === "full"));
 
 const density801 = createDensityVirtualizer(801);
 density801.densityVirtualizer.pin("density-801");

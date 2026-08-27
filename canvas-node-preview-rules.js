@@ -25,6 +25,31 @@
     "images",
     "outputs",
   ]);
+  const TITLE_FIELDS = Object.freeze([
+    "text",
+    "imageName",
+    "galleryTitle",
+    "groupTitle",
+    "llmPrompt",
+    "minimaxH3Prompt",
+    "prompt",
+    "mediaName",
+    "title",
+    "name",
+  ]);
+  const KIND_TITLES = Object.freeze({
+    image: "图片",
+    upload: "图片",
+    gallery: "图集",
+    group: "图片组",
+    text: "文字",
+    comfy: "ComfyUI",
+    llm: "LLM",
+    video: "视频",
+    "video-output": "视频结果",
+    audio: "音频",
+    loop: "循环",
+  });
 
   function stringValue(value) {
     if (typeof value !== "string") return "";
@@ -64,5 +89,15 @@
     return [...new Set(sources)];
   }
 
-  return { extractNodePreviewSources };
+  function extractNodeSceneTitle(node) {
+    if (!node || typeof node !== "object") return "节点";
+    for (const field of TITLE_FIELDS) {
+      const value = stringValue(node[field]).replace(/\s+/g, " ").trim();
+      if (value) return value.slice(0, 120);
+    }
+    const kind = String(node.kind || "").trim();
+    return KIND_TITLES[kind] || kind || "节点";
+  }
+
+  return { extractNodePreviewSources, extractNodeSceneTitle };
 });

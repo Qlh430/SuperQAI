@@ -76,15 +76,23 @@ store.applyViewportPage({
 store.evict();
 assert.equal(store.has("a"), true, "mounted nodes must not be evicted");
 
-const lodSize = store.size;
+const sceneSize = store.size;
 store.applyViewportPage({
   generation: "4",
-  mode: "lod",
-  lodNodes: [{ level: 4, tileX: 0, tileY: 0, count: 50000 }],
-  lodConnections: [],
+  mode: "scene",
+  visualNodes: [{ id: "scene-a", kind: "image", x: 0, y: 0, width: 100, height: 80 }],
+  visualConnections: [],
 });
-assert.ok(store.lodPage);
-assert.equal(store.size, lodSize, "LOD aggregates must not enter the detail index");
+assert.ok(store.scenePage);
+assert.equal(store.lodPage, null);
+assert.equal(store.size, sceneSize, "scene sprites must not enter the detail index");
+store.applyViewportPage({
+  generation: "5",
+  mode: "detail",
+  nodes: [node("detail-after-scene", 0)],
+  connections: [],
+});
+assert.equal(store.scenePage, null);
 
 const bytesStore = new CanvasPagedStore({
   rules,

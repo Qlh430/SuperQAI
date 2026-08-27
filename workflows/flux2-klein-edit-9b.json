@@ -1,0 +1,299 @@
+{
+  "103": {
+    "inputs": {
+      "unet_name": "flux-2-klein-9b.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader"
+  },
+  "104": {
+    "inputs": {
+      "clip_name": "qwen_3_8b.safetensors",
+      "type": "flux2",
+      "device": "default"
+    },
+    "class_type": "CLIPLoader"
+  },
+  "105": {
+    "inputs": {
+      "vae_name": "flux2-vae.safetensors"
+    },
+    "class_type": "VAELoader"
+  },
+  "110": {
+    "inputs": {
+      "text": [
+        "117",
+        0
+      ],
+      "clip": [
+        "104",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode"
+  },
+  "117": {
+    "inputs": {
+      "text": "Keep the original image unchanged except inside the mask."
+    },
+    "class_type": "CR Text"
+  },
+  "123": {
+    "inputs": {
+      "image": "flux2_klein_input.png"
+    },
+    "class_type": "LoadImage"
+  },
+  "148": {
+    "inputs": {
+      "conditioning": [
+        "110",
+        0
+      ]
+    },
+    "class_type": "ConditioningZeroOut"
+  },
+  "149": {
+    "inputs": {
+      "width": [
+        "157",
+        0
+      ],
+      "height": [
+        "157",
+        1
+      ],
+      "batch_size": 1
+    },
+    "class_type": "EmptyFlux2LatentImage"
+  },
+  "150": {
+    "inputs": {
+      "sampler_name": "euler"
+    },
+    "class_type": "KSamplerSelect"
+  },
+  "151": {
+    "inputs": {
+      "steps": 8,
+      "width": [
+        "157",
+        0
+      ],
+      "height": [
+        "157",
+        1
+      ]
+    },
+    "class_type": "Flux2Scheduler"
+  },
+  "152": {
+    "inputs": {
+      "noise": [
+        "159",
+        0
+      ],
+      "guider": [
+        "154",
+        0
+      ],
+      "sampler": [
+        "150",
+        0
+      ],
+      "sigmas": [
+        "151",
+        0
+      ],
+      "latent_image": [
+        "149",
+        0
+      ]
+    },
+    "class_type": "SamplerCustomAdvanced"
+  },
+  "153": {
+    "inputs": {
+      "pixels": [
+        "167",
+        1
+      ],
+      "vae": [
+        "105",
+        0
+      ]
+    },
+    "class_type": "VAEEncode"
+  },
+  "154": {
+    "inputs": {
+      "cfg": 1,
+      "model": [
+        "103",
+        0
+      ],
+      "positive": [
+        "156",
+        0
+      ],
+      "negative": [
+        "155",
+        0
+      ]
+    },
+    "class_type": "CFGGuider"
+  },
+  "155": {
+    "inputs": {
+      "conditioning": [
+        "148",
+        0
+      ],
+      "latent": [
+        "153",
+        0
+      ]
+    },
+    "class_type": "ReferenceLatent"
+  },
+  "156": {
+    "inputs": {
+      "conditioning": [
+        "110",
+        0
+      ],
+      "latent": [
+        "153",
+        0
+      ]
+    },
+    "class_type": "ReferenceLatent"
+  },
+  "157": {
+    "inputs": {
+      "image": [
+        "167",
+        1
+      ]
+    },
+    "class_type": "GetImageSize"
+  },
+  "158": {
+    "inputs": {
+      "samples": [
+        "152",
+        0
+      ],
+      "vae": [
+        "105",
+        0
+      ]
+    },
+    "class_type": "VAEDecode"
+  },
+  "159": {
+    "inputs": {
+      "noise_seed": 244799124108369
+    },
+    "class_type": "RandomNoise"
+  },
+  "160": {
+    "inputs": {
+      "images": [
+        "167",
+        1
+      ]
+    },
+    "class_type": "PreviewImage"
+  },
+  "163": {
+    "inputs": {
+      "images": [
+        "158",
+        0
+      ]
+    },
+    "class_type": "PreviewImage"
+  },
+  "164": {
+    "inputs": {
+      "rgthree_comparer": {
+        "images": [
+          {
+            "name": "A",
+            "selected": true,
+            "url": "/api/view?filename=rgthree.compare._temp_pqybs_00001_.png&type=temp&subfolder=&rand=0.49813001842343263"
+          },
+          {
+            "name": "B",
+            "selected": true,
+            "url": "/api/view?filename=rgthree.compare._temp_pqybs_00002_.png&type=temp&subfolder=&rand=0.23635139220244716"
+          }
+        ]
+      },
+      "image_a": [
+        "123",
+        0
+      ],
+      "image_b": [
+        "168",
+        0
+      ]
+    },
+    "class_type": "Image Comparer (rgthree)"
+  },
+  "165": {
+    "inputs": {
+      "filename_prefix": "ComfyUI",
+      "images": [
+        "168",
+        0
+      ]
+    },
+    "class_type": "SaveImage"
+  },
+  "167": {
+    "inputs": {
+      "context_expand_pixels": 20,
+      "context_expand_factor": 1,
+      "fill_mask_holes": true,
+      "blur_mask_pixels": 16,
+      "invert_mask": false,
+      "blend_pixels": 16,
+      "rescale_algorithm": "bicubic",
+      "mode": "ranged size",
+      "force_width": 1536,
+      "force_height": 1536,
+      "rescale_factor": 1,
+      "min_width": 512,
+      "min_height": 512,
+      "max_width": 1536,
+      "max_height": 1536,
+      "padding": 32,
+      "image": [
+        "123",
+        0
+      ],
+      "mask": [
+        "123",
+        1
+      ]
+    },
+    "class_type": "InpaintCrop"
+  },
+  "168": {
+    "inputs": {
+      "rescale_algorithm": "bislerp",
+      "stitch": [
+        "167",
+        0
+      ],
+      "inpainted_image": [
+        "158",
+        0
+      ]
+    },
+    "class_type": "InpaintStitch"
+  }
+}

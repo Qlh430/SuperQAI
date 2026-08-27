@@ -9,12 +9,13 @@ const {
   readSchemaVersion,
 } = require("./canvas-schema");
 const {
-  chooseLodLevel,
   getConnectionBounds,
-  getTileAddress,
   normalizeBounds,
   padRtreeBounds,
 } = require("./canvas-spatial-rules");
+const { extractNodePreviewSources, extractNodeSceneTitle } = require("./canvas-node-preview-rules");
+const { ENGINE_VERSION } = require("./canvas-engine-contract");
+const { selectVisibleSprites } = require("./canvas-scene-rules");
 
 if (!parentPort) throw new Error("Canvas database worker requires a parent port.");
 
@@ -100,6 +101,7 @@ function boardRow(boardId) {
 }
 
 function toBoardMeta(row) {
+  const previewImages = parseJson(row.preview_images_json, []);
   return {
     id: row.external_id,
     title: row.title,
@@ -113,7 +115,65 @@ function toBoardMeta(row) {
     deletedAt: row.deleted_at || "",
     nodeCount: Number(row.node_count || 0),
     connectionCount: Number(row.connection_count || 0),
+    previewImages: Array.isArray(previewImages)
+      ? [...new Set(previewImages.map(String).filter(Boolean))].slice(0, 4)
+      : [],
   };
+}
+
+function syncNodePreview(boardPk, nodeId, zOrder, payload, updatedAt) {
+  const source = extractNodePreviewSources(payload)[0] || "";
+  const title = extractNodeSceneTitle(payload);
+  prepare(`
+    INSERT INTO node_previews(board_pk, node_id, source, title, z_order, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?)
+    ON CONFLICT(board_pk, node_id) DO UPDATE SET
+      source = excluded.source,
+      title = excluded.title,
+      z_order = excluded.z_order,
+      updated_at = excluded.updated_at
+  `).run(
+    boardPk,
+    String(nodeId),
+    source,
+    title,
+    Math.trunc(Number(zOrder) || 0),
+    String(updatedAt || nowIso()),
+  );
+}
+
+function backfillNodePreviews(batchSize = 500) {
+  let lastPk = 0;
+  let backfilled = 0;
+  while (true) {
+    const rows = prepare(`
+      SELECT n.pk, n.board_pk, n.external_id, n.z_order, n.payload_json, n.updated_at
+        FROM nodes n
+        LEFT JOIN node_previews p
+          ON p.board_pk = n.board_pk AND p.node_id = n.external_id
+       WHERE n.pk > ? AND (p.node_id IS NULL OR p.title = '')
+       ORDER BY n.pk
+       LIMIT ?
+    `).all(lastPk, Math.max(1, Math.trunc(Number(batchSize) || 500)));
+    if (!rows.length) break;
+    database.exec("BEGIN IMMEDIATE");
+    try {
+      rows.forEach((row) => syncNodePreview(
+        row.board_pk,
+        row.external_id,
+        row.z_order,
+        parseJson(row.payload_json, {}),
+        row.updated_at,
+      ));
+      database.exec("COMMIT");
+    } catch (error) {
+      try { database.exec("ROLLBACK"); } catch {}
+      throw error;
+    }
+    backfilled += rows.length;
+    lastPk = Number(rows[rows.length - 1].pk);
+  }
+  return backfilled;
 }
 
 function nodeRect(row) {
@@ -153,6 +213,68 @@ function refreshConnectionSpatial(boardPk, connectionRow) {
     );
   }
   writeSpatial("connection_spatial", connectionRow.pk, getConnectionBounds(nodeRect(from), nodeRect(to)));
+  writeConnectionGeometry(connectionRow.pk, from, to);
+}
+
+function writeConnectionGeometry(connectionPk, from, to) {
+  prepare(`
+    INSERT INTO connection_geometry(connection_pk, from_x, from_y, to_x, to_y)
+    VALUES (?, ?, ?, ?, ?)
+    ON CONFLICT(connection_pk) DO UPDATE SET
+      from_x = excluded.from_x,
+      from_y = excluded.from_y,
+      to_x = excluded.to_x,
+      to_y = excluded.to_y
+  `).run(
+    connectionPk,
+    Number(from.x) + Number(from.width),
+    Number(from.y) + Number(from.height) * 0.5,
+    Number(to.x),
+    Number(to.y) + Number(to.height) * 0.5,
+  );
+}
+
+function backfillConnectionGeometry(batchSize = 500) {
+  let lastPk = 0;
+  let backfilled = 0;
+  while (true) {
+    const rows = prepare(`
+      SELECT c.pk,
+             source.x + source.width AS from_x,
+             source.y + source.height * 0.5 AS from_y,
+             target.x AS to_x,
+             target.y + target.height * 0.5 AS to_y
+        FROM connections c
+        JOIN nodes source ON source.board_pk = c.board_pk AND source.external_id = c.from_id
+        JOIN nodes target ON target.board_pk = c.board_pk AND target.external_id = c.to_id
+        LEFT JOIN connection_geometry geometry ON geometry.connection_pk = c.pk
+       WHERE c.pk > ? AND geometry.connection_pk IS NULL
+       ORDER BY c.pk
+       LIMIT ?
+    `).all(lastPk, Math.max(1, Math.trunc(Number(batchSize) || 500)));
+    if (!rows.length) break;
+    database.exec("BEGIN IMMEDIATE");
+    try {
+      const insert = prepare(`
+        INSERT INTO connection_geometry(connection_pk, from_x, from_y, to_x, to_y)
+        VALUES (?, ?, ?, ?, ?)
+      `);
+      rows.forEach((row) => insert.run(
+        row.pk,
+        Number(row.from_x),
+        Number(row.from_y),
+        Number(row.to_x),
+        Number(row.to_y),
+      ));
+      database.exec("COMMIT");
+    } catch (error) {
+      try { database.exec("ROLLBACK"); } catch {}
+      throw error;
+    }
+    backfilled += rows.length;
+    lastPk = Number(rows[rows.length - 1].pk);
+  }
+  return backfilled;
 }
 
 function refreshAttachedConnections(boardPk, nodeId) {
@@ -164,7 +286,7 @@ function refreshAttachedConnections(boardPk, nodeId) {
   for (const row of rows) refreshConnectionSpatial(boardPk, row);
 }
 
-function upsertNode(boardPk, operation, timestamp, lodRevision) {
+function upsertNode(boardPk, operation, timestamp) {
   const after = operation.after;
   if (!after || typeof after !== "object") {
     throw codedError("invalid_operation", "node.upsert requires an after payload.");
@@ -186,7 +308,6 @@ function upsertNode(boardPk, operation, timestamp, lodRevision) {
   const kind = String(after.kind || existing?.kind || "text");
   const revision = Number(existing?.revision || 0) + 1;
   const payload = { ...parseJson(existing?.payload_json, {}), ...after, id, kind, x, y, width, height };
-  if (existing) changeLodContribution(boardPk, existing, -1, lodRevision);
   let pk;
   if (existing) {
     prepare(`
@@ -209,7 +330,7 @@ function upsertNode(boardPk, operation, timestamp, lodRevision) {
     pk = Number(inserted.lastInsertRowid);
   }
   writeSpatial("node_spatial", pk, { left: x, top: y, right: x + width, bottom: y + height });
-  changeLodContribution(boardPk, { external_id: id, kind, x, y, width, height }, 1, lodRevision);
+  syncNodePreview(boardPk, id, zOrder, payload, timestamp);
   refreshAttachedConnections(boardPk, id);
   return { entityId: id, entityRevision: revision };
 }
@@ -219,7 +340,7 @@ function deleteConnectionRow(row) {
   prepare("DELETE FROM connections WHERE pk = ?").run(row.pk);
 }
 
-function deleteNode(boardPk, operation, lodRevision) {
+function deleteNode(boardPk, operation) {
   const id = requiredId(operation.entityId || operation.before?.id, "Node");
   const existing = readNode(boardPk, id);
   if (!existing) return { entityId: id, entityRevision: 0 };
@@ -228,7 +349,7 @@ function deleteNode(boardPk, operation, lodRevision) {
      WHERE board_pk = ? AND (from_id = ? OR to_id = ?)
   `).all(boardPk, id, id);
   for (const connection of connections) deleteConnectionRow(connection);
-  changeLodContribution(boardPk, existing, -1, lodRevision);
+  prepare("DELETE FROM node_previews WHERE board_pk = ? AND node_id = ?").run(boardPk, id);
   prepare("DELETE FROM node_spatial WHERE pk = ?").run(existing.pk);
   prepare("DELETE FROM nodes WHERE pk = ?").run(existing.pk);
   return { entityId: id, entityRevision: Number(existing.revision) + 1 };
@@ -279,6 +400,7 @@ function upsertConnection(boardPk, operation, timestamp) {
     pk = Number(inserted.lastInsertRowid);
   }
   writeSpatial("connection_spatial", pk, getConnectionBounds(nodeRect(from), nodeRect(to)));
+  writeConnectionGeometry(pk, from, to);
   return { entityId: id, entityRevision: revision };
 }
 
@@ -305,10 +427,10 @@ function patchBoard(board, operation, timestamp) {
   return { entityId: board.external_id, entityRevision: Number(board.revision) + 1 };
 }
 
-function applyOperation(board, operation, timestamp, nextRevision) {
+function applyOperation(board, operation, timestamp) {
   switch (String(operation.type || "")) {
-    case "node.upsert": return upsertNode(board.pk, operation, timestamp, nextRevision);
-    case "node.delete": return deleteNode(board.pk, operation, nextRevision);
+    case "node.upsert": return upsertNode(board.pk, operation, timestamp);
+    case "node.delete": return deleteNode(board.pk, operation);
     case "connection.upsert": return upsertConnection(board.pk, operation, timestamp);
     case "connection.delete": return deleteConnection(board.pk, operation);
     case "board.patch": return patchBoard(board, operation, timestamp);
@@ -365,124 +487,60 @@ function viewportNodeRows(boardPk, bounds, columns = "n.*") {
   );
 }
 
-const MATERIALIZED_LOD_LEVELS = 12;
-
-function changeLodContribution(boardPk, node, delta, revision) {
-  const id = String(node.external_id || node.id || "");
-  const kind = String(node.kind || "unknown");
-  const centerX = Number(node.x) + Number(node.width) / 2;
-  const centerY = Number(node.y) + Number(node.height) / 2;
-  for (let level = 1; level <= MATERIALIZED_LOD_LEVELS; level += 1) {
-    const address = getTileAddress(level, centerX, centerY);
-    const existing = prepare(`
-      SELECT node_count, bounds_json, type_counts_json, preview_ids_json
-        FROM lod_tiles
-       WHERE board_pk = ? AND level = ? AND tile_x = ? AND tile_y = ?
-    `).get(boardPk, level, address.tileX, address.tileY);
-    const count = Math.max(0, Number(existing?.node_count || 0) + delta);
-    if (count === 0) {
-      prepare(`
-        DELETE FROM lod_tiles
-         WHERE board_pk = ? AND level = ? AND tile_x = ? AND tile_y = ?
-      `).run(boardPk, level, address.tileX, address.tileY);
-      continue;
-    }
-    const typeCounts = parseJson(existing?.type_counts_json, {});
-    typeCounts[kind] = Math.max(0, Number(typeCounts[kind] || 0) + delta);
-    if (typeCounts[kind] === 0) delete typeCounts[kind];
-    const previews = parseJson(existing?.preview_ids_json, [])
-      .filter((previewId) => String(previewId) !== id);
-    if (delta > 0 && previews.length < 4) previews.push(id);
-    const bounds = {
-      left: address.tileX * address.tileSize,
-      top: address.tileY * address.tileSize,
-      right: (address.tileX + 1) * address.tileSize,
-      bottom: (address.tileY + 1) * address.tileSize,
-    };
-    prepare(`
-      INSERT INTO lod_tiles(
-        board_pk, level, tile_x, tile_y, node_count, bounds_json,
-        type_counts_json, preview_ids_json, revision
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT(board_pk, level, tile_x, tile_y) DO UPDATE SET
-        node_count = excluded.node_count,
-        bounds_json = excluded.bounds_json,
-        type_counts_json = excluded.type_counts_json,
-        preview_ids_json = excluded.preview_ids_json,
-        revision = excluded.revision
-    `).run(
-      boardPk, level, address.tileX, address.tileY, count,
-      JSON.stringify(bounds), JSON.stringify(typeCounts), JSON.stringify(previews), revision,
-    );
-  }
+function viewportVisualRows(boardPk, bounds) {
+  return prepare(`
+    SELECT n.external_id, n.z_order, n.kind, n.x, n.y, n.width, n.height,
+           COALESCE(p.source, '') AS preview_source,
+           COALESCE(p.title, n.kind) AS title
+      FROM node_spatial s
+      CROSS JOIN nodes n ON n.pk = s.pk
+      LEFT JOIN node_previews p
+        ON p.board_pk = n.board_pk AND p.node_id = n.external_id
+     WHERE s.max_x >= ? AND s.min_x <= ?
+       AND s.max_y >= ? AND s.min_y <= ?
+       AND n.board_pk = ?
+       AND n.x + n.width >= ? AND n.x <= ?
+       AND n.y + n.height >= ? AND n.y <= ?
+  `).all(
+    bounds.left, bounds.right, bounds.top, bounds.bottom,
+    boardPk,
+    bounds.left, bounds.right, bounds.top, bounds.bottom,
+  );
 }
 
-function queryMaterializedLod(boardPk, bounds, requestedLevel) {
-  const storedLevel = Math.min(MATERIALIZED_LOD_LEVELS, requestedLevel);
-  const topLeft = getTileAddress(storedLevel, bounds.left, bounds.top);
-  const bottomRight = getTileAddress(storedLevel, bounds.right, bounds.bottom);
+function viewportVisualConnectionRows(boardPk, bounds) {
   const rows = prepare(`
-    SELECT level, tile_x, tile_y, node_count, bounds_json,
-           type_counts_json, preview_ids_json
-      FROM lod_tiles
-     WHERE board_pk = ? AND level = ?
-       AND tile_x BETWEEN ? AND ?
-       AND tile_y BETWEEN ? AND ?
-     ORDER BY tile_y, tile_x
-  `).all(
-    boardPk,
-    storedLevel,
-    Math.min(topLeft.tileX, bottomRight.tileX),
-    Math.max(topLeft.tileX, bottomRight.tileX),
-    Math.min(topLeft.tileY, bottomRight.tileY),
-    Math.max(topLeft.tileY, bottomRight.tileY),
-  );
-  if (requestedLevel === storedLevel) {
-    return rows.map((row) => ({
-      level: Number(row.level),
-      tileX: Number(row.tile_x),
-      tileY: Number(row.tile_y),
-      count: Number(row.node_count),
-      bounds: parseJson(row.bounds_json, {}),
-      typeCounts: parseJson(row.type_counts_json, {}),
-      previewIds: parseJson(row.preview_ids_json, []),
-    }));
-  }
-  const grouped = new Map();
-  for (const row of rows) {
-    const sourceBounds = parseJson(row.bounds_json, {});
-    const centerX = (Number(sourceBounds.left) + Number(sourceBounds.right)) / 2;
-    const centerY = (Number(sourceBounds.top) + Number(sourceBounds.bottom)) / 2;
-    const address = getTileAddress(requestedLevel, centerX, centerY);
-    const key = `${address.tileX}:${address.tileY}`;
-    let item = grouped.get(key);
-    if (!item) {
-      item = {
-        level: requestedLevel,
-        tileX: address.tileX,
-        tileY: address.tileY,
-        count: 0,
-        bounds: {
-          left: address.tileX * address.tileSize,
-          top: address.tileY * address.tileSize,
-          right: (address.tileX + 1) * address.tileSize,
-          bottom: (address.tileY + 1) * address.tileSize,
-        },
-        typeCounts: {},
-        previewIds: [],
-      };
-      grouped.set(key, item);
-    }
-    item.count += Number(row.node_count);
-    for (const [kind, count] of Object.entries(parseJson(row.type_counts_json, {}))) {
-      item.typeCounts[kind] = (item.typeCounts[kind] || 0) + Number(count);
-    }
-    for (const previewId of parseJson(row.preview_ids_json, [])) {
-      if (item.previewIds.length >= 4) break;
-      if (!item.previewIds.includes(previewId)) item.previewIds.push(previewId);
-    }
-  }
-  return [...grouped.values()];
+    SELECT geometry.from_x, geometry.from_y, geometry.to_x, geometry.to_y
+      FROM connection_spatial s
+      CROSS JOIN connections c ON c.pk = s.pk
+      CROSS JOIN connection_geometry geometry ON geometry.connection_pk = c.pk
+     WHERE s.max_x >= ? AND s.min_x <= ?
+       AND s.max_y >= ? AND s.min_y <= ?
+       AND c.board_pk = ?
+  `).all(bounds.left, bounds.right, bounds.top, bounds.bottom, boardPk);
+  const segments = new Array(rows.length * 4);
+  rows.forEach((row, index) => {
+    const offset = index * 4;
+    segments[offset] = Number(row.from_x);
+    segments[offset + 1] = Number(row.from_y);
+    segments[offset + 2] = Number(row.to_x);
+    segments[offset + 3] = Number(row.to_y);
+  });
+  return { count: rows.length, segments };
+}
+
+function packVisualNodes(nodes) {
+  return (Array.isArray(nodes) ? nodes : []).map((node) => ([
+    String(node.id),
+    String(node.kind || "image"),
+    Number(node.x),
+    Number(node.y),
+    Number(node.width),
+    Number(node.height),
+    Number(node.zOrder || 0),
+    String(node.previewSource || ""),
+    String(node.title || "节点"),
+  ]));
 }
 
 function removeBoardStorage(boardPk) {
@@ -534,7 +592,7 @@ function importLegacyNode(boardPk, item, zOrder, timestamp) {
   );
   const pk = Number(inserted.lastInsertRowid);
   writeSpatial("node_spatial", pk, { left: x, top: y, right: x + width, bottom: y + height });
-  changeLodContribution(boardPk, { external_id: id, kind, x, y, width, height }, 1, 0);
+  syncNodePreview(boardPk, id, Math.trunc(finiteNumber(item?.zOrder ?? item?.z, zOrder, "Legacy node z-order")), item, timestamp);
 }
 
 function importLegacyConnection(boardPk, item, storageIndex, timestamp) {
@@ -568,6 +626,7 @@ function importLegacyConnection(boardPk, item, storageIndex, timestamp) {
     Number(inserted.lastInsertRowid),
     getConnectionBounds(nodeRect(from), nodeRect(to)),
   );
+  writeConnectionGeometry(Number(inserted.lastInsertRowid), from, to);
 }
 
 const handlers = {
@@ -606,7 +665,17 @@ const handlers = {
     const rows = prepare(`
       SELECT b.*,
              (SELECT COUNT(*) FROM nodes n WHERE n.board_pk = b.pk) AS node_count,
-             (SELECT COUNT(*) FROM connections c WHERE c.board_pk = b.pk) AS connection_count
+             (SELECT COUNT(*) FROM connections c WHERE c.board_pk = b.pk) AS connection_count,
+             COALESCE((
+               SELECT json_group_array(source)
+                 FROM (
+                   SELECT source
+                     FROM node_previews p
+                    WHERE p.board_pk = b.pk AND p.source != ''
+                    ORDER BY p.z_order DESC, p.updated_at DESC
+                    LIMIT 4
+                 )
+             ), '[]') AS preview_images_json
         FROM boards b
        WHERE b.migration_state = 'active'
        ORDER BY b.updated_at DESC, b.pk DESC
@@ -680,7 +749,7 @@ const handlers = {
           });
           continue;
         }
-        const entityResult = applyOperation(board, operation, timestamp, nextRevision);
+        const entityResult = applyOperation(board, operation, timestamp);
         results.push({
           operationId: operation.operationId,
           status: "applied",
@@ -736,14 +805,24 @@ const handlers = {
       bounds.left, bounds.right, bounds.top, bounds.bottom,
     );
     const candidateCount = Number(countRow?.candidate_count || 0);
-    const lodLevel = chooseLodLevel(params.scale, candidateCount);
-    if (lodLevel > 0) {
+    if (candidateCount > 800) {
+      const scene = selectVisibleSprites(viewportVisualRows(board.pk, bounds), {
+        bounds,
+        scale: params.scale,
+        maxTexturedSprites: 5000,
+      });
+      const visualConnections = viewportVisualConnectionRows(board.pk, bounds);
       return {
-        mode: "lod",
+        mode: "scene",
+        engineVersion: ENGINE_VERSION,
         boardRevision: Number(board.revision),
-        lodLevel,
-        lodNodes: queryMaterializedLod(board.pk, bounds, lodLevel),
-        lodConnections: [],
+        candidateCount,
+        visualNodes: packVisualNodes(scene.visualNodes),
+        visualNodeCount: scene.visualNodes.length,
+        visualNodeEncoding: "tuple-v1",
+        texturedNodeIds: scene.texturedNodeIds,
+        visualConnections: visualConnections.segments,
+        visualConnectionCount: visualConnections.count,
         nodes: [],
         connections: [],
         truncated: false,
@@ -774,11 +853,12 @@ const handlers = {
     const truncated = visibleNodes.length > nodeLimit || connectionRows.length > connectionLimit;
     return {
       mode: "detail",
+      engineVersion: ENGINE_VERSION,
       boardRevision: Number(board.revision),
+      candidateCount,
       lodLevel: 0,
       nodes: visibleNodes.slice(0, nodeLimit).filter((row) => exactNodeIntersects(row, bounds)).map(hydrateNode),
       connections: connectionRows.slice(0, connectionLimit).map(hydrateConnection),
-      lodNodes: [],
       truncated,
     };
   },
@@ -1006,6 +1086,9 @@ const handlers = {
     return { closed: true };
   },
 };
+
+backfillNodePreviews();
+backfillConnectionGeometry();
 
 parentPort.on("message", (message = {}) => {
   const id = String(message.id || "");

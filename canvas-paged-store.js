@@ -85,6 +85,7 @@
       this.activeGeneration = null;
       this.boardRevision = 0;
       this.lodPage = null;
+      this.scenePage = null;
       this.loadedRects = [];
     }
 
@@ -242,11 +243,19 @@
         this.boardRevision = Number(page.boardRevision);
       }
       if (page.mode === "lod") {
+        this.scenePage = null;
         this.lodPage = cloneSerializable(page);
         if (page.bounds) this.rememberCoverage(page.bounds, page.truncated);
         return true;
       }
+      if (page.mode === "scene") {
+        this.lodPage = null;
+        this.scenePage = cloneSerializable(page);
+        if (page.bounds) this.rememberCoverage(page.bounds, page.truncated);
+        return true;
+      }
       this.lodPage = null;
+      this.scenePage = null;
       (Array.isArray(page.nodes) ? page.nodes : []).forEach((model) => this.upsert(model));
       const incomingConnectionIds = new Set(
         (Array.isArray(page.connections) ? page.connections : []).map((item) => String(item?.id || "")),
@@ -399,6 +408,7 @@
       this.activeGeneration = null;
       this.boardRevision = 0;
       this.lodPage = null;
+      this.scenePage = null;
     }
   }
 

@@ -10,42 +10,39 @@
         const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
         document.documentElement.dataset.themeMode = saved;
         document.documentElement.dataset.theme = saved === "system" ? (prefersDark ? "dark" : "light") : saved;
+        document.documentElement.dataset.palette = localStorage.getItem("ai-color-palette") || "yellow-black";
       })();
     </script>
-    <link rel="stylesheet" href="./styles.css?v=20260523-preview-zoom" />
+    <link rel="stylesheet" href="./styles.css?v=20260827-atomic-image&mj=20260806-hd" />
+    <link rel="stylesheet" href="./canvas-agent.css?v=20260824-agent-image-choice" />
   </head>
   <body>
     <main class="app-shell">
       <aside class="rail" aria-label="功能导航">
         <div class="rail-logo" aria-hidden="true"><img src="./logo.png" alt="" /></div>
+        <button class="rail-toggle" id="railToggle" type="button" aria-label="固定或收起导航栏" title="固定或收起导航栏">
+          <span aria-hidden="true">›</span>
+        </button>
 
         <nav class="rail-nav">
-          <button class="nav-item active" type="button" data-tool="image">
-            <span class="nav-icon">⊙</span>
+          <button class="nav-item" type="button" data-tool="image">
+            <span class="nav-icon"><i data-lucide="image-plus"></i></span>
             <span>在线生图</span>
           </button>
-          <button class="nav-item" type="button" data-tool="upscale">
-            <span class="nav-icon">⇧</span>
-            <span>高清放大</span>
-          </button>
-          <button class="nav-item" type="button" data-tool="upscale2">
-            <span class="nav-icon">⇪</span>
-            <span>高清放大2</span>
-          </button>
-          <button class="nav-item" type="button" data-tool="shoeSwap">
-            <span class="nav-icon">↔</span>
-            <span>换鞋</span>
-          </button>
           <button class="nav-item" type="button" data-tool="chat">
-            <span class="nav-icon">□</span>
+            <span class="nav-icon"><i data-lucide="message-square"></i></span>
             <span>GPT 对话</span>
+          </button>
+          <button class="nav-item" type="button" data-tool="records">
+            <span class="nav-icon"><i data-lucide="history"></i></span>
+            <span>历史记录</span>
           </button>
         </nav>
 
         <section class="theme-panel" aria-label="主题">
           <div class="theme-copy">
             <strong>主题</strong>
-            <span>使用浅色、深色，或匹配系统设置</span>
+            <span>使用浅色、深色，或匹配系统设</span>
           </div>
           <div class="theme-options" role="group" aria-label="主题选择">
             <button class="theme-option" type="button" data-theme-choice="light">浅色</button>
@@ -61,7 +58,7 @@
       </aside>
 
       <section class="stage">
-        <section class="tool-view active" id="imageView" data-view="image">
+        <section class="tool-view" id="imageView" data-view="image">
           <header class="studio-header">
             <div>
               <h1>在线生图</h1>
@@ -71,12 +68,12 @@
           <div class="image-workspace">
             <form class="image-control" id="imageForm">
               <section class="field-block">
-                <div class="block-label">提示词</div>
-                <textarea id="imagePrompt" rows="6" placeholder="例如：给图中加一个键盘，保持原图光影和真实摄影质感"></textarea>
+                <div class="block-label">提示</div>
+                <textarea id="imagePrompt" rows="6" placeholder="例如：给图中加一个键盘，保持原图光影和真实摄影质"></textarea>
               </section>
 
               <section class="field-block">
-                <div class="block-label">参考图像</div>
+                <div class="block-label">参考图</div>
                 <div class="reference-grid">
                   <button class="reference-slot" type="button" data-ref-index="0"><span>+</span><strong>主图</strong></button>
                   <button class="reference-slot" type="button" data-ref-index="1"><span>+</span><strong>参考 A</strong></button>
@@ -107,6 +104,53 @@
                   </select>
                 </div>
 
+                <div class="midjourney-options" id="imageMidjourneyOptions" hidden>
+                  <label>
+                    <span>版本</span>
+                    <select id="imageMidjourneyVersion" data-midjourney-field="version">
+                      <option value="8.2">V8.2</option>
+                      <option value="8.1">V8.1</option>
+                      <option value="7" selected>V7</option>
+                      <option value="6.1">V6.1</option>
+                      <option value="5.2">V5.2</option>
+                      <option value="5.1">V5.1</option>
+                    </select>
+                  </label>
+                  <label>
+                    <span>模式</span>
+                    <select id="imageMidjourneyMode" data-midjourney-field="mode">
+                      <option value="standard" selected>标准</option>
+                      <option value="niji">Niji</option>
+                    </select>
+                  </label>
+                  <label>
+                    <span>速度</span>
+                    <select id="imageMidjourneySpeed" data-midjourney-field="speed">
+                      <option value="relax">Relax</option>
+                      <option value="fast" selected>Fast</option>
+                      <option value="turbo">Turbo</option>
+                    </select>
+                  </label>
+                  <label data-midjourney-quality-field hidden>
+                    <span>&#x753B;&#x8D28;</span>
+                    <select id="imageMidjourneyQuality" data-midjourney-field="quality">
+                      <option value="sd" selected>SD</option>
+                      <option value="hd">HD</option>
+                    </select>
+                  </label>
+                  <label>
+                    <span>风格</span>
+                    <select id="imageMidjourneyStyle" data-midjourney-field="style">
+                      <option value="raw" selected>Raw</option>
+                      <option value="standard">Standard</option>
+                    </select>
+                  </label>
+                  <label>
+                    <span>风格化</span>
+                    <input id="imageMidjourneyStylize" data-midjourney-field="stylize" type="number" min="0" max="1000" step="1" value="100" />
+                  </label>
+                </div>
+
                 <div class="size-row count-row">
                   <span>张数</span>
                   <input id="imageCount" type="number" value="1" min="1" max="4" step="1" aria-label="生成张数" />
@@ -129,7 +173,6 @@
               <div class="preview-frame" id="imageStage" aria-live="polite">
                 <div class="empty-state">
                   <span>图片预览</span>
-                  <p>生成结果会显示在这里，并自动保存到本地 output 文件夹。</p>
                 </div>
               </div>
               <button id="clearImages" class="preview-clear" type="button" title="清空">×</button>
@@ -138,9 +181,21 @@
             <aside class="history-panel">
               <div class="history-head">
                 <span>历史记录</span>
-                <button id="clearImageHistory" type="button">清空</button>
+                <button id="clearImageHistory" type="button" aria-pressed="false">管理</button>
+              </div>
+              <div class="image-history-selection-bar" id="imageHistorySelectionBar" hidden>
+                <span id="imageHistorySelectionCount" aria-live="polite">已选 0 张</span>
+                <button id="selectAllImageHistory" type="button">全选</button>
               </div>
               <div class="image-history" id="imageHistory"></div>
+              <div class="image-history-delete-bar" id="imageHistoryDeleteBar" hidden>
+                <button id="deleteSelectedImageHistory" type="button" disabled>删除所选（0）</button>
+                <div class="image-history-delete-confirm" id="imageHistoryDeleteConfirm" hidden>
+                  <span id="imageHistoryDeletePrompt">确定删除 0 张？</span>
+                  <button id="cancelDeleteSelectedImageHistory" type="button">取消</button>
+                  <button id="confirmDeleteSelectedImageHistory" type="button">确认删除</button>
+                </div>
+              </div>
             </aside>
           </div>
         </section>
@@ -160,9 +215,18 @@
                   <span>+</span>
                   <strong>上传需要高清放大的图片</strong>
                   <small>TTP · ComfyUI</small>
-                  <img id="upscaleInputPreview" alt="待放大图片预览" hidden />
+                  <img id="upscaleInputPreview" alt="待放大图片预" hidden />
                 </button>
                 <input id="upscaleFileInput" type="file" accept="image/*" hidden />
+              </section>
+
+              <section class="field-block">
+                <div class="block-label">放大尺寸</div>
+                <select class="upscale-size-select" id="upscaleResolution" aria-label="TTP 放大尺寸">
+                  <option value="2048">2K</option>
+                  <option value="4096">4K</option>
+                  <option value="6144">6K</option>
+                </select>
               </section>
 
               <button class="primary-action" id="upscaleButton" type="submit">
@@ -172,14 +236,14 @@
               <div class="upscale-progress" id="upscaleProgress" aria-hidden="true">
                 <span id="upscaleProgressBar"></span>
               </div>
-              <p class="status-line" id="upscaleStatus">请先上传图片。</p>
+              <p class="status-line" id="upscaleStatus">请先上传图片</p>
             </form>
 
             <section class="preview-panel upscale-preview">
               <div class="preview-frame" id="upscaleStage" aria-live="polite">
                 <div class="empty-state">
                   <span>放大结果</span>
-                  <p>ComfyUI 完成后，高清图片会显示在这里并保存到本地 output 文件夹。</p>
+                  <p>ComfyUI 完成后，高清图片会显示在这里并保存到本地 output 文件夹</p>
                 </div>
               </div>
               <button id="clearUpscale" class="preview-clear" type="button" title="清空">×</button>
@@ -202,9 +266,17 @@
                   <span>+</span>
                   <strong>上传需要高清放大的图片</strong>
                   <small>SeedVR2 · ComfyUI</small>
-                  <img id="upscale2InputPreview" alt="待放大图片预览" hidden />
+                  <img id="upscale2InputPreview" alt="待放大图片预" hidden />
                 </button>
                 <input id="upscale2FileInput" type="file" accept="image/*" hidden />
+              </section>
+
+              <section class="field-block">
+                <div class="block-label">放大尺寸</div>
+                <select class="upscale-size-select" id="upscale2Resolution" aria-label="SeedVR2 放大尺寸">
+                  <option value="2048">2K</option>
+                  <option value="4096">4K</option>
+                </select>
               </section>
 
               <button class="primary-action" id="upscale2Button" type="submit">
@@ -214,7 +286,7 @@
               <div class="upscale-progress" id="upscale2Progress" aria-hidden="true">
                 <span id="upscale2ProgressBar"></span>
               </div>
-              <p class="status-line" id="upscale2Status">请先上传图片。</p>
+              <p class="status-line" id="upscale2Status">请先上传图片</p>
             </form>
 
             <section class="preview-panel upscale-preview">
@@ -242,9 +314,9 @@
                 <div class="block-label">人物原图</div>
                 <button class="upscale-drop" id="shoeSwapPersonDrop" type="button">
                   <span>+</span>
-                  <strong>上传需要换鞋的人物图</strong>
+                  <strong>上传需要换鞋的人物</strong>
                   <small>图1 · 保持人物和场景不变</small>
-                  <img id="shoeSwapPersonPreview" alt="人物图预览" hidden />
+                  <img id="shoeSwapPersonPreview" alt="人物图预" hidden />
                 </button>
                 <input id="shoeSwapPersonInput" type="file" accept="image/*" hidden />
               </section>
@@ -252,21 +324,21 @@
               <section class="field-block">
                 <div class="block-label">鞋子参考图</div>
                 <div class="shoe-reference-row">
-                  <div class="shoe-examples" aria-label="鞋子示例图">
+                  <div class="shoe-examples" aria-label="鞋子示例">
                     <button class="shoe-example" type="button" data-shoe-example="/assets/examples/shoe-sneaker.png" data-shoe-name="运动鞋示例.png">
                       <img src="./assets/examples/shoe-sneaker.png" alt="运动鞋示例" />
-                      <span>运动鞋</span>
+                      <span>运动</span>
                     </button>
                     <button class="shoe-example" type="button" data-shoe-example="/assets/examples/shoe-heel.png" data-shoe-name="高跟鞋示例.png">
                       <img src="./assets/examples/shoe-heel.png" alt="高跟鞋示例" />
-                      <span>高跟鞋</span>
+                      <span>高跟</span>
                     </button>
                   </div>
                   <button class="upscale-drop" id="shoeSwapShoeDrop" type="button">
                     <span>+</span>
                     <strong>上传鞋子参考图</strong>
                     <small>图2 · 只提取鞋子样式</small>
-                    <img id="shoeSwapShoePreview" alt="鞋子图预览" hidden />
+                    <img id="shoeSwapShoePreview" alt="鞋子图预" hidden />
                   </button>
                 </div>
                 <input id="shoeSwapShoeInput" type="file" accept="image/*" hidden />
@@ -279,19 +351,159 @@
               <div class="upscale-progress" id="shoeSwapProgress" aria-hidden="true">
                 <span id="shoeSwapProgressBar"></span>
               </div>
-              <p class="status-line" id="shoeSwapStatus">请先上传人物原图和鞋子参考图。</p>
+              <p class="status-line" id="shoeSwapStatus">请先上传人物原图和鞋子参考图</p>
             </form>
 
             <section class="preview-panel upscale-preview">
               <div class="preview-frame" id="shoeSwapStage" aria-live="polite">
                 <div class="empty-state">
                   <span>换鞋结果</span>
-                  <p>ComfyUI 完成后，换鞋图片会显示在这里并保存到本地 output 文件夹。</p>
+                  <p>ComfyUI 完成后，换鞋图片会显示在这里并保存到本地 output 文件夹</p>
                 </div>
               </div>
               <button id="clearShoeSwap" class="preview-clear" type="button" title="清空">×</button>
             </section>
           </div>
+        </section>
+
+        <section class="tool-view" id="outpaintView" data-view="outpaint">
+          <header class="studio-header">
+            <div>
+              <h1>扩图</h1>
+            </div>
+          </header>
+
+          <div class="upscale-workspace">
+            <form class="upscale-control" id="outpaintForm">
+              <section class="field-block">
+                <div class="block-label">输入图片</div>
+                <button class="upscale-drop" id="outpaintDrop" type="button">
+                  <span>+</span>
+                  <strong>上传需要扩图的图片</strong>
+                  <small>Z-Image · ComfyUI</small>
+                  <img id="outpaintInputPreview" alt="待扩图图片预" hidden />
+                </button>
+                <input id="outpaintFileInput" type="file" accept="image/*" hidden />
+              </section>
+
+              <section class="field-block outpaint-editor-block" id="outpaintEditorBlock" hidden>
+                <div class="block-label">扩图区域</div>
+                <div class="outpaint-editor" id="outpaintEditor">
+                  <div class="outpaint-frame" id="outpaintFrame">
+                    <img id="outpaintEditorImage" alt="扩图区域预览" />
+                    <button class="outpaint-handle outpaint-handle-left" type="button" data-outpaint-side="left" aria-label="向左扩展"></button>
+                    <button class="outpaint-handle outpaint-handle-right" type="button" data-outpaint-side="right" aria-label="向右扩展"></button>
+                    <button class="outpaint-handle outpaint-handle-top" type="button" data-outpaint-side="top" aria-label="向上扩展"></button>
+                    <button class="outpaint-handle outpaint-handle-bottom" type="button" data-outpaint-side="bottom" aria-label="向下扩展"></button>
+                    <button class="outpaint-handle outpaint-handle-corner outpaint-handle-top-left" type="button" data-outpaint-side="top-left" aria-label="向左上扩"></button>
+                    <button class="outpaint-handle outpaint-handle-corner outpaint-handle-top-right" type="button" data-outpaint-side="top-right" aria-label="向右上扩"></button>
+                    <button class="outpaint-handle outpaint-handle-corner outpaint-handle-bottom-left" type="button" data-outpaint-side="bottom-left" aria-label="向左下扩"></button>
+                    <button class="outpaint-handle outpaint-handle-corner outpaint-handle-bottom-right" type="button" data-outpaint-side="bottom-right" aria-label="向右下扩"></button>
+                  </div>
+                </div>
+                <p class="outpaint-padding-readout" id="outpaintPaddingReadout">左 200px · 上 0px · 右 200px · 下 0px</p>
+              </section>
+
+              <button class="primary-action" id="outpaintButton" type="submit">
+                <span>⇱</span>
+                开始扩图
+              </button>
+              <div class="upscale-progress" id="outpaintProgress" aria-hidden="true">
+                <span id="outpaintProgressBar"></span>
+              </div>
+              <p class="status-line" id="outpaintStatus">请先上传图片</p>
+            </form>
+
+            <section class="preview-panel upscale-preview">
+              <div class="preview-frame" id="outpaintStage" aria-live="polite">
+                <div class="empty-state">
+                  <span>扩图结果</span>
+                  <p>ComfyUI 完成后，扩图图片会显示在这里并保存到本地 output 文件夹</p>
+                </div>
+              </div>
+              <button id="clearOutpaint" class="preview-clear" type="button" title="清空">×</button>
+            </section>
+          </div>
+        </section>
+
+        <section class="tool-view" id="outpaint2View" data-view="outpaint2">
+          <header class="studio-header">
+            <div>
+              <h1>扩图2</h1>
+            </div>
+          </header>
+
+          <div class="upscale-workspace">
+            <form class="upscale-control" id="outpaint2Form">
+              <section class="field-block">
+                <div class="block-label">输入图片</div>
+                <button class="upscale-drop" id="outpaint2Drop" type="button">
+                  <span>+</span>
+                  <strong>上传需要扩图的图片</strong>
+                  <small>gpt-image-2 · white fill</small>
+                  <img id="outpaint2InputPreview" alt="扩图2图片预览" hidden />
+                </button>
+                <input id="outpaint2FileInput" type="file" accept="image/*" hidden />
+              </section>
+
+              <section class="field-block outpaint-editor-block" id="outpaint2EditorBlock" hidden>
+                <div class="block-label">扩图区域</div>
+                <div class="outpaint-editor" id="outpaint2Editor">
+                  <div class="outpaint-frame" id="outpaint2Frame">
+                    <img id="outpaint2EditorImage" alt="扩图2区域预览" />
+                    <button class="outpaint-handle outpaint-handle-left" type="button" data-outpaint-side="left" aria-label="向左扩展"></button>
+                    <button class="outpaint-handle outpaint-handle-right" type="button" data-outpaint-side="right" aria-label="向右扩展"></button>
+                    <button class="outpaint-handle outpaint-handle-top" type="button" data-outpaint-side="top" aria-label="向上扩展"></button>
+                    <button class="outpaint-handle outpaint-handle-bottom" type="button" data-outpaint-side="bottom" aria-label="向下扩展"></button>
+                    <button class="outpaint-handle outpaint-handle-corner outpaint-handle-top-left" type="button" data-outpaint-side="top-left" aria-label="向左上扩"></button>
+                    <button class="outpaint-handle outpaint-handle-corner outpaint-handle-top-right" type="button" data-outpaint-side="top-right" aria-label="向右上扩"></button>
+                    <button class="outpaint-handle outpaint-handle-corner outpaint-handle-bottom-left" type="button" data-outpaint-side="bottom-left" aria-label="向左下扩"></button>
+                    <button class="outpaint-handle outpaint-handle-corner outpaint-handle-bottom-right" type="button" data-outpaint-side="bottom-right" aria-label="向右下扩"></button>
+                  </div>
+                </div>
+                <p class="outpaint-padding-readout" id="outpaint2PaddingReadout">左 0px · 上 0px · 右 0px · 下 0px</p>
+              </section>
+
+              <button class="primary-action" id="outpaint2Button" type="submit">
+                <span>⇲</span>
+                开始扩图2
+              </button>
+              <div class="upscale-progress" id="outpaint2Progress" aria-hidden="true">
+                <span id="outpaint2ProgressBar"></span>
+              </div>
+              <p class="status-line" id="outpaint2Status">请先上传图片</p>
+            </form>
+
+            <section class="preview-panel upscale-preview">
+              <div class="preview-frame" id="outpaint2Stage" aria-live="polite">
+                <div class="empty-state">
+                  <span>扩图2结果</span>
+                  <p>用白色区域提示 image2 填充场景，完成后会显示在这里。</p>
+                </div>
+              </div>
+              <button id="clearOutpaint2" class="preview-clear" type="button" title="清空">×</button>
+            </section>
+          </div>
+        </section>
+
+        <section class="tool-view" id="recordsView" data-view="records">
+          <header class="studio-header">
+            <div>
+              <h1>历史记录</h1>
+              <p>画布、换鞋和高清放大的结果都在这里</p>
+            </div>
+          </header>
+
+          <section class="records-workspace">
+            <div class="records-head">
+              <div>
+                <strong>全部记录</strong>
+                <span id="recordsCount">0 </span>
+              </div>
+              <button id="refreshRecords" type="button">刷新</button>
+            </div>
+            <div class="records-list" id="recordsHistory"></div>
+          </section>
         </section>
 
         <section class="tool-view" id="chatView" data-view="chat">
@@ -300,42 +512,59 @@
               <h1>GPT 对话</h1>
             </div>
             <div class="header-actions">
-              <button id="newChat" class="text-action" type="button">新对话</button>
-              <button id="clearChat" class="text-action" type="button">清空当前</button>
+              <button id="newChat" class="text-action" type="button"><i data-lucide="square-pen"></i><span>新对</span></button>
+              <button id="clearChat" class="text-action" type="button"><i data-lucide="trash-2"></i><span>清空当前</span></button>
             </div>
           </header>
 
           <div class="chat-workspace">
             <aside class="history-panel chat-history-panel">
               <div class="history-head">
-                <span>历史记录</span>
-                <button id="clearChatHistory" type="button">清空</button>
+                <span>最近对</span>
+                <button id="clearChatHistory" type="button" aria-pressed="false">管理</button>
+              </div>
+              <div class="chat-history-selection-bar" id="chatHistorySelectionBar" hidden>
+                <span id="chatHistorySelectionCount" aria-live="polite">已选 0 条</span>
+                <button id="selectAllChatHistory" type="button">全选</button>
               </div>
               <div class="chat-history" id="chatHistory"></div>
+              <div class="chat-history-delete-bar" id="chatHistoryDeleteBar" hidden>
+                <button id="deleteSelectedChatHistory" type="button" disabled>删除所选（0）</button>
+                <div class="chat-history-delete-confirm" id="chatHistoryDeleteConfirm" hidden>
+                  <span id="chatHistoryDeletePrompt">确定删除 0 条？</span>
+                  <button id="cancelDeleteSelectedChatHistory" type="button">取消</button>
+                  <button id="confirmDeleteSelectedChatHistory" type="button">确认删除</button>
+                </div>
+              </div>
             </aside>
 
             <section class="chat-panel">
               <div class="messages" id="messages" aria-live="polite">
-                <article class="message assistant">
-                  <span>Assistant</span>
-                  <p>你好，我已经准备好了。直接输入你的问题就可以开始。</p>
-                </article>
+                <div class="chat-welcome">
+                  <h2>我们先从哪里开始呢</h2>
+                  <div class="chat-suggestions" aria-label="快捷开">
+                    <button type="button" data-chat-suggestion="帮我生成一张产品宣传图">生成图片</button>
+                    <button type="button" data-chat-suggestion="帮我润色并改写这段文">撰写或编</button>
+                    <button type="button" data-chat-suggestion="帮我分析这份资料并总结重点">查找资料</button>
+                  </div>
+                </div>
               </div>
 
               <form class="chat-composer" id="chatForm">
                 <div class="attachment-list" id="chatAttachments"></div>
                 <input id="chatFileInput" type="file" multiple hidden />
-                <textarea id="chatPrompt" rows="4" placeholder="例如：帮我写一个产品介绍文案"></textarea>
-                <label class="composer-model">
-                  <span>对话模型</span>
-                  <select id="chatModel"></select>
-                </label>
+                <textarea id="chatPrompt" rows="1" placeholder="例如：帮我写一个产品介绍文"></textarea>
                 <div class="composer-actions">
                   <div class="chat-tools">
-                    <button id="attachButton" class="attach-button" type="button">＋ 上传图片和文件</button>
+                    <button id="attachButton" class="attach-button" type="button"><i data-lucide="paperclip"></i><span>添加附件</span></button>
+                    <button id="webSearchButton" class="web-search-button" type="button" aria-pressed="false" title="联网搜索"><i data-lucide="globe-2"></i><span>联网</span></button>
+                    <label class="composer-model">
+                      <span>对话模型</span>
+                      <select id="chatModel" aria-label="对话模型"></select>
+                    </label>
                     <p id="chatStatus">正在读取模型列表...</p>
                   </div>
-                  <button id="sendButton" type="submit">发送</button>
+                  <button id="sendButton" type="submit"><i data-lucide="arrow-up"></i><span>发</span></button>
                 </div>
               </form>
             </section>
@@ -344,17 +573,44 @@
 
         <div class="mini-status">
           <span></span>
-          在线
+          <strong id="onlineCount">1</strong>
+          <span class="mini-status-label">在线</span>
         </div>
       </section>
     </main>
 
     <div class="lightbox" id="lightbox" hidden>
       <button class="lightbox-close" id="lightboxClose" type="button">×</button>
+      <div class="lightbox-zoom" id="lightboxZoom">100%</div>
       <img id="lightboxImage" alt="图片预览" />
       <a class="lightbox-download" id="lightboxDownload" href="#" download>下载图片</a>
     </div>
 
-    <script src="./script.js?v=20260523-preview-zoom"></script>
+    <script src="./assets/vendor/lucide.min.js"></script>
+    <script src="./image-model-routing.js?v=20260824-agent-image-choice"></script>
+    <script src="./image-resolution-rules.js?v=20260729-platform-rules"></script>
+    <script src="./video-history-rules.js?v=20260812-node-gallery"></script>
+    <script src="./grid-slicing-rules.js?v=20260812-gallery-grid-slicing"></script>
+    <script src="./canvas-board-loading-rules.js?v=20260819-progressive-loading"></script>
+    <script src="./image-loading-rules.js?v=20260819-detail-stability"></script>
+    <script src="./image-resource-manager.js?v=20260827-atomic-image"></script>
+    <script src="./canvas-engine-contract.js?v=20260826-visual-fidelity-v2"></script>
+    <script src="./canvas-virtualization-rules.js?v=20260825-canvas-virtualization"></script>
+    <script src="./canvas-virtual-store.js?v=20260825-canvas-virtualization"></script>
+    <script src="./canvas-paged-store.js?v=20260825-canvas-paged-storage"></script>
+    <script src="./canvas-viewport-data-source.js?v=20260825-canvas-paged-storage"></script>
+    <script src="./canvas-media-scheduler.js?v=20260825-canvas-media-budget"></script>
+    <script src="./canvas-scene-layer.js?v=20260826-visual-fidelity-v2"></script>
+    <script src="./canvas-virtualizer.js?v=20260825-canvas-virtualization"></script>
+    <script src="./canvas-agent-capabilities.js?v=20260824-agent-image-choice"></script>
+    <script src="./canvas-agent-core.js?v=20260824-agent-image-choice"></script>
+    <script src="./canvas-agent-verification.js?v=20260824-agent-reliability"></script>
+    <script src="./canvas-agent-broker.js?v=20260820-agent-capabilities"></script>
+    <script src="./canvas-agent-mcp-protocol.js?v=20260821-agent-mcp"></script>
+    <script src="./canvas-agent-mcp-server.js?v=20260821-agent-mcp"></script>
+    <script src="./canvas-agent-conversation.js?v=20260820-board-conversation"></script>
+    <script src="./script.js?v=20260827-atomic-image&vh=20260812-video-history-gallery&mj=20260806-hd&agent=20260824-reliability"></script>
+    <script src="./canvas-agent-tool-adapters.js?v=20260824-agent-image-choice"></script>
+    <script src="./canvas-agent-ui.js?v=20260824-agent-image-choice"></script>
   </body>
 </html>

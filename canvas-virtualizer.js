@@ -126,16 +126,12 @@
         }
       }
       const visibleIds = this.store.query(mountRect);
-      const renderIds = this.getOverviewRepresentatives(visibleIds, viewport, mountRect);
+      const sceneMode = Boolean(this.store.scenePage);
+      const renderIds = sceneMode ? [] : Array.from(visibleIds).slice(0, 800);
       const isClusteredOverview = renderIds.length < visibleIds.length;
       const desired = new Map();
       renderIds.forEach((id) => {
-        desired.set(id, this.rules.chooseNodeLevel({
-          scale: viewport.scale,
-          visibleCount: visibleIds.length,
-          pinned: this.pinnedIds.has(id),
-          previousLevel: this.store.getMountedLevel(id),
-        }));
+        desired.set(id, "full");
       });
       this.pinnedIds.forEach((id) => {
         if (this.store.has(id)) desired.set(id, "full");

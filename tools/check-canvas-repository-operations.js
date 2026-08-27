@@ -2,12 +2,14 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
+const { DatabaseSync } = require("node:sqlite");
 const { createCanvasRepository } = require("../canvas-repository");
 
 (async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "canvas-repository-operations-"));
+  const databaseFile = path.join(root, "canvas.db");
   const repository = createCanvasRepository({
-    dbPath: path.join(root, "canvas.db"),
+    dbPath: databaseFile,
     requestTimeoutMs: 10_000,
   });
 
@@ -108,8 +110,9 @@ const { createCanvasRepository } = require("../canvas-repository");
       nodeLimit: 800,
       connectionLimit: 1200,
     });
-    assert.equal(lod.mode, "lod");
-    assert.equal(lod.lodNodes.reduce((total, item) => total + item.count, 0), 2);
+    assert.equal(lod.mode, "detail", "low scale alone must not aggregate a small board");
+    assert.equal(lod.candidateCount, 2);
+    assert.equal(lod.nodes.length, 2);
 
     const statuses = await repository.getOperationStatuses(["op-1", "op-2", "missing"]);
     assert.deepEqual(statuses.map((item) => [item.operationId, item.committed]), [
@@ -218,7 +221,9 @@ const { createCanvasRepository } = require("../canvas-repository");
       bottom: 2000,
       scale: 0.05,
     });
-    assert.equal(oldAreaLod.lodNodes.reduce((total, item) => total + item.count, 0), 1);
+    assert.equal(oldAreaLod.mode, "detail");
+    assert.equal(oldAreaLod.candidateCount, 1);
+    assert.equal(oldAreaLod.nodes.length, 1);
 
     const newAreaLod = await repository.queryViewport({
       boardId: "board-1",
@@ -228,7 +233,96 @@ const { createCanvasRepository } = require("../canvas-repository");
       bottom: -1_999_999_000,
       scale: 0.05,
     });
-    assert.equal(newAreaLod.lodNodes.reduce((total, item) => total + item.count, 0), 1);
+    assert.equal(newAreaLod.mode, "detail");
+    assert.equal(newAreaLod.candidateCount, 1);
+    assert.equal(newAreaLod.nodes.length, 1);
+
+    await repository.beginLegacyImport({
+      board: {
+        id: "dense-board",
+        title: "Dense board",
+        viewport: { x: 0, y: 0, scale: 0.74 },
+        createdAt: "2026-08-26T00:00:00.000Z",
+        updatedAt: "2026-08-26T00:00:00.000Z",
+      },
+      backupFile: "dense-board-test.json",
+    });
+    const denseNodes = Array.from({ length: 801 }, (_, index) => ({
+      id: `dense-${index + 1}`,
+      kind: index % 2 === 0 ? "image" : "text",
+      x: index * 200,
+      y: 0,
+      width: 120,
+      height: 100,
+      imageName: index % 2 === 0 ? `图片 ${index + 1}` : undefined,
+      text: index % 2 === 1 ? `文字 ${index + 1}` : undefined,
+    }));
+    await repository.importLegacyBatch({
+      boardId: "dense-board",
+      entity: "nodes",
+      items: denseNodes,
+      offset: 0,
+    });
+    const denseConnections = Array.from({ length: 800 }, (_, index) => ({
+      id: `dense-edge-${index + 1}`,
+      from: `dense-${index + 1}`,
+      to: `dense-${index + 2}`,
+    }));
+    await repository.importLegacyBatch({
+      boardId: "dense-board",
+      entity: "connections",
+      items: denseConnections,
+      offset: 0,
+    });
+    await repository.activateImportedBoard({
+      boardId: "dense-board",
+      validation: { hash: "dense-board-test" },
+    });
+    const exactly800 = await repository.queryViewport({
+      boardId: "dense-board",
+      left: -1,
+      top: -1,
+      right: 159_920,
+      bottom: 200,
+      scale: 0.09,
+      nodeLimit: 800,
+      connectionLimit: 1,
+    });
+    assert.equal(exactly800.candidateCount, 800);
+    assert.equal(exactly800.mode, "detail");
+    assert.equal(exactly800.engineVersion, "canvas-visual-fidelity-v2");
+    assert.equal(exactly800.nodes.length, 800);
+    const exactly801 = await repository.queryViewport({
+      boardId: "dense-board",
+      left: -1,
+      top: -1,
+      right: 160_200,
+      bottom: 200,
+      scale: 0.74,
+      nodeLimit: 800,
+      connectionLimit: 1,
+    });
+    assert.equal(exactly801.candidateCount, 801);
+    assert.equal(exactly801.engineVersion, "canvas-visual-fidelity-v2");
+    assert.equal(exactly801.mode, "scene");
+    assert.equal(exactly801.visualNodes.length, 801);
+    assert.equal(exactly801.visualConnectionCount, 800);
+    assert.equal(exactly801.visualConnections.length, 3_200);
+    assert.equal(Object.hasOwn(exactly801, "lodNodes"), false);
+    assert.ok(exactly801.visualNodes.every((node) => (
+      node[0] && node[4] > 0 && node[5] > 0 && node[8]
+    )));
+    assert.equal(exactly801.visualNodeEncoding, "tuple-v1");
+    const inspection = new DatabaseSync(databaseFile, { readOnly: true });
+    try {
+      assert.equal(
+        Number(inspection.prepare("SELECT COUNT(*) AS count FROM lod_tiles").get().count),
+        0,
+        "per-node aggregate LOD tiles must not be materialized by the visual-fidelity engine",
+      );
+    } finally {
+      inspection.close();
+    }
   } finally {
     await repository.close().catch(() => {});
     fs.rmSync(root, { recursive: true, force: true });

@@ -40,7 +40,10 @@ async function runSoak({ minutes = readMinutes(process.argv.slice(2)) } = {}) {
     : null;
   const repository = createCanvasRepository({ dbPath: DATABASE_FILE, requestTimeoutMs: 30_000 });
   const durationMs = minutes * 60_000;
-  const stableAfterMs = Math.min(60_000, durationMs * 0.2);
+  // Large SQLite/worker caches are still warming during the first minute.
+  // Compare the second half of a short soak (or post-90s for longer runs)
+  // so the leak gate measures steady-state growth rather than useful cache fill.
+  const stableAfterMs = Math.min(90_000, durationMs * 0.5);
   const startedAt = Date.now();
   let nextReportAt = startedAt + 30_000;
   let iteration = 0;
@@ -70,9 +73,24 @@ async function runSoak({ minutes = readMinutes(process.argv.slice(2)) } = {}) {
         connectionLimit: 1_200,
       });
       latencies.push(Number(process.hrtime.bigint() - queryStartedAt) / 1e6);
-      blankNodeCount += page.nodes.filter((node) => !node.id || !node.kind).length;
-      assert.ok(page.nodes.length <= 800);
-      assert.ok(page.connections.length <= 1_200);
+      assert.equal(page.engineVersion, "canvas-visual-fidelity-v2");
+      assert.equal("lodNodes" in page, false);
+      if (page.mode === "scene") {
+        assert.equal(page.visualNodeEncoding, "tuple-v1");
+        assert.equal(page.visualNodeCount, page.visualNodes.length);
+        assert.equal(page.visualConnections.length, page.visualConnectionCount * 4);
+        blankNodeCount += page.visualNodes.filter((node) => (
+          !Array.isArray(node) || !node[0] || !node[1] || !node[8]
+        )).length;
+        assert.ok(page.visualNodeCount > 0);
+        assert.equal(page.truncated, false);
+        assert.equal(page.nodes.length, 0);
+        assert.equal(page.connections.length, 0);
+      } else {
+        blankNodeCount += page.nodes.filter((node) => !node.id || !node.kind).length;
+        assert.ok(page.nodes.length <= 800);
+        assert.ok(page.connections.length <= 1_200);
+      }
       if (iteration % 60 === 0) {
         const meta = await repository.getBoardMeta(BOARD_ID);
         const operationId = `soak-${startedAt}-${mutation}`;

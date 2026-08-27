@@ -1,0 +1,374 @@
+{
+  "206": {
+    "inputs": {
+      "vae_name": "minimax_h3_audio_vae_fp32.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "加载VAE"
+    }
+  },
+  "207": {
+    "inputs": {
+      "vae_name": "minimax_h3_video_vae_fp16.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "加载VAE"
+    }
+  },
+  "208": {
+    "inputs": {
+      "clip_name": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+      "type": "minimax",
+      "device": "default"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": "加载CLIP"
+    }
+  },
+  "209": {
+    "inputs": {
+      "noise": [
+        "210",
+        0
+      ],
+      "guider": [
+        "218",
+        0
+      ],
+      "sampler": [
+        "233",
+        0
+      ],
+      "sigmas": [
+        "219",
+        0
+      ],
+      "latent_image": [
+        "222",
+        1
+      ]
+    },
+    "class_type": "SamplerCustomAdvanced",
+    "_meta": {
+      "title": "自定义采样器（高级）"
+    }
+  },
+  "210": {
+    "inputs": {
+      "noise_seed": 522458363450538
+    },
+    "class_type": "RandomNoise",
+    "_meta": {
+      "title": "随机噪波"
+    }
+  },
+  "211": {
+    "inputs": {
+      "samples": [
+        "209",
+        0
+      ],
+      "vae": [
+        "207",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE解码"
+    }
+  },
+  "212": {
+    "inputs": {
+      "expression": "max(5, round(a * 24)) + (5 - (max(5, round(a * 24)) % 17)) % 17",
+      "values.a": [
+        "225",
+        0
+      ]
+    },
+    "class_type": "ComfyMathExpression",
+    "_meta": {
+      "title": "数学表达式"
+    }
+  },
+  "213": {
+    "inputs": {
+      "unet_name": "minimax_h3_ref2va_pruned_int8_convrot.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "UNet加载器"
+    }
+  },
+  "215": {
+    "inputs": {
+      "image": "张磊_.png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "加载图像"
+    }
+  },
+  "216": {
+    "inputs": {
+      "image": "张磊 (商务).png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "加载图像"
+    }
+  },
+  "218": {
+    "inputs": {
+      "model": [
+        "232",
+        0
+      ],
+      "conditioning": [
+        "222",
+        0
+      ]
+    },
+    "class_type": "BasicGuider",
+    "_meta": {
+      "title": "基本引导器"
+    }
+  },
+  "219": {
+    "inputs": {
+      "scheduler": "simple",
+      "steps": 4,
+      "denoise": 1,
+      "model": [
+        "232",
+        0
+      ]
+    },
+    "class_type": "BasicScheduler",
+    "_meta": {
+      "title": "基本调度器"
+    }
+  },
+  "222": {
+    "inputs": {
+      "prompt": [
+        "238",
+        0
+      ],
+      "width": [
+        "229",
+        0
+      ],
+      "height": [
+        "229",
+        1
+      ],
+      "length": [
+        "212",
+        1
+      ],
+      "ref_image_size": "match",
+      "clip": [
+        "208",
+        0
+      ],
+      "vae": [
+        "207",
+        0
+      ],
+      "audio_vae": [
+        "206",
+        0
+      ],
+      "ref_images.ref_image_0": [
+        "215",
+        0
+      ],
+      "ref_images.ref_image_1": [
+        "216",
+        0
+      ],
+      "ref_images.ref_image_2": [
+        "234",
+        0
+      ],
+      "ref_images.ref_image_3": [
+        "235",
+        0
+      ],
+      "ref_images.ref_image_4": [
+        "236",
+        0
+      ],
+      "ref_images.ref_image_5": [
+        "237",
+        0
+      ]
+    },
+    "class_type": "MiniMaxH3ReferenceToVideo",
+    "_meta": {
+      "title": "MiniMax H3 Reference to Video"
+    }
+  },
+  "223": {
+    "inputs": {
+      "_float": [
+        "225",
+        0
+      ]
+    },
+    "class_type": "CR Float To Integer",
+    "_meta": {
+      "title": "🔧 CR Float To Integer"
+    }
+  },
+  "225": {
+    "inputs": {
+      "value": 12
+    },
+    "class_type": "PrimitiveFloat",
+    "_meta": {
+      "title": "Float (Duration)"
+    }
+  },
+  "227": {
+    "inputs": {
+      "fps": 24,
+      "bit_depth": 8,
+      "images": [
+        "211",
+        0
+      ],
+      "audio": [
+        "228",
+        0
+      ]
+    },
+    "class_type": "CreateVideo",
+    "_meta": {
+      "title": "创建视频"
+    }
+  },
+  "228": {
+    "inputs": {
+      "samples": [
+        "209",
+        0
+      ],
+      "vae": [
+        "206",
+        0
+      ]
+    },
+    "class_type": "VAEDecodeAudio",
+    "_meta": {
+      "title": "VAE解码（音频）"
+    }
+  },
+  "229": {
+    "inputs": {
+      "aspect_ratio": "16:9 (Widescreen)",
+      "megapixels": 0.6,
+      "multiple": 32
+    },
+    "class_type": "ResolutionSelector",
+    "_meta": {
+      "title": "Resolution Selector (Size)"
+    }
+  },
+  "230": {
+    "inputs": {
+      "filename_prefix": "video/MiniMax_H3",
+      "format": "auto",
+      "codec": "auto",
+      "video": [
+        "227",
+        0
+      ]
+    },
+    "class_type": "SaveVideo",
+    "_meta": {
+      "title": "保存视频"
+    }
+  },
+  "231": {
+    "inputs": {
+      "sampler_name": "res_multistep"
+    },
+    "class_type": "KSamplerSelect",
+    "_meta": {
+      "title": "K采样器选择"
+    }
+  },
+  "232": {
+    "inputs": {
+      "lora_name": "minimax_h3_turbo_4step_ckpt500.safetensors",
+      "strength": 1,
+      "low_vram": false,
+      "model": [
+        "213",
+        0
+      ]
+    },
+    "class_type": "MiniMaxH3TurboLoRA",
+    "_meta": {
+      "title": "MiniMax-H3 Turbo LoRA"
+    }
+  },
+  "233": {
+    "inputs": {},
+    "class_type": "MiniMaxH3TurboSampler",
+    "_meta": {
+      "title": "MiniMax-H3 Turbo Sampler (4-step)"
+    }
+  },
+  "234": {
+    "inputs": {
+      "image": "张磊 (焦虑).png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "加载图像"
+    }
+  },
+  "235": {
+    "inputs": {
+      "image": "张磊 (睡).png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "加载图像"
+    }
+  },
+  "236": {
+    "inputs": {
+      "image": "电梯.png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "加载图像"
+    }
+  },
+  "237": {
+    "inputs": {
+      "image": "电梯内部.png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "加载图像"
+    }
+  },
+  "238": {
+    "inputs": {
+      "text": "<Picture 1> = <image0> 张磊\n<Picture 2> = <image1> 商务人格\n<Picture 3> = <image2> 焦虑人格\n<Picture 4> = <image3> 省电人格\n<Picture 5> = <image4> 电梯厅\n<Picture 6> = <image5> 电梯内部\nsubject_definitions:\n<Subject 1> is Zhang Lei in <Picture 1>, a Chinese man around 35 years old and approximately 180 centimeters tall, with a lean, lightly athletic build, moderately broad shoulders, a rectangular face, broad forehead, moderate cheekbones, a defined jawline, a rounded-square chin, thick straight eyebrows, dark-brown almond-shaped eyes, a straight nose, and short black hair naturally parted to one side. He wears a fitted dark-charcoal business suit, white shirt, narrow dark-grey tie, black derby shoes, and a silver smartwatch. His jacket hem is slightly disordered, his tie is slightly crooked, and a thin layer of sweat covers his forehead. He carries a flagship smartphone in one hand and a dark-grey document folder under the other arm, maintaining outward professional composure while his eyes reveal anxiety.\n\n<Subject 2> is the Business Persona in <Picture 2>, a separate physical manifestation of Zhang Lei's business-minded personality. He preserves Zhang Lei's age, height, build, facial identity, facial proportions, and core features, but has meticulously styled side-parted black hair and wears a premium tailored black suit, crisp white shirt, black silk tie, white pocket square, polished black Oxford shoes, and a silver mechanical wristwatch. He stands perfectly upright with a standardized professional smile and deliberately calm eyes, while dense cold sweat covers his forehead.\n\n<Subject 3> is the Anxiety Persona in <Picture 3>, a separate physical manifestation of Zhang Lei's anxiety. He preserves Zhang Lei's age, height, build, facial identity, facial proportions, and core features, but has disordered spiky black hair with loose strands over his forehead, wide-open eyes, highly raised eyebrows, a slightly open mouth, and visible sweat on his forehead and nose. He wears an open dark-grey suit, white shirt, severely crooked tie, and rolled-up cuffs. His body leans forward with raised shoulders, and he grips a smartphone tightly in both hands with exaggerated nervous movements.\n\n<Subject 4> is the Power-Saving Persona in <Picture 4>, a separate physical manifestation of Zhang Lei's depleted state. He preserves Zhang Lei's age, height, build, facial identity, facial proportions, and core features, but has loose disordered black hair flattened on one side, half-lowered eyelids, an empty gaze, and faint dark circles. He wears loose dark grey-blue cotton pajamas and light-grey house slippers. His shoulders sag, his posture is slack, his expression is numb, and every movement is slow.\n\n<Subject 5> is the premium technology-company elevator lobby in <Picture 5>, featuring light-grey walls, a dark-grey stone floor, brushed-metal elevator doors with black metal trim, linear ceiling lights, and a restrained high-end corporate design illuminated by mixed daylight and cool-white interior lighting.\n\n<Subject 6> is the premium business elevator interior in <Picture 6>, sharing the same architectural design language as <Subject 5>, with dark-grey brushed stainless-steel wall panels, limited black mirror-finished metal surfaces, a light-grey stone floor, recessed rectangular ceiling lights, and a red digital floor indicator. The compact space produces mild visual pressure.\n\nsummary:\n[reference generation] The target is a 12-second, 16:9 live-action cinematic workplace comedy in which <Subject 1> rushes through <Subject 5> into <Subject 6> with only three percent phone battery remaining. Inside the elevator, <Subject 2>, <Subject 3>, and <Subject 4> materialize as separate physical manifestations of his conflicting mental states. Eight rapidly paced shots use close framing, flickering light, intrusive character blocking, red warning graphics, synchronized Mandarin dialogue, and only diegetic sound to escalate his low-battery panic.\n\nretention_analysis:\n<Subject 1> (appears in [Shot 1], [Shot 2], [Shot 3], [Shot 4], [Shot 7], [Shot 8]): fully_preserved - Zhang Lei's facial identity, natural side-parted hair, dark-charcoal business suit, white shirt, crooked dark-grey tie, silver smartwatch, smartphone, document folder, perspiration, and controlled but anxious demeanor are retained.\n\n<Subject 2> (appears in [Shot 3], [Shot 4], [Shot 7], [Shot 8]): fully_preserved - the Business Persona retains Zhang Lei's recognizable facial identity while preserving the immaculate hairstyle, tailored black suit, white pocket square, mechanical watch, upright posture, professional smile, and conspicuous cold sweat from <Picture 2>.\n\n<Subject 3> (appears in [Shot 3], [Shot 5], [Shot 7], [Shot 8]): fully_preserved - the Anxiety Persona retains Zhang Lei's recognizable facial identity while preserving the disordered hair, wide eyes, raised eyebrows, open suit, crooked tie, rolled cuffs, sweat, forward-leaning posture, and exaggerated nervous performance from <Picture 3>.\n\n<Subject 4> (appears in [Shot 3], [Shot 6], [Shot 7], [Shot 8]): fully_preserved - the Power-Saving Persona retains Zhang Lei's recognizable facial identity while preserving the flattened hair, half-closed eyes, dark circles, loose pajamas, slippers, collapsed posture, numb expression, and slow movement from <Picture 4>.\n\n<Subject 5> (appears in [Shot 1]): fully_preserved - the light-grey walls, dark stone floor, centered brushed-metal doors, black trim, linear lighting, mixed daylight, cool-white light, and quiet premium corporate atmosphere from <Picture 5> are retained.\n\n<Subject 6> (appears in [Shot 2], [Shot 3], [Shot 4], [Shot 5], [Shot 6], [Shot 7], [Shot 8]): fully_preserved - the compact brushed-steel elevator, black mirrored accents, light-grey stone floor, recessed rectangular ceiling lights, red floor display, and visually pressurized corporate interior from <Picture 6> are retained.\n\ndetailed_description:\nThe target video uses realistic cinematic commercial photography with workplace light-comedy performance and the physical embodiment of internal personalities. The palette is dominated by cool grey, space grey, and black, with harsh red phone warnings and red floor digits as crisis accents. Lighting is high contrast while preserving natural Chinese skin texture and realistic perspiration. The output is 4K-quality, 16:9, with no subtitles and no non-diegetic music.\n\n[Shot 1] A medium frontal shot establishes <Subject 5>, with the brushed-metal elevator doors centered in the premium technology-company lobby. <Subject 1> rushes toward the closing elevator from the front side of the frame, leaning forward while gripping his smartphone in one hand and securing the dark-grey document folder beneath his other arm. His jacket hem flaps and his slightly crooked tie shifts with each step. A stabilized camera tracks backward in front of him at fast speed, then pushes forward slightly as he turns sideways and squeezes through the doors at the final moment. Rapid footsteps, strained breathing, fabric movement, and the elevator closing chime are synchronized to his motion.\n\n[Shot 2] At 00:01.500, the camera cuts to an extreme close-up of <Subject 1>'s smartphone held inside <Subject 6>. The screen dominates the frame, bordered by his tense fingers. The battery indicator clearly shows three percent in red. Notifications appear sequentially and remain legible: \"我已经到会议室了\", \"PPT准备好了吗\", and \"你怎么不回消息？\" A final red system warning reading \"电量不足\" overlays the screen. The camera remains at a fixed close distance but shakes slightly with each incoming notification. The phone vibrates repeatedly, followed by a sharp system warning sound.\n\n[Shot 3] At 00:03.000, the camera tilts up rapidly from the phone to a low-angle medium close-up of <Subject 1> standing at the center of <Subject 6>. The recessed ceiling lights flicker with a faint electrical buzz. He raises his head and freezes. Around him, <Subject 2> forms on the left, <Subject 3> forms on the right, and <Subject 4> forms behind him, each beginning as a blurred residual image before becoming a distinct, fully solid person. The camera performs a small-amplitude arc around the group as all four preserve the same recognizable facial identity but remain clearly differentiated by hair, wardrobe, posture, and expression. <Subject 1> (S1), a tense Chinese male voice kept low and breathy, murmurs, <d>[Chinese] 不是吧……</d> His lips close immediately after the line.\n\n[Shot 4] At 00:04.000, the camera trucks left toward <Subject 2> and then pushes in slowly. A medium two-shot places <Subject 2> on the left and <Subject 1> on the right, facing each other. <Subject 2> calmly straightens his black silk tie and adjusts his suit cuff, maintaining an exact corporate smile while cold sweat remains visible across his forehead. <Subject 2> (S2), speaking in an artificially composed Mandarin male voice, says, <d>[Chinese] 别回消息，保持神秘。</d> His lips close into the same professional smile. <Subject 1> turns toward him with visible confusion.\n\n[Shot 5] At 00:05.000, the shot cuts to <Subject 3> suddenly lunging into a close-up at the center of the frame. His exaggerated face and tightly gripped phone dominate the foreground while <Subject 6> falls into slight motion blur behind him. The handheld camera rushes backward with strong shake and stops abruptly as he nearly reaches the lens. With wide eyes, raised brows, and rapid breathing, <Subject 3> (S3) shouts in a strained, high-energy Mandarin male voice, <d>[Chinese] 别点开！每亮一秒都是生命倒计时！</d> His suit and shirt scrape loudly as his shoulders jerk forward.\n\n[Shot 6] At 00:06.000, the camera cuts to a high-angle wide shot looking down into <Subject 6>. <Subject 4> sits directly on the stone floor against the steel wall, isolated by empty cold metal space. He holds the phone loosely, with half-closed eyes and a collapsed posture. The camera pedestals down at slow speed and settles on his numb face. <Subject 4> (S4), speaking in a low, flat, slow Mandarin male voice, says, <d>[Chinese] 把亮度调到最低，人生也调到最低。</d> Only quiet fabric friction and his unhurried voice accompany the shot.\n\n[Shot 7] At 00:07.000, an extreme close-up centers on <Subject 1>'s phone as he attempts to open the meeting presentation. The red warning \"电量不足\" appears again. The camera pulls out rapidly into a crowded medium shot and begins a slight handheld arc as <Subject 3>, <Subject 2>, and <Subject 4> surround <Subject 1> from different directions. From behind him, <Subject 3> (S3) shouts, <d>[Chinese] 完了，客户要到了！</d> Immediately afterward, <Subject 2> leans close to his other side. <Subject 2> (S2) says with forced composure, <d>[Chinese] 我们可以说这是极简主义演示。</d> <Subject 4> remains against the rear wall with his eyes closed. The personas continue muttering over one another without introducing additional intelligible dialogue. <Subject 1> looks rapidly left and right as the framing becomes increasingly compressed and chaotic. Phone vibration, breathing, clothing movement, and overlapping voices fill the confined elevator.\n\n[Shot 8] At 00:10.000, the camera cuts to a medium close-up of <Subject 1> centered in the elevator. <Subject 2> and <Subject 3> press inward from the left and right edges while <Subject 4> remains low in the background. The camera pushes in with small amplitude at slow speed toward <Subject 1>'s sweating face. He inhales deeply and forces a professional smile, but the corner of his mouth twitches uncontrollably. Without opening his eyes, <Subject 4> (S4) says, <d>[Chinese] 建议装死。</d> <Subject 1>'s expression breaks. The camera stops moving as <Subject 1> (S1) shouts in exasperation, <d>[Chinese] 我只是想正常开个会！</d> His final word ends cleanly before the elevator arrival chime sounds. The red floor display glows above the crowded group as the video ends.\n\noverall_soundscape:\nOnly synchronized diegetic sound is present. Rapid footsteps, strained breathing, moving fabric, the elevator closing and arrival chimes, sliding metal doors, repeated phone vibrations, phone system alerts, a faint electrical buzz during the light flicker, and the four men's distinct Mandarin voices are heard in the enclosed metallic space. The elevator interior adds a restrained metallic room tone and close natural reflections to the voices; no music is audible.\n\nnon_diegetic_music:\nN/A"
+    },
+    "class_type": "CR Text",
+    "_meta": {
+      "title": "🔤 CR Text"
+    }
+  }
+}

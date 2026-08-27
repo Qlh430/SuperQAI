@@ -54,3 +54,27 @@ http://localhost:3099
 ## 常见问题
 
 有些 API 服务不允许浏览器直接跨域请求，可能会出现 CORS 报错。遇到这种情况需要改成后端代理模式。
+
+## 部署到另一台 Windows 电脑
+
+在项目目录运行：
+
+```powershell
+.\build-portable.bat --no-pause
+```
+
+构建完成后，将 `dist\AI-Studio-Portable.zip` 复制到目标电脑并解压。目标电脑需要安装 Node.js 24.13 或更高的 Node 24 版本，然后：
+
+1. 将 `.env.example` 复制为 `.env`。
+2. 在 `.env` 中填写目标电脑使用的 API 地址、Key 和 ComfyUI 地址。
+3. 双击 `start.bat`，浏览器访问 `http://localhost:3099`。
+
+默认便携包不会包含 `.env`、历史画布、聊天记录、生成图片和其他本机数据，适合干净部署，也不会泄露 API Key。
+
+如果目标电脑需要保留当前电脑的历史画布和图片，可在可信环境中运行：
+
+```powershell
+.\build-portable.bat --with-data --no-pause
+```
+
+带数据包可能很大，并包含私人内容，只应在自己的电脑之间传输，不要公开发布。迁移完成后仍需在目标电脑单独创建 `.env`。

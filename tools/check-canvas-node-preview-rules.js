@@ -1,5 +1,5 @@
 const assert = require("node:assert/strict");
-const { extractNodePreviewSources } = require("../canvas-node-preview-rules");
+const { extractNodePreviewSources, extractNodeSceneTitle } = require("../canvas-node-preview-rules");
 
 assert.deepEqual(extractNodePreviewSources({
   thumbnailSrc: "/thumb.webp",
@@ -24,5 +24,8 @@ assert.deepEqual(extractNodePreviewSources({
 
 assert.deepEqual(extractNodePreviewSources({ galleryImages: "{malformed" }), []);
 assert.deepEqual(extractNodePreviewSources(null), []);
+assert.equal(extractNodeSceneTitle({ kind: "image", imageName: "  产品 主图  " }), "产品 主图");
+assert.equal(extractNodeSceneTitle({ kind: "text", text: "第一行\n第二行" }), "第一行 第二行");
+assert.equal(extractNodeSceneTitle({ kind: "gallery" }), "图集");
 
 console.log("Canvas node preview rule checks passed.");

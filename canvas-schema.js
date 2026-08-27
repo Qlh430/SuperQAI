@@ -1,4 +1,4 @@
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 4;
 
 const SCHEMA_SQL = `
   CREATE TABLE IF NOT EXISTS boards (
@@ -7,7 +7,7 @@ const SCHEMA_SQL = `
     title TEXT NOT NULL,
     viewport_json TEXT NOT NULL,
     revision INTEGER NOT NULL DEFAULT 0,
-    schema_version INTEGER NOT NULL DEFAULT 2,
+    schema_version INTEGER NOT NULL DEFAULT 4,
     migration_state TEXT NOT NULL DEFAULT 'active'
       CHECK (migration_state IN ('pending','migrating','validated','active','failed')),
     validation_hash TEXT,
@@ -62,6 +62,14 @@ const SCHEMA_SQL = `
     max_y
   );
 
+  CREATE TABLE IF NOT EXISTS connection_geometry (
+    connection_pk INTEGER PRIMARY KEY REFERENCES connections(pk) ON DELETE CASCADE,
+    from_x REAL NOT NULL,
+    from_y REAL NOT NULL,
+    to_x REAL NOT NULL,
+    to_y REAL NOT NULL
+  ) STRICT;
+
   CREATE TABLE IF NOT EXISTS media_refs (
     pk INTEGER PRIMARY KEY,
     board_pk INTEGER NOT NULL REFERENCES boards(pk) ON DELETE CASCADE,
@@ -80,6 +88,7 @@ const SCHEMA_SQL = `
     board_pk INTEGER NOT NULL REFERENCES boards(pk) ON DELETE CASCADE,
     node_id TEXT NOT NULL,
     source TEXT NOT NULL,
+    title TEXT NOT NULL DEFAULT '',
     z_order INTEGER NOT NULL,
     updated_at TEXT NOT NULL,
     PRIMARY KEY(board_pk, node_id)
@@ -126,6 +135,13 @@ function configureDatabase(db) {
 
 function initializeSchema(db) {
   db.exec(SCHEMA_SQL);
+  const previewColumns = new Set(
+    db.prepare("PRAGMA table_info(node_previews)").all().map((row) => String(row.name)),
+  );
+  if (!previewColumns.has("title")) {
+    db.exec("ALTER TABLE node_previews ADD COLUMN title TEXT NOT NULL DEFAULT ''");
+  }
+  db.exec(`UPDATE boards SET schema_version = ${SCHEMA_VERSION} WHERE schema_version < ${SCHEMA_VERSION}`);
   db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
   return SCHEMA_VERSION;
 }
