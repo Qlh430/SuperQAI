@@ -4,7 +4,7 @@ const path = require("path");
 const vm = require("vm");
 
 const root = path.resolve(__dirname, "..");
-const script = fs.readFileSync(path.join(root, "script.js"), "utf8");
+const script = fs.readFileSync(path.join(root, "script.js"), "utf8").replace(/\r\n?/g, "\n");
 
 function extractFunction(name) {
   const start = script.indexOf(`function ${name}(`);
