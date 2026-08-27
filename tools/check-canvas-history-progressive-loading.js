@@ -1,0 +1,33 @@
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+
+const root = path.resolve(__dirname, "..");
+const script = fs.readFileSync(path.join(root, "script.js"), "utf8");
+const styles = fs.readFileSync(path.join(root, "styles.css"), "utf8");
+const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
+
+assert.match(html, /canvas-board-loading-rules\.js\?v=20260819-progressive-loading/);
+assert.match(script, /id="canvasBoardLoading"/);
+assert.match(script, /role="status"/);
+assert.match(script, /aria-busy="true"/);
+assert.match(script, /function setCanvasBoardLoading\(/);
+assert.match(script, /function updateCanvasBoardLoading\(/);
+assert.match(script, /function waitForCanvasRestorePaint\(/);
+assert.match(styles, /@keyframes canvas-board-loading-spin/);
+assert.match(styles, /\.canvas-board-loading:not\(\[hidden\]\)/);
+assert.match(styles, /pointer-events:\s*all/);
+assert.match(script, /boardOpening:\s*false/);
+assert.match(script, /function restoreCanvasBoardNode\(/);
+assert.match(script, /async function restoreCanvasBoardProgressively\(/);
+assert.match(script, /async function refreshCanvasRefsProgressively\(/);
+assert.match(script, /async function openCanvasBoardFromHistory\(/);
+assert.match(script, /performance\.now\(\)[\s\S]*FRAME_BUDGET_MS/);
+assert.match(script, /await waitForCanvasRestorePaint\(\)/);
+assert.match(script, /finally\s*\{[\s\S]*canvasState\.boardOpening = false/);
+assert.match(script, /card\.addEventListener\("click", async[\s\S]*await openCanvasBoardFromHistory\(board\)/);
+assert.match(script, /record-card[\s\S]*setActiveTool\("canvas"\)[\s\S]*openCanvasBoardFromHistory\(board\)/);
+assert.match(script, /prepareBlankCanvasLanding\(\)[\s\S]*画布打开失败/);
+assert.match(script, /function blockCanvasBoardLoadingInteraction\(/);
+assert.match(script, /document\.addEventListener\("keydown", blockCanvasBoardLoadingInteraction, true\)/);
+console.log("Canvas history progressive loading static checks passed.");

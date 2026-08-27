@@ -13,7 +13,14 @@ if not exist ".env" (
 where node >nul 2>nul
 if errorlevel 1 (
   echo Node.js was not found.
-  echo Please install Node.js 18 or newer, then run this launcher again.
+  echo Node.js 24.13 or newer within Node 24 LTS is required.
+  pause
+  exit /b 1
+)
+
+node -e "const [major,minor]=process.versions.node.split('.').map(Number);process.exit(major===24&&minor>=13?0:1)" >nul 2>nul
+if errorlevel 1 (
+  echo Node.js 24.13 or newer within Node 24 LTS is required.
   pause
   exit /b 1
 )

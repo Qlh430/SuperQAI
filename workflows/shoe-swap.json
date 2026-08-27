@@ -22,7 +22,7 @@
       "model": "gemini-3.1-flash-image-preview",
       "aspect_ratio": "auto",
       "image_size": "2K",
-      "apikey": "sk-wAN6JSG0y8ErJ5ymKKjU8TRWrkWy9s8vMoOeb0GpfQt696f1",
+      "apikey": "",
       "task_id": "",
       "response_format": "url",
       "seed": 2057402392,
