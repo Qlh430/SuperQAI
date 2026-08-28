@@ -77,8 +77,12 @@ async function main() {
   });
   await autoFetch("https://api.apimart.ai/v1/models");
   await autoFetch("http://127.0.0.1:3099/api/models");
-  assert.strictEqual(calls[0].options.dispatcher, dispatcher, "auto-discovered proxy should handle external requests");
+  await autoFetch("https://api.apimart.ai/v1/models", {
+    outbound: { mode: "proxy", requestClass: "idempotent" },
+  });
+  assert.strictEqual(calls[0].options.dispatcher, undefined, "auto mode should start unknown external hosts through direct access");
   assert.strictEqual(calls[1].options.dispatcher, undefined, "local requests should bypass auto discovery and proxying");
+  assert.strictEqual(calls[2].options.dispatcher, dispatcher, "forced proxy mode should use the auto-discovered proxy");
 
   console.log("outbound proxy auto-discovery checks passed");
 }

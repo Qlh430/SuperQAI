@@ -7,6 +7,8 @@ const ImageResolutionRules = require("./image-resolution-rules");
 const CanvasImageModelRouting = require("./image-model-routing");
 const { createThumbnailStore } = require("./image-thumbnail-store");
 const { createProxyAwareFetch } = require("./outbound-fetch");
+const { createOutboundRoutePolicy, normalizeRouteMode } = require("./outbound-route-policy");
+const { createOutboundRouteStateStore } = require("./outbound-route-state");
 const CanvasAgentRuntime = require("./canvas-agent-runtime");
 const CanvasAgentRouter = require("./canvas-agent-router");
 const CanvasAgentLlmConnectors = require("./canvas-agent-llm-connectors");
@@ -25,15 +27,29 @@ loadEnvFile();
 
 const OUTBOUND_PROXY_URL = process.env.OUTBOUND_PROXY_URL || "auto";
 const OUTBOUND_NO_PROXY = process.env.OUTBOUND_NO_PROXY || process.env.NO_PROXY || "";
-const fetch = createProxyAwareFetch({
-  proxyUrl: OUTBOUND_PROXY_URL,
-  noProxy: OUTBOUND_NO_PROXY,
-});
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || "0.0.0.0";
 const PUBLIC_DIR = __dirname;
 const OUTPUT_DIR = path.join(__dirname, "output");
 const DATA_DIR = path.join(__dirname, "data");
+const OUTBOUND_ROUTE_STATE_FILE = process.env.OUTBOUND_ROUTE_STATE_FILE
+  ? path.resolve(process.env.OUTBOUND_ROUTE_STATE_FILE)
+  : path.join(DATA_DIR, "outbound-route-state.json");
+const outboundRouteStateStore = createOutboundRouteStateStore({
+  filePath: OUTBOUND_ROUTE_STATE_FILE,
+  machineId: getOutboundMachineId(),
+});
+const outboundRoutePolicy = createOutboundRoutePolicy({
+  initialState: outboundRouteStateStore.load(),
+});
+let outboundRoutePendingSnapshot = null;
+let outboundRouteSaveTimer = null;
+const fetch = createProxyAwareFetch({
+  proxyUrl: OUTBOUND_PROXY_URL,
+  noProxy: OUTBOUND_NO_PROXY,
+  routePolicy: outboundRoutePolicy,
+  onRouteStateChange: queueOutboundRouteStateSave,
+});
 const WORKFLOW_DIR = path.join(__dirname, "workflows");
 const CANVAS_SKILLS_DIR = path.join(__dirname, "skills");
 const UPLOAD_TMP_DIR = path.join(__dirname, "tmp", "uploads");
@@ -496,6 +512,7 @@ let serverShutdownStarted = false;
 function shutdownServer() {
   if (serverShutdownStarted) return;
   serverShutdownStarted = true;
+  flushOutboundRouteState();
   server.close(() => {
     shutdownCanvasStorage().finally(() => process.exit(0));
   });
@@ -4333,6 +4350,34 @@ function loadEnvFile() {
   }
 }
 
+function getOutboundMachineId() {
+  return crypto
+    .createHash("sha256")
+    .update(`${os.hostname()}\n${process.platform}\n${process.arch}`)
+    .digest("hex")
+    .slice(0, 24);
+}
+
+function queueOutboundRouteStateSave(snapshot) {
+  outboundRoutePendingSnapshot = snapshot;
+  if (outboundRouteSaveTimer) return;
+  outboundRouteSaveTimer = setTimeout(flushOutboundRouteState, 250);
+  outboundRouteSaveTimer.unref?.();
+}
+
+function flushOutboundRouteState() {
+  if (outboundRouteSaveTimer) clearTimeout(outboundRouteSaveTimer);
+  outboundRouteSaveTimer = null;
+  const snapshot = outboundRoutePendingSnapshot;
+  outboundRoutePendingSnapshot = null;
+  if (!snapshot) return;
+  try {
+    outboundRouteStateStore.save(snapshot);
+  } catch (error) {
+    console.warn(`Outbound route state was not saved: ${String(error?.message || error)}`);
+  }
+}
+
 function normalizeApiUrl(url) {
   const cleanUrl = url.replace(/\/+$/, "");
   if (cleanUrl.endsWith("/chat/completions")) return cleanUrl;
@@ -4425,6 +4470,11 @@ async function requestImageGeneration({ model, prompt, size, resolution, quality
     },
     body: JSON.stringify(body),
     signal,
+    outbound: {
+      mode: provider.networkMode,
+      requestClass: "billable",
+      providerId: provider.providerId,
+    },
   });
 }
 
@@ -4477,6 +4527,11 @@ async function requestImageEdit({ model, prompt, size, resolution, quality, n, r
     },
     body: form,
     signal,
+    outbound: {
+      mode: provider.networkMode,
+      requestClass: "billable",
+      providerId: provider.providerId,
+    },
   });
 }
 
@@ -4878,8 +4933,10 @@ function getImageProvider(model, mode) {
       url: mode === "edit" ? normalizeImageEditApiUrl(customModel.provider.baseUrl) : normalizeImageApiUrl(customModel.provider.baseUrl),
       key: customModel.provider.apiKey,
       custom: true,
+      providerId: customModel.provider.id,
       providerName: customModel.provider.name,
       baseUrl: customModel.provider.baseUrl,
+      networkMode: normalizeRouteMode(customModel.provider.networkMode, customModel.provider.baseUrl),
     };
   }
   if (isAinbImageModel(model)) {
@@ -4887,8 +4944,10 @@ function getImageProvider(model, mode) {
     return {
       url: mode === "edit" ? AINB_IMAGE_EDIT_API_URL : AINB_IMAGE_API_URL,
       key: AINB_IMAGE_API_KEY,
+      providerId: "system-ainb-image",
       providerName: "AINB",
       baseUrl: AINB_IMAGE_API_URL,
+      networkMode: normalizeRouteMode("", AINB_IMAGE_API_URL),
     };
   }
   if (isClseImageModel(model)) {
@@ -4896,16 +4955,20 @@ function getImageProvider(model, mode) {
     return {
       url: mode === "edit" ? CLSE_IMAGE_EDIT_API_URL : CLSE_IMAGE_API_URL,
       key: CLSE_IMAGE_API_KEY,
+      providerId: "system-clse-image",
       providerName: "CLSE",
       baseUrl: CLSE_IMAGE_API_URL,
+      networkMode: normalizeRouteMode("", CLSE_IMAGE_API_URL),
     };
   }
   if (!API_KEY) throw new Error("Server missing AI_API_KEY environment variable.");
   return {
     url: mode === "edit" ? IMAGE_EDIT_API_URL : IMAGE_API_URL,
     key: API_KEY,
+    providerId: "system-ai-image",
     providerName: "OpenAI",
     baseUrl: IMAGE_API_URL,
+    networkMode: normalizeRouteMode("", IMAGE_API_URL),
   };
 }
 
@@ -5212,6 +5275,11 @@ async function requestGeminiNativeImageGeneration({ model, prompt, size, resolut
     },
     body: JSON.stringify(body),
     signal,
+    outbound: {
+      mode: normalizeRouteMode(customModel.provider.networkMode, customModel.provider.baseUrl),
+      requestClass: "billable",
+      providerId: customModel.provider.id,
+    },
   }, 240000);
   const text = await response.text();
   const contentType = response.headers.get("content-type") || "application/json; charset=utf-8";
@@ -5260,12 +5328,16 @@ async function requestImageChat({ model, prompt, size, resolution, n, refs, sign
   let provider = {
     url: IMAGE_CHAT_API_URL,
     key: IMAGE_CHAT_API_KEY,
+    providerId: "system-image-chat",
+    networkMode: normalizeRouteMode("", IMAGE_CHAT_API_URL),
   };
   if (customModel) {
     if (!customModel.provider.apiKey) throw new Error(`Custom provider "${customModel.provider.name}" is missing API Key.`);
     provider = {
       url: normalizeApiUrl(customModel.provider.baseUrl),
       key: customModel.provider.apiKey,
+      providerId: customModel.provider.id,
+      networkMode: normalizeRouteMode(customModel.provider.networkMode, customModel.provider.baseUrl),
     };
   }
 
@@ -5294,6 +5366,11 @@ async function requestImageChat({ model, prompt, size, resolution, n, refs, sign
     },
     body: JSON.stringify(body),
     signal,
+    outbound: {
+      mode: provider.networkMode,
+      requestClass: "billable",
+      providerId: provider.providerId,
+    },
   });
 }
 
