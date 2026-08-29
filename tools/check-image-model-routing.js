@@ -42,10 +42,12 @@ const candidates = [
 ];
 
 assert.equal(routing.selectCandidate(candidates, { preferredId: "preferred" }).id, "preferred");
-assert.equal(routing.selectCandidate(candidates, { preferredId: "offline" }).id, "fast");
+assert.equal(routing.selectCandidate(candidates, { preferredId: "offline" }).id, "offline");
 assert.equal(routing.selectCandidate(candidates, { requiresEdit: true }).id, "fast");
-assert.equal(routing.selectCandidate([{ ...candidates[0] }]), null);
+assert.equal(routing.selectCandidate([{ ...candidates[0] }]).id, "offline");
 assert.equal(routing.selectCandidate([{ ...candidates[1], hasBaseUrl: false }]), null);
+assert.equal(routing.isConfiguredCandidate(candidates[0]), true);
+assert.equal(routing.isHealthyCandidate(candidates[0]), false);
 assert.deepEqual(candidates.map((item) => item.id), ["offline", "fast", "preferred"]);
 
 const ranked = routing.rankCandidates([
@@ -77,6 +79,42 @@ const timeoutRegression = routing.rankCandidates([
 assert.deepEqual(timeoutRegression.map((item) => item.id), ["healthy-untried", "timed-out-history"]);
 assert.equal(routing.shouldReplaceCandidate(timeoutRegression[1], timeoutRegression[0]), true);
 assert.equal(routing.shouldReplaceCandidate(timeoutRegression[0], { ...timeoutRegression[0], id: "another-online", latencyMs: 300 }), false);
+
+const preferredHostRegression = routing.rankCandidates([
+  {
+    ...candidates[1],
+    id: "hyhawang-unhealthy",
+    providerBaseUrl: "https://api.hyhawang.com/v1",
+    state: "offline",
+    latencyMs: 100,
+  },
+  {
+    ...candidates[1],
+    id: "healthy-other",
+    providerBaseUrl: "https://other.example/v1",
+    state: "online",
+    latencyMs: 900,
+  },
+]);
+assert.deepEqual(preferredHostRegression.map((item) => item.id), ["healthy-other", "hyhawang-unhealthy"]);
+
+const equallyHealthyPreferredHost = routing.rankCandidates([
+  {
+    ...candidates[1],
+    id: "healthy-other",
+    providerBaseUrl: "https://other.example/v1",
+    state: "online",
+    latencyMs: 100,
+  },
+  {
+    ...candidates[1],
+    id: "healthy-hyhawang",
+    providerBaseUrl: "https://api.hyhawang.com/v1",
+    state: "online",
+    latencyMs: 900,
+  },
+]);
+assert.deepEqual(equallyHealthyPreferredHost.map((item) => item.id), ["healthy-hyhawang", "healthy-other"]);
 
 const mixedModels = [
   {

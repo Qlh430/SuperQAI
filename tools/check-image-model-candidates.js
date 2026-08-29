@@ -8,7 +8,9 @@ const clientSource = fs.readFileSync(path.join(__dirname, "..", "script.js"), "u
 const htmlSource = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
 assert.match(serverSource, /require\("\.\/image-model-routing"\)/);
 assert.match(serverSource, /function getImageModelCandidates\(/);
-assert.match(serverSource, /candidates:\s*getImageModelCandidates\(\)/);
+assert.match(serverSource, /const candidates\s*=\s*getImageModelCandidates\(\)/);
+assert.match(serverSource, /defaultModel:\s*candidates\[0\]\?\.id\s*\|\|\s*IMAGE_DEFAULT_MODEL/);
+assert.match(serverSource, /networkMode:\s*normalizeRouteMode\(provider\.networkMode\s*\|\|\s*old\.networkMode,\s*baseUrl\)/);
 assert.match(clientSource, /let canvasImageModelCandidates\s*=\s*\[\]/);
 assert.match(clientSource, /canvasImageModelCandidates\s*=\s*Array\.isArray\(data\.candidates\)/);
 assert.match(clientSource, /function resolveCanvasAgentImageModel\(/);
@@ -16,6 +18,8 @@ assert.match(clientSource, /CanvasImageModelRouting\.rankCandidates/);
 assert.match(clientSource, /let canvasImageModelsLoadPromise\s*=\s*null/);
 assert.match(clientSource, /preserveOnError/);
 assert.match(clientSource, /ensureCanvasAgentImageModelCandidate/);
+assert.match(clientSource, /data-provider-field="networkMode"/);
+assert.match(clientSource, /自适应（推荐）/);
 assert.ok(htmlSource.indexOf("image-model-routing.js") < htmlSource.indexOf("script.js"));
 
 const providers = [
@@ -25,6 +29,7 @@ const providers = [
     enabled: true,
     hasApiKey: true,
     baseUrl: "https://online.example/v1",
+    networkMode: "proxy",
     apiKey: "must-not-leak",
     importedSystem: false,
     models: [
@@ -66,6 +71,8 @@ assert.equal(result.some((item) => JSON.stringify(item).includes("must-not-leak"
 assert.equal(result.find((item) => item.id === "custom:online-provider:image-main")?.state, "unstable");
 assert.equal(result.find((item) => item.id === "custom:offline-provider:image-backup")?.state, "offline");
 assert.equal(result.find((item) => item.id === "custom:online-provider:image-main")?.hasBaseUrl, true);
+assert.equal(result.find((item) => item.id === "custom:online-provider:image-main")?.providerBaseUrl, "https://online.example/v1");
+assert.equal(result.find((item) => item.id === "custom:online-provider:image-main")?.networkMode, "proxy");
 assert.equal(result.find((item) => item.id === "custom:offline-provider:image-backup")?.hasBaseUrl, false);
 assert.deepEqual(result.find((item) => item.id === "custom:online-provider:image-main")?.capabilities, ["generation", "edit"]);
 assert.equal(result.find((item) => item.id === "custom:online-provider:image-main")?.consecutiveFailures, 1);

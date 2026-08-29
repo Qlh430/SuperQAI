@@ -87,6 +87,7 @@ const CANVAS_AGENT_CONVERSATIONS_FILE = process.env.CANVAS_AGENT_CONVERSATIONS_F
 const PROVIDER_MONITORING_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 const PROVIDER_MONITORING_INTERVAL_MS = Math.max(1, Number(process.env.PROVIDER_MONITORING_INTERVAL_MINUTES || 5)) * 60 * 1000;
 let providerMonitoringSweepRunning = false;
+let imageModelsRevision = 1;
 const MAX_REQUEST_BYTES = Number(process.env.MAX_REQUEST_MB || 800) * 1024 * 1024;
 const MAX_MEDIA_UPLOAD_BYTES = (Number(process.env.MAX_MEDIA_UPLOAD_MB) || 800) * 1024 * 1024;
 const MAX_UPLOAD_CHUNKS = Math.max(1, Math.min(4096, Number(process.env.MAX_UPLOAD_CHUNKS) || 1024));
@@ -299,6 +300,7 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "GET" && req.url === "/api/image-models") {
     const customModels = getCustomModelEntries("generation");
     const staticModels = AVAILABLE_IMAGE_MODELS.filter((model) => isStaticModelEnabled(model, "generation"));
+    const candidates = getImageModelCandidates();
     const resolutions = Object.fromEntries([
       ...staticModels.map((model) => [model, getConfiguredImageResolutions(model)]),
       ...customModels.map((item) => [item.clientId, getConfiguredImageResolutions(item.clientId, item.model)]),
@@ -317,14 +319,15 @@ const server = http.createServer(async (req, res) => {
         .filter(([, price]) => price),
     );
     sendJson(res, 200, {
-      defaultModel: IMAGE_DEFAULT_MODEL,
+      revision: imageModelsRevision,
+      defaultModel: candidates[0]?.id || IMAGE_DEFAULT_MODEL,
       models: [...new Set([...staticModels, ...customModels.map((item) => item.clientId)])],
       labels: Object.fromEntries(customModels.map((item) => [item.clientId, item.label])),
       resolutions,
       platforms,
       families,
       prices,
-      candidates: getImageModelCandidates(),
+      candidates,
     });
     return;
   }
@@ -543,6 +546,7 @@ async function handleSettings(req, res) {
     const previous = readSettingsFile();
     const next = normalizeSettings(payload, previous);
     writeSettingsFile(next);
+    imageModelsRevision += 1;
     await promoteDraftAgentVerifications(next);
     sendJson(res, 200, getSettingsResponse(next));
   } catch (error) {
@@ -6384,10 +6388,12 @@ function normalizeSettings(value, previous = getDefaultSettings()) {
     const old = previousProviders.get(id) || {};
     const submittedKey = String(provider.apiKey || "").trim();
     const models = Array.isArray(provider.models) ? provider.models : old.models || [];
+    const baseUrl = normalizeProviderBaseUrl(provider.baseUrl || old.baseUrl || "");
     return {
       id,
       name: String(provider.name || old.name || `API ${index + 1}`).trim() || `API ${index + 1}`,
-      baseUrl: normalizeProviderBaseUrl(provider.baseUrl || old.baseUrl || ""),
+      baseUrl,
+      networkMode: normalizeRouteMode(provider.networkMode || old.networkMode, baseUrl),
       rechargeUrl: String(provider.rechargeUrl || old.rechargeUrl || "").trim(),
       apiKey: submittedKey && !submittedKey.includes("••••") ? submittedKey : String(old.apiKey || ""),
       enabled: provider.enabled !== false,
@@ -6461,6 +6467,7 @@ function getSettingsResponse(settings) {
   const configuredIds = new Set(sanitized.providers.map((provider) => provider.id));
   return {
     ...sanitized,
+    imageModelsRevision,
     providers: [
       ...systemProviders
         .filter((provider) => !configuredIds.has(provider.id))
@@ -6520,6 +6527,7 @@ function makeSystemProvider(id, name, endpointUrl, apiKey, models, type) {
     id: `system-${crypto.createHash("sha1").update(`${baseUrl}\n${apiKey}`).digest("hex").slice(0, 12)}`,
     name: getProviderDisplayName(baseUrl, name),
     baseUrl,
+    networkMode: normalizeRouteMode("", baseUrl),
     apiKey,
     apiKeyMasked: maskApiKey(apiKey),
     hasApiKey: Boolean(apiKey),

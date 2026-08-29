@@ -18,14 +18,36 @@
     unstable: 3,
     degraded: 4,
     unknown: 5,
+    offline: 6,
+    "connection-error": 7,
+    "account-limited": 8,
+    "auth-error": 9,
+    "balance-error": 10,
+    disabled: 11,
   });
 
-  function isEligible(candidate, options = {}) {
+  function isConfiguredCandidate(candidate, options = {}) {
     const capabilities = new Set(Array.isArray(candidate?.capabilities) ? candidate.capabilities : []);
     return Boolean(candidate?.id && candidate.enabled !== false && candidate.hasApiKey !== false && candidate.hasBaseUrl)
       && capabilities.has("generation")
-      && (!options.requiresEdit || capabilities.has("edit"))
-      && !BLOCKED_STATES.has(String(candidate.state || "unknown"));
+      && (!options.requiresEdit || capabilities.has("edit"));
+  }
+
+  function isHealthyCandidate(candidate) {
+    return !BLOCKED_STATES.has(String(candidate?.state || "unknown"))
+      && !["unstable", "degraded"].includes(String(candidate?.state || "unknown"));
+  }
+
+  function isEligible(candidate, options = {}) {
+    return isConfiguredCandidate(candidate, options);
+  }
+
+  function isPreferredImageProvider(candidate) {
+    try {
+      return new URL(String(candidate?.providerBaseUrl || "")).hostname.toLowerCase() === "api.hyhawang.com";
+    } catch {
+      return false;
+    }
   }
 
   function normalizeModelName(value) {
@@ -45,10 +67,12 @@
     const preferredId = String(options.preferredId || "");
     const requestedModel = String(options.requestedModel || options.defaultModelFamily || "").trim();
     return (Array.isArray(candidates) ? candidates : [])
-      .filter((candidate) => isEligible(candidate, options) && matchesRequestedModel(candidate, requestedModel))
+      .filter((candidate) => isConfiguredCandidate(candidate, options) && matchesRequestedModel(candidate, requestedModel))
       .map((candidate) => ({ ...candidate }))
       .sort((left, right) => Number(right.id === preferredId) - Number(left.id === preferredId)
+        || Number(isHealthyCandidate(right)) - Number(isHealthyCandidate(left))
         || (STATE_RANK[left.state] ?? STATE_RANK.unknown) - (STATE_RANK[right.state] ?? STATE_RANK.unknown)
+        || Number(isPreferredImageProvider(right)) - Number(isPreferredImageProvider(left))
         || Number(left.consecutiveFailures || 0) - Number(right.consecutiveFailures || 0)
         || Number(right.successRate ?? -1) - Number(left.successRate ?? -1)
         || Number(Boolean(right.lastImageSuccessAt)) - Number(Boolean(left.lastImageSuccessAt))
@@ -59,12 +83,13 @@
 
   function shouldReplaceCandidate(current, best) {
     if (!best?.id || String(best.id) === String(current?.id || "")) return false;
-    if (!current?.id || !isEligible(current, { requiresEdit: false })) return true;
+    if (!current?.id || !isConfiguredCandidate(current, { requiresEdit: false })) return true;
     const currentState = String(current.state || "unknown");
     const bestState = String(best.state || "unknown");
     const currentRank = STATE_RANK[currentState] ?? STATE_RANK.unknown;
     const bestRank = STATE_RANK[bestState] ?? STATE_RANK.unknown;
-    if (BLOCKED_STATES.has(currentState)) return true;
+    if (!isHealthyCandidate(current) && isHealthyCandidate(best)) return true;
+    if (BLOCKED_STATES.has(currentState) && bestRank < currentRank) return true;
     if (["slow", "unstable", "degraded", "unknown"].includes(currentState) && bestRank < currentRank) return true;
     return Number(current.consecutiveFailures || 0) > Number(best.consecutiveFailures || 0)
       && bestRank <= currentRank;
@@ -112,6 +137,10 @@
           id: provider.importedSystem ? modelId : makeClientId(providerId, modelId),
           providerId,
           providerName: String(provider.name || "图片 API"),
+          providerBaseUrl: String(provider.baseUrl || "").trim(),
+          networkMode: ["auto", "direct", "proxy"].includes(String(provider.networkMode || "").trim().toLowerCase())
+            ? String(provider.networkMode).trim().toLowerCase()
+            : "auto",
           model: modelId,
           alias: String(model?.alias || ""),
           label: String(model?.alias || modelId),
@@ -160,6 +189,8 @@
     BLOCKED_STATES,
     normalizeModelName,
     matchesRequestedModel,
+    isConfiguredCandidate,
+    isHealthyCandidate,
     isEligible,
     rankCandidates,
     shouldReplaceCandidate,
