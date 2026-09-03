@@ -7,6 +7,7 @@
   "scripts": {
     "precheck": "node --check canvas-agent-verification.js && node tools/check-canvas-agent-verification.js && node --check image-model-routing.js && node tools/check-image-model-routing.js && node tools/check-image-model-candidates.js && node tools/check-image-model-revision.js && node tools/check-image-history-management.js && node tools/check-chat-history-management.js && node tools/check-select-theme-colors.js && node tools/check-image-preview-presentation.js",
     "check:provider-vault": "node tools/check-provider-secret-vault.js",
+    "check:provider-store": "node --disable-warning=ExperimentalWarning tools/check-provider-store.js",
     "start": "node server.js",
     "check:canvas-engine-contract": "node --check canvas-engine-contract.js && node tools/check-canvas-engine-contract.js",
     "check:canvas-storage": "node --disable-warning=ExperimentalWarning tools/check-canvas-spatial-rules.js && node --disable-warning=ExperimentalWarning tools/check-canvas-schema.js && node --disable-warning=ExperimentalWarning tools/check-canvas-repository.js && node --disable-warning=ExperimentalWarning tools/check-canvas-repository-operations.js && node --disable-warning=ExperimentalWarning tools/check-canvas-legacy-migrator.js && node --disable-warning=ExperimentalWarning tools/check-canvas-services.js && node --disable-warning=ExperimentalWarning tools/check-canvas-export-roundtrip.js && node tools/check-canvas-storage-endpoint.js",
