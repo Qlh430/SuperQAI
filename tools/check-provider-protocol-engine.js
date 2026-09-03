@@ -68,6 +68,21 @@ function abortableNever(signal) {
   assert.equal(anthropicRequest.headers["anthropic-version"], "2023-06-01");
   assert.equal(anthropicRequest.body.system, "system");
   assert.equal(anthropicRequest.body.max_tokens, 1024);
+  const anthropicToolRequest = engine.buildRequest(anthropicProvider, anthropicModel, "llm.tools", {
+    system: "agent-system",
+    messages: [
+      { role: "user", content: "create" },
+      { role: "assistant", content: null, tool_calls: [{ id: "call-a", function: { name: "create_text_node", arguments: '{"content":"title"}' } }] },
+      { role: "tool", tool_call_id: "call-a", content: '{"ok":true}' },
+    ],
+    tools: [{ type: "function", function: { name: "create_text_node", parameters: { type: "object" } } }],
+  }, { max_tokens: 2048 });
+  assert.deepEqual(anthropicToolRequest.body.messages, [
+    { role: "user", content: "create" },
+    { role: "assistant", content: [{ type: "tool_use", id: "call-a", name: "create_text_node", input: { content: "title" } }] },
+    { role: "user", content: [{ type: "tool_result", tool_use_id: "call-a", content: '{"ok":true}' }] },
+  ]);
+  assert.deepEqual(anthropicToolRequest.body.tools, [{ name: "create_text_node", description: undefined, input_schema: { type: "object" } }]);
   responseQueue.push(jsonResponse({ content: [{ type: "text", text: "claude-ok" }], usage: { output_tokens: 1 } }));
   assert.deepEqual(await engine.execute(anthropicProvider, anthropicModel, "llm.chat", input, {}, {}), {
     text: "claude-ok",
@@ -95,6 +110,26 @@ function abortableNever(signal) {
   const responsesModel = { id: "gpt-response", protocol: "openai-responses" };
   const responsesRequest = engine.buildRequest(openaiProvider, responsesModel, "llm.chat", input, {});
   assert.equal(responsesRequest.url, "https://api.example.test/v1/responses");
+  const responsesToolRequest = engine.buildRequest(openaiProvider, responsesModel, "llm.tools", {
+    system: "Canvas Agent system",
+    messages: [
+      { role: "user", content: [{ type: "text", text: "create" }, { type: "image_url", image_url: { url: "https://cdn.example.test/ref.png" } }] },
+      { role: "assistant", content: null, tool_calls: [{ id: "call-1", type: "function", function: { name: "create_text_node", arguments: '{"content":"poster"}' } }] },
+      { role: "tool", tool_call_id: "call-1", content: '{"ok":true}' },
+    ],
+    tools: [{ type: "function", function: { name: "create_text_node", description: "Create text", parameters: { type: "object" } } }],
+  }, { max_tokens: 4096, reasoning_effort: "medium", parallel_tool_calls: false });
+  assert.equal(responsesToolRequest.body.instructions, "Canvas Agent system");
+  assert.equal(responsesToolRequest.body.max_output_tokens, 4096);
+  assert.deepEqual(responsesToolRequest.body.reasoning, { effort: "medium" });
+  assert.equal(responsesToolRequest.body.max_tokens, undefined);
+  assert.equal(responsesToolRequest.body.reasoning_effort, undefined);
+  assert.deepEqual(responsesToolRequest.body.tools, [{ type: "function", name: "create_text_node", description: "Create text", parameters: { type: "object" } }]);
+  assert.deepEqual(responsesToolRequest.body.input, [
+    { role: "user", content: [{ type: "input_text", text: "create" }, { type: "input_image", image_url: "https://cdn.example.test/ref.png" }] },
+    { type: "function_call", call_id: "call-1", name: "create_text_node", arguments: '{"content":"poster"}' },
+    { type: "function_call_output", call_id: "call-1", output: '{"ok":true}' },
+  ]);
   responseQueue.push(jsonResponse({ output_text: "response-ok", usage: { output_tokens: 1 } }));
   assert.deepEqual(await engine.execute(openaiProvider, responsesModel, "llm.chat", input, {}, {}), {
     text: "response-ok",
@@ -194,6 +229,20 @@ function abortableNever(signal) {
     registry,
     outboundFetch: (_url, options) => abortableNever(options.signal),
   });
+  const externalAbortController = new AbortController();
+  const externallyAborted = timeoutEngine.execute(
+    openaiProvider,
+    openaiModel,
+    "llm.chat",
+    input,
+    {},
+    { signal: externalAbortController.signal, totalTimeoutMs: 1000 },
+  );
+  externalAbortController.abort();
+  await assert.rejects(
+    externallyAborted,
+    (error) => error.name === "AbortError" && error.code === "REQUEST_ABORTED" && error.retryable === false,
+  );
   await assert.rejects(
     timeoutEngine.execute(openaiProvider, openaiModel, "llm.chat", input, {}, { connectTimeoutMs: 10, totalTimeoutMs: 100 }),
     (error) => error.code === "UPSTREAM_TIMEOUT" && error.stage === "connect",

@@ -59,6 +59,10 @@ function requestQuery(request = {}) {
   };
 }
 
+function shouldStopFallback(error) {
+  return error?.name === "AbortError" || error?.code === "REQUEST_ABORTED";
+}
+
 function createProviderExecutor({ resolver, engine } = {}) {
   if (!resolver || typeof resolver.listCandidates !== "function" || typeof resolver.getAutoFallback !== "function") {
     throw new TypeError("Provider Executor requires a compatible Capability Resolver.");
@@ -94,7 +98,8 @@ function createProviderExecutor({ resolver, engine } = {}) {
       } catch (error) {
         const wrapped = safeExecutionError(error, candidate, attempts);
         attempts.push(wrapped.attempts.at(-1));
-        if (candidate === candidates.at(-1)) throw wrapped;
+        if (shouldStopFallback(wrapped) || candidate === candidates.at(-1)) throw wrapped;
+        request.onAttemptFailure?.(attempts.at(-1));
       }
     }
     throw new Error("没有可执行的模型候选项。");
@@ -122,7 +127,8 @@ function createProviderExecutor({ resolver, engine } = {}) {
       } catch (error) {
         const wrapped = safeExecutionError(error, candidate, attempts, emitted);
         attempts.push(wrapped.attempts.at(-1));
-        if (emitted || candidate === candidates.at(-1)) throw wrapped;
+        if (shouldStopFallback(wrapped) || emitted || candidate === candidates.at(-1)) throw wrapped;
+        request.onAttemptFailure?.(attempts.at(-1));
       }
     }
     throw new Error("没有可执行的模型候选项。");
@@ -146,7 +152,8 @@ function createProviderExecutor({ resolver, engine } = {}) {
       } catch (error) {
         const wrapped = safeExecutionError(error, candidate, attempts);
         attempts.push(wrapped.attempts.at(-1));
-        if (candidate === candidates.at(-1)) throw wrapped;
+        if (shouldStopFallback(wrapped) || candidate === candidates.at(-1)) throw wrapped;
+        request.onAttemptFailure?.(attempts.at(-1));
       }
     }
     throw new Error("没有可执行的模型候选项。");

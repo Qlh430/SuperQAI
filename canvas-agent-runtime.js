@@ -400,6 +400,27 @@ function buildChatCompletionsRequest(payload = {}, options = {}) {
   };
 }
 
+function buildProviderTurnRequest(payload = {}, options = {}) {
+  const request = buildChatCompletionsRequest(payload, {
+    ...options,
+    model: "provider-selected",
+  });
+  const systemIndex = request.messages.findIndex((message) => message.role === "system");
+  const systemMessage = systemIndex >= 0 ? request.messages[systemIndex] : null;
+  return {
+    system: String(systemMessage?.content || ""),
+    messages: request.messages.filter((_message, index) => index !== systemIndex),
+    tools: request.tools,
+    toolChoice: request.tool_choice || "auto",
+    needsVision: normalizeVisionImages(payload.vision_images).length > 0,
+    params: {
+      max_tokens: Number(request.max_tokens || 4096),
+      reasoning_effort: normalizeReasoningEffort(options.reasoningEffort),
+      parallel_tool_calls: request.parallel_tool_calls !== false,
+    },
+  };
+}
+
 function normalizeChatTranscript(value) {
   return (Array.isArray(value) ? value : []).slice(-CanvasAgentCore.MAX_STEPS * 3).flatMap((item) => {
     const role = String(item?.role || "").toLowerCase();
@@ -682,6 +703,7 @@ module.exports = {
   resolveCanvasAgentSkillContext,
   buildResponsesRequest,
   buildChatCompletionsRequest,
+  buildProviderTurnRequest,
   extractResponsesTurn,
   extractChatCompletionsTurn,
   selectAgentReasoningEffort,

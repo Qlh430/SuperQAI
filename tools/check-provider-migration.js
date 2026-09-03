@@ -5,7 +5,7 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 
-const { migrateLegacyProviders, normalizeBaseUrl } = require("../provider-migration");
+const { migrateLegacyAgentProviders, migrateLegacyProviders, normalizeBaseUrl } = require("../provider-migration");
 const { createProviderSecretVault } = require("../provider-secret-vault");
 const { createProviderStore } = require("../provider-store");
 const { createSystemDb } = require("../system-db");
@@ -89,6 +89,54 @@ function closeFixture(fixture) {
     assert.equal(fixture.store.listInternal().length, 1);
   } finally {
     closeFixture(fixture);
+  }
+
+  const agentUpgradeFixture = createFixture("aios-provider-agent-upgrade-");
+  let agentUpgradeSnapshots = 0;
+  try {
+    migrateLegacyProviders({
+      db: agentUpgradeFixture.db,
+      store: agentUpgradeFixture.store,
+      environmentProviders: [{
+        id: "environment-chat",
+        name: "Environment Chat",
+        baseUrl: "https://agent.example.test/v1",
+        protocol: "openai",
+        source: "environment",
+        apiKey: "fake-agent-key",
+        models: [{ id: "chat-model", protocol: "openai", capabilities: ["chat", "vision"] }],
+      }],
+      createSnapshot: () => ({ id: "initial-provider-snapshot" }),
+    });
+    const upgradeInput = {
+      db: agentUpgradeFixture.db,
+      store: agentUpgradeFixture.store,
+      agentProvider: {
+        id: "canvas-agent-env-fallback",
+        name: "Canvas Agent API",
+        baseUrl: "https://agent.example.test/v1",
+        protocol: "openai-responses",
+        source: "environment",
+        apiKey: "fake-agent-key",
+        models: [{
+          id: "response-model",
+          protocol: "openai-responses",
+          capabilities: ["llm.chat", "llm.chat.vision", "llm.tools"],
+        }],
+      },
+      createSnapshot: () => ({ id: `agent-upgrade-${++agentUpgradeSnapshots}` }),
+    };
+    const upgraded = migrateLegacyAgentProviders(upgradeInput);
+    assert.equal(upgraded.updated, 1);
+    assert.equal(agentUpgradeSnapshots, 1);
+    const upgradedProvider = agentUpgradeFixture.store.listInternal()[0];
+    assert.deepEqual(upgradedProvider.models.map((model) => model.id), ["chat-model", "response-model"]);
+    assert.equal(upgradedProvider.models[0].capabilities.includes("llm.tools"), true);
+    assert.equal(upgradedProvider.models[1].protocol, "openai-responses");
+    assert.equal(migrateLegacyAgentProviders(upgradeInput).updated, 0);
+    assert.equal(agentUpgradeSnapshots, 1);
+  } finally {
+    closeFixture(agentUpgradeFixture);
   }
 
   const rollbackFixture = createFixture("aios-provider-migration-rollback-");

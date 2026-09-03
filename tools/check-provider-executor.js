@@ -57,6 +57,13 @@ function createFixture() {
     },
     async stream(provider, model, intent, input, params, onDelta) {
       calls.push(`stream:${provider.id}:${model.id}:${intent}`);
+      if (input.cancel) {
+        throw Object.assign(new Error("Request cancelled"), {
+          name: "AbortError",
+          code: "REQUEST_ABORTED",
+          retryable: false,
+        });
+      }
       if (provider.id === "primary") {
         if (input.emitBeforeFailure) onDelta({ type: "text-delta", text: "partial" });
         const error = new Error("stream failed primary-secret");
@@ -122,6 +129,13 @@ function createFixture() {
   );
   assert.deepEqual(calls, ["stream:primary:primary-chat:llm.chat"]);
   assert.deepEqual(partialEvents.map((event) => event.text), ["partial"]);
+
+  calls.length = 0;
+  await assert.rejects(
+    executor.stream({ intent: "llm.chat", input: { cancel: true } }, () => {}),
+    (error) => error.name === "AbortError" && error.code === "REQUEST_ABORTED",
+  );
+  assert.deepEqual(calls, ["stream:primary:primary-chat:llm.chat"]);
 
   calls.length = 0;
   const toolResult = await executor.executeWithTools({ intent: "llm.tools", input: { messages: [], system: "system" } }, [{ type: "function", function: { name: "lookup" } }]);

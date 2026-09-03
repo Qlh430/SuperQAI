@@ -4,6 +4,7 @@ const crypto = require("node:crypto");
 const path = require("node:path");
 
 const MIGRATION_KEY = "providers.migration.v1";
+const AGENT_BRIDGE_MIGRATION_KEY = "providers.agent-bridge.v1";
 const CAPABILITY_ALIASES = Object.freeze({
   chat: "llm.chat",
   conversation: "llm.chat",
@@ -223,9 +224,99 @@ function migrateLegacyProviders({
   };
 }
 
+function supportsLegacyAgentTools(protocol) {
+  return ["openai", "openai-responses", "anthropic"].includes(String(protocol || "").toLowerCase());
+}
+
+function mergeAgentModel(provider, agentProvider) {
+  const models = provider.models.map((model) => ({
+    ...model,
+    capabilities: [...model.capabilities],
+  }));
+  let changed = false;
+  if (provider.source === "environment") {
+    for (const model of models) {
+      if (!model.capabilities.includes("llm.chat") || model.capabilities.includes("llm.tools")) continue;
+      if (!supportsLegacyAgentTools(model.protocol || provider.protocol)) continue;
+      model.capabilities.push("llm.tools");
+      changed = true;
+    }
+  }
+  if (agentProvider) {
+    for (const agentModel of agentProvider.models) {
+      const existing = models.find((model) => model.id === agentModel.id);
+      if (existing) {
+        const capabilities = [...new Set([...existing.capabilities, ...agentModel.capabilities])];
+        if (capabilities.length !== existing.capabilities.length) {
+          existing.capabilities = capabilities;
+          changed = true;
+        }
+      } else {
+        models.push({ ...agentModel, sortOrder: models.length, capabilities: [...agentModel.capabilities] });
+        changed = true;
+      }
+    }
+  }
+  return { changed, provider: { ...provider, models } };
+}
+
+function migrateLegacyAgentProviders({ db, store, agentProvider = null, createSnapshot } = {}) {
+  if (!db || typeof db.getSetting !== "function" || typeof db.setSetting !== "function" || typeof db.runInTransaction !== "function") {
+    throw new TypeError("Agent Provider migration requires a transaction-capable system database.");
+  }
+  if (!store || typeof store.listInternal !== "function" || typeof store.save !== "function") {
+    throw new TypeError("Agent Provider migration requires the Provider Store.");
+  }
+  const completed = db.getSetting(AGENT_BRIDGE_MIGRATION_KEY);
+  if (completed?.completed) {
+    return {
+      updated: 0,
+      providerIds: Array.isArray(completed.providerIds) ? completed.providerIds : [],
+      snapshotId: completed.snapshotId || null,
+    };
+  }
+
+  const existingProviders = store.listInternal();
+  const normalizedAgent = agentProvider ? normalizeProvider(agentProvider, "environment", existingProviders.length) : null;
+  const matchingProvider = normalizedAgent
+    ? existingProviders.find((provider) => providerIdentity(provider) === providerIdentity(normalizedAgent))
+    : null;
+  const updates = [];
+  for (const provider of existingProviders) {
+    const merged = mergeAgentModel(provider, matchingProvider?.id === provider.id ? normalizedAgent : null);
+    if (merged.changed) updates.push(merged.provider);
+  }
+  if (normalizedAgent && !matchingProvider) {
+    const usedIds = new Set(existingProviders.map((provider) => provider.id));
+    let id = normalizedAgent.id;
+    let suffix = 2;
+    while (usedIds.has(id)) id = `${normalizedAgent.id}-${suffix++}`;
+    updates.push({ ...normalizedAgent, id, sortOrder: existingProviders.length });
+  }
+
+  if (updates.length && typeof createSnapshot !== "function") {
+    throw new TypeError("Agent Provider migration requires a pre-migration snapshot callback.");
+  }
+  const snapshotId = updates.length ? snapshotIdentifier(createSnapshot()) : null;
+  const providerIds = updates.map((provider) => provider.id);
+  db.runInTransaction(() => {
+    updates.forEach((provider) => store.save(provider));
+    db.setSetting(AGENT_BRIDGE_MIGRATION_KEY, {
+      completed: true,
+      version: 1,
+      completedAt: new Date().toISOString(),
+      snapshotId,
+      providerIds,
+    });
+  });
+  return { updated: updates.length, providerIds, snapshotId };
+}
+
 module.exports = {
+  AGENT_BRIDGE_MIGRATION_KEY,
   CAPABILITY_ALIASES,
   MIGRATION_KEY,
+  migrateLegacyAgentProviders,
   migrateLegacyProviders,
   normalizeBaseUrl,
   normalizeCapability,

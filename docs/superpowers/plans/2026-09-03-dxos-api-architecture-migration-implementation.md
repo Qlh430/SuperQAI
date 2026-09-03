@@ -602,7 +602,7 @@ createCanvasAgentProviderBridge({ executor }) => {
 }
 ```
 
-- [ ] **Step 1: Write failing Agent bridge and coherence checks**
+- [x] **Step 1: Write failing Agent bridge and coherence checks**
 
 测试文本 Agent 请求提交 `chat + tools`，含图片请求增加 `vision`，取消信号可传递，固定模型严格失败，未固定模型按 Store 顺序回退。修改现有 coherence 检查，使 Agent 与聊天看到同一模型目录和顺序：
 
@@ -615,17 +615,17 @@ assert.equal(agentCatalog[0].id, chatCatalog[0].id);
 
 检查还必须扫描运行路径，证明 `canvas-agent-verification.js`、历史 EWMA、circuit/half-open 状态不会决定候选资格或次序。
 
-- [ ] **Step 2: Run and confirm RED**
+- [x] **Step 2: Run and confirm RED**
 
 Run: `node tools/check-canvas-agent-provider-bridge.js`
 Run: `node tools/check-live-agent-model-coherence.js`
 Expected: FAIL because Agent still owns discovery/verification/health routing.
 
-- [ ] **Step 3: Route Agent turns through the bridge**
+- [x] **Step 3: Route Agent turns through the bridge**
 
 保留 Agent 的工具编排、MCP、会话、取消和 UI 事件；删除其模型发现、API 验证、健康排序、熔断和半开探测的运行期依赖。`canvas-agent-router.js` 仅负责把任务需求翻译成能力集合；`canvas-agent-llm-connectors.js` 变为兼容桥或被 Bridge 替代。
 
-- [ ] **Step 4: Run focused and Agent regression checks**
+- [x] **Step 4: Run focused and Agent regression checks**
 
 Run: `node --check canvas-agent-provider-bridge.js`
 Run: `node tools/check-canvas-agent-provider-bridge.js`
@@ -636,7 +636,7 @@ Run: `node tools/check-canvas-agent-conversation-endpoint.js`
 Run: `node tools/check-canvas-agent-endpoint.js`
 Expected: PASS;工具调用、会话和取消行为保持不变。
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```powershell
 git add -- canvas-agent-provider-bridge.js canvas-agent-router.js canvas-agent-llm-connectors.js canvas-agent-runtime.js server.js tools/check-canvas-agent-provider-bridge.js tools/check-live-agent-model-coherence.js package.json

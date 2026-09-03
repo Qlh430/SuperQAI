@@ -13,6 +13,14 @@ const DEFAULT_POLICY = Object.freeze({
 
 const ROUTE_CAPABILITIES = new Set(["text", "vision", "tools"]);
 const FAILOVER_CATEGORIES = new Set(["network", "timeout", "rate-limit", "server", "protocol", "auth", "balance", "busy"]);
+
+function getProviderTaskRequirements(input = {}) {
+  return {
+    intent: "llm.tools",
+    mustAll: input.needsVision ? ["llm.chat.vision", "llm.tools"] : ["llm.tools"],
+  };
+}
+
 function normalizeAgentRouting(value = {}) {
   const candidateOrder = [];
   const seen = new Set();
@@ -389,6 +397,7 @@ function makeCancelledError() {
 
 module.exports = {
   DEFAULT_POLICY,
+  getProviderTaskRequirements,
   normalizeAgentRouting,
   normalizeAgentBaseUrl,
   normalizeModelAdapterId,

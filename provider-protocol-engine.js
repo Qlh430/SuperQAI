@@ -84,6 +84,18 @@ function normalizeError(error, provider, model) {
       safeMessage: `上游服务${error.stage === "connect" ? "连接" : error.stage === "first-event" ? "首个事件" : "总请求"}超时。`,
     });
   }
+  if (error?.name === "AbortError" || error?.code === "REQUEST_ABORTED") {
+    const aborted = new ProtocolEngineError({
+      code: "REQUEST_ABORTED",
+      providerId: String(provider?.id || ""),
+      modelId: modelIdOf(model),
+      retryable: false,
+      safeMessage: "请求已取消。",
+    });
+    aborted.name = "AbortError";
+    aborted.cancelledByUser = true;
+    return aborted;
+  }
   const detail = redact(error?.message || "上游服务不可用", [provider?.apiKey, provider?.api_key, provider?.walletKey, provider?.wallet_api_key]);
   return new ProtocolEngineError({
     code: "UPSTREAM_UNAVAILABLE",
@@ -143,6 +155,71 @@ function openAiToolsToAnthropic(tools) {
   }).filter((tool) => tool.name);
 }
 
+function parseJsonObject(value) {
+  if (value && typeof value === "object" && !Array.isArray(value)) return value;
+  try {
+    const parsed = JSON.parse(String(value || "{}"));
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function chatContentToAnthropic(content) {
+  if (!Array.isArray(content)) return content;
+  return content.flatMap((part) => {
+    if (typeof part === "string") return [{ type: "text", text: part }];
+    if (part?.type === "text" || part?.type === "input_text") {
+      return [{ type: "text", text: String(part.text || part.input_text || "") }];
+    }
+    const imageUrl = part?.image_url?.url || part?.image_url || (part?.type === "input_image" ? part?.url : "");
+    if (imageUrl) {
+      const data = String(imageUrl).match(/^data:([^;]+);base64,(.+)$/);
+      return [{
+        type: "image",
+        source: data
+          ? { type: "base64", media_type: data[1], data: data[2] }
+          : { type: "url", url: String(imageUrl) },
+      }];
+    }
+    return [part];
+  });
+}
+
+function chatMessagesToAnthropic(messages) {
+  return (Array.isArray(messages) ? messages : []).filter((message) => message?.role !== "system").map((message) => {
+    if (message?.role === "tool") {
+      return {
+        role: "user",
+        content: [{
+          type: "tool_result",
+          tool_use_id: String(message.tool_call_id || message.call_id || ""),
+          content: typeof message.content === "string" ? message.content : JSON.stringify(message.content ?? null),
+        }],
+      };
+    }
+    const toolCalls = Array.isArray(message?.tool_calls) ? message.tool_calls : [];
+    if (message?.role === "assistant" && toolCalls.length) {
+      const content = [];
+      if (message.content) {
+        const textParts = chatContentToAnthropic(message.content);
+        content.push(...(Array.isArray(textParts) ? textParts : [{ type: "text", text: String(textParts) }]));
+      }
+      for (const toolCall of toolCalls) {
+        const definition = toolCall?.function || toolCall;
+        const id = String(toolCall?.id || toolCall?.call_id || "").trim();
+        const name = String(definition?.name || "").trim();
+        if (id && name) content.push({ type: "tool_use", id, name, input: parseJsonObject(definition?.arguments) });
+      }
+      return { role: "assistant", content };
+    }
+    return {
+      role: message?.role === "assistant" ? "assistant" : "user",
+      content: chatContentToAnthropic(message?.content),
+    };
+  });
+}
+
 function geminiParts(content) {
   if (!Array.isArray(content)) return [{ text: contentAsText(content) }];
   const parts = [];
@@ -158,6 +235,74 @@ function geminiParts(content) {
   return parts.length ? parts : [{ text: "" }];
 }
 
+function openAiToolsToResponses(tools) {
+  return (Array.isArray(tools) ? tools : []).map((tool) => {
+    const definition = tool?.function || tool;
+    const output = {
+      type: "function",
+      name: String(definition?.name || ""),
+    };
+    if (definition?.description !== undefined) output.description = definition.description;
+    if (definition?.parameters !== undefined) output.parameters = definition.parameters;
+    if (definition?.strict !== undefined) output.strict = definition.strict;
+    return output;
+  }).filter((tool) => tool.name);
+}
+
+function chatContentToResponses(content) {
+  if (!Array.isArray(content)) return content;
+  return content.flatMap((part) => {
+    if (typeof part === "string") return [{ type: "input_text", text: part }];
+    if (part?.type === "text" || part?.type === "input_text") {
+      return [{ type: "input_text", text: String(part.text || part.input_text || "") }];
+    }
+    if (part?.type === "image_url" || part?.type === "input_image") {
+      const imageUrl = part?.image_url?.url || part?.image_url || part?.url;
+      return imageUrl ? [{ type: "input_image", image_url: String(imageUrl) }] : [];
+    }
+    return [part];
+  });
+}
+
+function chatMessagesToResponses(messages) {
+  return (Array.isArray(messages) ? messages : []).flatMap((message) => {
+    if (message?.role === "system") return [];
+    if (message?.role === "tool") {
+      const callId = String(message.tool_call_id || message.call_id || "").trim();
+      return callId ? [{
+        type: "function_call_output",
+        call_id: callId,
+        output: typeof message.content === "string" ? message.content : JSON.stringify(message.content ?? null),
+      }] : [];
+    }
+
+    const output = [];
+    if (message?.content !== undefined && message.content !== null && message.content !== "") {
+      output.push({
+        role: message.role === "assistant" ? "assistant" : "user",
+        content: chatContentToResponses(message.content),
+      });
+    }
+    if (message?.role === "assistant") {
+      for (const toolCall of Array.isArray(message.tool_calls) ? message.tool_calls : []) {
+        const definition = toolCall?.function || toolCall;
+        const callId = String(toolCall?.id || toolCall?.call_id || "").trim();
+        const name = String(definition?.name || "").trim();
+        if (!callId || !name) continue;
+        output.push({
+          type: "function_call",
+          call_id: callId,
+          name,
+          arguments: typeof definition?.arguments === "string"
+            ? definition.arguments
+            : JSON.stringify(definition?.arguments || {}),
+        });
+      }
+    }
+    return output;
+  });
+}
+
 function buildBody(kind, modelId, input = {}, params = {}, stream = false) {
   const messages = normalizedMessages(input);
   if (kind === "openai-chat") {
@@ -169,10 +314,27 @@ function buildBody(kind, modelId, input = {}, params = {}, stream = false) {
     return body;
   }
   if (kind === "openai-responses") {
-    const body = { model: modelId, input: messages };
-    if (input.system) body.instructions = input.system;
-    if (Array.isArray(input.tools)) body.tools = input.tools;
-    addDefined(body, params, ["signal", "connectTimeoutMs", "firstEventTimeoutMs", "totalTimeoutMs"]);
+    const body = { model: modelId, input: chatMessagesToResponses(messages) };
+    const systemMessage = messages.find((message) => message.role === "system");
+    const instructions = input.system || contentAsText(systemMessage?.content);
+    if (instructions) body.instructions = instructions;
+    const tools = openAiToolsToResponses(input.tools);
+    if (tools.length) body.tools = tools;
+    const maxOutputTokens = params.max_output_tokens ?? params.max_tokens ?? params.maxTokens;
+    if (maxOutputTokens !== undefined) body.max_output_tokens = maxOutputTokens;
+    if (params.reasoning !== undefined) body.reasoning = params.reasoning;
+    else if (params.reasoning_effort !== undefined) body.reasoning = { effort: params.reasoning_effort };
+    addDefined(body, params, [
+      "max_output_tokens",
+      "max_tokens",
+      "maxTokens",
+      "reasoning",
+      "reasoning_effort",
+      "signal",
+      "connectTimeoutMs",
+      "firstEventTimeoutMs",
+      "totalTimeoutMs",
+    ]);
     if (stream) body.stream = true;
     return body;
   }
@@ -181,9 +343,7 @@ function buildBody(kind, modelId, input = {}, params = {}, stream = false) {
     const body = {
       model: modelId,
       max_tokens: params.max_tokens ?? params.maxTokens ?? 1024,
-      messages: messages
-        .filter((message) => message.role !== "system")
-        .map((message) => ({ role: message.role === "assistant" ? "assistant" : "user", content: message.content })),
+      messages: chatMessagesToAnthropic(messages),
     };
     const system = input.system || contentAsText(systemMessage?.content);
     if (system) body.system = system;
@@ -233,13 +393,25 @@ function normalizedToolCalls(value) {
 function parseResult(kind, payload) {
   if (kind === "openai-chat") {
     const message = payload?.choices?.[0]?.message || {};
-    return { text: contentAsText(message.content || payload?.choices?.[0]?.text), usage: payload?.usage ?? null, toolCalls: normalizedToolCalls(message.tool_calls) };
+    return {
+      text: contentAsText(message.content || payload?.choices?.[0]?.text),
+      usage: payload?.usage ?? null,
+      toolCalls: normalizedToolCalls(message.tool_calls),
+      responseId: String(payload?.id || ""),
+      model: String(payload?.model || ""),
+    };
   }
   if (kind === "openai-responses") {
     const output = Array.isArray(payload?.output) ? payload.output : [];
     const text = payload?.output_text || output.flatMap((item) => item?.content || []).map((part) => part?.text || part?.output_text || "").join("");
     const calls = output.filter((item) => item?.type === "function_call").map((item) => ({ id: item.call_id || item.id, name: item.name, arguments: item.arguments }));
-    return { text: String(text || ""), usage: payload?.usage ?? null, toolCalls: normalizedToolCalls(calls) };
+    return {
+      text: String(text || ""),
+      usage: payload?.usage ?? null,
+      toolCalls: normalizedToolCalls(calls),
+      responseId: String(payload?.id || ""),
+      model: String(payload?.model || ""),
+    };
   }
   if (kind === "anthropic-message") {
     const blocks = Array.isArray(payload?.content) ? payload.content : [];
@@ -441,6 +613,8 @@ function createProtocolEngine({ registry = createProtocolRegistry(), fetchImpl, 
         text: parsed.text,
         usage: parsed.usage,
         ...(parsed.toolCalls?.length ? { toolCalls: parsed.toolCalls } : {}),
+        ...(parsed.responseId ? { responseId: parsed.responseId } : {}),
+        ...(parsed.model ? { model: parsed.model } : {}),
       };
     } catch (error) {
       throw normalizeError(error, provider, model);
@@ -504,14 +678,26 @@ function createProtocolEngine({ registry = createProtocolRegistry(), fetchImpl, 
       }
       const result = await execute(provider, model, intent, input, params, options);
       if (result?.text) onDelta?.({ type: "text-delta", text: result.text });
-      return { text: result?.text || "", usage: result?.usage ?? null, toolCalls: result?.toolCalls || [] };
+      return {
+        text: result?.text || "",
+        usage: result?.usage ?? null,
+        toolCalls: result?.toolCalls || [],
+        ...(result?.responseId ? { responseId: result.responseId } : {}),
+        ...(result?.model ? { model: result.model } : {}),
+      };
     }
     const requestedIntent = definition.operations?.[`${intent}.stream`] ? `${intent}.stream` : intent;
     const request = buildRequest(provider, model, requestedIntent, input, params);
     if (!request.stream) {
       const result = await execute(provider, model, intent, input, params, options);
       if (result?.text) onDelta?.({ type: "text-delta", text: result.text });
-      return { text: result?.text || "", usage: result?.usage ?? null, toolCalls: result?.toolCalls || [] };
+      return {
+        text: result?.text || "",
+        usage: result?.usage ?? null,
+        toolCalls: result?.toolCalls || [],
+        ...(result?.responseId ? { responseId: result.responseId } : {}),
+        ...(result?.model ? { model: result.model } : {}),
+      };
     }
     const { response, scope } = await openResponse(request, provider, model, options);
     let reader = null;
