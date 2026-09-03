@@ -79,6 +79,7 @@ function createSystemDb({ dbPath, clock = () => new Date() } = {}) {
   });
   database.exec("PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL;");
   let closed = false;
+  let transactionDepth = 0;
 
   function nowIso() {
     const value = clock();
@@ -91,7 +92,9 @@ function createSystemDb({ dbPath, clock = () => new Date() } = {}) {
 
   function transaction(action) {
     assertOpen();
+    if (transactionDepth > 0) return action();
     database.exec("BEGIN IMMEDIATE");
+    transactionDepth += 1;
     try {
       const result = action();
       database.exec("COMMIT");
@@ -101,6 +104,8 @@ function createSystemDb({ dbPath, clock = () => new Date() } = {}) {
         database.exec("ROLLBACK");
       } catch {}
       throw error;
+    } finally {
+      transactionDepth -= 1;
     }
   }
 
@@ -1037,6 +1042,7 @@ function createSystemDb({ dbPath, clock = () => new Date() } = {}) {
     hasEncryptedProviderSecrets,
     getUserPreferences,
     setUserPreferences,
+    runInTransaction: transaction,
     close,
   };
 }
