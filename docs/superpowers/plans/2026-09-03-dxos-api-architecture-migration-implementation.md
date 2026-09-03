@@ -45,7 +45,7 @@ createProviderSecretVault({
 }
 ```
 
-- [ ] **Step 1: Write the failing vault check**
+- [x] **Step 1: Write the failing vault check**
 
 在 `tools/check-provider-secret-vault.js` 使用临时目录和假密钥，覆盖随机 IV、认证解密、篡改拒绝、缺失主密钥保护和掩码：
 
@@ -63,12 +63,12 @@ assert.equal(vault.mask("sk-test-secret"), "sk-t••••cret");
 assert.throws(() => missingKeyVault.assertReady({ encryptedSecretCount: 1 }));
 ```
 
-- [ ] **Step 2: Run the check and confirm RED**
+- [x] **Step 2: Run the check and confirm RED**
 
 Run: `node tools/check-provider-secret-vault.js`
 Expected: FAIL with `Cannot find module '../provider-secret-vault'`.
 
-- [ ] **Step 3: Implement the smallest secure vault**
+- [x] **Step 3: Implement the smallest secure vault**
 
 使用 AES-256-GCM；主密钥为 `data/security/provider-master.key` 中的 32 个随机字节。密文格式固定为：
 
@@ -78,13 +78,13 @@ aiosenc:v1:<base64(iv[12] + authTag[16] + ciphertext)>
 
 首次写入明文前创建主密钥；发现已有密文但主密钥缺失时必须锁定 Provider 子系统并拒绝开放模型相关接口，不能生成新密钥覆盖；桌面、账户和文件等非模型功能仍可进入并显示可恢复错误。私钥文件通过独占创建或临时文件加原子重命名安全落盘。
 
-- [ ] **Step 4: Run focused verification and confirm GREEN**
+- [x] **Step 4: Run focused verification and confirm GREEN**
 
 Run: `node --check provider-secret-vault.js`
 Run: `node tools/check-provider-secret-vault.js`
 Expected: both PASS; stdout contains no `sk-test-secret`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```powershell
 git add -- provider-secret-vault.js tools/check-provider-secret-vault.js package.json
@@ -140,7 +140,7 @@ createProviderStore({ db, vault }) => {
 }
 ```
 
-- [ ] **Step 1: Write failing schema/store checks**
+- [x] **Step 1: Write failing schema/store checks**
 
 在临时数据库中创建两个提供商和模型，验证加密落库、公开输出脱敏、排序稳定、能力过滤、用户偏好隔离，以及更新时空密钥不覆盖旧密钥：
 
@@ -163,22 +163,22 @@ assert.equal(store.reveal("openai-main").walletKey, "");
 assert.notDeepEqual(db.getUserPreferences("u1"), db.getUserPreferences("u2"));
 ```
 
-- [ ] **Step 2: Run the checks and confirm RED**
+- [x] **Step 2: Run the checks and confirm RED**
 
 Run: `node --disable-warning=ExperimentalWarning tools/check-provider-store.js`
 Expected: FAIL because Provider Store and schema v2 APIs do not exist.
 
-- [ ] **Step 3: Implement schema v2 and transaction-backed store**
+- [x] **Step 3: Implement schema v2 and transaction-backed store**
 
 新增 `providers`、`provider_models`、`provider_settings`、`user_preferences` 表及设计规格列：包括 provider/model 的 `sort_order`、`capability_sort_json`、协议、元数据、`encrypted_api_key` 和 `encrypted_wallet_key`；所有增删改与排序使用事务。Provider Store 是唯一能调用 Vault 明文解密的模块。空字符串、缺失字段或掩码值表示“保留现有密钥”，只有 `clearApiKey: true` / `clearWalletKey: true` 才删除对应密钥。`validateSecrets()` 在隔离的单条密文损坏时禁用该 Provider 并返回脱敏诊断。检查还覆盖显式清除、模型级联删除和事务失败时整单回滚。
 
-- [ ] **Step 4: Run focused and existing database checks**
+- [x] **Step 4: Run focused and existing database checks**
 
 Run: `node --disable-warning=ExperimentalWarning tools/check-provider-store.js`
 Run: `npm run check:system`
 Expected: PASS; v1 数据库可迁移为 v2，重复打开保持幂等。
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```powershell
 git add -- system-db.js provider-store.js tools/check-provider-store.js tools/check-system-db.js package.json
@@ -194,6 +194,7 @@ git commit -m "feat: add sqlite provider store"
 
 - Create: `provider-migration.js`
 - Create: `tools/check-provider-migration.js`
+- Modify: `system-db.js`
 - Modify: `backup-service.js`
 - Modify: `tools/check-backup-service.js`
 - Modify: `package.json`
@@ -215,7 +216,7 @@ migrateLegacyProviders({
 }
 ```
 
-- [ ] **Step 1: Write failing migration and recovery checks**
+- [x] **Step 1: Write failing migration and recovery checks**
 
 覆盖：首次迁移、重复运行不重复、`settings.json` 优先但合并环境变量模型、相同 URL+密钥去重、旧能力标签转换、旧文件不删除、快照仅创建一次、损坏输入和中途写入异常触发事务回滚。备份检查需断言：只要数据库中有 `aiosenc:v1` 密文，备份必须包含 32 字节主密钥；否则恢复校验失败。恢复检查覆盖 SHA-256 校验、恢复前快照、关闭数据库、恢复数据库和数据目录、删除 WAL/SHM 后重新打开。
 
@@ -229,13 +230,13 @@ assert.equal(store.listInternal().length, 1);
 assert.throws(() => verifyBackupBundle(backupWithoutMasterKey));
 ```
 
-- [ ] **Step 2: Run the checks and confirm RED**
+- [x] **Step 2: Run the checks and confirm RED**
 
 Run: `node --disable-warning=ExperimentalWarning tools/check-provider-migration.js`
 Run: `npm run check:backup`
 Expected: migration check FAIL; existing backup tests remain green before their new assertion is enabled.
 
-- [ ] **Step 3: Implement compatibility-first migration**
+- [x] **Step 3: Implement compatibility-first migration**
 
 使用系统设置标记 `providers.migration.v1` 保证幂等。导入前调用现有备份服务创建快照；以规范化 Base URL 加 API Key SHA-256 指纹去重，禁止在日志中输出指纹原文。`settings.json` 的显式字段优先，环境变量只补缺失字段和模型。保留旧文件用于回滚，但新运行时不得再次读取。
 
@@ -243,13 +244,13 @@ Expected: migration check FAIL; existing backup tests remain green before their 
 
 扩展备份清单和恢复验证：Vault 主密钥与数据库必须作为同一恢复单元；数据库含密文而密钥缺失、长度错误或不可读时直接拒绝恢复。恢复顺序固定为校验清单与 SHA-256、创建恢复前快照、关闭数据库、恢复 SQLite 和数据目录、移除 WAL/SHM、重开数据库并抽样解密一条记录。
 
-- [ ] **Step 4: Run focused verification**
+- [x] **Step 4: Run focused verification**
 
 Run: `node --disable-warning=ExperimentalWarning tools/check-provider-migration.js`
 Run: `npm run check:backup`
 Expected: PASS，且临时目录中的旧配置文件仍存在。
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```powershell
 git add -- provider-migration.js backup-service.js tools/check-provider-migration.js tools/check-backup-service.js package.json
@@ -294,7 +295,7 @@ createProtocolEngine({ registry, fetchImpl, outboundFetch }) => {
 }
 ```
 
-- [ ] **Step 1: Write failing contract checks**
+- [x] **Step 1: Write failing contract checks**
 
 用注入的假 `fetch` 覆盖当前实际需要的协议族：OpenAI-compatible Chat/Responses/SSE/Tools/Vision/Images、Anthropic Messages、Gemini generateContent，以及 APIMart/Midjourney、RunningHub、现有图片中转、ComfyUI 和已有视频/音频特殊适配器。断言 URL 规范化不会生成重复 `/v1/v1`、`/v2/v2`、`/v1beta/v1beta` 或 `/api/v3/api/v3`，鉴权头正确，SSE 增量与工具调用统一成内部事件，模型列表不可用时能按候选协议顺序验证。
 
@@ -307,13 +308,13 @@ assert.equal(request.headers.authorization, "Bearer sk-test");
 assert.deepEqual(await engine.execute(provider, model, "llm.chat", input, {}, {}), { text: "ok", usage: null });
 ```
 
-- [ ] **Step 2: Run the checks and confirm RED**
+- [x] **Step 2: Run the checks and confirm RED**
 
 Run: `node tools/check-provider-protocol-registry.js`
 Run: `node tools/check-provider-protocol-engine.js`
 Expected: both FAIL because the registry and engine are absent.
 
-- [ ] **Step 3: Implement pure adapters and one network boundary**
+- [x] **Step 3: Implement pure adapters and one network boundary**
 
 协议定义只描述端点、鉴权、请求构造、响应解析、SSE、工具调用和模型列表解析；只有 Engine 可以发起模型上游请求。所有网络调用经过现有 `outbound-fetch.js` 安全边界并使用 `AbortController`，分别报告连接、首事件和总超时；上游错误正文先截断再脱敏。`verifyProtocol` 是管理员点击触发的串行探测，不创建定时器、不写路由健康权重。
 
@@ -330,7 +331,7 @@ Expected: both FAIL because the registry and engine are absent.
 }
 ```
 
-- [ ] **Step 4: Run focused verification**
+- [x] **Step 4: Run focused verification**
 
 Run: `node --check provider-protocol-registry.js`
 Run: `node --check provider-protocol-engine.js`
@@ -338,7 +339,7 @@ Run: `node tools/check-provider-protocol-registry.js`
 Run: `node tools/check-provider-protocol-engine.js`
 Expected: PASS; captured requests and errors contain no full secret.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```powershell
 git add -- provider-protocol-registry.js provider-protocol-engine.js tools/check-provider-protocol-registry.js tools/check-provider-protocol-engine.js package.json
@@ -383,7 +384,7 @@ createProviderExecutor({ resolver, engine }) => {
 }
 ```
 
-- [ ] **Step 1: Write failing deterministic-routing checks**
+- [x] **Step 1: Write failing deterministic-routing checks**
 
 构造两个启用提供商和一个禁用提供商。测试人工顺序、模型顺序、能力匹配、固定 provider/model 的严格失败、未固定请求的顺序回退，以及历史指标变化不影响候选次序。
 
@@ -402,17 +403,17 @@ assert.equal(resolver.resolve({ intent: "llm.chat", mustAll: ["llm.chat"] }).mod
 
 Executor 检查：只有未固定请求且 `autoFallback` 开启时才按候选顺序尝试；每次失败均生成脱敏尝试摘要；流式响应一旦已向客户端发出第一个 delta，就不得切换模型。
 
-- [ ] **Step 2: Run and confirm RED**
+- [x] **Step 2: Run and confirm RED**
 
 Run: `node tools/check-provider-capability-resolver.js`
 Run: `node tools/check-provider-executor.js`
 Expected: FAIL because resolver/executor modules do not exist.
 
-- [ ] **Step 3: Implement deterministic selection and request-scoped fallback**
+- [x] **Step 3: Implement deterministic selection and request-scoped fallback**
 
 排序键仅允许管理员配置的能力顺序、`provider.sortOrder`、`model.sortOrder` 和稳定 ID；禁止引入成功率、延迟、最后故障、EWMA、熔断状态或随机数。Resolver 返回选择原因、警告和最多五个脱敏替代候选。固定 provider/model 时只验证该目标并原样报告安全错误；未固定时由 Executor 依相同确定顺序回退，并把每次尝试写入被动审计摘要。
 
-- [ ] **Step 4: Run focused verification**
+- [x] **Step 4: Run focused verification**
 
 Run: `node --check model-capabilities.js`
 Run: `node --check provider-capability-resolver.js`
@@ -421,7 +422,7 @@ Run: `node tools/check-provider-capability-resolver.js`
 Run: `node tools/check-provider-executor.js`
 Expected: PASS and repeated runs produce identical candidate order.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```powershell
 git add -- model-capabilities.js provider-capability-resolver.js provider-executor.js tools/check-provider-capability-resolver.js tools/check-provider-executor.js package.json
@@ -463,7 +464,7 @@ POST   /api/providers/test-vision
 GET    /api/protocols
 ```
 
-- [ ] **Step 1: Write failing authorization and redaction checks**
+- [x] **Step 1: Write failing authorization and redaction checks**
 
 用现有鉴权 fixture 分别模拟未登录、普通用户和超级管理员。对每条管理路由独立断言：未登录为 401，普通用户为 403，超级管理员可用；列表、保存、测试、同步和错误响应均没有完整密钥。
 
@@ -478,12 +479,12 @@ assert.equal(JSON.stringify(body).includes("sk-private"), false);
 
 还要断言旧 `/api/settings/providers/key` 不再向任何浏览器返回完整 key。
 
-- [ ] **Step 2: Run and confirm RED**
+- [x] **Step 2: Run and confirm RED**
 
 Run: `node --disable-warning=ExperimentalWarning tools/check-provider-http-api.js`
 Expected: FAIL because routes or role gates are missing.
 
-- [ ] **Step 3: Add the controller and compose services at startup**
+- [x] **Step 3: Add the controller and compose services at startup**
 
 `provider-http-api.js` 只接收已认证请求、校验 DTO、调用 Store/Engine，并输出脱敏对象。Provider 保存采用同一个 `POST /api/providers` upsert 契约；模型拉取与排序在请求体中携带 providerId。每个 route handler 自身调用：
 
@@ -494,7 +495,7 @@ requireRole(req, "superadmin");
 
 `server.js` 在 `systemDb.migrate()` 后依次创建 Vault、Store、Migration、Registry、Engine、Resolver、Executor，再注册路由。只有 Vault 就绪且 `store.validateSecrets()` 至少验证一条已有加密记录后才开放模型相关接口；单条损坏禁用对应 Provider，缺少主密钥则锁定整个 Provider 子系统并返回可恢复错误。迁移失败且尚未最终切换时继续兼容旧路径。审计日志只记录 providerId、动作和变更字段名；检查断言审计中没有旧值、新值和密钥。兼容期的旧 provider 修改路由也必须加超级管理员门禁。
 
-- [ ] **Step 4: Run focused and auth regression checks**
+- [x] **Step 4: Run focused and auth regression checks**
 
 Run: `node --check provider-http-api.js`
 Run: `node --check server.js`
@@ -502,7 +503,7 @@ Run: `node --disable-warning=ExperimentalWarning tools/check-provider-http-api.j
 Run: `npm run check:auth`
 Expected: PASS; response/log capture contains no test key.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```powershell
 git add -- provider-http-api.js server.js tools/check-provider-http-api.js package.json
@@ -529,7 +530,7 @@ GET /api/vision-models
 GET /api/image-models
 ```
 
-- [ ] **Step 1: Write failing catalog/chat integration check**
+- [x] **Step 1: Write failing catalog/chat integration check**
 
 启动注入假 Store/Executor 的服务器，断言：
 
@@ -545,16 +546,16 @@ assert.equal(JSON.stringify(await getJson("/api/models")).includes("apiKey"), fa
 
 再给旧监测历史文件写入“主模型失败”，断言目录顺序和聊天首选仍不改变；固定模型请求失败时不得自动换模型。
 
-- [ ] **Step 2: Run and confirm RED**
+- [x] **Step 2: Run and confirm RED**
 
 Run: `node --disable-warning=ExperimentalWarning tools/check-unified-chat-provider.js`
 Expected: FAIL because current catalog/chat still read legacy configuration or routing state.
 
-- [ ] **Step 3: Replace catalog and chat data sources**
+- [x] **Step 3: Replace catalog and chat data sources**
 
 `/api/models` 等端点只调用 `store.publicModelsForCapability`，并且不得向普通账号返回 Base URL、协议内部参数或密钥掩码。`handleChat` 对纯文本使用 `llm.chat`，对图片输入使用 `llm.chat.vision`，把用户消息、系统提示、附件摘要、固定 provider/model 选择交给 Executor，保留当前前端需要的响应字段和流式事件名称。`script.js` 不再获取/保存 API Key，也不解释 provider 健康状态。
 
-- [ ] **Step 4: Run focused and chat regressions**
+- [x] **Step 4: Run focused and chat regressions**
 
 Run: `node --check server.js`
 Run: `node --check script.js`
@@ -562,7 +563,7 @@ Run: `node --disable-warning=ExperimentalWarning tools/check-unified-chat-provid
 Run: `node tools/check-chat-history-management.js`
 Expected: PASS;现有聊天历史行为保持不变。
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```powershell
 git add -- server.js script.js tools/check-unified-chat-provider.js package.json

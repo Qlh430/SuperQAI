@@ -223,6 +223,10 @@ function createProviderStore({ db, vault } = {}) {
           capabilities: [...model.capabilities],
           providerSortOrder: provider.sortOrder,
           modelSortOrder: model.sortOrder,
+          resolutions: Array.isArray(model.metadata?.resolutions) ? [...model.metadata.resolutions] : [],
+          platform: String(model.metadata?.platform || ""),
+          family: String(model.metadata?.family || ""),
+          price: String(model.metadata?.price || ""),
         });
       }
     }

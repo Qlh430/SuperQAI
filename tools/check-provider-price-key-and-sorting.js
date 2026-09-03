@@ -84,13 +84,14 @@ assert.strictEqual(
   "A configured provider model without a manual price must not fall back to a built-in reference price",
 );
 
-assert.match(SERVER_SOURCE, /\/api\/settings\/providers\/key/, "Saved keys need an explicit reveal endpoint");
+assert.match(SERVER_SOURCE, /\/api\/settings\/providers\/key/, "The retired reveal route should remain explicitly blocked");
 assert.match(SERVER_SOURCE, /const prices = Object\.fromEntries/, "Image model metadata should collect manual prices");
 assert.match(SERVER_SOURCE, /families,\s*prices,/, "Image model metadata should expose manual prices");
 assert.match(SERVER_SOURCE, /\.sort\(compareProviderMonitoringQuality\)/, "Monitoring cards should be quality-sorted");
 assert.match(CLIENT_SOURCE, /DYNAMIC_IMAGE_MODEL_PRICES/, "Client should load dynamic model prices");
 assert.match(CLIENT_SOURCE, /data-model-price=/, "Generation models should expose a manual price input");
-assert.match(CLIENT_SOURCE, /SETTINGS_PROVIDER_KEY_API_URL/, "Key reveal button should call the local endpoint");
+assert.doesNotMatch(CLIENT_SOURCE, /SETTINGS_PROVIDER_KEY_API_URL|\/api\/settings\/providers\/key|data\.apiKey\s*\|\|/, "Saved keys must never be fetched back into the browser");
+assert.match(CLIENT_SOURCE, /已保存的 API Key 不会回显/, "The key editor should explain server-side secret retention");
 assert.match(STYLE_SOURCE, /\.model-price-field/, "Manual price editor should have dedicated styling");
 
 console.log("Provider price, key reveal, and monitoring sorting checks passed.");

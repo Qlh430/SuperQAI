@@ -8,8 +8,9 @@ const clientSource = fs.readFileSync(path.join(__dirname, "..", "script.js"), "u
 const htmlSource = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
 assert.match(serverSource, /require\("\.\/image-model-routing"\)/);
 assert.match(serverSource, /function getImageModelCandidates\(/);
-assert.match(serverSource, /const candidates\s*=\s*getImageModelCandidates\(\)/);
-assert.match(serverSource, /defaultModel:\s*candidates\[0\]\?\.id\s*\|\|\s*IMAGE_DEFAULT_MODEL/);
+assert.match(serverSource, /sendProviderModelCatalog\(res,\s*"image\.generate",\s*\{ image: true \}\)/);
+assert.match(serverSource, /providerStore\.publicModelsForCapability\(capability\)/);
+assert.match(serverSource, /defaultModel:\s*models\[0\]\?\.id\s*\|\|\s*""/);
 assert.match(serverSource, /networkMode:\s*normalizeRouteMode\(provider\.networkMode\s*\|\|\s*old\.networkMode,\s*baseUrl\)/);
 assert.match(clientSource, /let canvasImageModelCandidates\s*=\s*\[\]/);
 assert.match(clientSource, /canvasImageModelCandidates\s*=\s*Array\.isArray\(data\.candidates\)/);
