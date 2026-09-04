@@ -245,6 +245,17 @@ async function checkServerIntegration() {
     });
     assert.equal(ordinaryAppearanceSave.status, 200, ordinaryAppearanceSave.text);
     assert.equal(ordinaryAppearanceSave.data.preferences.appearance.theme, "dark");
+    assert.equal(Object.hasOwn(ordinaryAppearanceSave.data.preferences, "canvas"), false);
+    const canvasThemeSave = await serverRequest(port, "/api/preferences", {
+      method: "PATCH",
+      headers: { cookie: userCookie },
+      body: { canvas: { theme: "dark" } },
+    });
+    assert.equal(canvasThemeSave.status, 400, canvasThemeSave.text);
+    assert.equal(canvasThemeSave.data.code, "invalid_preference_field");
+    const ordinaryPreferences = await serverRequest(port, "/api/preferences", { headers: { cookie: userCookie } });
+    assert.equal(ordinaryPreferences.status, 200, ordinaryPreferences.text);
+    assert.equal(Object.hasOwn(ordinaryPreferences.data.preferences, "canvas"), false);
     assert.equal((await serverRequest(port, "/api/settings", {
       method: "PUT",
       headers: { cookie: userCookie },

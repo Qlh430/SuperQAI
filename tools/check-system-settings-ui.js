@@ -56,6 +56,7 @@ assert.doesNotMatch(ui, /successRate|circuit|half-open|monitoring/i);
 const html = read("index.html");
 assert.match(html, /system-settings\.css/);
 assert.match(html, /id="aiOsSystemSettingsRoot"/);
+assert.match(html, /ai-os-display\.js[\s\S]*system-settings-ui\.js/);
 assert.match(html, /system-settings-ui\.js[\s\S]*desktop-shell\.js/);
 
 const css = read("system-settings.css");
