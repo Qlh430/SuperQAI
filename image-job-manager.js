@@ -5,9 +5,17 @@ const crypto = require("node:crypto");
 const ACTIVE_STATES = new Set(["queued", "submitting", "running"]);
 const TERMINAL_STATES = new Set(["completed", "failed", "unknown"]);
 
-function createImageJobManager({ filePath, timeoutMs, execute, now = () => Date.now() } = {}) {
+function createImageJobManager({ filePath, timeoutMs, execute, mediaBridge, now = () => Date.now() } = {}) {
   if (!filePath) throw new Error("Image job manager requires filePath.");
-  if (typeof execute !== "function") throw new Error("Image job manager requires execute.");
+  const executeJob = typeof execute === "function"
+    ? execute
+    : mediaBridge && typeof mediaBridge.generateImage === "function"
+      ? async (payload, context) => ({
+        status: 200,
+        body: await mediaBridge.generateImage({ ...payload, signal: context.signal }),
+      })
+      : null;
+  if (!executeJob) throw new Error("Image job manager requires execute or mediaBridge.");
   const deadlineMs = Math.max(1, Number(timeoutMs || 15 * 60 * 1000));
   const jobs = readJobs(filePath);
   const payloads = new Map();
@@ -54,7 +62,7 @@ function createImageJobManager({ filePath, timeoutMs, execute, now = () => Date.
     }, deadlineMs);
     try {
       transition(job, "running");
-      const response = await execute(payload, {
+      const response = await executeJob(payload, {
         jobId: id,
         signal: controller.signal,
         report: (state, details = {}) => {

@@ -5,6 +5,7 @@ const path = require("node:path");
 
 const MIGRATION_KEY = "providers.migration.v1";
 const AGENT_BRIDGE_MIGRATION_KEY = "providers.agent-bridge.v1";
+const MEDIA_BRIDGE_MIGRATION_KEY = "providers.media-bridge.v1";
 const CAPABILITY_ALIASES = Object.freeze({
   chat: "llm.chat",
   conversation: "llm.chat",
@@ -312,11 +313,96 @@ function migrateLegacyAgentProviders({ db, store, agentProvider = null, createSn
   return { updated: updates.length, providerIds, snapshotId };
 }
 
+function migratedMediaProtocol(provider, model) {
+  const capabilities = new Set(Array.isArray(model?.capabilities) ? model.capabilities : []);
+  if (!capabilities.has("image.generate") && !capabilities.has("image.edit")) {
+    return String(model?.protocol || provider?.protocol || "");
+  }
+  const baseUrl = String(provider?.baseUrl || "").toLowerCase();
+  const modelId = String(model?.id || "").toLowerCase();
+  const current = String(model?.protocol || provider?.protocol || "").toLowerCase();
+  if (baseUrl.includes("grsai") || modelId.endsWith("-grsai")) return "image-relay";
+  if (modelId.includes("midjourney") || /^mj[-_]/.test(modelId)) return "apimart";
+  if (current === "gemini" || String(provider?.protocol || "").toLowerCase() === "gemini") return "gemini";
+  return "openai-images";
+}
+
+function migratedUpstreamModel(model) {
+  const existing = String(model?.metadata?.upstreamModel || "").trim();
+  if (existing) return existing;
+  const id = String(model?.id || "").trim();
+  if (/-grsai$/i.test(id)) return id.replace(/-grsai$/i, "");
+  if (/-(?:ainb|clse|apimart)$/i.test(id)) return id.replace(/-(?:ainb|clse|apimart)$/i, "");
+  return "";
+}
+
+function migrateLegacyMediaProviders({ db, store, localVideoProvider = null, createSnapshot } = {}) {
+  if (!db || typeof db.getSetting !== "function" || typeof db.setSetting !== "function" || typeof db.runInTransaction !== "function") {
+    throw new TypeError("Media Provider migration requires a transaction-capable system database.");
+  }
+  if (!store || typeof store.listInternal !== "function" || typeof store.save !== "function") {
+    throw new TypeError("Media Provider migration requires the Provider Store.");
+  }
+  const completed = db.getSetting(MEDIA_BRIDGE_MIGRATION_KEY);
+  if (completed?.completed) {
+    return {
+      updated: 0,
+      providerIds: Array.isArray(completed.providerIds) ? completed.providerIds : [],
+      snapshotId: completed.snapshotId || null,
+    };
+  }
+
+  const existing = store.listInternal();
+  const updates = [];
+  for (const provider of existing) {
+    let changed = false;
+    const models = provider.models.map((model) => {
+      const protocol = migratedMediaProtocol(provider, model);
+      const upstreamModel = migratedUpstreamModel(model);
+      const metadata = upstreamModel && model.metadata?.upstreamModel !== upstreamModel
+        ? { ...(model.metadata || {}), upstreamModel }
+        : model.metadata;
+      if (protocol === model.protocol && metadata === model.metadata) return model;
+      changed = true;
+      return { ...model, protocol, metadata };
+    });
+    if (changed) updates.push({ ...provider, models });
+  }
+
+  if (localVideoProvider) {
+    const normalized = normalizeProvider(localVideoProvider, "local", existing.length);
+    const duplicate = existing.some((provider) => provider.id === normalized.id
+      || (provider.baseUrl === normalized.baseUrl && provider.models.some((model) => (
+        normalized.models.some((candidate) => candidate.id === model.id)
+      ))));
+    if (!duplicate) updates.push(normalized);
+  }
+
+  if (updates.length && typeof createSnapshot !== "function") {
+    throw new TypeError("Media Provider migration requires a pre-migration snapshot callback.");
+  }
+  const snapshotId = updates.length ? snapshotIdentifier(createSnapshot()) : null;
+  const providerIds = updates.map((provider) => provider.id);
+  db.runInTransaction(() => {
+    updates.forEach((provider) => store.save(provider));
+    db.setSetting(MEDIA_BRIDGE_MIGRATION_KEY, {
+      completed: true,
+      version: 1,
+      completedAt: new Date().toISOString(),
+      snapshotId,
+      providerIds,
+    });
+  });
+  return { updated: updates.length, providerIds, snapshotId };
+}
+
 module.exports = {
   AGENT_BRIDGE_MIGRATION_KEY,
   CAPABILITY_ALIASES,
   MIGRATION_KEY,
+  MEDIA_BRIDGE_MIGRATION_KEY,
   migrateLegacyAgentProviders,
+  migrateLegacyMediaProviders,
   migrateLegacyProviders,
   normalizeBaseUrl,
   normalizeCapability,

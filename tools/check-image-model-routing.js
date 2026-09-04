@@ -43,7 +43,7 @@ const candidates = [
 
 assert.equal(routing.selectCandidate(candidates, { preferredId: "preferred" }).id, "preferred");
 assert.equal(routing.selectCandidate(candidates, { preferredId: "offline" }).id, "offline");
-assert.equal(routing.selectCandidate(candidates, { requiresEdit: true }).id, "fast");
+assert.equal(routing.selectCandidate(candidates, { requiresEdit: true }).id, "offline");
 assert.equal(routing.selectCandidate([{ ...candidates[0] }]).id, "offline");
 assert.equal(routing.selectCandidate([{ ...candidates[1], hasBaseUrl: false }]), null);
 assert.equal(routing.isConfiguredCandidate(candidates[0]), true);
@@ -51,10 +51,10 @@ assert.equal(routing.isHealthyCandidate(candidates[0]), false);
 assert.deepEqual(candidates.map((item) => item.id), ["offline", "fast", "preferred"]);
 
 const ranked = routing.rankCandidates([
-  { ...candidates[1], id: "unstable", state: "unstable", successRate: 100, latencyMs: 100 },
-  { ...candidates[1], id: "healthy", state: "online", successRate: 92, latencyMs: 1500 },
+  { ...candidates[1], id: "unstable", state: "unstable", successRate: 100, latencyMs: 100, order: 0 },
+  { ...candidates[1], id: "healthy", state: "online", successRate: 92, latencyMs: 1500, order: 1 },
 ]);
-assert.deepEqual(ranked.map((item) => item.id), ["healthy", "unstable"]);
+assert.deepEqual(ranked.map((item) => item.id), ["unstable", "healthy"], "runtime health must not override administrator order");
 
 const timeoutRegression = routing.rankCandidates([
   {
@@ -65,6 +65,7 @@ const timeoutRegression = routing.rankCandidates([
     consecutiveFailures: 1,
     latencyMs: 49553,
     lastImageSuccessAt: "2026-08-24T07:59:48.288Z",
+    order: 0,
   },
   {
     ...candidates[1],
@@ -74,11 +75,12 @@ const timeoutRegression = routing.rankCandidates([
     consecutiveFailures: 0,
     latencyMs: 901,
     lastImageSuccessAt: "",
+    order: 1,
   },
 ]);
-assert.deepEqual(timeoutRegression.map((item) => item.id), ["healthy-untried", "timed-out-history"]);
-assert.equal(routing.shouldReplaceCandidate(timeoutRegression[1], timeoutRegression[0]), true);
-assert.equal(routing.shouldReplaceCandidate(timeoutRegression[0], { ...timeoutRegression[0], id: "another-online", latencyMs: 300 }), false);
+assert.deepEqual(timeoutRegression.map((item) => item.id), ["timed-out-history", "healthy-untried"]);
+assert.equal(routing.shouldReplaceCandidate(timeoutRegression[0], timeoutRegression[1]), false);
+assert.equal(routing.shouldReplaceCandidate({ ...timeoutRegression[0], hasBaseUrl: false }, timeoutRegression[1]), true);
 
 const preferredHostRegression = routing.rankCandidates([
   {
@@ -87,6 +89,7 @@ const preferredHostRegression = routing.rankCandidates([
     providerBaseUrl: "https://api.hyhawang.com/v1",
     state: "offline",
     latencyMs: 100,
+    order: 0,
   },
   {
     ...candidates[1],
@@ -94,9 +97,10 @@ const preferredHostRegression = routing.rankCandidates([
     providerBaseUrl: "https://other.example/v1",
     state: "online",
     latencyMs: 900,
+    order: 1,
   },
 ]);
-assert.deepEqual(preferredHostRegression.map((item) => item.id), ["healthy-other", "hyhawang-unhealthy"]);
+assert.deepEqual(preferredHostRegression.map((item) => item.id), ["hyhawang-unhealthy", "healthy-other"]);
 
 const equallyHealthyPreferredHost = routing.rankCandidates([
   {
@@ -105,6 +109,7 @@ const equallyHealthyPreferredHost = routing.rankCandidates([
     providerBaseUrl: "https://other.example/v1",
     state: "online",
     latencyMs: 100,
+    order: 0,
   },
   {
     ...candidates[1],
@@ -112,9 +117,10 @@ const equallyHealthyPreferredHost = routing.rankCandidates([
     providerBaseUrl: "https://api.hyhawang.com/v1",
     state: "online",
     latencyMs: 900,
+    order: 1,
   },
 ]);
-assert.deepEqual(equallyHealthyPreferredHost.map((item) => item.id), ["healthy-hyhawang", "healthy-other"]);
+assert.deepEqual(equallyHealthyPreferredHost.map((item) => item.id), ["healthy-other", "healthy-hyhawang"]);
 
 const mixedModels = [
   {
@@ -125,6 +131,7 @@ const mixedModels = [
     family: "openai",
     latencyMs: 1200,
     successRate: 100,
+    order: 0,
   },
   {
     ...candidates[1],
@@ -136,6 +143,7 @@ const mixedModels = [
     latencyMs: 300,
     successRate: 80,
     consecutiveFailures: 2,
+    order: 1,
   },
   {
     ...candidates[1],
@@ -145,6 +153,7 @@ const mixedModels = [
     alias: "Gemini 3 Pro Image",
     family: "gemini",
     latencyMs: 200,
+    order: 2,
   },
 ];
 
@@ -166,5 +175,22 @@ const fallback = routing.selectFallbackCandidate([
 });
 
 assert.equal(fallback?.id, "backup");
+
+const monitoringIgnored = routing.buildCandidateRecords([
+  {
+    id: "ordered-provider",
+    name: "Ordered",
+    baseUrl: "https://ordered.example/v1",
+    enabled: true,
+    hasApiKey: true,
+    models: [{ id: "ordered-model", capabilities: ["image.generate", "image.edit"] }],
+  },
+], {
+  providers: { "ordered-provider": [{ state: "offline", latencyMs: 999999 }] },
+  usage: { "ordered-provider": [{ kind: "image", model: "ordered-model", success: false }] },
+});
+assert.equal(monitoringIgnored[0].state, "unknown");
+assert.equal(monitoringIgnored[0].consecutiveFailures, 0);
+assert.equal(monitoringIgnored[0].latencyMs, 0);
 
 console.log("Image model routing checks passed.");

@@ -26,15 +26,22 @@
     disabled: 11,
   });
 
+  function getProviderTaskRequirements(input = {}) {
+    const references = input.referenceImages ?? input.reference_images ?? input.inputImages ?? input.refs ?? [];
+    const intent = Array.isArray(references) && references.length ? "image.edit" : "image.generate";
+    return { intent, mustAll: [intent] };
+  }
+
   function isConfiguredCandidate(candidate, options = {}) {
     const capabilities = new Set(Array.isArray(candidate?.capabilities) ? candidate.capabilities : []);
     return Boolean(candidate?.id && candidate.enabled !== false && candidate.hasApiKey !== false && candidate.hasBaseUrl)
-      && capabilities.has("generation")
-      && (!options.requiresEdit || capabilities.has("edit"));
+      && (capabilities.has("generation") || capabilities.has("image.generate"))
+      && (!options.requiresEdit || capabilities.has("edit") || capabilities.has("image.edit"));
   }
 
-  function isHealthyCandidate(candidate) {
-    return !BLOCKED_STATES.has(String(candidate?.state || "unknown"))
+  function isHealthyCandidate(candidate, options = {}) {
+    return isConfiguredCandidate(candidate, options)
+      && !BLOCKED_STATES.has(String(candidate?.state || "unknown"))
       && !["unstable", "degraded"].includes(String(candidate?.state || "unknown"));
   }
 
@@ -70,13 +77,6 @@
       .filter((candidate) => isConfiguredCandidate(candidate, options) && matchesRequestedModel(candidate, requestedModel))
       .map((candidate) => ({ ...candidate }))
       .sort((left, right) => Number(right.id === preferredId) - Number(left.id === preferredId)
-        || Number(isHealthyCandidate(right)) - Number(isHealthyCandidate(left))
-        || (STATE_RANK[left.state] ?? STATE_RANK.unknown) - (STATE_RANK[right.state] ?? STATE_RANK.unknown)
-        || Number(isPreferredImageProvider(right)) - Number(isPreferredImageProvider(left))
-        || Number(left.consecutiveFailures || 0) - Number(right.consecutiveFailures || 0)
-        || Number(right.successRate ?? -1) - Number(left.successRate ?? -1)
-        || Number(Boolean(right.lastImageSuccessAt)) - Number(Boolean(left.lastImageSuccessAt))
-        || normalizeLatency(left.latencyMs) - normalizeLatency(right.latencyMs)
         || Number(left.order || 0) - Number(right.order || 0)
         || String(left.id).localeCompare(String(right.id)));
   }
@@ -84,15 +84,7 @@
   function shouldReplaceCandidate(current, best) {
     if (!best?.id || String(best.id) === String(current?.id || "")) return false;
     if (!current?.id || !isConfiguredCandidate(current, { requiresEdit: false })) return true;
-    const currentState = String(current.state || "unknown");
-    const bestState = String(best.state || "unknown");
-    const currentRank = STATE_RANK[currentState] ?? STATE_RANK.unknown;
-    const bestRank = STATE_RANK[bestState] ?? STATE_RANK.unknown;
-    if (!isHealthyCandidate(current) && isHealthyCandidate(best)) return true;
-    if (BLOCKED_STATES.has(currentState) && bestRank < currentRank) return true;
-    if (["slow", "unstable", "degraded", "unknown"].includes(currentState) && bestRank < currentRank) return true;
-    return Number(current.consecutiveFailures || 0) > Number(best.consecutiveFailures || 0)
-      && bestRank <= currentRank;
+    return false;
   }
 
   function normalizeLatency(value) {
@@ -112,27 +104,17 @@
       .find((candidate) => !excluded.has(String(candidate.id || ""))) || null;
   }
 
-  function buildCandidateRecords(providers, monitoring = {}, options = {}) {
+  function buildCandidateRecords(providers, _monitoring = {}, options = {}) {
     const makeClientId = typeof options.makeClientId === "function"
       ? options.makeClientId
       : (providerId, modelId) => `${providerId}:${modelId}`;
     return (Array.isArray(providers) ? providers : []).flatMap((provider, providerIndex) => {
       const providerId = String(provider?.id || "");
-      const samples = Array.isArray(monitoring?.providers?.[providerId])
-        ? monitoring.providers[providerId]
-        : [];
       return (Array.isArray(provider?.models) ? provider.models : []).flatMap((model, modelIndex) => {
         const capabilities = [...new Set(Array.isArray(model?.capabilities) ? model.capabilities.map(String) : [])];
-        if (!capabilities.includes("generation")) return [];
+        if (!capabilities.some((capability) => ["generation", "image.generate"].includes(capability))) return [];
         const modelId = String(model?.id || "");
         if (!providerId || !modelId) return [];
-        const usage = (Array.isArray(monitoring?.usage?.[providerId]) ? monitoring.usage[providerId] : [])
-          .filter((event) => event?.kind === "image" && String(event.model || "") === modelId);
-        const successes = usage.filter((event) => event.success);
-        const latestSuccess = successes.at(-1) || null;
-        const latestUsage = usage.at(-1) || null;
-        const latestSample = samples.at(-1) || null;
-        const successfulLatencies = successes.map((event) => Number(event.latencyMs || 0)).filter((value) => value > 0);
         return [{
           id: provider.importedSystem ? modelId : makeClientId(providerId, modelId),
           providerId,
@@ -148,13 +130,11 @@
           hasApiKey: provider.hasApiKey !== false && (Boolean(provider.hasApiKey) || Boolean(provider.apiKey)),
           hasBaseUrl: Boolean(String(provider.baseUrl || "").trim()),
           capabilities,
-          state: getCandidateState(provider, latestSample, latestUsage),
-          successRate: usage.length ? Math.round(successes.length / usage.length * 1000) / 10 : null,
-          consecutiveFailures: countTrailingFailures(usage),
-          latencyMs: successfulLatencies.length
-            ? Math.round(successfulLatencies.reduce((sum, value) => sum + value, 0) / successfulLatencies.length)
-            : Math.max(0, Number(latestSample?.latencyMs || 0)),
-          lastImageSuccessAt: String(latestSuccess?.checkedAt || ""),
+          state: "unknown",
+          successRate: null,
+          consecutiveFailures: 0,
+          latencyMs: 0,
+          lastImageSuccessAt: "",
           order: providerIndex * 1000 + modelIndex,
         }];
       });
@@ -187,6 +167,7 @@
 
   return Object.freeze({
     BLOCKED_STATES,
+    getProviderTaskRequirements,
     normalizeModelName,
     matchesRequestedModel,
     isConfiguredCandidate,

@@ -106,6 +106,37 @@ function abortableNever(signal) {
     text: "gemini-ok",
     usage: { candidatesTokenCount: 1 },
   });
+  const geminiImageRequest = engine.buildRequest(
+    geminiProvider,
+    { id: "gemini-image", protocol: "gemini" },
+    "image.generate",
+    { prompt: "paper forest" },
+    { generationConfig: { imageConfig: { aspectRatio: "16:9", imageSize: "2K" } } },
+  );
+  assert.deepEqual(geminiImageRequest.body.contents, [{ role: "user", parts: [{ text: "paper forest" }] }]);
+  assert.deepEqual(geminiImageRequest.body.generationConfig, {
+    imageConfig: { aspectRatio: "16:9", imageSize: "2K" },
+    responseModalities: ["TEXT", "IMAGE"],
+  });
+  const geminiEditRequest = engine.buildRequest(
+    geminiProvider,
+    { id: "gemini-image", protocol: "gemini" },
+    "image.edit",
+    { prompt: "make it autumn", inputImages: ["data:image/png;base64,AA=="] },
+    {},
+  );
+  assert.deepEqual(geminiEditRequest.body.contents[0].parts, [
+    { text: "make it autumn" },
+    { inlineData: { mimeType: "image/png", data: "AA==" } },
+  ]);
+  responseQueue.push(jsonResponse({
+    candidates: [{ content: { parts: [{ inlineData: { mimeType: "image/png", data: "AQ==" } }] } }],
+    usageMetadata: { candidatesTokenCount: 2 },
+  }));
+  assert.deepEqual(
+    await engine.execute(geminiProvider, { id: "gemini-image", protocol: "gemini" }, "image.generate", { prompt: "paper forest" }, {}, {}),
+    { data: [{ b64_json: "AQ==", mime_type: "image/png" }], usage: { candidatesTokenCount: 2 } },
+  );
 
   const responsesModel = { id: "gpt-response", protocol: "openai-responses" };
   const responsesRequest = engine.buildRequest(openaiProvider, responsesModel, "llm.chat", input, {});
@@ -141,15 +172,53 @@ function abortableNever(signal) {
     { id: "gpt-image-1", protocol: "openai-images" },
     "image.generate",
     { prompt: "paper kite" },
-    { size: "1024x1024" },
+    { size: "1024x1024", quality: "high", n: 1, resolution: "2k", version: "7" },
   );
   assert.equal(imageRequest.url, "https://api.example.test/v1/images/generations");
   assert.equal(imageRequest.body.prompt, "paper kite");
+  assert.equal(imageRequest.body.quality, "high");
+  assert.equal(imageRequest.body.n, 1);
+  assert.equal(imageRequest.body.resolution, undefined);
+  assert.equal(imageRequest.body.version, undefined);
+  const compatibleImageRequest = engine.buildRequest(
+    openaiProvider,
+    { id: "gemini-image-proxy", protocol: "openai-images" },
+    "image.generate",
+    { prompt: "proxy image" },
+    { aspect_ratio: "1:1", image_size: "4K" },
+  );
+  assert.equal(compatibleImageRequest.body.aspect_ratio, "1:1");
+  assert.equal(compatibleImageRequest.body.image_size, "4K");
+  const aliasedImageRequest = engine.buildRequest(
+    openaiProvider,
+    { id: "gpt-image-2-ainb", protocol: "openai-images", metadata: { upstreamModel: "gpt-image-2" } },
+    "image.generate",
+    { prompt: "alias" },
+    {},
+  );
+  assert.equal(aliasedImageRequest.body.model, "gpt-image-2");
   responseQueue.push(jsonResponse({ data: [{ url: "https://cdn.example.test/image.png" }] }));
   assert.deepEqual(await engine.execute(openaiProvider, { id: "gpt-image-1", protocol: "openai-images" }, "image.generate", { prompt: "paper kite" }, {}, {}), {
     data: [{ url: "https://cdn.example.test/image.png" }],
     usage: null,
   });
+
+  const editRequest = engine.buildRequest(
+    openaiProvider,
+    { id: "gpt-image-1", protocol: "openai-images" },
+    "image.edit",
+    {
+      prompt: "autumn",
+      inputImages: [{ blob: new Blob(["image-bytes"], { type: "image/png" }), filename: "tree.png" }],
+    },
+    { size: "1024x1024", n: 1 },
+  );
+  assert.equal(editRequest.url, "https://api.example.test/v1/images/edits");
+  assert.equal(editRequest.headers["content-type"], undefined);
+  assert.ok(editRequest.body instanceof FormData);
+  assert.equal(editRequest.body.get("model"), "gpt-image-1");
+  assert.equal(editRequest.body.get("prompt"), "autumn");
+  assert.equal(editRequest.body.getAll("image").length, 1);
 
   responseQueue.push(new Response([
     'data: {"choices":[{"delta":{"content":"hel"}}]}',

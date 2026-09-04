@@ -668,7 +668,7 @@ createMediaProviderBridge({ executor, adapters }) => {
 }
 ```
 
-- [ ] **Step 1: Write failing media routing checks**
+- [x] **Step 1: Write failing media routing checks**
 
 覆盖每类能力、固定目标、未固定回退、输入校验和现有作业队列契约。现有 MiniMax、APIMart、Gemini 等特殊实现注册为 Protocol Engine adapter，不允许继续独立读取环境变量或监测历史：
 
@@ -679,17 +679,17 @@ await bridge.editImage({ prompt: "autumn", inputImages: ["data:image/png;base64,
 assert.equal(executor.calls[1].intent, "image.edit");
 ```
 
-- [ ] **Step 2: Run and confirm RED**
+- [x] **Step 2: Run and confirm RED**
 
 Run: `node tools/check-media-provider-bridge.js`
 Run: `node tools/check-image-model-routing.js`
 Expected: new bridge check FAIL; legacy routing check identifies direct configuration paths to replace.
 
-- [ ] **Step 3: Introduce the bridge without changing job semantics**
+- [x] **Step 3: Introduce the bridge without changing job semantics**
 
 `image-job-manager.js` 继续负责排队、状态、取消和结果持久化，但模型选择交给 Media Bridge。`image-model-routing.js` 可以保留尺寸、平台和模型族约束及旧输入转换，但候选只来自 Resolver，不再读取监测历史。视频使用 `video.generate`，音频使用 `audio.generate`；若当前无对应 UI，仍提供统一 Bridge/协议能力，不能创建第二套配置。
 
-- [ ] **Step 4: Run focused and media regressions**
+- [x] **Step 4: Run focused and media regressions**
 
 Run: `node --check media-provider-bridge.js`
 Run: `node --check image-model-routing.js`
@@ -699,7 +699,7 @@ Run: `node tools/check-image-model-revision.js`
 Run: `node tools/check-canvas-agent-image-failover.js`
 Expected: PASS;作业 ID、进度、恢复和结果格式不变。
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```powershell
 git add -- media-provider-bridge.js image-model-routing.js image-job-manager.js server.js tools/check-media-provider-bridge.js package.json

@@ -90,6 +90,26 @@ function createFixture() {
   assert.equal(JSON.stringify(executed.attempts).includes("primary-secret"), false);
 
   calls.length = 0;
+  const nonRetryableExecutor = createProviderExecutor({
+    resolver,
+    engine: {
+      ...engine,
+      async execute(provider, model, intent) {
+        calls.push(`execute:${provider.id}:${model.id}:${intent}`);
+        throw Object.assign(new Error("submitted task outcome is unknown"), {
+          code: "UPSTREAM_TASK_PENDING",
+          retryable: false,
+        });
+      },
+    },
+  });
+  await assert.rejects(
+    nonRetryableExecutor.execute({ intent: "llm.chat", input: { prompt: "hi" } }),
+    (error) => error.code === "UPSTREAM_TASK_PENDING" && error.retryable === false,
+  );
+  assert.deepEqual(calls, ["execute:primary:primary-chat:llm.chat"]);
+
+  calls.length = 0;
   await assert.rejects(
     executor.execute({ intent: "llm.chat", preferredProviderId: "primary", input: { prompt: "hi" } }),
     (error) => error.code === "UPSTREAM_UNAVAILABLE" && error.attempts.length === 1,

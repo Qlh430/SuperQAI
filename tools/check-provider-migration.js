@@ -5,7 +5,12 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 
-const { migrateLegacyAgentProviders, migrateLegacyProviders, normalizeBaseUrl } = require("../provider-migration");
+const {
+  migrateLegacyAgentProviders,
+  migrateLegacyMediaProviders,
+  migrateLegacyProviders,
+  normalizeBaseUrl,
+} = require("../provider-migration");
 const { createProviderSecretVault } = require("../provider-secret-vault");
 const { createProviderStore } = require("../provider-store");
 const { createSystemDb } = require("../system-db");
@@ -137,6 +142,70 @@ function closeFixture(fixture) {
     assert.equal(agentUpgradeSnapshots, 1);
   } finally {
     closeFixture(agentUpgradeFixture);
+  }
+
+  const mediaUpgradeFixture = createFixture("aios-provider-media-upgrade-");
+  let mediaUpgradeSnapshots = 0;
+  try {
+    [
+      {
+        id: "standard-images",
+        name: "Standard Images",
+        baseUrl: "https://images.example.test/v1",
+        protocol: "openai",
+        source: "environment",
+        apiKey: "fake-image-key",
+        models: [{ id: "gpt-image", protocol: "openai", capabilities: ["image.generate", "image.edit"] }],
+      },
+      {
+        id: "apimart-images",
+        name: "APIMart Images",
+        baseUrl: "https://api.apimart.example/v1",
+        protocol: "apimart",
+        source: "environment",
+        apiKey: "fake-apimart-key",
+        models: [
+          { id: "gpt-image-2", protocol: "openai", capabilities: ["image.generate", "image.edit"] },
+          { id: "midjourney", protocol: "openai", capabilities: ["image.generate"] },
+        ],
+      },
+      {
+        id: "grsai-images",
+        name: "GRSAI Images",
+        baseUrl: "https://grsai.example/v1/api/generate",
+        protocol: "openai-images",
+        source: "environment",
+        apiKey: "fake-grsai-key",
+        models: [{ id: "nano-banana-pro-grsai", protocol: "openai-images", capabilities: ["image.generate", "image.edit"] }],
+      },
+    ].forEach((provider) => mediaUpgradeFixture.store.save(provider));
+
+    const input = {
+      db: mediaUpgradeFixture.db,
+      store: mediaUpgradeFixture.store,
+      localVideoProvider: {
+        id: "local-comfyui",
+        name: "Local ComfyUI",
+        baseUrl: "http://127.0.0.1:8188",
+        protocol: "comfyui",
+        source: "local",
+        enabled: true,
+        models: [{ id: "minimax-h3", protocol: "comfyui", capabilities: ["video.generate"] }],
+      },
+      createSnapshot: () => ({ id: `media-upgrade-${++mediaUpgradeSnapshots}` }),
+    };
+    assert.equal(migrateLegacyMediaProviders(input).updated, 4);
+    assert.equal(mediaUpgradeSnapshots, 1);
+    const upgraded = mediaUpgradeFixture.store.listInternal();
+    assert.equal(upgraded.find((provider) => provider.id === "standard-images").models[0].protocol, "openai-images");
+    assert.deepEqual(upgraded.find((provider) => provider.id === "apimart-images").models.map((model) => model.protocol), ["openai-images", "apimart"]);
+    assert.equal(upgraded.find((provider) => provider.id === "grsai-images").models[0].protocol, "image-relay");
+    assert.equal(upgraded.find((provider) => provider.id === "grsai-images").models[0].metadata.upstreamModel, "nano-banana-pro");
+    assert.equal(upgraded.find((provider) => provider.id === "local-comfyui").models[0].capabilities[0], "video.generate");
+    assert.equal(migrateLegacyMediaProviders(input).updated, 0);
+    assert.equal(mediaUpgradeSnapshots, 1);
+  } finally {
+    closeFixture(mediaUpgradeFixture);
   }
 
   const rollbackFixture = createFixture("aios-provider-migration-rollback-");

@@ -14,6 +14,7 @@
     "check:provider-api": "node --disable-warning=ExperimentalWarning tools/check-provider-http-api.js",
     "check:unified-chat": "node --disable-warning=ExperimentalWarning tools/check-unified-chat-provider.js",
     "check:canvas-agent-provider": "node tools/check-canvas-agent-provider-bridge.js && node --disable-warning=ExperimentalWarning tools/check-live-agent-model-coherence.js",
+    "check:media-provider": "node --check media-provider-bridge.js && node --check media-protocol-adapters.js && node tools/check-media-provider-bridge.js",
     "start": "node server.js",
     "check:canvas-engine-contract": "node --check canvas-engine-contract.js && node tools/check-canvas-engine-contract.js",
     "check:canvas-storage": "node --disable-warning=ExperimentalWarning tools/check-canvas-spatial-rules.js && node --disable-warning=ExperimentalWarning tools/check-canvas-schema.js && node --disable-warning=ExperimentalWarning tools/check-canvas-repository.js && node --disable-warning=ExperimentalWarning tools/check-canvas-repository-operations.js && node --disable-warning=ExperimentalWarning tools/check-canvas-legacy-migrator.js && node --disable-warning=ExperimentalWarning tools/check-canvas-services.js && node --disable-warning=ExperimentalWarning tools/check-canvas-export-roundtrip.js && node tools/check-canvas-storage-endpoint.js",

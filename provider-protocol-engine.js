@@ -97,17 +97,21 @@ function normalizeError(error, provider, model) {
     return aborted;
   }
   const detail = redact(error?.message || "上游服务不可用", [provider?.apiKey, provider?.api_key, provider?.walletKey, provider?.wallet_api_key]);
+  const explicitCode = String(error?.code || "").trim();
   return new ProtocolEngineError({
-    code: "UPSTREAM_UNAVAILABLE",
+    code: explicitCode || "UPSTREAM_UNAVAILABLE",
     providerId: String(provider?.id || ""),
     modelId: modelIdOf(model),
-    retryable: true,
+    retryable: error?.retryable !== false,
+    stage: String(error?.stage || ""),
     safeMessage: detail || "上游服务不可用。",
   });
 }
 
 function modelIdOf(model) {
-  return String(typeof model === "string" ? model : model?.id || model?.model || model?.name || "").trim();
+  return String(typeof model === "string"
+    ? model
+    : model?.metadata?.upstreamModel || model?.id || model?.model || model?.name || "").trim();
 }
 
 function providerBaseUrl(provider) {
@@ -303,6 +307,67 @@ function chatMessagesToResponses(messages) {
   });
 }
 
+function imageUploadPart(value, index) {
+  if (value?.blob instanceof Blob) {
+    return { blob: value.blob, filename: String(value.filename || `image-${index + 1}.png`) };
+  }
+  if (value instanceof Blob) return { blob: value, filename: `image-${index + 1}.png` };
+  const source = typeof value === "string"
+    ? value
+    : String(value?.data || value?.b64_json || value?.url || "");
+  const match = source.match(/^data:([^;,]+);base64,([A-Za-z0-9+/=\s]+)$/i);
+  if (!match) {
+    throw new Error("Image edit input must be a Blob or base64 data URL prepared by the media bridge.");
+  }
+  const bytes = Buffer.from(match[2].replace(/\s/g, ""), "base64");
+  const extension = match[1].split("/").pop()?.replace(/[^a-z0-9]/gi, "") || "png";
+  return {
+    blob: new Blob([bytes], { type: match[1] }),
+    filename: String(value?.filename || `image-${index + 1}.${extension}`),
+  };
+}
+
+function buildOpenAiImageEditBody(modelId, input = {}, params = {}) {
+  const images = Array.isArray(input.inputImages) ? input.inputImages : [];
+  if (!images.length) throw new Error("Image edit requires at least one prepared input image.");
+  const form = new FormData();
+  form.append("model", modelId);
+  form.append("prompt", String(input.prompt || ""));
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === undefined || value === null || !OPENAI_IMAGE_PARAM_KEYS.has(key)) return;
+    form.append(key, typeof value === "object" ? JSON.stringify(value) : String(value));
+  });
+  images.forEach((value, index) => {
+    const image = imageUploadPart(value, index);
+    form.append("image", image.blob, image.filename);
+  });
+  if (input.mask) {
+    const mask = imageUploadPart(input.mask, 0);
+    form.append("mask", mask.blob, mask.filename);
+  }
+  return form;
+}
+
+const OPENAI_IMAGE_PARAM_KEYS = new Set([
+  "size",
+  "quality",
+  "n",
+  "response_format",
+  "output_format",
+  "output_compression",
+  "background",
+  "moderation",
+  "user",
+  "aspect_ratio",
+  "image_size",
+]);
+
+function openAiImageParams(params = {}) {
+  return Object.fromEntries(Object.entries(params).filter(([key, value]) => (
+    value !== undefined && value !== null && OPENAI_IMAGE_PARAM_KEYS.has(key)
+  )));
+}
+
 function buildBody(kind, modelId, input = {}, params = {}, stream = false) {
   const messages = normalizedMessages(input);
   if (kind === "openai-chat") {
@@ -355,10 +420,21 @@ function buildBody(kind, modelId, input = {}, params = {}, stream = false) {
   }
   if (kind === "gemini-content" || kind === "gemini-image") {
     const systemMessage = messages.find((message) => message.role === "system");
+    const mediaParts = kind === "gemini-image"
+      ? [
+        { text: String(input.prompt || "") },
+        ...geminiParts((Array.isArray(input.inputImages) ? input.inputImages : []).map((image) => ({
+          type: "image_url",
+          image_url: { url: typeof image === "string" ? image : image?.data || image?.url || "" },
+        }))).filter((part) => part.text || part.inlineData),
+      ]
+      : null;
     const body = {
-      contents: messages
-        .filter((message) => message.role !== "system")
-        .map((message) => ({ role: message.role === "assistant" ? "model" : "user", parts: geminiParts(message.content) })),
+      contents: mediaParts
+        ? [{ role: "user", parts: mediaParts }]
+        : messages
+          .filter((message) => message.role !== "system")
+          .map((message) => ({ role: message.role === "assistant" ? "model" : "user", parts: geminiParts(message.content) })),
     };
     const system = input.system || contentAsText(systemMessage?.content);
     if (system) body.systemInstruction = { parts: [{ text: system }] };
@@ -367,8 +443,9 @@ function buildBody(kind, modelId, input = {}, params = {}, stream = false) {
     } else if (params.generationConfig) body.generationConfig = params.generationConfig;
     return body;
   }
-  if (kind === "openai-image" || kind === "openai-image-edit") {
-    return addDefined({ model: modelId, prompt: String(input.prompt || "") }, params);
+  if (kind === "openai-image-edit") return buildOpenAiImageEditBody(modelId, input, params);
+  if (kind === "openai-image") {
+    return addDefined({ model: modelId, prompt: String(input.prompt || "") }, openAiImageParams(params));
   }
   throw new Error(`未知请求体类型：${kind}`);
 }
@@ -422,6 +499,18 @@ function parseResult(kind, payload) {
   if (kind === "gemini-content") {
     const parts = (payload?.candidates || []).flatMap((candidate) => candidate?.content?.parts || []);
     return { text: parts.map((part) => part?.text || "").filter(Boolean).join("\n"), usage: payload?.usageMetadata ?? null, toolCalls: [] };
+  }
+  if (kind === "gemini-image") {
+    const parts = (payload?.candidates || []).flatMap((candidate) => candidate?.content?.parts || []);
+    const data = parts.flatMap((part) => {
+      const inline = part?.inlineData || part?.inline_data;
+      if (inline?.data) return [{ b64_json: String(inline.data), mime_type: String(inline.mimeType || inline.mime_type || "image/png") }];
+      if (part?.fileData?.fileUri || part?.file_data?.file_uri) {
+        return [{ url: String(part?.fileData?.fileUri || part?.file_data?.file_uri) }];
+      }
+      return [];
+    });
+    return { data, usage: payload?.usageMetadata ?? null };
   }
   if (kind === "openai-image") return { data: payload?.data || payload?.images || [], usage: payload?.usage ?? null };
   throw new Error(`未知响应类型：${kind}`);
@@ -520,6 +609,8 @@ function createProtocolEngine({ registry = createProtocolRegistry(), fetchImpl, 
     }
     const modelId = modelIdOf(model);
     const endpoint = String(operation.path).replace("{model}", encodeURIComponent(modelId));
+    const body = buildBody(operation.body, modelId, input, params, Boolean(operation.stream));
+    const multipart = body instanceof FormData;
     return {
       protocolId,
       intent,
@@ -527,11 +618,11 @@ function createProtocolEngine({ registry = createProtocolRegistry(), fetchImpl, 
       method: operation.method || "POST",
       headers: {
         accept: operation.stream ? "text/event-stream" : "application/json",
-        "content-type": "application/json",
+        ...(!multipart ? { "content-type": "application/json" } : {}),
         ...(definition.headers || {}),
         ...buildAuthHeaders(definition, providerApiKey(provider)),
       },
-      body: buildBody(operation.body, modelId, input, params, Boolean(operation.stream)),
+      body,
       parse: operation.parse,
       stream: operation.stream || "",
     };
@@ -544,7 +635,9 @@ function createProtocolEngine({ registry = createProtocolRegistry(), fetchImpl, 
       const response = await raceOperation(networkFetch(request.url, {
         method: request.method,
         headers: request.headers,
-        body: request.method === "GET" ? undefined : JSON.stringify(request.body),
+        body: request.method === "GET"
+          ? undefined
+          : request.body instanceof FormData ? request.body : JSON.stringify(request.body),
         signal: scope.signal,
         outbound: {
           requestClass,

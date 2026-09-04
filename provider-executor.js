@@ -60,7 +60,9 @@ function requestQuery(request = {}) {
 }
 
 function shouldStopFallback(error) {
-  return error?.name === "AbortError" || error?.code === "REQUEST_ABORTED";
+  return error?.name === "AbortError"
+    || error?.code === "REQUEST_ABORTED"
+    || error?.retryable === false;
 }
 
 function createProviderExecutor({ resolver, engine } = {}) {

@@ -78,7 +78,8 @@ const DEFINITIONS = Object.freeze({
       "llm.chat": { method: "POST", path: "/v1beta/models/{model}:generateContent", body: "gemini-content", parse: "gemini-content" },
       "llm.chat.stream": { method: "POST", path: "/v1beta/models/{model}:streamGenerateContent?alt=sse", body: "gemini-content", parse: "gemini-content", stream: "gemini-sse" },
       "llm.chat.vision": { method: "POST", path: "/v1beta/models/{model}:generateContent", body: "gemini-content", parse: "gemini-content" },
-      "image.generate": { method: "POST", path: "/v1beta/models/{model}:generateContent", body: "gemini-image", parse: "gemini-content" },
+      "image.generate": { method: "POST", path: "/v1beta/models/{model}:generateContent", body: "gemini-image", parse: "gemini-image" },
+      "image.edit": { method: "POST", path: "/v1beta/models/{model}:generateContent", body: "gemini-image", parse: "gemini-image" },
     },
   },
   apimart: {
