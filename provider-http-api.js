@@ -119,6 +119,7 @@ function createProviderHttpApi({
   readJson,
   sendJson,
   appendAudit = () => {},
+  onCatalogChange = () => {},
   assertAvailable = () => true,
 } = {}) {
   if (!store || typeof store.listPublic !== "function" || typeof store.reveal !== "function") {
@@ -144,6 +145,10 @@ function createProviderHttpApi({
       targetId: String(targetId || ""),
       details: { fields: [...new Set(fields.map(String))] },
     });
+  }
+
+  function catalogChanged() {
+    onCatalogChange();
   }
 
   function publicSend(res, status, body, secrets = []) {
@@ -192,7 +197,7 @@ function createProviderHttpApi({
     let secrets = [];
     try {
       if (pathname === "/api/settings/providers/key") {
-        await requireSignedIn(req);
+        auth = await authorize(req);
         publicSend(res, 410, { error: "Provider keys are no longer returned to browsers.", code: "provider_key_reveal_removed" });
         return true;
       }
@@ -210,6 +215,7 @@ function createProviderHttpApi({
       if (pathname === "/api/providers" && req.method === "POST") {
         const existed = Boolean(store.getPublic?.(payload.id));
         const saved = store.save(payload);
+        catalogChanged();
         audit(auth, existed ? "provider.updated" : "provider.created", saved.id, changedFields(payload, [
           "name", "baseUrl", "protocol", "source", "cliTool", "apiKey", "walletKey", "clearApiKey", "clearWalletKey", "enabled", "sortOrder", "capabilitySort", "models",
         ]));
@@ -219,6 +225,7 @@ function createProviderHttpApi({
       const enabledProviderId = enabledProviderIdFromPath(pathname);
       if (enabledProviderId && req.method === "POST") {
         const provider = store.setEnabled(enabledProviderId, Boolean(payload.enabled));
+        catalogChanged();
         audit(auth, "provider.enabled_changed", enabledProviderId, ["enabled"]);
         publicSend(res, 200, { provider });
         return true;
@@ -232,18 +239,21 @@ function createProviderHttpApi({
       }
       if (providerId && req.method === "DELETE") {
         if (!store.remove(providerId)) throw httpError("provider_not_found", "Provider was not found.", 404);
+        catalogChanged();
         audit(auth, "provider.deleted", providerId, ["id"]);
         publicSend(res, 200, { ok: true, providerId });
         return true;
       }
       if (pathname === "/api/providers/reorder" && req.method === "POST") {
         const providers = store.reorderProviders(payload.providerIds);
+        catalogChanged();
         audit(auth, "provider.reordered", "providers", ["providerIds"]);
         publicSend(res, 200, { providers });
         return true;
       }
       if (pathname === "/api/providers/models/reorder" && req.method === "POST") {
         const provider = store.reorderModels(payload.providerId, payload.modelIds);
+        catalogChanged();
         audit(auth, "provider.models_reordered", payload.providerId, ["modelIds"]);
         publicSend(res, 200, { provider });
         return true;

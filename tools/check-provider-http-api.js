@@ -35,6 +35,7 @@ function publicProvider() {
 
 function createFixture() {
   const audits = [];
+  let catalogChanges = 0;
   let autoFallback = true;
   const store = {
     listPublic: () => [publicProvider()],
@@ -79,9 +80,10 @@ function createFixture() {
       res.body = body;
     },
     appendAudit: (entry) => audits.push(entry),
+    onCatalogChange: () => { catalogChanges += 1; },
     assertAvailable: () => true,
   });
-  return { api, audits, engine };
+  return { api, audits, engine, getCatalogChanges: () => catalogChanges };
 }
 
 async function requestAs(api, user, route) {
@@ -236,13 +238,13 @@ async function checkServerIntegration() {
     const ordinarySettings = await serverRequest(port, "/api/settings", { headers: { cookie: userCookie } });
     assert.equal(ordinarySettings.status, 200, ordinarySettings.text);
     assert.equal(Object.hasOwn(ordinarySettings.data, "providers"), false);
-    const ordinaryAppearanceSave = await serverRequest(port, "/api/settings", {
-      method: "PUT",
+    const ordinaryAppearanceSave = await serverRequest(port, "/api/preferences", {
+      method: "PATCH",
       headers: { cookie: userCookie },
       body: { appearance: { theme: "dark" } },
     });
     assert.equal(ordinaryAppearanceSave.status, 200, ordinaryAppearanceSave.text);
-    assert.equal(Object.hasOwn(ordinaryAppearanceSave.data, "providers"), false);
+    assert.equal(ordinaryAppearanceSave.data.preferences.appearance.theme, "dark");
     assert.equal((await serverRequest(port, "/api/settings", {
       method: "PUT",
       headers: { cookie: userCookie },
@@ -286,7 +288,7 @@ async function checkServerIntegration() {
 }
 
 (async () => {
-  const { api, audits, engine } = createFixture();
+  const { api, audits, engine, getCatalogChanges } = createFixture();
   const providerAdminRoutes = [
     { method: "GET", path: "/api/providers" },
     { method: "POST", path: "/api/providers", body: { id: "provider-1", name: "Provider One", baseUrl: "https://provider.example/v1", protocol: "openai", apiKey: SECRET, models: [] } },
@@ -329,6 +331,7 @@ async function checkServerIntegration() {
   assert.equal(JSON.stringify(legacyKey.body).includes(SECRET), false);
 
   assert.ok(audits.length >= 5);
+  assert.equal(getCatalogChanges(), 5);
   assert.equal(JSON.stringify(audits).includes(SECRET), false);
   for (const audit of audits) {
     assert.deepEqual(Object.keys(audit.details || {}), ["fields"]);

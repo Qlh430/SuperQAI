@@ -366,7 +366,7 @@
         baseUrl: String(data.get("baseUrl") || "").trim(),
         protocol: String(data.get("protocol") || "openai"),
         enabled: data.get("enabled") === "on",
-        apiKey: String(data.get("apiKey") || ""),
+        apiKey: String(data.get("apiKey") || "") || (state.draftProvider ? String(previous.apiKey || "") : ""),
         models,
       };
     }

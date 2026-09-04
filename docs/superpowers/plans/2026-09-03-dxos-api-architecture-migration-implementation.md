@@ -807,7 +807,7 @@ git commit -m "feat: add DXOS style provider settings"
 - Create: `tools/check-provider-cutover.js`
 - Create: `tools/check-provider-browser-smoke.js`
 
-- [ ] **Step 1: Write the cutover guard check**
+- [x] **Step 1: Write the cutover guard check**
 
 检查运行时代码和 HTTP 行为，保证：
 
@@ -821,19 +821,19 @@ assert.equal((await requestAs(superadmin, legacyRemovedRoute)).status, 410);
 
 允许保留仅供数据迁移/历史兼容的解析函数，但它们不能在启动、聊天、Agent、媒体或模型目录调用链中出现。浏览器 smoke 覆盖：登录、主题切换、超级管理员新建假 Provider、排序、手动测试、模型目录、聊天、Agent 工具调用、图片作业和普通用户不可见 Provider 管理。
 
-- [ ] **Step 2: Run and confirm RED**
+- [x] **Step 2: Run and confirm RED**
 
 Run: `node tools/check-provider-cutover.js`
 Run: `node tools/check-provider-browser-smoke.js`
 Expected: FAIL while any legacy control plane remains active.
 
-- [ ] **Step 3: Remove active legacy paths and document operations**
+- [x] **Step 3: Remove active legacy paths and document operations**
 
 停止 Provider 监测定时器、balance probe、Agent 模型发现/验证、EWMA、circuit/half-open、完整密钥读取端点，以及运行时从 `settings.json`/环境变量加载 Provider 的逻辑。旧管理端点对普通账号返回 403，对超级管理员返回带迁移提示的 `410 Gone`；公共兼容目录端点继续返回 Store 的脱敏数据。
 
 在 `README.md` 写明主机启动、首次迁移、Provider 配置、按需测试、自动回退、备份包含 Vault 密钥、缺密钥恢复失败处理，以及如何从迁移前快照回滚。
 
-- [ ] **Step 4: Add one provider verification script**
+- [x] **Step 4: Add one provider verification script**
 
 `package.json`：
 
@@ -845,7 +845,7 @@ Expected: FAIL while any legacy control plane remains active.
 }
 ```
 
-- [ ] **Step 5: Run syntax and focused provider suite**
+- [x] **Step 5: Run syntax and focused provider suite**
 
 Run:
 
@@ -867,7 +867,7 @@ npm run check:providers
 
 Expected: all PASS.
 
-- [ ] **Step 6: Run existing regression suites**
+- [x] **Step 6: Run existing regression suites**
 
 Run:
 
@@ -886,7 +886,7 @@ npm run check
 
 Expected: all PASS. 如果旧测试断言被有意淘汰的监测/熔断行为，应先把它改为新的确定性路由契约；不得为了绿灯保留双控制面。
 
-- [ ] **Step 7: Run isolated browser smoke and recovery drill**
+- [x] **Step 7: Run isolated browser smoke and recovery drill**
 
 `check-provider-browser-smoke.js` 沿用现有 Playwright 加载策略，启动 `server.js` 子进程时设置独立的 `AI_OS_DATA_DIR`、`AI_OS_SYSTEM_DB_FILE`、`AI_OS_BACKUP_DIR` 和随机本机端口；上游统一指向测试进程内的假 HTTP 服务。测试结束关闭浏览器与子进程，并保留失败截图。
 
@@ -902,7 +902,7 @@ Expected: PASS;测试只使用临时数据目录和假上游，不读取用户�
 - 重启：SQLite、密钥、顺序和个人偏好保持。
 - 恢复：数据库与 Vault 密钥成对恢复；故意移除密钥时 Provider 子系统被安全锁定，而账户、文件和桌面仍可进入。
 
-- [ ] **Step 8: Mark the design complete and commit**
+- [x] **Step 8: Mark the design complete and commit**
 
 只有前述命令实际通过后，才把设计文档状态更新为“已实施并验收”。
 
