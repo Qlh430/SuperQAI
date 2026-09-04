@@ -742,7 +742,7 @@ PATCH /api/preferences
 }
 ```
 
-- [ ] **Step 1: Write failing DOM/API permission checks**
+- [x] **Step 1: Write failing DOM/API permission checks**
 
 静态 DOM 检查与浏览器 fixture 覆盖：
 
@@ -755,13 +755,13 @@ assert.equal(networkRequests.some((url) => url.includes("/providers/key")), fals
 
 服务端检查断言普通用户只能读写自己的偏好，无法修改其他 userId 或主机设置；网络、自动启动、备份等主机设置修改只允许超级管理员。迁移期 `/api/settings` 只能聚合当前账号有权看到的字段。超级管理员 Provider UI 可新建、编辑、启停、排序、按需测试、同步模型，但 API Key 输入永远不回填原值。
 
-- [ ] **Step 2: Run and confirm RED**
+- [x] **Step 2: Run and confirm RED**
 
 Run: `node tools/check-system-settings-ui.js`
 Run: `node tools/check-ai-os-shell.js`
 Expected: FAIL because the new settings sections and role filtering are absent.
 
-- [ ] **Step 3: Build one settings surface**
+- [x] **Step 3: Build one settings surface**
 
 在现有 `#aiOsSystemWindow` 内实现苹果风格分栏：
 
@@ -770,7 +770,7 @@ Expected: FAIL because the new settings sections and role filtering are absent.
 
 删除“Agent 模型”和“API 监测”导航项；不显示成功率排行榜、定时探测状态或熔断按钮。主题变量作用于桌面壳、窗口、Dock、系统设置和应用内容；普通用户偏好按账号写入 `user_preferences`。
 
-- [ ] **Step 4: Run focused UI and shell verification**
+- [x] **Step 4: Run focused UI and shell verification**
 
 Run: `node --check system-settings-ui.js`
 Run: `node --check desktop-shell.js`
@@ -781,7 +781,7 @@ Run: `npm run check:desktop-v2`
 Run: `npm run check:ai-os`
 Expected: PASS in light/dark/system modes and for both roles.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```powershell
 git add -- system-settings-ui.js system-settings.css index.html desktop-shell.js server.js script.js tools/check-system-settings-ui.js package.json
