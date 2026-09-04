@@ -14,8 +14,6 @@
   --os-ui-scale: 1;
 }
 
-html { font-size: calc(16px * var(--os-ui-scale)); }
-
 #aiOsSystemSettingsRoot { height: calc(100% - 44px); min-height: 0; }
 
 .ai-os-settings-layout {
