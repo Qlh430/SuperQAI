@@ -11,23 +11,49 @@ npm-debug.log*
 # Build and portable packages
 dist/
 *.zip
+artifacts/
+.planning/
+.ai-os-browser-test-*/
+_encoding_corrupt_backup_*/
+flclash-backup-*/
+站点界面配色参考/
 
-# Generated images and user data
+# Generated images, user data, and local databases
 output/
-data/*.json
-data/*.bak-*
+data/
+# 功能 Skill（用户自建/导入）随数据目录备份，不进入版本库
+data/skills/
 
-# Local canvas database and transient benchmark state
-data/*.db
-data/*.db-wal
-data/*.db-shm
+# Local process state
 *.pid
 tmp/canvas-pressure/
 
 # Temporary files
 tmp/
 *.tmp
+*.bak
+tmp_head_render.txt
 tmp_api_doc.pdf
+
+# Large model binaries stay local and ship in Release assets, not source Git.
+assets/models/background-removal/*.onnx
+
+# Local LAN environment helpers
+CPAMP-*.log
+CPAMP-*.pid
+CPAMP启动与使用说明.md
+CPAMP-Startup.Helpers.ps1
+Repair-CPAMP-LAN.ps1
+Start-CPAMP.ps1
+Test-CPAMP-Docker-Network.ps1
+Test-CPAMP-LAN-Relay.ps1
+Test-CPAMP-Startup.ps1
+configure-cpa-lan.ps1
+verify-cpa-lan.ps1
+cpamp-lan-relay.js
+docker-compose.network.yml
+docker-compose.proxy.yml
+启动CPAMP.bat
 
 # Dependencies
 node_modules/

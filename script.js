@@ -3,13 +3,16 @@ const CHAT_MODELS_API_URL = "/api/models";
 const VISION_MODELS_API_URL = "/api/vision-models";
 const IMAGE_API_URL = "/api/images";
 const IMAGE_JOBS_API_URL = "/api/image-jobs";
+const IMAGE_SYNC_LOCALIZE_API_URL = "/api/image-sync/localize";
 const CANVAS_IMAGE_JOB_POLL_MS = 1500;
-const CANVAS_IMAGE_JOB_ACTIVE_STATES = new Set(["queued", "submitting", "running"]);
+const CANVAS_IMAGE_JOB_ACTIVE_STATES = new Set(["queued", "submitting", "running", "syncing"]);
 const IMAGE_MODELS_API_URL = "/api/image-models";
 const IMAGE_UPLOAD_API_URL = "/api/upload-image";
 const MEDIA_UPLOAD_API_URL = "/api/upload-media";
 const MEDIA_CHUNK_UPLOAD_API_URL = "/api/upload-media/chunk";
 const MINIMAX_H3_VIDEO_API_URL = "/api/minimax-h3-video";
+const VIDEO_MODELS_API_URL = "/api/video-models";
+const API_VIDEO_API_URL = "/api/videos";
 const MINIMAX_H3_ASPECT_RATIOS = Object.freeze({
   "1:1": [1, 1],
   "2:3": [2, 3],
@@ -27,36 +30,59 @@ const OUTPAINT_API_URL = "/api/outpaint";
 const RUNNINGHUB_OUTPAINT_API_URL = "/api/runninghub-outpaint";
 const FLUX2_KLEIN_EDIT_API_URL = "/api/flux2-klein-edit";
 const QWEN_EDIT_ANGLE_API_URL = "/api/qwen-edit-angle";
+const COMFY_REMOVE_BACKGROUND_API_URL = "/api/comfy-remove-background";
 const IMAGE_CHUNK_UPLOAD_API_URL = "/api/upload-image/chunk";
 const UPSCALE_STATUS_API_URL = "/api/upscale/status";
 const CHAT_HISTORY_API_URL = "/api/history/chat";
 const IMAGE_HISTORY_API_URL = "/api/history/images";
 const CANVAS_BOARDS_API_URL = "/api/canvas/boards";
+const CANVAS_MEDIA_CLEANUP_API_URL = "/api/canvas/media/cleanup";
+const CANVAS_ASSET_DRAG_TYPE = "application/x-ai-os-asset";
 const ONLINE_API_URL = "/api/online";
 const SETTINGS_API_URL = "/api/settings";
 const SETTINGS_PROVIDER_MODELS_API_URL = "/api/settings/providers/models";
-const SETTINGS_PROVIDER_KEY_API_URL = "/api/settings/providers/key";
 const SETTINGS_PROVIDER_RUNTIME_API_URL = "/api/settings/providers/runtime";
 const SETTINGS_PROVIDER_AGENT_VERIFY_API_URL = "/api/settings/providers/agent-verify";
 const SETTINGS_PROVIDER_MONITORING_API_URL = "/api/settings/providers/monitoring";
 const SETTINGS_AGENT_CANDIDATES_API_URL = "/api/settings/agent-candidates";
 const CanvasAgentVerification = window.CanvasAgentVerification;
+const CanvasGalleryRules = window.CanvasGalleryRules;
+if (!CanvasGalleryRules) throw new Error("Canvas gallery rules must load before the canvas application.");
+const CanvasCropRules = window.CanvasCropRules;
+if (!CanvasCropRules) throw new Error("Canvas crop rules must load before the canvas application.");
+const CanvasGridEditorRules = window.CanvasGridEditorRules;
+if (!CanvasGridEditorRules) throw new Error("Canvas grid editor rules must load before the canvas application.");
+const CanvasComfyRules = window.CanvasComfyRules;
+const CanvasComfyOutpaintUi = window.CanvasComfyOutpaintUi;
+const CanvasComfyQwenUi = window.CanvasComfyQwenUi;
+// The H3 controls UI ships with the MiniMax H3 node component, so it is read
+// lazily: disabling that component must not stop the canvas application.
+function getCanvasH3ControlsUi() {
+  const controlsUi = window.CanvasH3ControlsUi;
+  if (!controlsUi) throw new Error("Canvas H3 controls UI component is unavailable.");
+  return controlsUi;
+}
+const CanvasGenerationRules = window.CanvasGenerationRules;
+if (!CanvasGenerationRules) throw new Error("Canvas generation rules must load before the canvas application.");
+const ImageOutputRules = window.ImageOutputRules;
+if (!ImageOutputRules) throw new Error("Image output rules must load before the canvas application.");
+// The LLM node component loads after the canvas runtime. Resolve its helpers
+// lazily so a delayed component cannot break canvas node restoration.
+function getCanvasLlmPresetRules() {
+  return window.CanvasLlmPresetRules || null;
+}
+
+function getCanvasLlmPresetUi() {
+  return window.CanvasLlmPresetUi || null;
+}
 const LEGACY_CHAT_HISTORY_KEY = "ai-chat-history";
 const LEGACY_IMAGE_HISTORY_KEY = "ai-image-history";
 const HISTORY_MIGRATION_KEY = "ai-shared-history-migrated";
 const THEME_STORAGE_KEY = "ai-theme-mode";
-const PALETTE_STORAGE_KEY = "ai-color-palette";
 const ONLINE_CLIENT_STORAGE_KEY = "ai-online-client-id";
 const RAIL_PIN_STORAGE_KEY = "ai-rail-pinned";
 const CHAT_WEB_SEARCH_STORAGE_KEY = "ai-chat-web-search";
-const COLOR_PALETTES = [
-  { id: "yellow-black", label: "\u9ec4\u9ed1\u5de5\u4f5c\u53f0", description: "\u9ad8\u5bf9\u6bd4\u9ec4\u8272\u5f3a\u8c03\uff0c\u9002\u5408\u9ed1\u91d1\u6548\u7387\u611f", colors: ["#ffd100", "#202020", "#f4f4f2"] },
-  { id: "red-blue", label: "\u7ea2\u84dd\u79d1\u6280", description: "\u7ea2\u8272\u64cd\u4f5c\u611f + \u6df1\u84dd\u7ed3\u6784\uff0c\u5207\u6362\u540e\u4e3b\u4f53\u660e\u663e\u53d8\u51b7", colors: ["#df0615", "#ffffff", "#004098"] },
-  { id: "mustard-blue", label: "\u8292\u679c\u84dd\u7070", description: "\u6696\u9ec4\u9ad8\u4eae + \u84dd\u7070\u754c\u9762\uff0c\u66f4\u67d4\u548c\u4e13\u4e1a", colors: ["#ffb800", "#123f86", "#e5e8ef"] },
-];
-
 ensureCanvasMarkup();
-ensureSettingsMarkup();
 initializeCanvasFirstShell();
 window.lucide?.createIcons({
   attrs: {
@@ -67,7 +93,6 @@ window.lucide?.createIcons({
 
 const tabs = document.querySelectorAll(".nav-item");
 const views = document.querySelectorAll("[data-view]");
-const themeOptions = document.querySelectorAll("[data-theme-choice]");
 const railToggle = document.querySelector("#railToggle");
 
 const chatModelInput = document.querySelector("#chatModel");
@@ -206,6 +231,9 @@ const DYNAMIC_IMAGE_MODEL_PRICES = {};
 const IMAGE_PLATFORM_LABELS = {
   openai: "OpenAI image",
   google: "Google nano-banana",
+  midjourney: "Midjourney",
+  jimeng: "即梦 CLI",
+  comfyui: "ComfyUI",
 };
 const GOOGLE_IMAGE_RATIOS_STANDARD = [
   "1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9",
@@ -225,6 +253,16 @@ const MIDJOURNEY_DEFAULT_OPTIONS = { version: "7", mode: "standard", speed: "fas
 const MIDJOURNEY_IMAGE_RATIOS = [
   "1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9",
 ].map((ratio) => ({ value: ratio, label: ratio }));
+// Dreamina takes a ratio plus its own quality flag, so the picture is framed by
+// aspect ratio instead of pixel dimensions.
+const JIMENG_IMAGE_RATIOS = [
+  "21:9", "16:9", "3:2", "4:3", "1:1", "3:4", "2:3", "9:16",
+].map((ratio) => ({ value: ratio, label: ratio }));
+const JIMENG_IMAGE_LEVELS = {
+  "jimeng-3": ["1", "2"],
+  "jimeng-5": ["2", "4"],
+  "jimeng-5-pro": ["1", "2", "4"],
+};
 const GPT_IMAGE2_MAX_EDGE = 3840;
 const IMAGE_SIZE_PRESETS = {
   openai: [
@@ -285,8 +323,22 @@ const CANVAS_LLM_DEFAULT_PRESETS = [
   },
 ];
 let visionModelOptions = [];
+let visionModelCatalog = [];
+let videoModelCatalog = [];
+let videoModelCandidates = [];
+let videoModelResolutions = {};
+let videoModelRatios = {};
+let videoModelDurations = {};
 let canvasImageModelCandidates = [];
+let imageModelCatalog = [];
 let canvasImageModelsLoadPromise = null;
+let canvasImageModelsLoadPromiseMinimumRevision = 0;
+let canvasImageModelsRequestSerial = 0;
+let canvasImageModelsInstanceId = "";
+let canvasImageModelsSettingsDirty = false;
+let canvasImageModelsRequiredRevision = 0;
+let canvasImageModelsAppliedRevision = 0;
+const canvasGalleryLocalizationPromises = new Map();
 const history = [];
 const chatAttachments = [];
 let chatLoadingMessage = null;
@@ -327,13 +379,23 @@ let upscale2ProgressTimer = null;
 let shoeSwapProgressTimer = null;
 let outpaintProgressTimer = null;
 let outpaint2ProgressTimer = null;
-const CANVAS_SCALE_MIN = 0.05;
-const CANVAS_SCALE_MAX = 5;
+const CanvasViewRules = window.CanvasViewRules;
+if (!CanvasViewRules) throw new Error("Canvas view rules must load before the canvas application.");
+const CanvasConnectionRules = window.CanvasConnectionRules;
+if (!CanvasConnectionRules) throw new Error("Canvas connection rules must load before the canvas application.");
+const CanvasGeometryRules = window.CanvasGeometryRules;
+if (!CanvasGeometryRules) throw new Error("Canvas geometry rules must load before the canvas application.");
+const CanvasAlignmentRules = window.CanvasAlignmentRules;
+if (!CanvasAlignmentRules) throw new Error("Canvas alignment rules must load before the canvas application.");
+const CANVAS_SCALE_MIN = CanvasViewRules.SCALE_MIN;
+const CANVAS_SCALE_MAX = CanvasViewRules.SCALE_MAX;
 
 function normalizeCanvasScale(value, fallback = 1) {
-  const numeric = Number(value);
-  if (!Number.isFinite(numeric)) return fallback;
-  return Math.max(CANVAS_SCALE_MIN, Math.min(CANVAS_SCALE_MAX, numeric));
+  return CanvasViewRules.normalizeScale(value, fallback);
+}
+
+function toSystemDelta(value) {
+  return window.AiOsDisplay?.logicalDelta(value, window.AiOsDisplay.currentScale(document.documentElement)) ?? value;
 }
 
 const canvasState = {
@@ -344,18 +406,31 @@ const canvasState = {
   activeNode: null,
   menuPoint: null,
   imageContextNode: null,
+  imageContextMemberId: "",
   pendingConnection: null,
   tempConnection: null,
   connectMenu: null,
   connections: [],
   clipboard: null,
   selectedIds: new Set(),
+  selectedSceneItems: new Map(),
+  selectionRevision: 0,
   selectionFrameVisible: false,
   boards: [],
   trashedBoards: [],
+  projects: [],
+  boardsLoadedAt: 0,
+  boardsLoadPromise: null,
+  boardsHydrationScheduled: false,
+  boardsHydrationAwaitingSession: false,
+  canvasScopeCounts: { all: 0, mine: 0, shared: 0, trash: 0 },
+  canvasScope: "all",
+  activeProjectId: "",
   boardView: "active",
   boardSearchQuery: "",
   boardRenameId: null,
+  projectRenameId: null,
+  boardMoveId: null,
   activeBoardId: null,
   activeBoardTitle: "未命名画布",
   activeBoardCreatedAt: null,
@@ -369,6 +444,8 @@ const canvasState = {
   hasUnsavedChanges: false,
   isRestoring: false,
   boardOpening: false,
+  appScreen: "library",
+  isImmersive: false,
   isUndoing: false,
   draggedGalleryImage: null,
   galleryDragGhost: null,
@@ -378,11 +455,31 @@ const canvasState = {
   deleteUndoStackDepth: null,
 };
 
+/**
+ * Live collaboration session state.
+ *
+ * Declared with the rest of the canvas state because setCanvasAppScreen() —
+ * which every editor entry and exit passes through — reads it while the file
+ * is still being evaluated.
+ */
+const canvasCollabState = {
+  /* One identity per loaded page: a tab that reconnects is the same
+     collaborator, while a reloaded tab is a new one. */
+  clientId: createId(),
+  client: null,
+  boardId: "",
+  users: [],
+  cursors: new Map(),
+  cursorPruneTimer: 0,
+  reloading: false,
+};
+
 const canvasPagedStore = new window.CanvasPagedStore({
   rules: window.CanvasVirtualizationRules,
   maxModels: 2400,
   maxEstimatedBytes: 96 * 1024 * 1024,
 });
+const canvasGalleryMediaCleanupJobs = new Map();
 const canvasVirtualStore = canvasPagedStore;
 const canvasViewportDataSource = new window.CanvasViewportDataSource({
   fetchImpl: window.fetch.bind(window),
@@ -398,10 +495,17 @@ const canvasMediaScheduler = new window.CanvasMediaScheduler({
 });
 let canvasSceneLayer = null;
 let canvasSceneRenderFrame = 0;
+let canvasNodeStackClock = 0;
+let canvasSceneInteractionSequence = 0;
+const canvasSceneNodeRequests = new Map();
 const canvasSceneTextureCache = new Map();
+const canvasImageDimensions = new Map();
+const canvasSceneOriginalDemand = new Set();
+let canvasSceneOriginalPixels = 0;
 const canvasMediaTaskKeys = new WeakMap();
 let canvasVirtualBoard = null;
 let canvasVirtualRestoreContext = null;
+let canvasPendingRestoreRefsBoardId = "";
 const canvasVirtualizer = new window.CanvasVirtualizer({
   store: canvasVirtualStore,
   rules: window.CanvasVirtualizationRules,
@@ -427,10 +531,20 @@ const canvasVirtualizer = new window.CanvasVirtualizer({
     if (canvasState.isRestoring || !canvasState.activeBoardPersisted) return;
     requestCanvasViewportPage({ ...mountRect, scale: viewport.scale }).catch(() => {});
   },
-  afterFlush: () => {
-    scheduleCanvasImageQualityUpdate();
-    scheduleCanvasConnectionRender({ trailing: false });
-    updateCanvasOrigin();
+  afterFlush: (detail) => {
+    if (detail.mounted || detail.unmounted || detail.replaced) {
+      syncCanvasNodeStacking();
+      if (canvasPagedStore.scenePage) scheduleCanvasSceneRender();
+      scheduleCanvasImageQualityUpdate();
+      scheduleCanvasConnectionRender({ trailing: false });
+      updateCanvasOrigin();
+    }
+    if (!detail.remaining && canvasPendingRestoreRefsBoardId && canvasPendingRestoreRefsBoardId === canvasState.activeBoardId) {
+      canvasPendingRestoreRefsBoardId = "";
+      // A target may have mounted before its upstream gallery. Reconcile
+      // references once the remaining batches have arrived, in small slices.
+      void refreshCanvasRefsProgressively();
+    }
   },
 });
 window.canvasVirtualStore = canvasVirtualStore;
@@ -438,6 +552,15 @@ window.canvasPagedStore = canvasPagedStore;
 window.canvasViewportDataSource = canvasViewportDataSource;
 window.canvasVirtualizer = canvasVirtualizer;
 window.canvasMediaScheduler = canvasMediaScheduler;
+window.CanvasWorkspace = {
+  loadCanvasWorkspace,
+  renderCanvasWorkspace,
+  openCanvasProjectDialog,
+  moveCanvasToProject,
+  showLibrary: showCanvasLibrary,
+  openBoardByResourceId: openCanvasBoardByResourceId,
+  boardTitleByResourceId,
+};
 
 const canvasPersistedNodes = new Map();
 const canvasPersistedConnections = new Map();
@@ -455,13 +578,11 @@ function updateCanvasViewportStatus(status = {}) {
 }
 
 function getCanvasConnectionId(connection = {}) {
-  const existing = String(connection.id || "").trim();
-  if (existing) return existing;
-  return `edge:${String(connection.from || "")}:${String(connection.to || "")}:${String(connection.toPort || "input")}`;
+  return CanvasConnectionRules.connectionId(connection);
 }
 
 function normalizeVisibleCanvasConnection(connection) {
-  return { ...connection, id: getCanvasConnectionId(connection) };
+  return CanvasConnectionRules.normalizeConnection(connection);
 }
 
 function syncVisibleCanvasConnections() {
@@ -474,6 +595,12 @@ function getCanvasConnectionsForNode(nodeId) {
 }
 
 function rememberCanvasViewportBaseline(page = {}) {
+  for (const item of page.visualNodes || page.nodes || []) {
+    canvasNodeStackClock = Math.max(canvasNodeStackClock, Number(Array.isArray(item) ? item[6] : item.zOrder) || 0);
+  }
+  if (page && ["scene", "detail", "lod"].includes(page.mode)) {
+    canvasState.activeBoardRevision = Math.max(Number(canvasState.activeBoardRevision || 0), Number(page.boardRevision || 0));
+  }
   if (!page || page.mode !== "detail") return;
   (Array.isArray(page.nodes) ? page.nodes : []).forEach((node) => {
     canvasPersistedNodes.set(String(node.id), JSON.parse(JSON.stringify(node)));
@@ -484,8 +611,81 @@ function rememberCanvasViewportBaseline(page = {}) {
     canvasPersistedConnections.set(connection.id, JSON.parse(JSON.stringify(connection)));
     canvasVisibleConnectionBaselineIds.add(connection.id);
   });
-  canvasState.activeBoardRevision = Number(page.boardRevision ?? canvasState.activeBoardRevision ?? 0);
   syncVisibleCanvasConnections();
+}
+
+async function loadCanvasSceneNode(id) {
+  const boardId = String(canvasState.activeBoardId || "");
+  const key = `${boardId}:${id}`;
+  if (!canvasSceneNodeRequests.has(key)) {
+    const request = (async () => {
+      const response = await fetch(`${CANVAS_BOARDS_API_URL}/${encodeURIComponent(boardId)}/node?nodeId=${encodeURIComponent(id)}`);
+      const data = await response.json();
+      if (!response.ok || !data.node) throw new Error(data.error || "节点加载失败");
+      return data.node;
+    })();
+    canvasSceneNodeRequests.set(key, request);
+    request.finally(() => { if (canvasSceneNodeRequests.get(key) === request) canvasSceneNodeRequests.delete(key); }).catch(() => {});
+  }
+  return canvasSceneNodeRequests.get(key);
+}
+
+async function beginCanvasSceneNodeInteraction(event, hit, { preview = false, preserveSelection = false } = {}) {
+  const sequence = ++canvasSceneInteractionSequence;
+  const boardId = String(canvasState.activeBoardId || "");
+  let latestMove = null, ended = null;
+  const trackMove = next => { latestMove = next; };
+  const trackEnd = next => { ended = next; };
+  window.addEventListener("pointermove", trackMove);
+  window.addEventListener("pointerup", trackEnd, { once: true });
+  window.addEventListener("pointercancel", trackEnd, { once: true });
+  try {
+    const model = await loadCanvasSceneNode(hit.id);
+    if (sequence !== canvasSceneInteractionSequence || boardId !== String(canvasState.activeBoardId) || canvasPagedStore.deletedNodeIds.has(String(hit.id))) return;
+    if (!canvasPagedStore.getPendingOperations().some(op => String(op.entityId) === String(hit.id) && op.type.startsWith("node."))) {
+      canvasVirtualStore.upsert(model);
+      canvasPersistedNodes.set(String(hit.id), cloneCanvasOperationValue(model));
+    }
+    pinCanvasNode(hit.id);
+    const node = ensureCanvasNodeMounted(hit.id);
+    if (!node) return;
+    bringCanvasNodeToFront(node);
+    if (event.ctrlKey) toggleCanvasNodeSelection(node);
+    else if (preserveSelection) addCanvasNodeToSelection(node);
+    else selectCanvasNode(node);
+    const img = node.querySelector("img[data-canvas-original-src]");
+    if (img) {
+      // Reuse the shared decoded thumbnail while promoting just this node.
+      const entry = canvasSceneTextureCache.get(String(hit.item.previewSource || ""));
+      if (entry?.state === "ready") {
+        img.src = entry.image.src;
+        img.dataset.imageQuality = entry.quality || "thumbnail";
+        img.dataset.requestedQuality = img.dataset.imageQuality;
+        img.dataset.imagePaintQuality = img.dataset.imageQuality;
+        img.dataset.originalWidth = String(entry.width || entry.image.naturalWidth);
+        img.dataset.originalHeight = String(entry.height || entry.image.naturalHeight);
+        applyCanvasNodeSize(node);
+      }
+      canvasImageToolbar?.show(img);
+      img.addEventListener("load", () => canvasImageToolbar?.refresh(), { once: true });
+    }
+    scheduleCanvasImageQualityUpdate();
+    renderCanvasSceneLayer();
+    if (preview && img) openCanvasImageOriginalPreview(node, img);
+    else if (!event.ctrlKey && ended?.type !== "pointercancel") {
+      const startEvent = { target: img || node, button: 0, clientX: event.clientX, clientY: event.clientY,
+        preventDefault() {}, stopPropagation() {} };
+      const dragState = { initialMove: latestMove, initialEnd: ended };
+      if (hasCanvasSceneSelection()) beginCanvasSceneSelectionDrag(startEvent, dragState);
+      else beginCanvasNodeDrag(startEvent, node, dragState);
+    }
+  } catch (error) {
+    if (sequence === canvasSceneInteractionSequence && boardId === String(canvasState.activeBoardId)) setCanvasStatus(`节点加载失败：${error.message}`);
+  } finally {
+    window.removeEventListener("pointermove", trackMove);
+    window.removeEventListener("pointerup", trackEnd);
+    window.removeEventListener("pointercancel", trackEnd);
+  }
 }
 
 function ensureCanvasSceneLayer() {
@@ -508,13 +708,73 @@ function scheduleCanvasSceneRender() {
   });
 }
 
-function resolveCanvasSceneTexture(source) {
+function resolveCanvasSceneTexture(source, node, { cachedOnly = false } = {}) {
   const key = String(source || "");
   if (!key) return null;
   const existing = canvasSceneTextureCache.get(key);
-  if (existing?.state === "ready") return existing.image;
-  if (existing) return null;
-  const entry = { state: "loading", image: null };
+  if (existing?.state === "ready") {
+    const viewport = document.querySelector("#infiniteCanvas");
+    const scale = canvasState.scale;
+    const left = canvasState.x + Number(node?.x || 0) * scale;
+    const top = canvasState.y + Number(node?.y || 0) * scale;
+    const width = Number(node?.width || 0) * scale;
+    const height = Number(node?.height || 0) * scale;
+    const visible = Boolean(viewport && left < viewport.clientWidth && top < viewport.clientHeight && left + width > 0 && top + height > 0);
+    const fit = Math.min(width / existing.width, height / existing.height);
+    const displayUnit = viewport ? viewport.getBoundingClientRect().width / Math.max(1, viewport.clientWidth) : 1;
+    const quality = window.ImageLoadingRules.chooseCanvasImageQuality({
+      visible, scale, detailReady: canvasDetailReady, currentQuality: existing.quality,
+      displayedMaxSide: Math.max(existing.width, existing.height) * fit * displayUnit * (window.devicePixelRatio || 1),
+    });
+    const pixels = existing.width * existing.height;
+    if (quality === "original" && (canvasSceneOriginalDemand.has(key)
+      || (canvasSceneOriginalDemand.size < 8 && canvasSceneOriginalPixels + pixels <= 64 * 1024 * 1024))) {
+      if (!canvasSceneOriginalDemand.has(key)) canvasSceneOriginalPixels += pixels;
+      canvasSceneOriginalDemand.add(key);
+      if (existing.quality !== "original" && !canvasMediaScheduler.isPending(existing.originalTaskKey)
+        && Date.now() >= Number(existing.retryAfter || 0)) {
+        existing.originalTaskKey = canvasMediaScheduler.enqueue({
+          nodeId: `scene:${key}`, quality: "original", priority: 90,
+          run(signal) {
+            return new Promise((resolve, reject) => {
+              const image = new Image();
+              image.decoding = "async";
+              let settled = false;
+              const finish = (error) => {
+                if (settled) return;
+                settled = true;
+                signal.removeEventListener("abort", abort);
+                image.onload = image.onerror = null;
+                if (error) { image.src = ""; reject(error); } else resolve();
+              };
+              const abort = () => finish(Object.assign(new Error("Scene image canceled"), { name: "AbortError" }));
+              signal.addEventListener("abort", abort, { once: true });
+              if (signal.aborted) { abort(); return; }
+              image.onload = async () => {
+                try { await image.decode(); } catch {}
+                if (settled) return;
+                if (canvasSceneTextureCache.get(key) === existing && canvasSceneOriginalDemand.has(key)) {
+                  existing.image = image;
+                  existing.quality = "original";
+                  scheduleCanvasSceneRender();
+                }
+                finish();
+              };
+              image.onerror = () => {
+                existing.retryAfter = Date.now() + 60_000;
+                // Keep the decoded thumbnail if the original is temporarily unavailable.
+                finish();
+              };
+              image.src = key;
+            });
+          },
+        });
+      }
+    }
+    return existing.image;
+  }
+  if (existing || cachedOnly) return null;
+  const entry = { state: "loading", image: null, thumbnail: null, quality: "thumbnail" };
   canvasSceneTextureCache.set(key, entry);
   window.imageResources?.requestThumbnail?.(key).then((item) => {
     const thumbnailUrl = String(item?.thumbnailUrl || "");
@@ -527,6 +787,10 @@ function resolveCanvasSceneTexture(source) {
     image.onload = () => {
       entry.state = "ready";
       entry.image = image;
+      entry.thumbnail = image;
+      entry.width = Number(item.width) || image.naturalWidth;
+      entry.height = Number(item.height) || image.naturalHeight;
+      canvasImageDimensions.set(key, { width: entry.width, height: entry.height });
       scheduleCanvasSceneRender();
     };
     image.onerror = () => { entry.state = "error"; };
@@ -534,7 +798,10 @@ function resolveCanvasSceneTexture(source) {
   }).catch(() => { entry.state = "error"; });
   if (canvasSceneTextureCache.size > 512) {
     const staleKey = canvasSceneTextureCache.keys().next().value;
-    if (staleKey && staleKey !== key) canvasSceneTextureCache.delete(staleKey);
+    if (staleKey && staleKey !== key) {
+      canvasMediaScheduler.cancelKey(canvasSceneTextureCache.get(staleKey)?.originalTaskKey);
+      canvasSceneTextureCache.delete(staleKey);
+    }
   }
   return null;
 }
@@ -543,41 +810,117 @@ function renderCanvasSceneLayer() {
   const viewport = document.querySelector("#infiniteCanvas");
   const layer = ensureCanvasSceneLayer();
   const page = canvasPagedStore.scenePage;
+  canvasSceneOriginalDemand.clear();
+  canvasSceneOriginalPixels = 0;
   if (!viewport || !layer || !page || page.mode !== "scene") {
+    for (const entry of canvasSceneTextureCache.values()) {
+      canvasMediaScheduler.cancelKey(entry.originalTaskKey);
+      if (entry.quality === "original") {
+        entry.image = entry.thumbnail;
+        entry.quality = "thumbnail";
+      }
+    }
     layer?.clear();
     viewport?.classList.remove("has-scene-layer");
     return false;
   }
   const width = viewport.clientWidth;
   const height = viewport.clientHeight;
-  layer.resize(width, height);
+  const displayUnit = viewport.getBoundingClientRect().width / Math.max(1, width);
+  layer.devicePixelRatio = Math.max(1, (window.devicePixelRatio || 1) * displayUnit);
+  const padding = Math.min(
+    640,
+    Math.max(320, Math.round(Math.max(width, height) * 0.4)),
+  );
+  layer.resize(width, height, padding);
   layer.render({
-    visualNodes: page.visualNodes || [],
-    visualConnections: page.visualConnections || [],
+    visualNodes: getCanvasSceneVisualNodes(page),
+    visualConnections: getCanvasSceneConnectionSegments(page),
     texturedNodeIds: (page.texturedNodeIds || []).slice(0, 256),
+    selectedIds: canvasState.selectedIds,
     transform: {
       x: canvasState.x,
       y: canvasState.y,
       scale: Math.max(0.000001, Number(canvasState.scale) || 1),
     },
     resolveTexture: resolveCanvasSceneTexture,
+    resolveNodeBounds: getCanvasImageContentRect,
   });
+  for (const [source, entry] of canvasSceneTextureCache) {
+    if (canvasSceneOriginalDemand.has(source)) continue;
+    canvasMediaScheduler.cancelKey(entry.originalTaskKey);
+    if (entry.quality === "original") {
+      entry.image = entry.thumbnail;
+      entry.quality = "thumbnail";
+    }
+  }
   viewport.classList.add("has-scene-layer");
   return true;
+}
+
+function getCanvasSceneVisualNodes(page) {
+  const decodeNode = item => Array.isArray(item) ? {
+    id: String(item[0]), kind: item[1], x: item[2], y: item[3], width: item[4], height: item[5],
+    zOrder: item[6], previewSource: item[7], title: item[8],
+  } : item;
+  const nodes = new Map((page.visualNodes || []).map(item => {
+    const node = decodeNode(item);
+    const model = canvasVirtualStore.get(node.id);
+    return [node.id, model ? { ...node, ...model } : node];
+  }));
+  for (const [template, members] of page.occludedStacks || []) {
+    const base = decodeNode(template);
+    const top = nodes.get(base.id);
+    const topMoving = canvasState.selectionDragging && canvasState.selectedSceneItems.has(base.id);
+    if (top && !topMoving && !canvasPagedStore.deletedNodeIds.has(base.id) && !canvasVirtualStore.getMounted(base.id)
+      && top.x === base.x && top.y === base.y && (top.width || base.width) === base.width
+      && (top.height || base.height) === base.height) continue;
+    for (const [id, zOrder, title] of members) {
+      if (canvasPagedStore.deletedNodeIds.has(id) || canvasVirtualStore.getMounted(id)) continue;
+      const model = canvasVirtualStore.get(id);
+      const moving = canvasState.selectionDragging && canvasState.selectedSceneItems.get(id);
+      const node = { ...base, id, zOrder, title, ...model, ...moving };
+      nodes.set(id, node);
+      // Once an unchanged underlying copy is available, the rest of this stack
+      // is still covered. Render work stays bounded even for 50,000 copies.
+      if (!moving && (!model || (node.x === base.x && node.y === base.y
+        && (node.width || base.width) === base.width && (node.height || base.height) === base.height))) break;
+    }
+  }
+  canvasPagedStore.getPendingOperations().forEach(op => {
+    if (op.type === "node.upsert" && op.after) {
+      const model = op.after;
+      nodes.set(op.entityId, { ...nodes.get(op.entityId), ...model,
+        previewSource: model.resultSrc || model.imageSrc || model.previewSource || nodes.get(op.entityId)?.previewSource });
+    }
+  });
+  canvasState.selectedSceneItems.forEach((item, id) => {
+    if (nodes.has(id) && canvasState.selectionDragging) nodes.set(id, { ...nodes.get(id), ...item });
+  });
+  return [...nodes.values()].filter(item => !canvasPagedStore.deletedNodeIds.has(item.id)
+    && !canvasVirtualStore.getMounted(item.id));
 }
 
 function reprojectCanvasSceneLayer() {
   const page = canvasPagedStore.scenePage;
   const layer = ensureCanvasSceneLayer();
   if (!layer || !page || page.mode !== "scene") return false;
-  return layer.reproject({
+  const transform = {
     x: canvasState.x,
     y: canvasState.y,
     scale: Math.max(0.000001, Number(canvasState.scale) || 1),
-  });
+  };
+  // Refresh from resident scene geometry before the padded bitmap's edge can
+  // enter the viewport. Network paging continues independently of this paint.
+  if (layer.needsRepaint(transform)) return renderCanvasSceneLayer();
+  return layer.reproject(transform);
 }
 
 async function requestCanvasViewportPage(viewport) {
+  const replacingVisibleScene = Boolean(
+    canvasPagedStore.scenePage?.mode === "scene"
+    && document.querySelector("#infiniteCanvas")?.classList.contains("has-scene-layer"),
+  );
   const page = await canvasViewportDataSource.request(viewport);
   if (page?.mode) {
     rememberCanvasViewportBaseline(page);
@@ -588,9 +931,21 @@ async function requestCanvasViewportPage(viewport) {
     };
     const numericIds = (page.nodes || []).map((node) => Number(node.id)).filter(Number.isFinite);
     if (numericIds.length) canvasState.nextNode = Math.max(canvasState.nextNode, Math.max(...numericIds) + 1);
-    canvasVirtualizer.schedule();
+    // Keep a fast gesture on the existing padded bitmap. Replacing the whole
+    // scene as soon as a paged response arrives causes a visible mid-drag hitch.
+    if (canvasDetailTimer && page.mode === "scene") return page;
+    if (replacingVisibleScene && page.mode === "detail") {
+      // A scene page deliberately has no mounted DOM nodes. Mount the detail
+      // page before removing that scene so the browser never paints an empty
+      // frame between the two renderers.
+      canvasVirtualizer.flushNow();
+    } else {
+      canvasVirtualizer.schedule();
+    }
     scheduleCanvasConnectionRender();
     renderCanvasSceneLayer();
+    updateCanvasSelectionFrame();
+    updateCanvasOrigin();
   }
   return page;
 }
@@ -608,7 +963,7 @@ function blockCanvasBoardLoadingInteraction(event) {
 
 document.addEventListener("keydown", blockCanvasBoardLoadingInteraction, true);
 
-let canvasGridMenuState = null;
+let canvasCropWorkbenchState = null;
 const canvasGridEditorWheelTimers = new Map();
 let settingsState = null;
 let savedSettingsSnapshot = null;
@@ -636,16 +991,33 @@ let agentRoutingCandidateRequestSerial = 0;
 let canvasConnectionResizeFrame = 0;
 let canvasConnectionRenderFrame = 0;
 let canvasConnectionRenderTimer = 0;
+let canvasGalleryMemberHoverConnectionSyncFrame = 0;
+let canvasGalleryMemberHoverConnectionSyncUntil = 0;
 const canvasConnectionElements = new Map();
+const canvasConnectionOverlayElements = new Map();
+const canvasConnectionPortPointCache = new Map();
+const CANVAS_CONNECTION_PORT_CACHE_LIMIT = 8192;
+let canvasViewportSize = { width: 0, height: 0 };
+let canvasViewportSizeObserver = null;
 let canvasConnectionSvg = null;
+let canvasConnectionOverlaySvg = null;
 let canvasTempConnectionPath = null;
 let canvasImageQualityFrame = 0;
 let canvasDetailTimer = 0;
 let canvasDetailReady = false;
+let canvasImageToolbar = null;
+let canvasImageInfo = null;
+let canvasRasterRefreshFrame = 0;
+let canvasRasterRefreshReason = "";
 let canvasTransformFrame = 0;
+let canvasTransformSavePending = false;
 let canvasVirtualRefreshTimer = 0;
 let canvasViewportSaveTimer = 0;
+let canvasAgentFocusTimer = 0;
+let providerCatalogRefreshTimer = 0;
 let chatModelPicker = null;
+let imageModelPicker = null;
+const canvasImageModelPickers = new WeakMap();
 const canvasNodeResizeObserver = typeof ResizeObserver === "function"
   ? new ResizeObserver((entries) => {
     if (canvasConnectionResizeFrame) cancelAnimationFrame(canvasConnectionResizeFrame);
@@ -654,7 +1026,7 @@ const canvasNodeResizeObserver = typeof ResizeObserver === "function"
       for (const entry of entries) {
         entry.target.dataset.renderedWidth = String(Math.max(1, Math.ceil(entry.contentRect.width)));
         entry.target.dataset.renderedHeight = String(Math.max(1, Math.ceil(entry.contentRect.height)));
-        if (canvasVirtualStore.has(entry.target.dataset.id)) {
+        if (canvasVirtualStore.has(entry.target.dataset.id) && !entry.target.classList.contains("canvas-node-frameless")) {
           canvasVirtualStore.setGeometry(entry.target.dataset.id, {
             x: Number(entry.target.dataset.x || 0),
             y: Number(entry.target.dataset.y || 0),
@@ -662,7 +1034,7 @@ const canvasNodeResizeObserver = typeof ResizeObserver === "function"
             height: Math.max(1, Math.ceil(entry.contentRect.height)),
           });
         }
-        if (entry.target.classList.contains("canvas-node-gallery")) updateCanvasGalleryLayout(entry.target, { renderConnections: false });
+        if (entry.target.classList.contains("canvas-node-gallery-container")) scheduleCanvasConnectionRender({ trailing: false });
       }
       renderCanvasConnections();
       scheduleCanvasImageQualityUpdate();
@@ -670,19 +1042,70 @@ const canvasNodeResizeObserver = typeof ResizeObserver === "function"
   })
   : null;
 
+let modelCatalogHydrationStarted = false;
+
 initializeTheme();
 initializeRail();
 initializeOnlineStatus();
 loadImageSettings();
 initializeChatLayoutCopy();
 initializeChatModelPicker();
+initializeImageModelPicker();
 updateChatWebSearchButton();
 initializeCanvasBoard();
-loadChatModels();
-loadVisionModels();
-loadImageModels();
+scheduleModelCatalogHydration();
 initializeSharedHistory();
-initializeSettingsCenter();
+
+function scheduleModelCatalogHydration() {
+  if (modelCatalogHydrationStarted) return;
+  modelCatalogHydrationStarted = true;
+  const hydrate = () => {
+    window.dispatchEvent(new CustomEvent("ai-os-model-catalog-loading"));
+    Promise.allSettled([
+      loadChatModels(),
+      loadVisionModels(),
+      loadImageModels(),
+      loadVideoModels(),
+    ]).then((results) => {
+      const failures = results
+        .map((result, index) => result.status === "rejected" ? { index, reason: result.reason } : null)
+        .filter(Boolean);
+      window.dispatchEvent(new CustomEvent("ai-os-model-catalog-ready", {
+        detail: { failures },
+      }));
+    });
+  };
+  if (typeof window.requestIdleCallback === "function") {
+    window.requestIdleCallback(hydrate, { timeout: 900 });
+    return;
+  }
+  window.setTimeout(hydrate, 80);
+}
+
+window.addEventListener("ai-os-provider-catalog-changed", (event) => {
+  clearTimeout(providerCatalogRefreshTimer);
+  providerCatalogRefreshTimer = window.setTimeout(() => {
+    void (async () => {
+      const catalogRevision = Math.max(0, Number(event.detail?.catalogRevision) || 0);
+      canvasImageModelsRequiredRevision = catalogRevision > 0
+        ? Math.max(canvasImageModelsRequiredRevision, catalogRevision)
+        : Math.max(1, canvasImageModelsRequiredRevision + 1);
+      canvasImageModelsSettingsDirty = true;
+      await Promise.allSettled([
+        loadImageModels({ preserveOnError: true }),
+        loadVideoModels(),
+        loadChatModels({ preserveSelection: true }),
+        loadVisionModels(),
+      ]);
+      if (catalogRevision > 0 && canvasImageModelsAppliedRevision < catalogRevision) {
+        await new Promise((resolve) => window.setTimeout(resolve, 120));
+        await loadImageModels({ preserveOnError: true });
+      }
+      refreshCanvasImageModelSelects();
+      refreshImageModelPickers();
+    })().catch(() => {});
+  }, 40);
+});
 
 tabs.forEach((tab) => {
   tab.addEventListener("click", () => {
@@ -690,10 +1113,6 @@ tabs.forEach((tab) => {
     setActiveTool(tab.classList.contains("active") ? "canvas" : tool);
     tab.blur();
   });
-});
-
-themeOptions.forEach((button) => {
-  button.addEventListener("click", () => setThemeMode(button.dataset.themeChoice || "system"));
 });
 
 messagesEl?.addEventListener("click", (event) => {
@@ -1176,6 +1595,7 @@ imageModelInput.addEventListener("change", () => {
   updateImageResolutionAvailability();
   if (rememberImageInput.checked) saveImageSettings();
   updateGenerateButtonLabel();
+  imageModelPicker?.refresh();
 });
 
 imageMidjourneyOptions?.addEventListener("change", (event) => {
@@ -1257,10 +1677,11 @@ document.querySelector("#imageForm").addEventListener("submit", async (event) =>
   event.preventDefault();
 
   const prompt = imagePromptInput.value.trim();
-  const model = imageModelInput.value.trim();
+  const automaticSelection = imageModelInput.dataset.modelSelection === "auto";
+  const model = automaticSelection ? "" : imageModelInput.value.trim();
 
-  if (!model || !prompt) {
-    setImageStatus("请先选择图片模型并输入提示词。");
+  if (!prompt) {
+    setImageStatus("请先输入提示词。");
     return;
   }
   if (imageSizeInput.value === "custom" && !validateMainCustomImageSize()) {
@@ -1278,13 +1699,13 @@ document.querySelector("#imageForm").addEventListener("submit", async (event) =>
   try {
     const requestedSize = getOutputSize();
     const requestBody = {
-      model,
+      ...(model ? { model } : {}),
       prompt,
       size: requestedSize,
       n: Number(imageCountInput.value),
       reference_images: referenceImages.filter(Boolean),
     };
-    if (isMidjourneyModel(model)) Object.assign(requestBody, getMidjourneyPayload(imageMidjourneyOptions));
+    if (!automaticSelection && isMidjourneyModel(model)) Object.assign(requestBody, getMidjourneyPayload(imageMidjourneyOptions));
     else Object.assign(requestBody, { quality: getOutputQuality(), resolution: getOutputResolution() });
     const response = await fetch(IMAGE_API_URL, {
       method: "POST",
@@ -1299,7 +1720,7 @@ document.querySelector("#imageForm").addEventListener("submit", async (event) =>
     if (!images.length) throw new Error("接口返回成功，但没有找到图片链接或 base64 图片。");
 
     renderImages(images, prompt);
-    const returnedModel = data.model || model;
+    const returnedModel = data.model || model || "自动选择";
     await saveImageHistory(prompt, images, returnedModel);
     const sizeNote = getImageSizeNote(requestedSize, images);
     const sizeMismatch = hasImageSizeMismatch(requestedSize, images);
@@ -1630,14 +2051,18 @@ function renderChatModelPicker() {
   });
 }
 
-async function loadChatModels() {
+async function loadChatModels({ preserveSelection = false } = {}) {
+  const previousModel = String(chatModelInput?.value || "").trim();
   try {
     const response = await fetch(CHAT_MODELS_API_URL);
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || "对话模型读取失败。");
-    Object.assign(DYNAMIC_MODEL_DISPLAY_NAMES, data.labels || {});
-    fillSelect(chatModelInput, data.models);
-    chatModelInput.value = data.defaultModel;
+    const models = normalizePublicModelCatalog(data.models);
+    Object.assign(DYNAMIC_MODEL_DISPLAY_NAMES, data.labels || {}, Object.fromEntries(models.map((model) => [model.id, model.displayName])));
+    fillSelect(chatModelInput, models.map((model) => model.id));
+    chatModelInput.value = preserveSelection && models.some((model) => model.id === previousModel)
+      ? previousModel
+      : data.defaultModel;
     renderChatModelPicker();
     refreshCanvasLlmModelSelects();
     setChatStatus("准备就绪");
@@ -1654,27 +2079,139 @@ async function loadVisionModels() {
     const response = await fetch(VISION_MODELS_API_URL);
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || "视觉模型读取失败。");
-    Object.assign(DYNAMIC_MODEL_DISPLAY_NAMES, data.labels || {});
-    visionModelOptions = data.models || [];
+    const models = normalizePublicModelCatalog(data.models);
+    visionModelCatalog = models;
+    Object.assign(DYNAMIC_MODEL_DISPLAY_NAMES, data.labels || {}, Object.fromEntries(models.map((model) => [model.id, model.displayName])));
+    visionModelOptions = models.map((model) => model.id);
     refreshCanvasLlmModelSelects();
   } catch {
     visionModelOptions = [];
+    visionModelCatalog = [];
     refreshCanvasLlmModelSelects();
   }
 }
 
+function getImageModelPickerScope() {
+  return String(window.AiOsSession?.user?.id || window.AiOsSession?.user?.username || "anonymous");
+}
+
+function openImageModelServiceSettings() {
+  if (window.AiOsSession?.user?.role !== "superadmin") {
+    setImageStatus("API 设置由超级管理员统一管理。");
+    return false;
+  }
+  const desktop = window.AiOsDesktop;
+  const open = () => desktop?.openApp?.("settings");
+  const ready = () => typeof desktop?.isReady !== "function" || desktop.isReady();
+  const navigate = (attempt = 0) => {
+    const nav = document.querySelector('[data-settings-nav="providers"]');
+    if (nav) {
+      nav.click();
+      return true;
+    }
+    if (attempt < 30) {
+      window.setTimeout(() => navigate(attempt + 1), 100);
+      return false;
+    }
+    setImageStatus("系统设置仍在加载，请稍后从桌面打开“系统设置”。");
+    return false;
+  };
+  const attemptOpen = (attempt = 0) => {
+    if (!ready()) {
+      if (attempt < 20) {
+        window.setTimeout(() => attemptOpen(attempt + 1), 100);
+        return false;
+      }
+      setImageStatus("系统设置尚未就绪，请从桌面重新打开后再试。");
+      return false;
+    }
+    const opened = open();
+    if (opened) {
+      window.setTimeout(() => navigate(), 80);
+      return true;
+    }
+    if (attempt < 20) {
+      window.setTimeout(() => attemptOpen(attempt + 1), 100);
+      return false;
+    }
+    setImageStatus("系统设置尚未就绪，请从桌面重新打开后再试。");
+    return false;
+  };
+  attemptOpen();
+  return true;
+}
+
+function initializeImageModelPicker() {
+  if (imageModelPicker || !window.ImageModelPicker?.createSelectPicker || !imageModelInput) return imageModelPicker;
+  imageModelPicker = window.ImageModelPicker.createSelectPicker({
+    select: imageModelInput,
+    mount: document.querySelector("#imageModelPickerMount"),
+    models: imageModelCatalog,
+    storage: localStorage,
+    getScope: getImageModelPickerScope,
+    onManage: openImageModelServiceSettings,
+  });
+  window.addEventListener("ai-os-session", () => imageModelPicker?.refresh());
+  return imageModelPicker;
+}
+
+function enhanceCanvasImageModelSelect(select) {
+  if (!select || select.classList.contains("canvas-llm-model")) return null;
+  const existing = canvasImageModelPickers.get(select);
+  if (existing) {
+    existing.setModels(imageModelCatalog);
+    return existing;
+  }
+  if (!select.parentNode || !window.ImageModelPicker?.createSelectPicker) return null;
+  const picker = window.ImageModelPicker.createSelectPicker({
+    select,
+    models: imageModelCatalog,
+    storage: localStorage,
+    getScope: getImageModelPickerScope,
+    onManage: openImageModelServiceSettings,
+    variant: "canvas",
+  });
+  canvasImageModelPickers.set(select, picker);
+  return picker;
+}
+
+function refreshImageModelPickers() {
+  initializeImageModelPicker()?.setModels(imageModelCatalog);
+  document.querySelectorAll("#canvasPlane .canvas-node-image:not([data-upload-only='true']) .canvas-node-model").forEach((select) => {
+    enhanceCanvasImageModelSelect(select)?.setModels(imageModelCatalog);
+  });
+  refreshCanvasMidjourneyModelSelects();
+}
+
 async function loadImageModels(options = {}) {
   const preserveOnError = Boolean(options.preserveOnError);
+  const minimumRevision = Math.max(0, Number(options.minimumRevision) || 0);
   const saved = getSavedSettings(IMAGE_STORAGE_KEY);
+  const requestSerial = ++canvasImageModelsRequestSerial;
   try {
-    const response = await fetch(IMAGE_MODELS_API_URL);
+    const response = await fetch(IMAGE_MODELS_API_URL, { cache: "no-store" });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || "图片模型读取失败。");
+    if (requestSerial !== canvasImageModelsRequestSerial) return canvasImageModelCandidates;
+    adoptCanvasImageModelsInstance(data.instanceId);
+    const responseRevision = Math.max(0, Number(data.revision) || 0);
+    if (responseRevision < Math.max(minimumRevision, canvasImageModelsRequiredRevision, canvasImageModelsAppliedRevision)) {
+      return canvasImageModelCandidates;
+    }
+    const models = normalizePublicModelCatalog(data.models);
+    imageModelCatalog = models;
+    const modelIds = models.map((model) => model.id);
     canvasImageModelCandidates = Array.isArray(data.candidates) ? data.candidates : [];
-    Object.assign(DYNAMIC_MODEL_DISPLAY_NAMES, data.labels || {});
+    canvasImageModelsAppliedRevision = Math.max(canvasImageModelsAppliedRevision, responseRevision);
+    canvasImageModelsSettingsDirty = canvasImageModelsAppliedRevision < canvasImageModelsRequiredRevision;
+    Object.assign(DYNAMIC_MODEL_DISPLAY_NAMES, data.labels || {}, Object.fromEntries(models.map((model) => [model.id, model.displayName])));
     Object.keys(IMAGE_MODEL_RESOLUTIONS).forEach((key) => delete IMAGE_MODEL_RESOLUTIONS[key]);
     Object.entries(data.resolutions || {}).forEach(([model, values]) => {
-      IMAGE_MODEL_RESOLUTIONS[model] = normalizeImageResolutionValues(values);
+      // An empty list means the API 接入 never declared a ladder. Leaving the
+      // entry out lets the platform and family defaults supply it, instead of
+      // collapsing every model to the single 1K fallback.
+      const normalized = Array.isArray(values) && !values.length ? [] : normalizeImageResolutionValues(values);
+      if (normalized.length) IMAGE_MODEL_RESOLUTIONS[model] = normalized;
     });
     Object.keys(IMAGE_MODEL_PLATFORMS).forEach((key) => delete IMAGE_MODEL_PLATFORMS[key]);
     Object.entries(data.platforms || {}).forEach(([model, platform]) => {
@@ -1686,20 +2223,28 @@ async function loadImageModels(options = {}) {
     });
     Object.keys(DYNAMIC_IMAGE_MODEL_PRICES).forEach((key) => delete DYNAMIC_IMAGE_MODEL_PRICES[key]);
     Object.assign(DYNAMIC_IMAGE_MODEL_PRICES, data.prices || {});
-    fillSelect(imageModelInput, data.models);
-    const preferredModel = saved?.model || data.defaultModel;
-    imageModelInput.value = data.models.includes(preferredModel) ? preferredModel : data.defaultModel;
+    fillSelect(imageModelInput, modelIds);
+    const preferredModel = window.ImageModelPicker?.resolveModelId?.(models, saved?.model || data.defaultModel) || saved?.model || data.defaultModel;
+    const automaticSelection = !saved?.model || saved.model === "__auto__";
+    imageModelInput.value = automaticSelection
+      ? data.defaultModel
+      : modelIds.includes(preferredModel) ? preferredModel : data.defaultModel;
+    imageModelInput.dataset.modelSelection = automaticSelection ? "auto" : "exact";
     refreshImageSizeOptions(saved?.size || imageSizeInput.value);
     syncMidjourneyControls(imageMidjourneyOptions, imageModelInput.value, saved?.midjourney || {});
     updateImageResolutionAvailability();
     refreshCanvasImageModelSelects();
+    refreshImageModelPickers();
     updateGenerateButtonLabel();
     setImageStatus("准备就绪");
     return canvasImageModelCandidates;
   } catch (error) {
+    if (requestSerial !== canvasImageModelsRequestSerial) return canvasImageModelCandidates;
     if (!preserveOnError) {
       canvasImageModelCandidates = [];
+      imageModelCatalog = [];
       fillSelect(imageModelInput, ["模型列表读取失败"]);
+      refreshImageModelPickers();
       refreshCanvasImageModelSelects();
       updateGenerateButtonLabel();
       setImageStatus(error.message);
@@ -1709,9 +2254,90 @@ async function loadImageModels(options = {}) {
   }
 }
 
+async function loadVideoModels() {
+  try {
+    const response = await fetch(VIDEO_MODELS_API_URL, { cache: "no-store" });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "视频模型读取失败。");
+    videoModelCatalog = normalizePublicModelCatalog(data.models);
+    videoModelCandidates = Array.isArray(data.candidates) ? data.candidates : [];
+    videoModelResolutions = data.resolutions || {};
+    videoModelRatios = data.ratios || {};
+    videoModelDurations = data.durations || {};
+    Object.assign(
+      DYNAMIC_MODEL_DISPLAY_NAMES,
+      Object.fromEntries(videoModelCatalog.map((model) => [model.id, model.displayName])),
+    );
+    refreshCanvasApiVideoModelSelects();
+  } catch {
+    videoModelCatalog = [];
+    videoModelCandidates = [];
+    videoModelResolutions = {};
+    videoModelRatios = {};
+    videoModelDurations = {};
+    refreshCanvasApiVideoModelSelects();
+  }
+}
+
+function getVideoModelOptions() {
+  return videoModelCatalog.filter((model) => String(model.id || "").trim());
+}
+
+function fillCanvasApiVideoModelSelect(select, preferred) {
+  const models = getVideoModelOptions();
+  select.innerHTML = "";
+  const choices = models.length
+    ? models
+    : [{ id: "", displayName: "请先在 API 设置里添加视频接入", modelId: "" }];
+  choices.forEach((model) => {
+    const option = document.createElement("option");
+    option.value = model.id;
+    option.textContent = model.displayName || model.modelId || model.id;
+    select.append(option);
+  });
+  const next = choices.some((model) => model.id === preferred) ? preferred : (choices[0]?.id || "");
+  select.value = next;
+  select.disabled = !models.length;
+  if (models.length) select.dataset.platform = getApiVideoModelPlatform(next);
+  else delete select.dataset.platform;
+  return next;
+}
+
+function refreshCanvasApiVideoModelSelects() {
+  document.querySelectorAll("#canvasPlane .canvas-node-video-api .canvas-api-video-model").forEach((select) => {
+    const node = select.closest(".canvas-node");
+    fillCanvasApiVideoModelSelect(select, node?.dataset.apiVideoModel || select.value || "");
+    if (node) node.dataset.apiVideoModel = select.value;
+    syncCanvasApiVideoControls(node);
+  });
+}
+
+function normalizePublicModelCatalog(models) {
+  return (Array.isArray(models) ? models : []).map((model) => {
+    if (typeof model === "string") return { id: model, displayName: getModelDisplayName(model) };
+    const id = String(model?.id || "").trim();
+    return { ...model, id, displayName: String(model?.displayName || model?.name || id) };
+  }).filter((model) => model.id);
+}
+
+function adoptCanvasImageModelsInstance(value) {
+  const instanceId = String(value || "").trim();
+  if (!instanceId) return false;
+  if (!canvasImageModelsInstanceId) {
+    canvasImageModelsInstanceId = instanceId;
+    return false;
+  }
+  if (canvasImageModelsInstanceId === instanceId) return false;
+  canvasImageModelsInstanceId = instanceId;
+  canvasImageModelsRequiredRevision = 0;
+  canvasImageModelsAppliedRevision = 0;
+  canvasImageModelsSettingsDirty = true;
+  return true;
+}
+
 function setActiveTool(tool) {
   const agentSettingsWasVisible = isAgentModelsSettingsVisible();
-  const nextTool = tool || "canvas";
+  const nextTool = ["canvas", "image", "chat", "records"].includes(tool) ? tool : "canvas";
   tabs.forEach((tab) => tab.classList.toggle("active", tab.dataset.tool === nextTool));
   views.forEach((view) => {
     if (view.dataset.view === "canvas") {
@@ -1728,17 +2354,42 @@ function setActiveTool(tool) {
     suspendCanvasImageLoading();
   }
   if (nextTool === "records") renderUnifiedHistory();
-  if (nextTool === "settings") {
-    startProviderRuntimePolling();
-    startProviderMonitoringPolling();
-  } else {
-    stopProviderRuntimePolling();
-    stopProviderMonitoringPolling();
-  }
+  stopProviderRuntimePolling();
+  stopProviderMonitoringPolling();
   const agentSettingsIsVisible = isAgentModelsSettingsVisible();
   if (!agentSettingsWasVisible && agentSettingsIsVisible) beginAgentAutoVerificationSession();
   else if (agentSettingsWasVisible && !agentSettingsIsVisible) stopAgentAutoVerificationSession();
 }
+
+// The desktop shell moves these existing nodes into real windows.  Keep this
+// bridge explicit so the shell never has to simulate a rail-navigation click.
+window.AiOsLegacyWorkbench = {
+  activateTool(tool) {
+    if (["canvas", "image", "chat", "records"].includes(tool)) setActiveTool(tool);
+  },
+  getView(tool) {
+    const viewId = {
+      canvas: "#canvasView",
+      image: "#imageView",
+      chat: "#chatView",
+      records: "#recordsView",
+      shared: "#aiOsSharedWindow",
+      accounts: "#aiOsAccountsWindow",
+      settings: "#aiOsSystemWindow",
+    }[tool];
+    return viewId ? document.querySelector(viewId) : null;
+  },
+};
+window.addEventListener("ai-os-app-activate", (event) => {
+  handleCanvasAppActivation(event).catch((error) => {
+    showCanvasLibrary({ reload: false }).catch(() => {});
+    setCanvasStatus(error.message);
+  });
+});
+window.addEventListener("ai-os-app-immersive-changed", (event) => {
+  if (event.detail?.appId === "canvas") renderCanvasImmersiveControl(event.detail.active);
+});
+window.dispatchEvent(new CustomEvent("ai-os-legacy-workbench-ready"));
 
 function ensureSettingsMarkup() {
   const stage = document.querySelector(".stage");
@@ -1832,6 +2483,7 @@ async function loadSettingsCenter() {
     const response = await fetch(SETTINGS_API_URL);
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || "设置读取失败。");
+    adoptCanvasImageModelsInstance(data.imageModelsInstanceId);
     settingsState = data;
     savedSettingsSnapshot = cloneSettingsState(data);
     activeSettingsProviderId = data.providers?.some((provider) => provider.id === activeSettingsProviderId)
@@ -1923,6 +2575,11 @@ function renderSettingsProviders() {
     <div class="provider-credentials">
       <label><span>统一基础地址</span><input type="url" data-provider-field="baseUrl" value="${escapeHtml(providerBaseUrl)}" placeholder="https://api.example.com/v1" ${provider.managed ? "readonly" : ""}></label>
       <label><span>API Key</span><div class="settings-key-field"><input type="password" data-provider-field="apiKey" value="" placeholder="${escapeHtml(provider.apiKeyMasked || "sk-...")}" ${provider.managed ? "readonly" : ""}>${provider.managed ? "" : '<button type="button" data-settings-action="toggle-key" title="显示或隐藏 Key"><i data-lucide="eye"></i></button>'}</div></label>
+      <label><span>网络路由</span><select data-provider-field="networkMode" ${provider.managed ? "disabled" : ""}>
+        <option value="auto" ${provider.networkMode === "auto" ? "selected" : ""}>自适应（推荐）</option>
+        <option value="direct" ${provider.networkMode === "direct" ? "selected" : ""}>始终直连</option>
+        <option value="proxy" ${provider.networkMode === "proxy" ? "selected" : ""}>始终代理</option>
+      </select></label>
       <label class="provider-recharge-field"><span>充值页面（可选）</span><input type="url" data-provider-field="rechargeUrl" value="${escapeHtml(provider.rechargeUrl || "")}" placeholder="${escapeHtml(getDefaultProviderRechargeUrl(provider.baseUrl))}" ${provider.managed ? "readonly" : ""}></label>
     </div>
     <div class="provider-address-guide">
@@ -2190,18 +2847,34 @@ function resolveCanvasAgentImageModel({ requestedModel = null, requiresEdit = fa
   }).find((candidate) => isCanvasAgentImageCandidateCompatible(candidate, { size, resolution })) || null;
 }
 
-async function ensureCanvasAgentImageModelCandidate(options = {}) {
-  const cached = resolveCanvasAgentImageModel(options);
-  if (cached) return cached;
-  if (!canvasImageModelsLoadPromise) {
-    canvasImageModelsLoadPromise = loadImageModels({ preserveOnError: true })
-      .catch(() => canvasImageModelCandidates)
+async function ensureCanvasImageModelsCurrent({ minimumRevision = canvasImageModelsRequiredRevision } = {}) {
+  const requiredRevision = Math.max(0, Number(minimumRevision) || 0, canvasImageModelsRequiredRevision);
+  if (canvasImageModelCandidates.length
+    && !canvasImageModelsSettingsDirty
+    && canvasImageModelsAppliedRevision >= requiredRevision) return canvasImageModelCandidates;
+  if (!canvasImageModelsLoadPromise || canvasImageModelsLoadPromiseMinimumRevision < requiredRevision) {
+    canvasImageModelsLoadPromiseMinimumRevision = requiredRevision;
+    const pending = loadImageModels({ preserveOnError: true, minimumRevision: requiredRevision })
       .finally(() => {
-        canvasImageModelsLoadPromise = null;
+        if (canvasImageModelsLoadPromise === pending) {
+          canvasImageModelsLoadPromise = null;
+          canvasImageModelsLoadPromiseMinimumRevision = 0;
+        }
       });
+    canvasImageModelsLoadPromise = pending;
   }
-  await canvasImageModelsLoadPromise;
-  return resolveCanvasAgentImageModel(options);
+  return canvasImageModelsLoadPromise;
+}
+
+async function ensureCanvasAgentImageModelCandidate(options = {}) {
+  const cached = canvasImageModelsSettingsDirty ? null : resolveCanvasAgentImageModel(options);
+  if (cached) return cached;
+  await ensureCanvasImageModelsCurrent().catch(() => canvasImageModelCandidates);
+  return resolveCanvasAgentImageModel(options)
+    || resolveCanvasAgentImageModel({
+      requestedModel: options.requestedModel,
+      requiresEdit: options.requiresEdit,
+    });
 }
 
 function isCanvasAgentImageCandidateCompatible(candidate, { size = null, resolution = null } = {}) {
@@ -2217,13 +2890,94 @@ function isCanvasAgentImageCandidateCompatible(candidate, { size = null, resolut
   }).supported;
 }
 
+function normalizeCanvasAgentImageRequest(candidate, { size = null, resolution = null } = {}) {
+  const requestedSize = String(size || "").trim() || "auto";
+  const requestedChoice = ImageResolutionRules.parseResolutionChoice(resolution || "auto");
+  const requestedResolution = requestedChoice.value || "auto";
+  const configuredResolutions = Array.isArray(candidate?.resolutions)
+    ? candidate.resolutions
+    : getAllowedImageResolutionLevels(candidate?.id);
+  const common = {
+    platform: candidate?.platform || getImageModelPlatform(candidate?.id),
+    family: candidate?.family || getImageModelFamily(candidate?.id),
+    configuredResolutions,
+  };
+  const seen = new Set();
+  const attempts = [];
+  const addAttempt = (nextSize, nextResolution) => {
+    const normalizedSize = String(nextSize || "auto").trim() || "auto";
+    const parsed = ImageResolutionRules.parseResolutionChoice(nextResolution || "auto");
+    const normalizedResolution = parsed.value || "auto";
+    const key = `${normalizedSize}\u0000${normalizedResolution}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    attempts.push({ size: normalizedSize, resolution: normalizedResolution });
+  };
+
+  const requestedRank = requestedChoice.type === "standard"
+    ? getImageResolutionRank(requestedResolution)
+    : null;
+  const orderedConfiguredResolutions = [...configuredResolutions]
+    .map((level) => ImageResolutionRules.parseResolutionChoice(level).value)
+    .filter(Boolean)
+    .sort((left, right) => {
+      if (requestedRank === null) return 0;
+      const leftRank = getImageResolutionRank(left);
+      const rightRank = getImageResolutionRank(right);
+      const leftWithinRequest = leftRank <= requestedRank;
+      const rightWithinRequest = rightRank <= requestedRank;
+      if (leftWithinRequest !== rightWithinRequest) return leftWithinRequest ? -1 : 1;
+      return leftWithinRequest ? rightRank - leftRank : leftRank - rightRank;
+    });
+
+  addAttempt(requestedSize, requestedResolution);
+  if (requestedSize.toLowerCase() === "auto") addAttempt("auto", "auto");
+  orderedConfiguredResolutions.forEach((level) => addAttempt(requestedSize, level));
+  addAttempt("1:1", requestedResolution);
+  orderedConfiguredResolutions.forEach((level) => addAttempt("1:1", level));
+  addAttempt("1:1", "1");
+
+  for (const attempt of attempts) {
+    const compatibility = ImageResolutionRules.getCompatibility({
+      ...common,
+      ratio: attempt.size,
+      resolution: attempt.resolution,
+    });
+    if (compatibility.supported) return attempt;
+    if (compatibility.alternative?.value) {
+      return { size: attempt.size, resolution: compatibility.alternative.value };
+    }
+  }
+  return { size: "1:1", resolution: "1" };
+}
+
 function getCanvasImageRoutingRequestedModel(model) {
   const current = canvasImageModelCandidates.find((candidate) => String(candidate?.id || "") === String(model || ""));
   return String(current?.family || current?.model || model || "").trim();
 }
 
 function isCanvasImageFailoverError(error) {
-  return ["image_api_balance_failed", "image_api_auth_failed", "image_api_rate_limited"].includes(String(error?.code || ""));
+  return [
+    "image_api_balance_failed",
+    "image_api_auth_failed",
+    "image_api_rate_limited",
+    "image_api_upstream_rejected",
+  ].includes(String(error?.code || ""));
+}
+
+function markCanvasImageCandidateFailure(modelId, code) {
+  const candidate = canvasImageModelCandidates.find((item) => String(item?.id || "") === String(modelId || ""));
+  if (!candidate) return;
+  const stateByCode = {
+    image_api_balance_failed: "balance-error",
+    image_api_auth_failed: "auth-error",
+    image_api_rate_limited: "degraded",
+    image_api_upstream_rejected: "degraded",
+  };
+  const state = stateByCode[String(code || "")];
+  if (!state) return;
+  candidate.state = state;
+  candidate.consecutiveFailures = Math.max(0, Number(candidate.consecutiveFailures || 0)) + 1;
 }
 
 async function resolveCanvasImageFailoverCandidate({
@@ -2235,7 +2989,7 @@ async function resolveCanvasImageFailoverCandidate({
 } = {}) {
   const requestedModel = getCanvasImageRoutingRequestedModel(currentModel);
   try {
-    await loadImageModels({ preserveOnError: true });
+    await ensureCanvasImageModelsCurrent();
   } catch {
     // Retain the current candidate snapshot when the refresh itself is temporarily unavailable.
   }
@@ -2258,7 +3012,7 @@ async function prepareCanvasImageNodeCandidate(node, {
 } = {}) {
   guard?.assertActive();
   try {
-    await loadImageModels({ preserveOnError: true });
+    await ensureCanvasImageModelsCurrent();
   } catch {
     // A local candidate refresh must not block an otherwise usable canvas node.
   }
@@ -2284,6 +3038,8 @@ function applyCanvasImageCandidate(node, candidate) {
   fillCanvasNodeModelSelect(model, candidate.id);
   if (!Array.from(model.options).some((option) => option.value === candidate.id)) return false;
   model.value = candidate.id;
+  model.dataset.modelSelection = "exact";
+  node.dataset.modelSelection = "exact";
   node.dataset.canvasModel = candidate.id;
   model.dispatchEvent(new Event("change", { bubbles: true }));
   return true;
@@ -2301,26 +3057,11 @@ function renderSettingsPreferencePanels() {
       ${settingsToggle("controlBarBottom", "控制台始终显示在节点下方", "节点移动时控制项保持在节点底部。", settingsState.canvas.controlBarBottom, "canvas")}
       ${settingsToggle("disconnectMenu", "断线时弹出创建菜单", "从空白区域断开连接时显示节点创建选项。", settingsState.canvas.disconnectMenu, "canvas")}
     </div>`;
-  appearance.innerHTML = `
+  appearance.innerHTML = window.AiOsSystemSettings ? "" : `
     <div class="settings-section-card">
       <h3>主题</h3><p>界面主题会立即应用，并保存到当前浏览器。</p>
       <div class="settings-theme-choices">
         ${["light", "dark", "system"].map((theme) => `<button type="button" data-settings-theme="${theme}" class="${settingsState.appearance.theme === theme ? "active" : ""}"><i data-lucide="${theme === "light" ? "sun" : theme === "dark" ? "moon" : "monitor"}"></i><span>${theme === "light" ? "浅色" : theme === "dark" ? "深色" : "跟随系统"}</span></button>`).join("")}
-      </div>
-      <div class="settings-palette-block">
-        <div class="settings-palette-head">
-          <strong>配色</strong>
-          <small>切换按钮、选中态和强调色。</small>
-        </div>
-        <div class="settings-palette-choices">
-          ${COLOR_PALETTES.map((palette) => {
-            const active = (settingsState.appearance.palette || "yellow-black") === palette.id;
-            return `<button type="button" data-settings-palette="${palette.id}" class="settings-palette-button${active ? " active" : ""}" aria-pressed="${active}">
-              <span class="settings-palette-swatches">${palette.colors.map((color) => `<span class="settings-palette-dot" style="--swatch:${color}"></span>`).join("")}</span>
-              <span><strong>${palette.label}</strong><small>${palette.description}</small></span>
-            </button>`;
-          }).join("")}
-        </div>
       </div>
       ${settingsToggle("animations", "界面动效", "保留浮层、按钮与节点的过渡动画。", settingsState.appearance.animations, "appearance")}
     </div>`;
@@ -2550,6 +3291,9 @@ function renderModelPlatformTags(model) {
   if (!model.capabilities?.includes("generation")) return "";
   if (isMidjourneyModel(model.id)) return "";
   const active = normalizeImagePlatform(model.platform, model.id);
+  // A CLI transport runs its own fixed command shape, so showing the two HTTP
+  // size rules would offer the operator a choice that cannot be honoured.
+  if (!["openai", "google"].includes(active)) return "";
   return `<span class="model-platform-picker" title="该生图模型使用的尺寸规范">
     ${["openai", "google"].map((platform) => `<button type="button" class="${active === platform ? "active" : ""}" data-model-id="${escapeHtml(model.id)}" data-model-platform="${platform}" aria-pressed="${active === platform}">${IMAGE_PLATFORM_LABELS[platform]}</button>`).join("")}
   </span>`;
@@ -3005,18 +3749,10 @@ async function handleSettingsClick(event) {
     startProviderRuntimePolling();
     return;
   }
-  const theme = event.target.closest("[data-settings-theme]");
+  const theme = window.AiOsSystemSettings ? null : event.target.closest("[data-settings-theme]");
   if (theme) {
     settingsState.appearance.theme = theme.dataset.settingsTheme;
     setThemeMode(theme.dataset.settingsTheme);
-    renderSettingsCenter();
-    markSettingsDirty();
-    return;
-  }
-  const palette = event.target.closest("[data-settings-palette]");
-  if (palette) {
-    settingsState.appearance.palette = palette.dataset.settingsPalette || "yellow-black";
-    setColorPalette(settingsState.appearance.palette);
     renderSettingsCenter();
     markSettingsDirty();
     return;
@@ -3085,7 +3821,7 @@ async function handleSettingsClick(event) {
   if (!action) return;
   if (action === "add-provider") {
     const customCount = settingsState.providers.filter((provider) => !provider.managed).length;
-    const provider = { id: createId(), name: `New API ${customCount + 1}`, baseUrl: "", apiKey: "", rechargeUrl: "", enabled: true, models: [] };
+    const provider = { id: createId(), name: `New API ${customCount + 1}`, baseUrl: "", apiKey: "", rechargeUrl: "", networkMode: "auto", enabled: true, models: [] };
     settingsState.providers.push(provider);
     activeSettingsProviderId = provider.id;
     renderSettingsCenter();
@@ -3176,27 +3912,14 @@ async function toggleSettingsProviderKeyVisibility(button) {
     window.lucide?.createIcons({ attrs: { "aria-hidden": "true", "stroke-width": 1.8 } });
     return;
   }
-  try {
-    if (!input.value && provider.hasApiKey) {
-      button.disabled = true;
-      const response = await fetch(SETTINGS_PROVIDER_KEY_API_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ providerId: provider.id }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "读取 API Key 失败。");
-      input.value = data.apiKey || "";
-    }
-    input.type = "text";
-    button.title = "隐藏 Key";
-    button.innerHTML = '<i data-lucide="eye-off"></i>';
-  } catch (error) {
-    setSettingsSaveState(error.message, true);
-  } finally {
-    button.disabled = false;
-    window.lucide?.createIcons({ attrs: { "aria-hidden": "true", "stroke-width": 1.8 } });
+  input.type = "text";
+  button.title = "隐藏 Key";
+  button.innerHTML = '<i data-lucide="eye-off"></i>';
+  if (!input.value && provider.hasApiKey) {
+    input.placeholder = "已安全保存；输入新 Key 才会替换";
+    setSettingsSaveState("已保存的 API Key 不会回显；如需更换，请直接输入新 Key。");
   }
+  window.lucide?.createIcons({ attrs: { "aria-hidden": "true", "stroke-width": 1.8 } });
 }
 
 function handleSettingsInput(event) {
@@ -3323,16 +4046,29 @@ async function saveSettingsCenter() {
     });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || "设置保存失败。");
+    adoptCanvasImageModelsInstance(data.imageModelsInstanceId);
+    canvasImageModelsRequiredRevision = Math.max(
+      canvasImageModelsRequiredRevision,
+      Number(data.imageModelsRevision) || 0,
+    );
     settingsState = data;
     savedSettingsSnapshot = cloneSettingsState(data);
+    canvasImageModelsSettingsDirty = true;
     promoteSavedDraftVerificationStates();
     applySettingsPreferences();
     renderSettingsCenter();
-    await loadAgentRoutingCandidates({ silent: true, refresh: true });
-    await Promise.all([loadChatModels(), loadVisionModels(), loadImageModels()]);
-    setSettingsSaveState("设置已保存，模型列表已更新");
+    setSettingsSaveState("设置已保存");
     startProviderRuntimePolling();
     startProviderMonitoringPolling();
+    // Saving is a local persistence transaction. Provider discovery and model
+    // catalog refreshes depend on external services and must never keep the
+    // save button in a pending state. Full discovery remains an explicit action.
+    void Promise.allSettled([
+      loadAgentRoutingCandidates({ silent: true }),
+      loadChatModels(),
+      loadVisionModels(),
+      ensureCanvasImageModelsCurrent({ minimumRevision: canvasImageModelsRequiredRevision }),
+    ]);
   } catch (error) {
     setSettingsSaveState(error.message, true);
   }
@@ -3455,6 +4191,7 @@ function describeSettingsChanges() {
     const providerName = provider.name || before.name || "未命名 API";
     if (provider.name !== before.name) changes.push(`API「${before.name}」名称`);
     if (provider.baseUrl !== before.baseUrl) changes.push(`「${providerName}」地址`);
+    if (provider.networkMode !== before.networkMode) changes.push(`「${providerName}」网络路由`);
     if (provider.apiKey) changes.push(`「${providerName}」Key`);
     if (provider.enabled !== before.enabled) changes.push(`「${providerName}」${provider.enabled ? "已启用" : "已停用"}`);
 
@@ -3499,9 +4236,10 @@ function applySettingsPreferences() {
   document.documentElement.dataset.canvasKeepAspect = String(Boolean(settingsState.canvas?.keepAspect));
   document.documentElement.dataset.canvasControlBottom = String(Boolean(settingsState.canvas?.controlBarBottom));
   document.documentElement.dataset.canvasDisconnectMenu = String(Boolean(settingsState.canvas?.disconnectMenu));
-  document.documentElement.dataset.animations = settingsState.appearance?.animations === false ? "off" : "on";
-  setColorPalette(settingsState.appearance?.palette || "yellow-black");
-  if (settingsState.appearance?.theme) setThemeMode(settingsState.appearance.theme);
+  if (!window.AiOsSystemSettings) {
+    document.documentElement.dataset.animations = settingsState.appearance?.animations === false ? "reduced" : "full";
+    if (settingsState.appearance?.theme) setThemeMode(settingsState.appearance.theme);
+  }
 }
 
 function initializeCanvasFirstShell() {
@@ -3543,20 +4281,10 @@ function initializeCanvasFirstShell() {
     nav.prepend(create);
   }
 
-  if (!nav.querySelector('[data-tool="settings"]')) {
-    const settings = document.createElement("button");
-    settings.className = "nav-item settings-nav-item";
-    settings.type = "button";
-    settings.dataset.tool = "settings";
-    settings.innerHTML = '<span class="nav-icon"><i data-lucide="settings-2"></i></span><span>设置</span>';
-    nav.append(settings);
-  }
-
   const labels = {
     image: ["在线生图", "image-plus"],
     chat: ["GPT 对话", "message-square"],
     records: ["记录", "history"],
-    settings: ["设置", "settings-2"],
   };
   nav.querySelectorAll(".nav-item").forEach((button) => {
     const [label] = labels[button.dataset.tool] || [button.textContent.trim()];
@@ -3565,32 +4293,6 @@ function initializeCanvasFirstShell() {
     button.setAttribute("aria-label", label);
   });
 
-  if (!canvasView.querySelector(".canvas-start-gate")) {
-    const gate = document.createElement("div");
-    gate.className = "canvas-start-gate";
-    gate.innerHTML = `
-      <div class="canvas-start-copy">
-        <strong>双击画布，开始创作</strong>
-        <span>新建一个空白画布，或者继续之前的创作</span>
-      </div>
-      <div class="canvas-start-actions">
-        <button type="button" data-start-action="new"><i data-lucide="plus"></i><span>新建画布</span></button>
-        <button type="button" data-start-action="history"><i data-lucide="history"></i><span>历史画布</span></button>
-      </div>
-    `;
-    gate.addEventListener("dblclick", (event) => {
-      if (event.target.closest("button")) return;
-      promptCreateCanvasBoard();
-    });
-    gate.querySelector('[data-start-action="new"]').addEventListener("click", () => {
-      promptCreateCanvasBoard();
-    });
-    gate.querySelector('[data-start-action="history"]').addEventListener("click", () => {
-      openCanvasBoardPanel();
-    });
-    canvasView.querySelector(".canvas-workspace")?.append(gate);
-  }
-
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && document.body.classList.contains("canvas-overlay-open")) {
       setActiveTool("canvas");
@@ -3598,17 +4300,76 @@ function initializeCanvasFirstShell() {
   });
 }
 
+function setCanvasAppScreen(screen) {
+  const next = screen === "editor" && canvasState.activeBoardId ? "editor" : "library";
+  canvasState.appScreen = next;
+  const library = document.querySelector("#canvasLibraryScreen");
+  const editor = document.querySelector("#canvasEditorScreen");
+  if (library) library.hidden = next !== "library";
+  if (editor) editor.hidden = next !== "editor";
+  const canvasView = document.querySelector("#canvasView");
+  if (canvasView) canvasView.dataset.canvasScreen = next;
+  syncCanvasCollabConnection();
+  return next;
+}
+
+function renderCanvasImmersiveControl(active) {
+  const next = Boolean(active);
+  canvasState.isImmersive = next;
+  const button = document.querySelector("#canvasImmersiveToggleButton");
+  if (!button) return next;
+  button.dataset.mode = next ? "exit" : "enter";
+  button.setAttribute("aria-pressed", String(next));
+  button.title = next ? "退出全屏" : "进入全屏";
+  const label = button.querySelector("[data-canvas-immersive-label]");
+  const glyph = button.querySelector("[data-canvas-immersive-glyph]");
+  if (label) label.textContent = next ? "退出全屏" : "进入全屏";
+  if (glyph) glyph.textContent = next ? "↙" : "↗";
+  return next;
+}
+
+function setCanvasImmersive(active) {
+  const next = Boolean(active && canvasState.activeBoardId && canvasState.appScreen === "editor");
+  renderCanvasImmersiveControl(next);
+  window.dispatchEvent(new CustomEvent("ai-os-app-immersive", {
+    detail: { appId: "canvas", active: next },
+  }));
+  return next;
+}
+
+async function showCanvasLibrary(options = {}) {
+  const { reload = false } = options || {};
+  setCanvasImmersive(false);
+  window.CanvasAssetLibrary?.close?.();
+  hideCanvasNodeMenu();
+  hideCanvasContextMenu();
+  hideCanvasBoardMenu();
+  await saveCanvasBoardNow();
+  setCanvasAppScreen("library");
+  if (reload) await loadCanvasBoards();
+  else renderCanvasBoardList();
+  return "library";
+}
+
+function showCanvasEditor() {
+  if (!canvasState.activeBoardId) return setCanvasAppScreen("library");
+  const screen = setCanvasAppScreen("editor");
+  setCanvasImmersive(true);
+  scheduleCanvasConnectionRender();
+  markCanvasViewportInteraction();
+  return screen;
+}
+
 function syncCanvasWorkspaceState() {
   const hasActiveBoard = Boolean(canvasState.activeBoardId);
   document.querySelector(".canvas-workspace")?.classList.toggle("has-active-board", hasActiveBoard);
-  document.querySelector(".canvas-start-gate")?.classList.toggle("is-dismissed", hasActiveBoard);
   updateCanvasOrigin();
 }
 
 function initializeTheme() {
+  if (window.AiOsSystemSettings) return;
   const saved = localStorage.getItem(THEME_STORAGE_KEY) || "system";
   setThemeMode(saved, false);
-  setColorPalette(localStorage.getItem(PALETTE_STORAGE_KEY) || "yellow-black", false);
   const systemQuery = window.matchMedia?.("(prefers-color-scheme: dark)");
   systemQuery?.addEventListener?.("change", () => {
     if ((localStorage.getItem(THEME_STORAGE_KEY) || "system") === "system") applyTheme("system");
@@ -3691,21 +4452,11 @@ function setThemeMode(mode, persist = true) {
   applyTheme(next);
 }
 
-function setColorPalette(palette, persist = true) {
-  const next = COLOR_PALETTES.some((item) => item.id === palette) ? palette : "yellow-black";
-  document.documentElement.dataset.palette = next;
-  if (persist) localStorage.setItem(PALETTE_STORAGE_KEY, next);
-}
-
 function applyTheme(mode) {
   const prefersDark = window.matchMedia?.("(prefers-color-scheme: dark)")?.matches;
   const resolved = mode === "system" ? (prefersDark ? "dark" : "light") : mode;
   document.documentElement.dataset.themeMode = mode;
   document.documentElement.dataset.theme = resolved;
-  themeOptions.forEach((button) => {
-    button.classList.toggle("active", button.dataset.themeChoice === mode);
-    button.setAttribute("aria-pressed", String(button.dataset.themeChoice === mode));
-  });
 }
 
 function ensureCanvasMarkup() {
@@ -3732,17 +4483,68 @@ function ensureCanvasMarkup() {
   canvasView.className = "tool-view";
   canvasView.id = "canvasView";
   canvasView.dataset.view = "canvas";
+  canvasView.dataset.canvasScreen = "library";
   canvasView.innerHTML = `
-    <section class="canvas-workspace">
+    <section id="canvasLibraryScreen" class="canvas-library-screen">
+      <div class="canvas-board-card">
+        <div class="canvas-board-head">
+          <div>
+            <strong id="canvasBoardTitle">全部画布</strong>
+            <span id="canvasBoardCount">0 个</span>
+            <p id="canvasBoardHint">按项目整理画布，选择卡片即可继续编辑。</p>
+            <p id="canvasLibraryStatus" class="canvas-library-status" role="status" aria-live="polite"></p>
+          </div>
+          <div class="canvas-board-tools">
+            <button id="canvasBoardRefresh" class="canvas-board-icon-button" type="button" title="刷新画布列表" aria-label="刷新画布列表"><i data-lucide="refresh-cw"></i></button>
+            <button id="canvasBoardTrash" class="canvas-board-icon-button" type="button" title="打开回收站" aria-label="打开回收站"><i data-lucide="trash"></i></button>
+            <button id="canvasBoardNew" type="button" aria-label="新建画布"><i data-lucide="plus"></i><span>新建画布</span></button>
+          </div>
+        </div>
+        <div class="canvas-gallery-shell">
+          <aside class="canvas-gallery-sidebar" aria-label="画布导航">
+            <div class="canvas-gallery-nav-title">画布</div>
+            <button class="canvas-gallery-nav-item is-active" type="button" data-canvas-scope="all"><i data-lucide="layout-grid"></i><span>全部画布</span><b id="canvasScopeAllCount">0</b></button>
+            <button class="canvas-gallery-nav-item" type="button" data-canvas-scope="mine"><i data-lucide="user-round"></i><span>我的画布</span><b id="canvasScopeMineCount">0</b></button>
+            <button class="canvas-gallery-nav-item" type="button" data-canvas-scope="shared"><i data-lucide="users-round"></i><span>协同文件</span><b id="canvasScopeSharedCount">0</b></button>
+            <button class="canvas-gallery-nav-item" type="button" data-canvas-scope="recent"><i data-lucide="clock-3"></i><span>最近使用</span></button>
+            <div class="canvas-gallery-nav-title canvas-gallery-project-title"><span>我的项目</span><button id="canvasProjectNew" data-canvas-new-project type="button" title="新建项目" aria-label="新建项目"><i data-lucide="plus"></i></button></div>
+            <div id="canvasProjectList" data-canvas-project-tree class="canvas-gallery-project-list"></div>
+            <button class="canvas-gallery-nav-item" type="button" data-canvas-scope="trash"><i data-lucide="trash-2"></i><span>回收站</span><b id="canvasScopeTrashCount">0</b></button>
+          </aside>
+          <section class="canvas-gallery-main">
+            <label class="canvas-board-search">
+              <span>搜索</span>
+              <input id="canvasBoardSearch" type="search" placeholder="输入画布名称..." autocomplete="off" />
+            </label>
+            <div class="canvas-gallery-breadcrumb" id="canvasGalleryBreadcrumb">全部画布</div>
+            <div class="canvas-board-list" id="canvasBoardList"></div>
+          </section>
+        </div>
+      </div>
+      <div class="canvas-board-menu" id="canvasBoardMenu" hidden>
+        <button type="button" data-board-menu-action="rename">重命名</button>
+        <button type="button" data-board-menu-action="move">移动到项目…</button>
+      </div>
+    </section>
+    <section id="canvasEditorScreen" class="canvas-editor-screen" hidden>
+      <section class="canvas-workspace">
+      <div class="canvas-editor-navigation" aria-label="画布导航">
+        <button id="canvasImmersiveToggleButton" class="text-action canvas-immersive-toggle" type="button" aria-pressed="true" title="退出全屏"><span data-canvas-immersive-glyph aria-hidden="true">↙</span><span data-canvas-immersive-label>退出全屏</span></button>
+        <button id="canvasLibraryBackButton" class="text-action canvas-library-back" type="button"><i data-lucide="chevron-left"></i><span>返回项目</span></button>
+      </div>
       <div class="header-actions canvas-actions">
-        <button id="canvasHistoryButton" class="text-action" type="button">历史</button>
+        <div class="canvas-presence" id="canvasPresence" hidden>
+          <div class="canvas-presence-avatars" id="canvasPresenceAvatars"></div>
+          <span class="canvas-presence-label" id="canvasPresenceLabel"></span>
+        </div>
         <button id="canvasNew" class="text-action primary-dark" type="button">＋ 新建画布</button>
         <button id="canvasReset" class="text-action" type="button">复位</button>
+        <button id="canvasArrange" class="text-action" type="button" title="一键整理：按连线顺序从左到右排列节点；选中两个以上节点时只整理选中的">整理</button>
         <button id="canvasClear" class="text-action" type="button">清空</button>
       </div>
       <div class="canvas-status">
         <span id="canvasZoom">100%</span>
-        <span>Ctrl 框选 · 中键拖动画布 · 滚轮缩放 · 双击文字编辑</span>
+        <span>Ctrl 框选 · 中键拖动画布 · 滚轮缩放 · 右键或双击空白处打开菜单</span>
       </div>
       <div class="canvas-board-loading" id="canvasBoardLoading" role="status" aria-live="polite" aria-busy="true" hidden>
         <div class="canvas-board-loading-card">
@@ -3758,34 +4560,49 @@ function ensureCanvasMarkup() {
         <canvas id="canvasSceneLayer" class="canvas-scene-layer" aria-hidden="true"></canvas>
         <div class="canvas-plane" id="canvasPlane">
           <svg class="canvas-connections" id="canvasConnections" aria-hidden="true"></svg>
+          <svg class="canvas-connections canvas-connections-overlay" id="canvasConnectionsOverlay" aria-hidden="true"></svg>
+          <div class="canvas-collab-cursors is-idle" id="canvasCollabCursors" aria-hidden="true"></div>
         </div>
         <div class="canvas-selection-box" id="canvasSelectionBox" hidden>
           <div class="canvas-selection-tools">
             <button type="button" data-selection-action="group">打组</button>
           </div>
         </div>
+        <div class="canvas-alignment-guides" id="canvasAlignmentGuides" aria-hidden="true" hidden>
+          <span class="canvas-alignment-guide vertical" data-alignment-axis="x"></span>
+          <span class="canvas-alignment-guide horizontal" data-alignment-axis="y"></span>
+        </div>
         <div class="canvas-origin">
           <strong>把图片和想法放到这里</strong>
-          <span>点击“图片”导入素材，点击“文字”添加便签。</span>
+          <span>右键或双击空白处打开菜单，可添加便签、导入素材与生成节点。</span>
         </div>
       </div>
       <div class="canvas-node-menu" id="canvasNodeMenu" hidden>
-        <button type="button" data-canvas-node="upload"><span class="canvas-menu-icon"><i data-lucide="image-plus"></i></span><span>\u5bfc\u5165\u56fe\u7247</span></button>
-        <button type="button" data-canvas-node="video"><span class="canvas-menu-icon"><i data-lucide="video"></i></span><span>导入视频</span></button>
-        <button type="button" data-canvas-node="audio"><span class="canvas-menu-icon"><i data-lucide="audio-lines"></i></span><span>导入音频</span></button>
-        <button type="button" data-canvas-node="minimax-h3"><span class="canvas-menu-icon"><i data-lucide="clapperboard"></i></span><span>MiniMax H3 生视频</span></button>
-        <button type="button" data-canvas-node="video-output"><span class="canvas-menu-icon"><i data-lucide="play-square"></i></span><span>视频输出</span></button>
-        <button type="button" data-canvas-node="generator"><span class="canvas-menu-icon"><i data-lucide="sparkles"></i></span><span>AI \u751f\u56fe</span></button>
-        <button type="button" data-canvas-node="comfy"><span class="canvas-menu-icon"><i data-lucide="workflow"></i></span><span>ComfyUI \u5de5\u4f5c\u6d41</span></button>
-        <button type="button" data-canvas-node="loop"><span class="canvas-menu-icon"><i data-lucide="repeat-2"></i></span><span>\u5faa\u73af\u6279\u5904\u7406</span></button>
-        <button type="button" data-canvas-node="gallery"><span class="canvas-menu-icon"><i data-lucide="images"></i></span><span>\u7ed3\u679c\u56fe\u96c6</span></button>
-        <button type="button" data-canvas-node="llm"><span class="canvas-menu-icon"><i data-lucide="bot"></i></span><span>LLM \u6587\u672c</span></button>
-        <button type="button" data-canvas-node="text"><span class="canvas-menu-icon"><i data-lucide="type"></i></span><span>\u63d0\u793a\u8bcd\u6587\u672c</span></button>
+        <div class="canvas-menu-group" data-canvas-menu-group="cards">
+          <span class="canvas-menu-group-label">添加卡片</span>
+          <button type="button" data-canvas-node="note"><span class="canvas-menu-icon"><i data-lucide="sticky-note"></i></span><span>便签</span></button>
+          <button type="button" data-canvas-node="text"><span class="canvas-menu-icon"><i data-lucide="type"></i></span><span>提示词文本</span></button>
+          <button type="button" data-canvas-node="asset"><span class="canvas-menu-icon"><i data-lucide="paperclip"></i></span><span>素材</span></button>
+        </div>
+        <div class="canvas-menu-group" data-canvas-menu-group="generate">
+          <span class="canvas-menu-group-label">生成节点</span>
+          <button type="button" data-canvas-node="image-generator" data-node-type="image"><span class="canvas-menu-icon"><i data-lucide="sparkles"></i></span><span>图片生成</span></button>
+          <button type="button" data-canvas-node="video-generator" data-node-type="video"><span class="canvas-menu-icon"><i data-lucide="clapperboard"></i></span><span>视频生成</span></button>
+          <button type="button" data-canvas-node="midjourney"><span class="canvas-menu-icon"><i data-lucide="wand-sparkles"></i></span><span>Midjourney 生成</span></button>
+          <button type="button" data-canvas-node="llm"><span class="canvas-menu-icon"><i data-lucide="bot"></i></span><span>LLM 文本</span></button>
+          <button type="button" data-canvas-node="director3d"><span class="canvas-menu-icon"><i data-lucide="box"></i></span><span>3D 导演台</span></button>
+        </div>
+        <div class="canvas-menu-group" data-canvas-menu-group="tools">
+          <span class="canvas-menu-group-label">工具与输出</span>
+          <button type="button" data-canvas-node="loop"><span class="canvas-menu-icon"><i data-lucide="repeat-2"></i></span><span>循环批处理</span></button>
+          <button type="button" data-canvas-node="asset-collection"><span class="canvas-menu-icon"><i data-lucide="layers-3"></i></span><span>素材合集</span></button>
+        </div>
       </div>
       <div class="canvas-node-menu canvas-connect-menu" id="canvasConnectMenu" hidden>
         <button type="button" data-connect-node="upload"><span class="canvas-menu-icon"><i data-lucide="image-plus"></i></span><span>\u8fde\u63a5\u5230\u56fe\u7247</span></button>
-        <button type="button" data-connect-node="generator"><span class="canvas-menu-icon"><i data-lucide="sparkles"></i></span><span>\u8fde\u63a5\u5230 AI \u751f\u56fe</span></button>
-        <button type="button" data-connect-node="comfy"><span class="canvas-menu-icon"><i data-lucide="workflow"></i></span><span>\u8fde\u63a5\u5230 ComfyUI</span></button>
+        <button type="button" data-connect-node="image-generator" data-node-type="image"><span class="canvas-menu-icon"><i data-lucide="sparkles"></i></span><span>连接到图片生成</span></button>
+        <button type="button" data-connect-node="video-generator" data-node-type="video"><span class="canvas-menu-icon"><i data-lucide="clapperboard"></i></span><span>连接到视频生成</span></button>
+        <button type="button" data-connect-node="midjourney"><span class="canvas-menu-icon"><i data-lucide="wand-sparkles"></i></span><span>连接到 Midjourney 生成</span></button>
         <button type="button" data-connect-node="loop"><span class="canvas-menu-icon"><i data-lucide="repeat-2"></i></span><span>\u8fde\u63a5\u5230\u5faa\u73af</span></button>
         <button type="button" data-connect-node="gallery"><span class="canvas-menu-icon"><i data-lucide="images"></i></span><span>\u8fde\u63a5\u5230\u56fe\u96c6</span></button>
         <button type="button" data-connect-node="llm"><span class="canvas-menu-icon"><i data-lucide="bot"></i></span><span>\u8fde\u63a5\u5230 LLM</span></button>
@@ -3793,31 +4610,22 @@ function ensureCanvasMarkup() {
       </div>
       <div class="canvas-node-menu canvas-image-menu" id="canvasImageMenu" hidden>
         <button type="button" data-image-menu-action="download">下载图片</button>
+        <button type="button" data-image-menu-action="cutout">AI 抠图</button>
         <button type="button" data-image-menu-action="crop">裁剪图片</button>
         <button type="button" data-image-menu-action="mask">绘制遮罩</button>
       </div>
-      <div class="canvas-board-panel" id="canvasBoardPanel" hidden>
-        <div class="canvas-board-card">
-          <div class="canvas-board-head">
-            <div>
-              <strong id="canvasBoardTitle">选择画布</strong>
-              <span id="canvasBoardCount">0 个</span>
-              <p id="canvasBoardHint">打开已有画布，或者建立一个新的。</p>
-            </div>
-            <div class="canvas-board-tools">
-              <button id="canvasBoardRefresh" class="canvas-board-icon-button" type="button" title="刷新画布列表" aria-label="刷新画布列表"><i data-lucide="refresh-cw"></i></button>
-              <button id="canvasBoardTrash" class="canvas-board-icon-button" type="button" title="打开回收站" aria-label="打开回收站"><i data-lucide="trash"></i></button>
-              <button id="canvasBoardNew" type="button" aria-label="新建画布"><i data-lucide="plus"></i><span>新建画布</span></button>
-              <button id="canvasBoardClose" class="canvas-board-icon-button" type="button" title="关闭历史画布" aria-label="关闭历史画布"><i data-lucide="x"></i></button>
-            </div>
-          </div>
-          <label class="canvas-board-search">
-            <span>搜索</span>
-            <input id="canvasBoardSearch" type="search" placeholder="输入画布名称..." autocomplete="off" />
-          </label>
-          <div class="canvas-board-list" id="canvasBoardList"></div>
-        </div>
+      <div class="canvas-context-menu" id="canvasContextMenu" role="menu" aria-label="画布操作" hidden>
+        <button type="button" role="menuitem" data-canvas-action="upload"><span>上传</span></button>
+        <button type="button" role="menuitem" data-canvas-action="add-node"><span>添加节点</span></button>
+        <span class="canvas-context-divider" aria-hidden="true"></span>
+        <button type="button" role="menuitem" data-canvas-action="undo"><span>撤销</span><kbd>Ctrl+Z</kbd></button>
+        <button type="button" role="menuitem" data-canvas-action="redo"><span>重做</span><kbd>Shift+Ctrl+Z</kbd></button>
+        <span class="canvas-context-divider" aria-hidden="true"></span>
+        <button type="button" role="menuitem" data-canvas-action="copy-all"><span>复制所有节点</span></button>
+        <button type="button" role="menuitem" data-canvas-action="paste"><span>粘贴</span><kbd>Ctrl+V</kbd></button>
       </div>
+      </section>
+    </section>
       <div class="canvas-name-panel" id="canvasNamePanel" hidden>
         <form class="canvas-name-card" id="canvasNameForm">
           <div class="canvas-name-head">
@@ -3837,12 +4645,31 @@ function ensureCanvasMarkup() {
           </div>
         </form>
       </div>
+      <div class="canvas-name-panel" id="canvasProjectMovePanel" hidden>
+        <form class="canvas-name-card" id="canvasProjectMoveForm">
+          <div class="canvas-name-head">
+            <div>
+              <strong>移动到项目</strong>
+              <p>画布内容和共享设置不会改变。</p>
+            </div>
+            <button id="canvasProjectMoveClose" type="button">×</button>
+          </div>
+          <label class="canvas-name-field">
+            <span>目标项目</span>
+            <select id="canvasProjectMoveSelect" class="canvas-project-select" name="projectId"></select>
+          </label>
+          <div class="canvas-name-actions">
+            <button id="canvasProjectMoveCancel" type="button">取消</button>
+            <button class="primary-dark" type="submit">移动</button>
+          </div>
+        </form>
+      </div>
       <div class="canvas-confirm-panel" id="canvasClearConfirm" hidden>
         <div class="canvas-confirm-card">
           <div class="canvas-name-head">
             <div>
               <strong>清空当前画布？</strong>
-              <p>会删除当前画布里的所有节点和连线，历史画布本身不会被删除。</p>
+              <p>会删除当前画布里的所有节点和连线，画布文件本身不会被删除。</p>
             </div>
             <button id="canvasClearConfirmClose" type="button">×</button>
           </div>
@@ -3879,13 +4706,11 @@ function ensureCanvasMarkup() {
           <i data-lucide="x"></i>
         </button>
       </div>
-      <div class="canvas-board-menu" id="canvasBoardMenu" hidden>
-        <button type="button" data-board-menu-action="rename">重命名</button>
-      </div>
       <input id="canvasImageInput" type="file" accept="image/*" multiple hidden />
       <input id="canvasNodeImageInput" type="file" accept="image/*" hidden />
       <input id="canvasNodeVideoInput" type="file" accept="video/*" hidden />
       <input id="canvasNodeAudioInput" type="file" accept="audio/*" hidden />
+      <input id="canvasNodeAssetInput" type="file" accept="image/*,video/*,audio/*" multiple hidden />
     </section>
   `;
 
@@ -3964,6 +4789,50 @@ function waitForCanvasRestorePaint() {
   });
 }
 
+function initializeCanvasImageActions(
+  viewport = document.querySelector("#infiniteCanvas"),
+  nodeImageInput = document.querySelector("#canvasNodeImageInput"),
+) {
+  if (canvasImageToolbar && canvasImageInfo) return true;
+  if (!viewport || !nodeImageInput || !window.CanvasImageToolbar || !window.CanvasImageInfo) return false;
+  canvasImageToolbar = window.CanvasImageToolbar.create({
+    viewport, getSelectedNodes: getSelectedCanvasNodes, selectNode: selectCanvasNode,
+    onSelectImage: (node, image) => {
+      const memberId = image.closest(".canvas-gallery-member")?.dataset.galleryMemberId;
+      if (memberId) setCanvasGalleryActiveImage(node, memberId);
+    },
+    onPreview: openCanvasImageOriginalPreview,
+    onCrop: (node, image) => openCanvasCropWorkbench(
+      node,
+      image.closest(".canvas-gallery-member")?.dataset.galleryMemberId || "",
+    ),
+    onDownload: (node, image) => downloadCanvasImage({ dataset: { imageSrc: image.getAttribute("data-original-src"), imageName: image.alt || node.dataset.imageName || "图片.png" } }),
+    onDelete: deleteCanvasImageSelection,
+    onReplace: (node) => {
+      selectCanvasNode(node);
+      if (node.classList.contains("canvas-node-asset-collection")) {
+        node.dataset.assetReplaceMemberId = getCanvasAssetCollection(node).members[0]?.id || "";
+        nodeImageInput.click();
+        return;
+      }
+      nodeImageInput.click();
+    },
+    onError: (error) => setCanvasStatus(`图片操作失败：${error.message}`),
+  });
+  canvasImageInfo = window.CanvasImageInfo.create({
+    viewport,
+    getMetadata: (image) => {
+      const member = image.closest(".canvas-gallery-member");
+      if (!member) return {};
+      const node = member.closest(".canvas-node-gallery-container");
+      const item = getCanvasGalleryContainerMembers(node).find((entry) => String(entry.id) === String(member.dataset.galleryMemberId));
+      return item ? { name: item.name, width: item.width, height: item.height, source: item.src || item.savedUrl } : {};
+    },
+    onRename: renameCanvasImage,
+  });
+  return true;
+}
+
 function initializeCanvasBoard() {
   const viewport = document.querySelector("#infiniteCanvas");
   const plane = document.querySelector("#canvasPlane");
@@ -3971,13 +4840,16 @@ function initializeCanvasBoard() {
   const nodeImageInput = document.querySelector("#canvasNodeImageInput");
   const nodeVideoInput = document.querySelector("#canvasNodeVideoInput");
   const nodeAudioInput = document.querySelector("#canvasNodeAudioInput");
+  const nodeAssetInput = document.querySelector("#canvasNodeAssetInput");
   const nodeMenu = document.querySelector("#canvasNodeMenu");
   const connectMenu = document.querySelector("#canvasConnectMenu");
   const imageMenu = document.querySelector("#canvasImageMenu");
+  const contextMenu = document.querySelector("#canvasContextMenu");
   const selectionBox = document.querySelector("#canvasSelectionBox");
-  if (!viewport || !plane || !imageInput || !nodeImageInput || !nodeVideoInput || !nodeAudioInput || !nodeMenu || !connectMenu || !imageMenu) return;
+  if (!viewport || !plane || !imageInput || !nodeImageInput || !nodeVideoInput || !nodeAudioInput || !nodeMenu || !connectMenu || !imageMenu || !contextMenu) return;
   ensureCanvasSceneLayer();
   window.addEventListener("resize", renderCanvasSceneLayer);
+  initializeCanvasImageActions(viewport, nodeImageInput);
 
   plane.addEventListener("focusin", (event) => {
     const node = event.target.closest?.(".canvas-node");
@@ -3995,22 +4867,45 @@ function initializeCanvasBoard() {
     });
   });
 
-  document.querySelector("#canvasHistoryButton")?.addEventListener("click", openCanvasBoardPanel);
+  document.querySelector("#canvasLibraryBackButton")?.addEventListener("click", () => {
+    showCanvasLibrary({ reload: true }).catch((error) => setCanvasStatus(error.message));
+  });
+  document.querySelector("#canvasImmersiveToggleButton")?.addEventListener("click", () => {
+    setCanvasImmersive(!canvasState.isImmersive);
+  });
   document.querySelector("#canvasNew")?.addEventListener("click", promptCreateCanvasBoard);
-  document.querySelector("#canvasBoardClose")?.addEventListener("click", closeCanvasBoardPanel);
   document.querySelector("#canvasBoardRefresh")?.addEventListener("click", loadCanvasBoards);
+  window.addEventListener("ai-os-canvas-sharing-changed", () => {
+    loadCanvasBoards({ silent: true }).catch((error) => setCanvasStatus(error.message));
+  });
   document.querySelector("#canvasBoardTrash")?.addEventListener("click", toggleCanvasBoardTrash);
   document.querySelector("#canvasBoardNew")?.addEventListener("click", promptCreateCanvasBoard);
+  document.querySelectorAll("[data-canvas-scope]").forEach((button) => {
+    button.addEventListener("click", () => {
+      canvasState.canvasScope = button.dataset.canvasScope || "all";
+      canvasState.activeProjectId = "";
+      canvasState.boardView = canvasState.canvasScope === "trash" ? "trash" : "active";
+      document.querySelectorAll("[data-canvas-scope]").forEach((item) => item.classList.toggle("is-active", item === button));
+      loadCanvasBoards().catch((error) => setCanvasStatus(error.message));
+    });
+  });
+  document.querySelector("#canvasProjectNew")?.addEventListener("click", promptCreateCanvasProject);
   document.querySelector("#canvasBoardSearch")?.addEventListener("input", (event) => {
     canvasState.boardSearchQuery = event.target.value || "";
     renderCanvasBoardList();
   });
-  document.querySelector("#canvasBoardPanel")?.addEventListener("wheel", handleCanvasBoardPanelWheel, { passive: false });
+  document.querySelector("#canvasLibraryScreen")?.addEventListener("wheel", handleCanvasBoardPanelWheel, { passive: false });
   document.querySelector("#canvasNameForm")?.addEventListener("submit", submitCanvasBoardName);
   document.querySelector("#canvasNameClose")?.addEventListener("click", closeCanvasNamePanel);
   document.querySelector("#canvasNameCancel")?.addEventListener("click", closeCanvasNamePanel);
   document.querySelector("#canvasNamePanel")?.addEventListener("pointerdown", (event) => {
     if (event.target.id === "canvasNamePanel") closeCanvasNamePanel();
+  });
+  document.querySelector("#canvasProjectMoveForm")?.addEventListener("submit", submitCanvasProjectMove);
+  document.querySelector("#canvasProjectMoveClose")?.addEventListener("click", closeCanvasProjectMovePanel);
+  document.querySelector("#canvasProjectMoveCancel")?.addEventListener("click", closeCanvasProjectMovePanel);
+  document.querySelector("#canvasProjectMovePanel")?.addEventListener("pointerdown", (event) => {
+    if (event.target.id === "canvasProjectMovePanel") closeCanvasProjectMovePanel();
   });
   document.querySelector("#canvasClearConfirm")?.addEventListener("pointerdown", (event) => {
     if (event.target.id === "canvasClearConfirm") closeCanvasClearConfirm();
@@ -4030,6 +4925,7 @@ function initializeCanvasBoard() {
     const id = event.currentTarget.dataset.boardId;
     hideCanvasBoardMenu();
     if (button.dataset.boardMenuAction === "rename") promptRenameCanvasBoard(id);
+    if (button.dataset.boardMenuAction === "move") promptMoveCanvasBoard(id);
   });
   document.addEventListener("click", (event) => {
     if (!event.target.closest("#canvasBoardMenu")) hideCanvasBoardMenu();
@@ -4054,15 +4950,21 @@ function initializeCanvasBoard() {
     resetCanvasView();
     scheduleCanvasViewportSave();
   });
+  document.querySelector("#canvasArrange")?.addEventListener("click", arrangeCanvasNodes);
   document.querySelector("#canvasClear")?.addEventListener("click", () => {
     openCanvasClearConfirm();
   });
 
   imageInput.addEventListener("change", async () => {
     const files = Array.from(imageInput.files || []).filter((file) => file.type.startsWith("image/"));
-    for (const file of files) {
-      const url = await uploadCanvasImageFile(file);
-      addCanvasImage(url, file.name);
+    if (files.length) {
+      // Menu upload shares the unified material entry: one node collects every
+      // file the user picked, instead of one picture-only card per file.
+      const node = addCanvasAssetCollection(undefined, {
+        title: "素材",
+        mode: files.length === 1 ? "single" : "collection",
+      });
+      for (const file of files) await fillCanvasAssetCollectionFromFile(node, file);
     }
     imageInput.value = "";
     scheduleCanvasSave();
@@ -4073,6 +4975,11 @@ function initializeCanvasBoard() {
     const node = canvasState.activeNode;
     if (file && node?.classList.contains("canvas-node-image")) {
       await fillCanvasImageNode(node, file);
+      scheduleCanvasSave();
+    } else if (file && node?.classList.contains("canvas-node-asset-collection")) {
+      const replaceMemberId = String(node.dataset.assetReplaceMemberId || "");
+      delete node.dataset.assetReplaceMemberId;
+      await fillCanvasAssetCollectionFromFile(node, file, { replaceMemberId });
       scheduleCanvasSave();
     } else if (file && node?.classList.contains("canvas-node-llm")) {
       await addCanvasLlmImageFile(node, file);
@@ -4099,20 +5006,31 @@ function initializeCanvasBoard() {
     nodeAudioInput.value = "";
   });
 
+  nodeAssetInput.addEventListener("change", async () => {
+    const node = getCanvasNode(nodeAssetInput.dataset.nodeId);
+    const boardId = node?.dataset.boardId;
+    for (const file of Array.from(nodeAssetInput.files || [])) {
+      if (!node?.isConnected || canvasState.activeBoardId !== boardId) break;
+      await fillCanvasAssetCollectionFromFile(node, file);
+    }
+    nodeAssetInput.value = "";
+    delete nodeAssetInput.dataset.nodeId;
+  });
+
   nodeMenu.addEventListener("click", (event) => {
     const button = event.target.closest("[data-canvas-node]");
     if (!button || !canvasState.menuPoint) return;
-    if (button.dataset.canvasNode === "upload") addCanvasUploadPlaceholder(canvasState.menuPoint);
-    if (button.dataset.canvasNode === "video") addCanvasVideoNode(canvasState.menuPoint);
-    if (button.dataset.canvasNode === "audio") addCanvasAudioNode(canvasState.menuPoint);
-    if (button.dataset.canvasNode === "minimax-h3") addCanvasMinimaxH3Node(canvasState.menuPoint);
-    if (button.dataset.canvasNode === "video-output") addCanvasVideoOutputNode(canvasState.menuPoint);
-    if (button.dataset.canvasNode === "generator") addCanvasImagePlaceholder(canvasState.menuPoint);
-    if (button.dataset.canvasNode === "comfy") addCanvasComfyNode(canvasState.menuPoint);
+    if (button.dataset.canvasNode === "asset") addCanvasMaterialPlaceholder(canvasState.menuPoint);
+    if (button.dataset.canvasNode === "image-generator") addCanvasImageGeneratorNode(canvasState.menuPoint);
+    if (button.dataset.canvasNode === "video-generator") addCanvasVideoGeneratorNode(canvasState.menuPoint);
+    if (button.dataset.canvasNode === "asset-collection") addCanvasAssetCollection(canvasState.menuPoint);
+    if (button.dataset.canvasNode === "midjourney") addCanvasMidjourneyNode(canvasState.menuPoint);
+    if (button.dataset.canvasNode === "director3d") addCanvasDirector3dNode(canvasState.menuPoint);
     if (button.dataset.canvasNode === "loop") addCanvasLoopNode(canvasState.menuPoint);
     if (button.dataset.canvasNode === "gallery") addCanvasGallery(canvasState.menuPoint);
     if (button.dataset.canvasNode === "llm") addCanvasLlmNode(canvasState.menuPoint);
     if (button.dataset.canvasNode === "text") addCanvasText(canvasState.menuPoint);
+    if (button.dataset.canvasNode === "note") addCanvasNote(canvasState.menuPoint);
     hideCanvasNodeMenu();
     scheduleCanvasSave();
   });
@@ -4120,11 +5038,29 @@ function initializeCanvasBoard() {
   imageMenu.addEventListener("click", async (event) => {
     const action = event.target.closest("[data-image-menu-action]")?.dataset.imageMenuAction;
     const node = canvasState.imageContextNode;
+    const memberId = canvasState.imageContextMemberId;
     hideCanvasImageMenu();
     if (!action || !node) return;
     if (action === "download") await downloadCanvasImage(node, event.target.closest("button"));
-    if (action === "crop") startCanvasImageCrop(node);
+    if (action === "cutout") await openCanvasCutoutWorkbench(node, memberId);
+    if (action === "crop") await openCanvasCropWorkbench(node, memberId);
     if (action === "mask") openCanvasMaskEditor(node);
+  });
+
+  contextMenu.addEventListener("click", (event) => {
+    const action = event.target.closest("[data-canvas-action]")?.dataset.canvasAction;
+    if (!action) return;
+    event.stopPropagation();
+    hideCanvasContextMenu();
+    if (action === "upload") imageInput.click();
+    if (action === "add-node") {
+      const local = canvasState.contextMenuLocal;
+      if (local) placeCanvasNodeMenuAt(local.x, local.y);
+    }
+    if (action === "undo") undoCanvasChange();
+    if (action === "redo") redoCanvasChange();
+    if (action === "copy-all") copyAllCanvasNodes();
+    if (action === "paste") pasteCanvasNodes({ preventDefault() {} });
   });
 
   connectMenu.addEventListener("click", (event) => {
@@ -4135,7 +5071,7 @@ function initializeCanvasBoard() {
     if (pending.direction === "input") {
       connectCanvasNodes(newNode.dataset.id, pending.toId, pending.toPort || "input");
     } else {
-      connectCanvasNodes(pending.fromId, newNode.dataset.id, button.dataset.connectNode === "gallery" ? "input" : "input");
+      connectCanvasNodes(pending.fromId, newNode.dataset.id, "input", pending.fromPort || "output");
     }
     hideCanvasConnectMenu();
     scheduleCanvasSave();
@@ -4161,33 +5097,50 @@ function initializeCanvasBoard() {
     beginCanvasPan(event);
   }, { capture: true });
 
+  // Cursor sharing reads the pointer without consuming it: the same moves still
+  // pan, drag and select exactly as before.
+  viewport.addEventListener("pointermove", (event) => sendCanvasCollabCursor(event), { passive: true });
+  viewport.addEventListener("pointerleave", () => handleCanvasCollabPointerLeave());
+
   viewport.addEventListener("auxclick", (event) => {
     if (event.button === 1) event.preventDefault();
   }, { capture: true });
 
+  // Controls inside nodes often stop bubbling. Raise on capture so clicking a
+  // prompt, image, resize handle or already-selected node has the same result.
   viewport.addEventListener("pointerdown", (event) => {
-    if (!event.target.closest(".canvas-gallery-history-panel, .canvas-gallery-history-toggle")) {
-      closeCanvasGalleryHistoryPanels();
-    }
+    if (event.button !== 0 && event.button !== 2) return;
+    const node = event.target.closest(".canvas-node");
+    if (node && plane.contains(node)) bringCanvasNodeToFront(node);
+  }, { capture: true });
+
+  viewport.addEventListener("pointerdown", (event) => {
     if (!event.target.closest(".canvas-video-history-panel, .canvas-video-history-toggle")) {
       closeCanvasVideoHistoryPanels();
     }
-    if (!event.target.closest("#canvasGridMenu, .canvas-gallery-slice-toggle")) closeCanvasGridMenu();
+  });
+
+  viewport.addEventListener("dblclick", (event) => {
+    if (event.target.closest(".canvas-node, #canvasNodeMenu, #canvasConnectMenu, #canvasImageMenu, .canvas-selection-box, .canvas-connection, .canvas-note-palette")) return;
+    if (isCanvasTypingTarget(event.target)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    hideCanvasConnectMenu();
+    hideCanvasImageMenu();
+    hideCanvasContextMenu();
+    showCanvasNodeMenu(event);
   });
 
   document.addEventListener("keydown", (event) => {
     if (!document.querySelector('#canvasView.active')) return;
-    if (event.key === "Escape" && !document.querySelector("#canvasGridMenu")?.hidden) {
-      closeCanvasGridMenu();
+    if (!lightbox.hidden) return;
+    if (event.key === "Escape" && !document.querySelector("#canvasCropWorkbench")?.hidden) {
+      closeCanvasCropWorkbench();
       event.preventDefault();
       return;
     }
     if (event.key === "Escape" && !document.querySelector("#canvasDeleteConfirm")?.hidden) {
       closeCanvasDeleteConfirmation();
-      event.preventDefault();
-      return;
-    }
-    if (event.key === "Escape" && closeCanvasGalleryHistoryPanels()) {
       event.preventDefault();
       return;
     }
@@ -4209,7 +5162,8 @@ function initializeCanvasBoard() {
       return;
     }
     if (event.key.toLowerCase() === "z") {
-      undoCanvasChange(event);
+      if (event.shiftKey) redoCanvasChange();
+      else undoCanvasChange(event);
       return;
     }
     if (event.key.toLowerCase() === "g") {
@@ -4221,18 +5175,29 @@ function initializeCanvasBoard() {
   viewport.addEventListener("wheel", (event) => {
     if (isCanvasWheelControlTarget(event.target)) return;
     event.preventDefault();
+    const delta = CanvasViewRules.wheelDelta(event.deltaY, event.deltaMode, viewport.clientHeight);
+    if (delta === 0) return;
     const rect = viewport.getBoundingClientRect();
-    const before = screenToCanvas(event.clientX - rect.left, event.clientY - rect.top);
-    const factor = event.deltaY < 0 ? 1.08 : 0.92;
-    canvasState.scale = normalizeCanvasScale(canvasState.scale * factor);
-    canvasState.x = event.clientX - rect.left - before.x * canvasState.scale;
-    canvasState.y = event.clientY - rect.top - before.y * canvasState.scale;
-    scheduleCanvasTransform();
-    scheduleCanvasViewportSave();
+    // DX OS uses exponential, distance-based zoom: tiny trackpad deltas stay
+    // tiny and equal opposite wheel travel restores the same scale.
+    const next = CanvasViewRules.zoomViewportAt(
+      canvasState,
+      {
+        x: toSystemDelta(event.clientX - rect.left),
+        y: toSystemDelta(event.clientY - rect.top),
+      },
+      CanvasViewRules.wheelZoomFactor(delta),
+    );
+    canvasState.x = next.x;
+    canvasState.y = next.y;
+    canvasState.scale = next.scale;
+    scheduleCanvasTransform({ saveViewport: true });
   }, { passive: false });
 
   viewport.addEventListener("pointerdown", (event) => {
+    canvasSceneInteractionSequence += 1;
     hideCanvasNodeMenu();
+    if (!event.target.closest("#canvasContextMenu")) hideCanvasContextMenu();
     if (!event.target.closest("#canvasImageMenu")) hideCanvasImageMenu();
     if (!event.target.closest("#canvasConnectMenu")) hideCanvasConnectMenu();
     const node = event.target.closest(".canvas-node");
@@ -4242,6 +5207,10 @@ function initializeCanvasBoard() {
         toggleCanvasNodeSelection(node);
         return;
       }
+      if (event.button === 0 && canvasState.selectedIds.has(node.dataset.id) && hasCanvasSceneSelection()) {
+        beginCanvasSceneSelectionDrag(event);
+        return;
+      }
       if (!node.classList.contains("is-selected")) selectCanvasNode(node);
       beginCanvasNodeDrag(event, node);
       return;
@@ -4249,15 +5218,17 @@ function initializeCanvasBoard() {
     if (event.button === 0 && canvasPagedStore.scenePage) {
       const viewportRect = viewport.getBoundingClientRect();
       const hit = canvasSceneLayer?.hitTest(
-        event.clientX - viewportRect.left,
-        event.clientY - viewportRect.top,
+        toSystemDelta(event.clientX - viewportRect.left),
+        toSystemDelta(event.clientY - viewportRect.top),
       );
       if (hit) {
         event.preventDefault();
         event.stopPropagation();
-        canvasState.selectedIds.clear();
-        canvasState.selectedIds.add(String(hit.id));
-        setCanvasStatus("已选择高密度画布节点；放大后可进入完整编辑。", false);
+        if (!event.ctrlKey && canvasState.selectedIds.has(String(hit.id)) && hasCanvasSceneSelection()) {
+          beginCanvasSceneNodeInteraction(event, hit, { preserveSelection: true });
+          return;
+        }
+        beginCanvasSceneNodeInteraction(event, hit);
         return;
       }
     }
@@ -4271,24 +5242,46 @@ function initializeCanvasBoard() {
   });
 
   viewport.addEventListener("dblclick", (event) => {
-    if (event.target.closest(".canvas-node")) return;
+    if (event.target.closest(".canvas-node, button, .canvas-image-info") || !canvasPagedStore.scenePage) return;
+    const rect = viewport.getBoundingClientRect();
+    const hit = canvasSceneLayer?.hitTest(toSystemDelta(event.clientX - rect.left), toSystemDelta(event.clientY - rect.top));
+    if (!hit) return;
     event.preventDefault();
-    showCanvasNodeMenu(event);
-  });
+    event.stopImmediatePropagation();
+    beginCanvasSceneNodeInteraction(event, hit, { preview: true });
+  }, true);
 
   viewport.addEventListener("contextmenu", (event) => {
-    const imageNode = event.target.closest(".canvas-node-image.canvas-node-frameless");
-    if (!imageNode?.dataset.imageSrc) return;
+    const galleryMember = event.target.closest(".canvas-gallery-member");
+    const galleryNode = galleryMember?.closest(".canvas-node-gallery-container");
+    const imageNode = event.target.closest(".canvas-node-image");
+    const node = galleryNode || imageNode;
+    const memberId = galleryMember?.dataset.galleryMemberId || "";
+    if (node && (galleryNode || imageNode?.dataset.resultSrc || imageNode?.dataset.imageSrc)) {
+      event.preventDefault();
+      event.stopPropagation();
+      hideCanvasNodeMenu();
+      hideCanvasContextMenu();
+      hideCanvasConnectMenu();
+      selectCanvasNode(node);
+      showCanvasImageMenu(event, node, memberId);
+      return;
+    }
+    // Right-click anywhere on the canvas opens the canvas actions menu; open
+    // menus and editable fields keep their native context menu.
+    if (event.target.closest("#canvasNodeMenu, #canvasConnectMenu, #canvasImageMenu, .canvas-board-menu, .canvas-selection-tools, .canvas-note-palette")) return;
+    if (isCanvasTypingTarget(event.target)) return;
     event.preventDefault();
     event.stopPropagation();
-    hideCanvasNodeMenu();
     hideCanvasConnectMenu();
-    selectCanvasNode(imageNode);
-    showCanvasImageMenu(event, imageNode);
+    hideCanvasImageMenu();
+    hideCanvasNodeMenu();
+    showCanvasContextMenu(event);
   });
 
   viewport.addEventListener("dragover", (event) => {
     if (canvasState.draggedGalleryImage
+      || event.dataTransfer?.types?.includes(CANVAS_ASSET_DRAG_TYPE)
       || event.dataTransfer?.types?.includes("application/x-canvas-gallery-image")
       || event.dataTransfer?.types?.includes("text/plain")
       || Array.from(event.dataTransfer?.items || []).some((item) => /^(image|video|audio)\//.test(item.type))) {
@@ -4303,6 +5296,22 @@ function initializeCanvasBoard() {
   });
 
   viewport.addEventListener("drop", async (event) => {
+    const assetPayload = event.dataTransfer?.getData(CANVAS_ASSET_DRAG_TYPE);
+    if (assetPayload) {
+      event.preventDefault();
+      viewport.classList.remove("drag-over");
+      try {
+        const parsed = JSON.parse(assetPayload);
+        const assetId = String(parsed?.assetId || "").trim();
+        if (!assetId) throw new Error("资产 ID 无效。");
+        window.dispatchEvent(new CustomEvent("ai-os-canvas-asset-drop", {
+          detail: { assetId, point: getCanvasPointFromEvent(event) },
+        }));
+      } catch (error) {
+        setCanvasStatus(`无法插入资产：${error.message}`);
+      }
+      return;
+    }
     const galleryPayload = event.dataTransfer?.getData("application/x-canvas-gallery-image")
       || event.dataTransfer?.getData("text/plain");
     if (canvasState.draggedGalleryImage || galleryPayload) {
@@ -4313,53 +5322,38 @@ function initializeCanvasBoard() {
       return;
     }
     const allFiles = Array.from(event.dataTransfer?.files || []).filter((file) => /^(image|video|audio)\//.test(file.type));
-    const mediaFiles = allFiles.filter((file) => file.type.startsWith("video/") || file.type.startsWith("audio/"));
-    if (mediaFiles.length) {
-      event.preventDefault();
-      viewport.classList.remove("drag-over");
-      const point = getCanvasPointFromEvent(event);
-      for (const [index, file] of mediaFiles.entries()) {
-        const uploaded = await uploadCanvasMediaFile(file);
-        const itemPoint = { x: point.x + index * 36, y: point.y + index * 36 };
-        if (file.type.startsWith("video/")) addCanvasVideoNode(itemPoint, { src: uploaded.url, name: file.name, mimeType: uploaded.mimeType });
-        else addCanvasAudioNode(itemPoint, { src: uploaded.url, name: file.name, mimeType: uploaded.mimeType });
-      }
-      scheduleCanvasSave();
-      return;
-    }
-    const files = allFiles.filter((file) => file.type.startsWith("image/"));
-    if (!files.length) return;
+    if (!allFiles.length) return;
     event.preventDefault();
     viewport.classList.remove("drag-over");
     const point = getCanvasPointFromEvent(event);
-    const targetImageNode = findCanvasImageNodeAtClient(event.clientX, event.clientY);
-    if (targetImageNode) {
-      const url = await uploadCanvasImageFile(files[0]);
-      replaceCanvasImageNode(targetImageNode, url, files[0].name || "图片");
-      for (const [index, file] of files.slice(1).entries()) {
-        const extraUrl = await uploadCanvasImageFile(file);
-        addCanvasImage(extraUrl, file.name, { x: point.x + (index + 1) * 32, y: point.y + (index + 1) * 32 });
-      }
-      scheduleCanvasSave();
-      return;
-    }
-    for (const [index, file] of files.entries()) {
-      const url = await uploadCanvasImageFile(file);
-      addCanvasImage(url, file.name, { x: point.x + index * 32, y: point.y + index * 32 });
-    }
-    scheduleCanvasSave();
+    const target = document.elementFromPoint(event.clientX, event.clientY)?.closest?.(".canvas-node-asset-collection");
+    const node = target || addCanvasMaterialPlaceholder(point);
+    for (const file of allFiles) await fillCanvasAssetCollectionFromFile(node, file);
   });
 
   prepareBlankCanvasLanding();
-  loadCanvasBoards();
+  scheduleCanvasBoardsHydration();
   updateCanvasGroupAction();
   startCanvasAutoSave();
 }
 
-function addCanvasImage(src, name, point) {
+function addCanvasImage(src, name, point, { reusableImage = null, assetId = "" } = {}) {
   const node = createCanvasNode("image");
+  if (assetId) node.dataset.assetId = String(assetId);
   if (point) setCanvasNodePoint(node, point);
-  renderCanvasImageNode(node, { src, name: name || "图片" });
+  renderCanvasImageNode(node, { src, name: name || "图片" }, { reusableImage });
+  applyCanvasNodeSize(node);
+  placeCanvasNode(node);
+  scheduleCanvasSave();
+  return node;
+}
+
+function addCanvasApiNode(point, options = {}) {
+  const node = createCanvasNode("image");
+  node.dataset.canvasEngine = "api";
+  node.dataset.canvasNodeType = "api";
+  if (point) setCanvasNodePoint(node, point);
+  renderCanvasApiNode(node, options);
   applyCanvasNodeSize(node);
   placeCanvasNode(node);
   scheduleCanvasSave();
@@ -4367,12 +5361,156 @@ function addCanvasImage(src, name, point) {
 }
 
 function addCanvasImagePlaceholder(point) {
-  const node = createCanvasNode("image");
-  if (point) setCanvasNodePoint(node, point);
-  renderCanvasImageNode(node, { src: "", name: "生成节点" });
+  return addCanvasApiNode(point);
+}
+
+/* --------------------------------------------------------------------------
+   生成节点：一个卡片，两种引擎
+   --------------------------------------------------------------------------
+   Image and video generation used to be four menu entries — API image, ComfyUI
+   image, API video, MiniMax H3 video. They are now two cards, 图片生成 and
+   视频生成, whose engine switches between the online provider API and a local
+   ComfyUI workflow. Each engine keeps its own renderer and run path; the switch
+   only decides which implementation the card mounts, so nothing about how a
+   generation actually runs changed.
+   -------------------------------------------------------------------------- */
+
+const CANVAS_GENERATION_FAMILIES = Object.freeze(CanvasGenerationRules.FAMILIES);
+const CANVAS_GENERATION_ENGINES = Object.freeze(CanvasGenerationRules.ENGINES);
+
+function getCanvasGenerationFamily(node) {
+  return CanvasGenerationRules.getFamily(node);
+}
+
+function getCanvasGenerationEngine(node) {
+  return CanvasGenerationRules.getEngine(node);
+}
+
+// The engine a card mounts is readable from its classes, so an engine switch is
+// also the persistence format: the swap re-renders the card as the other
+// implementation and the existing serializer stores that implementation.
+function getCanvasGenerationImplementation(node) {
+  return CanvasGenerationRules.getImplementation(node);
+}
+
+function createCanvasGenerationEngineSwitch(node) {
+  if (!getCanvasGenerationFamily(node)) return null;
+  const active = getCanvasGenerationEngine(node);
+  const group = document.createElement("div");
+  group.className = "canvas-engine-switch";
+  group.dataset.engine = active;
+  group.setAttribute("role", "group");
+  group.setAttribute("aria-label", "生成引擎");
+  const caption = document.createElement("span");
+  caption.className = "canvas-engine-caption";
+  caption.textContent = "引擎";
+  group.append(caption);
+  CANVAS_GENERATION_ENGINES.forEach((engine) => {
+    const option = document.createElement("button");
+    option.type = "button";
+    option.className = "canvas-engine-option";
+    option.dataset.engine = engine.id;
+    option.textContent = engine.label;
+    option.title = engine.hint;
+    option.setAttribute("aria-pressed", String(engine.id === active));
+    option.classList.toggle("is-active", engine.id === active);
+    option.addEventListener("pointerdown", (event) => event.stopPropagation());
+    option.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      switchCanvasGenerationEngine(node, engine.id);
+    });
+    group.append(option);
+  });
+  return group;
+}
+
+// New cards, restored boards and virtual remounts all pass through the shared
+// skeleton, so the switch is installed there instead of in four renderers.
+function insertCanvasGenerationEngineSwitch(node) {
+  if (!getCanvasGenerationFamily(node)) return null;
+  const bar = node.querySelector(":scope > .canvas-node-bar");
+  const next = createCanvasGenerationEngineSwitch(node);
+  if (!bar || !next) return null;
+  const existing = node.querySelector(":scope > .canvas-engine-switch");
+  if (existing) existing.replaceWith(next);
+  else bar.insertAdjacentElement("afterend", next);
+  return next;
+}
+
+// The two engines keep different controls, so carry the user's prompt and the
+// current picture across a switch instead of clearing them with the body.
+function captureCanvasGenerationState(node) {
+  const field = node.querySelector(".canvas-node-prompt, .canvas-api-video-prompt-input, .canvas-h3-prompt");
+  return {
+    prompt: String(field?.value ?? node.dataset.canvasGenerationPrompt ?? ""),
+    imageSrc: String(node.dataset.imageSrc || ""),
+    name: String(node.dataset.imageName || ""),
+  };
+}
+
+function applyCanvasGenerationImplementation(node, implementation, carried = {}) {
+  const family = getCanvasGenerationFamily(node);
+  const engine = implementation === "comfy" || implementation === "minimax-h3" ? "comfyui" : "api";
+  // Keep the prompt with the card itself while the other engine is mounted.
+  // ComfyUI image workflows do not expose a text prompt, but switching back to
+  // the API card should still restore what the user had already written.
+  node.dataset.canvasGenerationPrompt = String(carried.prompt || "");
+  node.classList.remove(
+    "canvas-node-generator",
+    "canvas-node-api",
+    "canvas-node-comfy",
+    "canvas-node-video-api",
+    "canvas-node-minimax-h3",
+    "canvas-node-frameless",
+  );
+  node.classList.toggle("canvas-node-image", family === "image" && engine === "api");
+  node.dataset.canvasEngine = engine;
+  node.dataset.canvasNodeType = engine;
+  if (implementation === "generator") {
+    node.classList.add("canvas-node-generator", "canvas-node-api");
+    renderCanvasApiNode(node, {
+      name: carried.name || CANVAS_GENERATION_FAMILIES.image.label,
+      src: carried.imageSrc || "",
+      prompt: carried.prompt || "",
+    });
+  } else if (implementation === "comfy") {
+    node.classList.add("canvas-node-comfy");
+    renderCanvasComfyNode(node, {});
+  } else if (implementation === "video-api") {
+    node.classList.add("canvas-node-video-api");
+    renderCanvasApiVideoNode(node, { prompt: carried.prompt || "" });
+  } else {
+    node.classList.add("canvas-node-minimax-h3");
+    renderCanvasMinimaxH3Node(node, { prompt: carried.prompt || "" });
+  }
   applyCanvasNodeSize(node);
   placeCanvasNode(node);
+  syncCanvasNodeModel(node);
+  refreshCanvasConnectedNodes(node.dataset.id);
+  scheduleCanvasConnectionRender();
   scheduleCanvasSave();
+  setCanvasStatus(engine === "comfyui" ? "已切换到线下 ComfyUI 引擎。" : "已切换到线上 API 引擎。");
+  return node;
+}
+
+function switchCanvasGenerationEngine(node, engine) {
+  const family = getCanvasGenerationFamily(node);
+  const implementation = family ? CANVAS_GENERATION_FAMILIES[family][engine] : "";
+  if (!implementation || getCanvasGenerationEngine(node) === engine) return node;
+  const carried = captureCanvasGenerationState(node);
+  return applyCanvasGenerationImplementation(node, implementation, carried);
+}
+
+function addCanvasImageGeneratorNode(point, options = {}) {
+  const node = addCanvasApiNode(point, options);
+  if (options.engine === "comfyui") switchCanvasGenerationEngine(node, "comfyui");
+  return node;
+}
+
+function addCanvasVideoGeneratorNode(point, options = {}) {
+  const node = addCanvasApiVideoNode(point, options);
+  if (options.engine === "comfyui") switchCanvasGenerationEngine(node, "comfyui");
   return node;
 }
 
@@ -4388,6 +5526,7 @@ function addCanvasUploadPlaceholder(point) {
 
 function addCanvasVideoNode(point, options = {}) {
   const node = createCanvasNode("video");
+  if (options.assetId) node.dataset.assetId = String(options.assetId);
   if (point) setCanvasNodePoint(node, point);
   renderCanvasVideoNode(node, options);
   applyCanvasNodeSize(node);
@@ -4398,6 +5537,7 @@ function addCanvasVideoNode(point, options = {}) {
 
 function addCanvasAudioNode(point, options = {}) {
   const node = createCanvasNode("audio");
+  if (options.assetId) node.dataset.assetId = String(options.assetId);
   if (point) setCanvasNodePoint(node, point);
   renderCanvasAudioNode(node, options);
   applyCanvasNodeSize(node);
@@ -4405,6 +5545,34 @@ function addCanvasAudioNode(point, options = {}) {
   scheduleCanvasSave();
   return node;
 }
+
+function insertCanvasAsset(asset, point = getCanvasViewportCenterPoint()) {
+  const normalized = {
+    id: String(asset?.id || "").trim(),
+    kind: String(asset?.kind || "").trim(),
+    url: String(asset?.url || "").trim(),
+    name: String(asset?.name || "素材").trim() || "素材",
+    mimeType: String(asset?.mimeType || "").trim(),
+  };
+  if (!normalized.id || !normalized.url) throw new Error("资产信息不完整。");
+  if (!["image", "video", "audio"].includes(normalized.kind)) throw new Error("不支持的资产类型。");
+  const node = addCanvasAssetCollection(point, {
+    title: "素材", mode: "single",
+    members: [{ id: createId(), kind: normalized.kind, src: normalized.url,
+      name: normalized.name, mimeType: normalized.mimeType, source: "upload" }],
+  });
+  node.dataset.assetId = String(asset.id);
+  setCanvasStatus(`已插入资产：${normalized.name}`);
+  return node;
+}
+
+window.CanvasAssetBridge = {
+  getCurrentContext: () => ({
+    projectId: canvasState.activeProjectId || null,
+    boardId: canvasState.activeBoardId || null,
+  }),
+  insertAsset: insertCanvasAsset,
+};
 
 async function fillCanvasMediaNode(node, file, kind) {
   setCanvasNodeStatus(node, "上传中...");
@@ -4425,92 +5593,728 @@ async function fillCanvasMediaNode(node, file, kind) {
 }
 
 function renderCanvasVideoNode(node, options = {}) {
+  const plugin = window.AiOsCanvasNodePlugins?.get?.("video");
+  if (plugin?.render) {
+    plugin.render(node, options, getCanvasNodePluginContext());
+    return;
+  }
   renderCanvasMediaNode(node, "video", options);
 }
 
 function renderCanvasAudioNode(node, options = {}) {
+  const plugin = window.AiOsCanvasNodePlugins?.get?.("audio");
+  if (plugin?.render) {
+    plugin.render(node, options, getCanvasNodePluginContext());
+    return;
+  }
   renderCanvasMediaNode(node, "audio", options);
 }
 
-function renderCanvasMediaNode(node, kind, { src = "", name = "", mimeType = "", duration = 0 } = {}) {
-  node.innerHTML = "";
-  const isVideo = kind === "video";
-  const label = isVideo ? "视频素材" : "音频素材";
-  const sourceKey = isVideo ? "videoSrc" : "audioSrc";
-  node.dataset[sourceKey] = src || "";
-  node.dataset.mediaName = name || label;
-  node.dataset.mediaMimeType = mimeType || (isVideo ? "video/mp4" : "audio/mpeg");
-  node.dataset.mediaDuration = String(Number(duration || 0));
-  node.classList.toggle("has-media", Boolean(src));
-
-  const outputPort = createCanvasPort("output");
-  const bar = createCanvasNodeBar(name || label);
-  const mediaShell = document.createElement("div");
-  mediaShell.className = `canvas-media-shell canvas-media-shell-${kind}${src ? " has-media" : ""}`;
-  if (src) {
-    const media = document.createElement(kind);
-    media.className = `canvas-${kind}-preview`;
-    media.src = src;
-    media.controls = true;
-    media.preload = "metadata";
-    if (isVideo) media.playsInline = true;
-    media.addEventListener("loadedmetadata", () => {
-      node.dataset.mediaDuration = String(Number.isFinite(media.duration) ? media.duration : 0);
-      scheduleCanvasConnectionRender();
-      scheduleCanvasSave();
-    });
-    mediaShell.append(media);
-  } else {
-    const icon = document.createElement("span");
-    icon.className = "canvas-media-empty-icon";
-    icon.innerHTML = `<i data-lucide="${isVideo ? "video" : "audio-lines"}"></i>`;
-    const title = document.createElement("strong");
-    title.textContent = isVideo ? "上传参考视频" : "上传参考音频";
-    const hint = document.createElement("span");
-    hint.textContent = "双击选择本地文件";
-    mediaShell.append(icon, title, hint);
-  }
-  mediaShell.addEventListener("dblclick", (event) => {
-    event.stopPropagation();
-    selectCanvasNode(node);
-    document.querySelector(isVideo ? "#canvasNodeVideoInput" : "#canvasNodeAudioInput")?.click();
-  });
-
-  const actions = document.createElement("div");
-  actions.className = "canvas-media-actions";
-  const replace = document.createElement("button");
-  replace.type = "button";
-  replace.textContent = src ? "替换" : "上传";
-  replace.addEventListener("click", (event) => {
-    event.stopPropagation();
-    selectCanvasNode(node);
-    document.querySelector(isVideo ? "#canvasNodeVideoInput" : "#canvasNodeAudioInput")?.click();
-  });
-  actions.append(replace);
-  if (src) {
-    const download = document.createElement("a");
-    download.href = src;
-    download.download = name || `${kind}-material`;
-    download.textContent = "下载";
-    download.addEventListener("pointerdown", (event) => event.stopPropagation());
-    actions.append(download);
-  }
-  const status = document.createElement("span");
-  status.className = "canvas-node-status";
-  status.textContent = src ? "已就绪" : "等待上传";
-  node.append(outputPort, bar, mediaShell, actions, status, createCanvasResizeHandle());
-  window.lucide?.createIcons({ attrs: { "aria-hidden": "true", "stroke-width": 1.8 } });
-  scheduleCanvasConnectionRender();
+function renderCanvasMediaNode(node, kind, { src = "", name = "", mimeType = "", duration = 0, assetId = "" } = {}) {
+  const renderer = window.CanvasMediaNodeRenderer;
+  if (!renderer?.renderMedia) throw new Error("Canvas media node renderer is unavailable.");
+  return renderer.renderMedia(
+    node,
+    kind,
+    { src, name, mimeType, duration, assetId },
+    getCanvasNodePluginContext(),
+  );
 }
 
 function addCanvasMinimaxH3Node(point, options = {}) {
   const node = createCanvasNode("minimax-h3");
   if (point) setCanvasNodePoint(node, point);
   renderCanvasMinimaxH3Node(node, options);
+  node.dataset.canvasEngine = "comfyui";
+  node.dataset.canvasNodeType = "comfyui";
   applyCanvasNodeSize(node);
   placeCanvasNode(node);
   scheduleCanvasSave();
   return node;
+}
+
+function addCanvasApiVideoNode(point, options = {}) {
+  const node = createCanvasNode("video-api");
+  if (point) setCanvasNodePoint(node, point);
+  renderCanvasApiVideoNode(node, options);
+  node.dataset.canvasEngine = "api";
+  node.dataset.canvasNodeType = "api";
+  applyCanvasNodeSize(node);
+  placeCanvasNode(node);
+  scheduleCanvasSave();
+  return node;
+}
+
+const API_VIDEO_FALLBACK_RATIOS = ["1:1", "3:4", "16:9", "4:3", "9:16", "21:9"];
+const API_VIDEO_FALLBACK_RESOLUTIONS = ["720p"];
+
+function getApiVideoModelPlatform(modelId) {
+  const model = videoModelCatalog.find((item) => item.id === modelId);
+  return String(model?.platform || model?.providerProtocol || "").trim().toLowerCase();
+}
+
+function getCanvasApiVideoRatios(node) {
+  const modelId = node?.dataset.apiVideoModel || "";
+  const ratios = videoModelRatios[modelId];
+  return Array.isArray(ratios) && ratios.length ? [...ratios] : [...API_VIDEO_FALLBACK_RATIOS];
+}
+
+function getCanvasApiVideoResolutions(node) {
+  const modelId = node?.dataset.apiVideoModel || "";
+  const resolutions = videoModelResolutions[modelId];
+  return Array.isArray(resolutions) && resolutions.length ? [...resolutions] : [...API_VIDEO_FALLBACK_RESOLUTIONS];
+}
+
+function getCanvasApiVideoDurationRange(node) {
+  const modelId = node?.dataset.apiVideoModel || "";
+  const range = videoModelDurations[modelId];
+  const min = Number(range?.min);
+  const max = Number(range?.max);
+  const published = Number.isFinite(min) && Number.isFinite(max) && max > min ? { min, max } : { min: 4, max: 15 };
+  // A connected first frame narrows the window for the legacy 即梦 models, so
+  // the CLI ladder is consulted once more with that flag. The published window
+  // stays the baseline, which keeps every other transport on its catalog value.
+  if (getCanvasApiVideoRefs(node).length && getApiVideoModelPlatform(modelId) === "jimeng") {
+    const narrowed = window.ImageResolutionRules?.videoDurationRangeFor?.(modelId, { hasReference: true });
+    const narrowedMin = Number(narrowed?.min);
+    const narrowedMax = Number(narrowed?.max);
+    if (Number.isFinite(narrowedMin) && Number.isFinite(narrowedMax) && narrowedMax > narrowedMin
+      && (narrowedMin !== published.min || narrowedMax !== published.max)) {
+      return { min: narrowedMin, max: narrowedMax };
+    }
+  }
+  return published;
+}
+
+function getCanvasApiVideoRefs(node) {
+  return getCanvasIncomingRefs(node?.dataset.id || "").slice(0, 1);
+}
+
+function fillCanvasApiVideoOptions(select, values, preferred, formatLabel = (value) => value) {
+  const choices = Array.isArray(values) && values.length ? [...values] : [];
+  select.innerHTML = "";
+  choices.forEach((value) => {
+    const option = document.createElement("option");
+    option.value = String(value);
+    option.textContent = formatLabel(value);
+    select.append(option);
+  });
+  select.value = choices.map(String).includes(String(preferred)) ? String(preferred) : (choices[0] === undefined ? "" : String(choices[0]));
+  select.disabled = !choices.length;
+  return select.value;
+}
+
+function syncCanvasApiVideoPrompt(node) {
+  if (!node?.classList.contains("canvas-node-video-api")) return;
+  const prompt = node.querySelector(".canvas-api-video-prompt-input");
+  if (!prompt) return;
+  const incoming = getCanvasIncomingTexts(node.dataset.id);
+  if (incoming.length) {
+    prompt.value = incoming.join("\n");
+    prompt.readOnly = true;
+    prompt.classList.add("is-synced");
+  } else {
+    prompt.readOnly = false;
+    prompt.classList.remove("is-synced");
+    prompt.value = node.dataset.apiVideoPrompt || prompt.value || "";
+  }
+}
+
+function syncCanvasApiVideoControls(node) {
+  if (!node?.classList.contains("canvas-node-video-api")) return;
+  const refs = getCanvasApiVideoRefs(node);
+  const ratioField = node.querySelector(".canvas-api-video-ratio-field");
+  const ratioSelect = ratioField?.querySelector("select");
+  const durationField = node.querySelector(".canvas-api-video-duration-field");
+  const durationInput = durationField?.querySelector("input");
+  const resolutionSelect = node.querySelector(".canvas-api-video-resolution");
+  if (ratioSelect) {
+    const ratios = getCanvasApiVideoRatios(node);
+    ratioSelect.dataset.apiVideoSuppressed = ratios.length ? "" : "true";
+    fillCanvasApiVideoOptions(ratioSelect, ratios, node.dataset.apiVideoRatio, (value) => value);
+    node.dataset.apiVideoRatio = ratioSelect.value;
+    if (ratioField) ratioField.hidden = !ratios.length;
+  }
+  if (resolutionSelect) {
+    fillCanvasApiVideoOptions(resolutionSelect, getCanvasApiVideoResolutions(node), node.dataset.apiVideoResolution);
+    node.dataset.apiVideoResolution = resolutionSelect.value;
+  }
+  if (durationInput) {
+    const range = getCanvasApiVideoDurationRange(node);
+    durationInput.min = String(range.min);
+    durationInput.max = String(range.max);
+    const current = Number(node.dataset.apiVideoDuration);
+    const next = Number.isFinite(current) ? Math.max(range.min, Math.min(range.max, current)) : range.min;
+    durationInput.value = String(next);
+    node.dataset.apiVideoDuration = String(next);
+    const hint = durationField.querySelector(".canvas-api-video-duration-hint");
+    if (hint) hint.textContent = `${range.min}-${range.max} 秒`;
+  }
+  const reference = node.querySelector(".canvas-api-video-reference");
+  if (reference) {
+    reference.textContent = refs.length
+      ? `首帧参考：${refs[0].name || "已连接图片"}`
+      : "连接图片节点作为首帧";
+    reference.classList.toggle("has-reference", Boolean(refs.length));
+  }
+}
+
+function renderCanvasApiVideoNode(node, options = {}) {
+  const plugin = window.AiOsCanvasNodePlugins?.get?.("video-api");
+  if (plugin?.render) {
+    plugin.render(node, options, getCanvasNodePluginContext());
+    return;
+  }
+  const renderer = window.CanvasVideoApiNodeRenderer;
+  if (!renderer?.render) throw new Error("Canvas API video node renderer is unavailable.");
+  renderer.render(node, options, getCanvasNodePluginContext());
+}
+
+// A queued clip keeps its upstream task id on the node, so the action continues
+// that submission instead of paying for a second render.
+function syncCanvasApiVideoRunButton(node) {
+  const button = node?.querySelector(".canvas-api-video-run");
+  if (!button) return;
+  const resumable = Boolean(String(node.dataset.apiVideoTaskId || ""));
+  button.innerHTML = resumable
+    ? '<i data-lucide="search"></i><span>继续查询视频</span>'
+    : '<i data-lucide="play"></i><span>生成视频</span>';
+  button.title = resumable ? "继续查询已提交的视频任务，不会重复扣费" : "";
+}
+
+async function runCanvasApiVideoNode(node, options) {
+  const guard = options?.guard || null;
+  guard?.assertActive();
+  if (!node?.classList.contains("canvas-node-video-api")) return;
+  syncCanvasApiVideoPrompt(node);
+  const prompt = node.querySelector(".canvas-api-video-prompt-input")?.value.trim() || "";
+  const modelId = node.dataset.apiVideoModel || "";
+  if (!prompt) {
+    setCanvasH3Status(node, "请先输入视频描述", true);
+    return;
+  }
+  if (!modelId) {
+    setCanvasH3Status(node, "请先在 API 设置里添加视频接入", true);
+    return;
+  }
+  const runButton = node.querySelector(".canvas-api-video-run");
+  if (runButton) runButton.disabled = true;
+  if (!node.querySelector(".canvas-api-video-prompt-input")?.readOnly) node.dataset.apiVideoPrompt = prompt;
+  const resumableTaskId = String(node.dataset.apiVideoTaskId || "");
+  setCanvasH3Status(node, resumableTaskId ? "正在查询已提交的视频任务..." : "正在提交任务...");
+  try {
+    const response = resumableTaskId
+      ? await fetch(`${API_VIDEO_API_URL}/${encodeURIComponent(resumableTaskId)}/resume`, { method: "POST" })
+      : await fetch(API_VIDEO_API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt,
+          modelId,
+          aspect_ratio: node.dataset.apiVideoRatio || "",
+          resolution: node.dataset.apiVideoResolution || "",
+          duration: Number(node.dataset.apiVideoDuration) || undefined,
+          reference_images: getCanvasApiVideoRefs(node).map(canvasH3ReferencePayload),
+        }),
+      });
+    guard?.assertActive();
+    const data = await response.json().catch(() => ({}));
+    guard?.assertActive();
+    if (!response.ok) throw new Error(data.error || data.message || `任务创建失败：${response.status}`);
+    const taskId = String(data.task_id || resumableTaskId || "");
+    if (taskId) {
+      node.dataset.apiVideoTaskId = taskId;
+      scheduleCanvasSave();
+    }
+    const videos = Array.isArray(data.videos) && data.videos.length
+      ? data.videos
+      : (await waitForCanvasApiVideoTask(node, taskId, guard)).videos || [];
+    guard?.assertActive();
+    if (!deliverCanvasApiVideoResult(node, videos, prompt)) throw new Error("任务成功，但没有返回视频文件。");
+    delete node.dataset.apiVideoTaskId;
+    stopCanvasApiVideoWatch(taskId);
+    scheduleCanvasSave();
+  } catch (error) {
+    if (String(error?.code || "") === "video_task_pending") {
+      setCanvasH3Status(node, String(error.message || ""), false);
+      watchCanvasApiVideoTask(node);
+    } else if (/没有找到这个视频任务/.test(String(error?.message || ""))) {
+      // 任务记录过了保留期才会真的查不到，这时清掉旧编号并说明原因，
+      // 而不是留一个点了也没用的按钮。
+      delete node.dataset.apiVideoTaskId;
+      setCanvasH3Status(node, "原任务记录已过期，需要重新生成视频。", true);
+    } else {
+      setCanvasH3Status(node, `失败：${error.message}`, true);
+    }
+  } finally {
+    if (runButton) runButton.disabled = false;
+    syncCanvasApiVideoRunButton(node);
+  }
+}
+
+async function waitForCanvasApiVideoTask(node, taskId, guard = null) {
+  if (!taskId) throw new Error("服务器没有返回任务编号。");
+  let lastMessage = "";
+  for (let index = 0; index < 1800; index += 1) {
+    guard?.assertActive();
+    const response = await fetch(`${UPSCALE_STATUS_API_URL}?id=${encodeURIComponent(taskId)}`);
+    guard?.assertActive();
+    const task = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(task.error || `状态查询失败：${response.status}`);
+    lastMessage = String(task.message || "");
+    setCanvasH3Status(node, `${lastMessage || "正在生成..."}${Number.isFinite(Number(task.progress)) ? ` · ${Math.round(Number(task.progress))}%` : ""}`);
+    if (task.status === "success") return task;
+    if (task.status === "failed") throw new Error(task.error || task.message || "视频生成失败。");
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+  }
+  // The waiting window closed while the upstream task still exists, so this is a
+  // queue to report rather than a failure the operator should resubmit.
+  const pending = new Error(lastMessage || "视频仍在排队或生成中，任务已保留；稍后可继续查询。");
+  pending.code = "video_task_pending";
+  throw pending;
+}
+
+const canvasApiVideoWatchers = new Map();
+const CANVAS_API_VIDEO_WATCH_MS = 30000;
+
+function stopCanvasApiVideoWatch(taskId) {
+  const id = String(taskId || "");
+  const entry = canvasApiVideoWatchers.get(id);
+  if (!entry) return;
+  window.clearTimeout(entry.timer);
+  canvasApiVideoWatchers.delete(id);
+}
+
+// 即梦高峰排队可以持续十几个小时，所以节点不能只等一两分钟：结果出来时由这个
+// 慢速跟进把视频自动收进节点，用户不需要盯着，也不需要重新生成。
+function watchCanvasApiVideoTask(node, delayMs = CANVAS_API_VIDEO_WATCH_MS) {
+  const taskId = String(node?.dataset?.apiVideoTaskId || "");
+  if (!taskId || canvasApiVideoWatchers.has(taskId)) return;
+  const entry = { node, timer: 0 };
+  canvasApiVideoWatchers.set(taskId, entry);
+  const tick = async () => {
+    canvasApiVideoWatchers.delete(taskId);
+    if (String(node.dataset.apiVideoTaskId || "") !== taskId) return;
+    if (node.isConnected === false) return;
+    let task = null;
+    try {
+      const response = await fetch(`${UPSCALE_STATUS_API_URL}?id=${encodeURIComponent(taskId)}`);
+      const body = await response.json().catch(() => ({}));
+      task = response.ok ? body : null;
+    } catch {
+      task = null;
+    }
+    if (String(node.dataset.apiVideoTaskId || "") !== taskId) return;
+    if (task?.status === "success" && Array.isArray(task.videos) && task.videos.length) {
+      delete node.dataset.apiVideoTaskId;
+      deliverCanvasApiVideoResult(node, task.videos, node.dataset.apiVideoPrompt || "");
+      syncCanvasApiVideoRunButton(node);
+      scheduleCanvasSave();
+      return;
+    }
+    if (task?.status === "failed") {
+      delete node.dataset.apiVideoTaskId;
+      syncCanvasApiVideoRunButton(node);
+      setCanvasH3Status(node, `失败：${task.error || task.message || "视频生成失败。"}`, true);
+      scheduleCanvasSave();
+      return;
+    }
+    if (task?.message) setCanvasH3Status(node, String(task.message));
+    entry.timer = window.setTimeout(tick, CANVAS_API_VIDEO_WATCH_MS);
+    canvasApiVideoWatchers.set(taskId, entry);
+  };
+  entry.timer = window.setTimeout(tick, Math.max(1000, Number(delayMs) || CANVAS_API_VIDEO_WATCH_MS));
+}
+
+function deliverCanvasApiVideoResult(node, videos, prompt = "") {
+  const videoUrl = (Array.isArray(videos) ? videos : [videos]).filter(Boolean)[0];
+  if (!videoUrl) return false;
+  const output = getOrCreateCanvasAssetOutput(node, "video");
+  if (!output) return false;
+  const result = {
+    src: videoUrl,
+    name: `API 视频 ${new Date().toLocaleString()}.mp4`,
+    mimeType: "video/mp4",
+    promptSummary: String(prompt || "").slice(0, 180),
+    createdAt: new Date().toISOString(),
+  };
+  if (output.classList.contains("canvas-node-video-output")) appendCanvasVideoOutputHistory(output, result);
+  else appendCanvasAssetCollectionMember(output, { ...result, kind: "video", source: "generation", sourceNodeId: node.dataset.id });
+  setCanvasH3Status(node, "生成完成");
+  return true;
+}
+
+/* --------------------------------------------------------------------------
+   Midjourney 生成节点
+
+   DX OS 把 Midjourney 单独立成一个节点，因为它和通用图片接口的形状不同：
+   imagine 吃提示词和 0-4 张参考图，edit 必须带参考图，blend 只吃 2-4 张参考
+   图并且不接受提示词。这个节点把选择留在画布上，请求仍然走 /api/image-jobs，
+   所以任务恢复、原图同步和历史记录和其他生成节点保持一致；通用图片生成节点
+   里的 Midjourney 选项保持不变。
+   -------------------------------------------------------------------------- */
+
+const CANVAS_MIDJOURNEY_OPERATIONS = Object.freeze([
+  { id: "imagine", label: "Imagine 文生图" },
+  { id: "edit", label: "Edit 图片编辑" },
+  { id: "blend", label: "Blend 多图融合" },
+]);
+const CANVAS_MIDJOURNEY_MAX_REFS = 4;
+const CANVAS_MIDJOURNEY_SPEEDS = Object.freeze(["relax", "fast", "turbo"]);
+
+function isCanvasMidjourneyModel(model = "") {
+  const value = String(model || "").trim();
+  if (!value) return false;
+  if (getImageModelPlatform(value) === "midjourney") return true;
+  return /midjourney|^mj(?:[-_]|$)/i.test(value);
+}
+
+function getCanvasMidjourneyModelOptions() {
+  return getCanvasImageModels().filter((model) => isCanvasMidjourneyModel(model.value));
+}
+
+function fillCanvasMidjourneyModelSelect(select, preferred) {
+  const models = getCanvasMidjourneyModelOptions();
+  const preferredId = window.ImageModelPicker?.resolveModelId?.(imageModelCatalog, preferred) || preferred;
+  select.innerHTML = "";
+  const choices = models.length ? models : [{ value: "", label: "请先在 API 设置里添加 Midjourney 模型" }];
+  choices.forEach((model) => {
+    const option = document.createElement("option");
+    option.value = model.value;
+    option.textContent = model.label || model.value;
+    select.append(option);
+  });
+  select.value = choices.some((model) => model.value === preferredId) ? preferredId : (choices[0]?.value || "");
+  select.disabled = !models.length;
+  return select.value;
+}
+
+function refreshCanvasMidjourneyModelSelects() {
+  document.querySelectorAll("#canvasPlane .canvas-node-midjourney .canvas-midjourney-model").forEach((select) => {
+    const node = select.closest(".canvas-node");
+    fillCanvasMidjourneyModelSelect(select, node?.dataset.midjourneyModel || select.value || "");
+    if (node) node.dataset.midjourneyModel = select.value;
+  });
+}
+
+function readCanvasMidjourneyOperation(node) {
+  const value = String(node?.querySelector(".canvas-midjourney-operation")?.value
+    || node?.dataset.midjourneyOperation
+    || "imagine").trim().toLowerCase();
+  return CANVAS_MIDJOURNEY_OPERATIONS.some((item) => item.id === value) ? value : "imagine";
+}
+
+function getCanvasMidjourneyRefs(node) {
+  return getCanvasIncomingRefs(node?.dataset.id || "").slice(0, CANVAS_MIDJOURNEY_MAX_REFS);
+}
+
+function canvasMidjourneyReferenceHint(operation, count) {
+  if (count) return `已连接参考图 ${count} 张`;
+  if (operation === "blend") return "连接 2-4 张图片作为融合素材";
+  if (operation === "edit") return "连接至少 1 张图片作为编辑底图";
+  return "可连接 0-4 张图片作为参考图";
+}
+
+function syncCanvasMidjourneyControls(node) {
+  if (!node?.classList.contains("canvas-node-midjourney")) return "imagine";
+  const operation = readCanvasMidjourneyOperation(node);
+  node.dataset.midjourneyOperation = operation;
+  const promptField = node.querySelector(".canvas-midjourney-prompt");
+  const prompt = node.querySelector(".canvas-midjourney-prompt-input");
+  const incoming = getCanvasIncomingTexts(node.dataset.id);
+  if (prompt) {
+    const synced = Boolean(incoming.length) && operation !== "blend";
+    prompt.readOnly = synced;
+    prompt.classList.toggle("is-synced", synced);
+    const value = synced ? incoming.join("\n") : (node.dataset.midjourneyPrompt || "");
+    if (prompt.value !== value) prompt.value = value;
+  }
+  if (promptField) promptField.hidden = operation === "blend";
+  const reference = node.querySelector(".canvas-midjourney-reference");
+  const refs = getCanvasMidjourneyRefs(node);
+  if (reference) {
+    reference.textContent = canvasMidjourneyReferenceHint(operation, refs.length);
+    reference.classList.toggle("has-reference", Boolean(refs.length));
+  }
+  return operation;
+}
+
+function addCanvasMidjourneyNode(point, options = {}) {
+  const node = createCanvasNode("midjourney");
+  node.dataset.canvasNodeType = "midjourney";
+  if (point) setCanvasNodePoint(node, point);
+  renderCanvasMidjourneyNode(node, options);
+  applyCanvasNodeSize(node);
+  placeCanvasNode(node);
+  scheduleCanvasSave();
+  return node;
+}
+
+function addCanvasMaterialPlaceholder(point) {
+  return addCanvasAssetCollection(point, { title: "素材", mode: "single" });
+}
+
+function addCanvasAssetCollection(point, options = {}) {
+  const node = createCanvasNode("asset-collection");
+  if (point) setCanvasNodePoint(node, point);
+  renderCanvasAssetCollectionNode(node, {
+    title: options.title || "素材合集",
+    mode: options.mode || "collection",
+    members: options.members || [],
+    activeMemberId: options.activeMemberId || "",
+  });
+  applyCanvasNodeSize(node);
+  placeCanvasNode(node);
+  if (!options.deferSave) scheduleCanvasSave();
+  return node;
+}
+
+function getCanvasAssetCollection(node) {
+  let stored = {};
+  try { stored = JSON.parse(node?.dataset?.assetCollection || "{}"); } catch { /* invalid saved state */ }
+  const members = window.CanvasAssetCollectionRules.normalizeMembers(stored.members);
+  return {
+    title: String(stored.title || "素材合集"),
+    mode: stored.mode === "single" ? "single" : "collection",
+    members,
+    activeMemberId: members.some((item) => item.id === stored.activeMemberId)
+      ? stored.activeMemberId : members[0]?.id || "",
+  };
+}
+
+// A material node's status band is its state line, so it reports how much the
+// node holds instead of keeping the empty-state prompt once it is filled.
+function setCanvasAssetCollectionStatus(node) {
+  const status = getCanvasNodeStatusElement(node);
+  if (!status) return;
+  const count = getCanvasAssetCollection(node).members.length;
+  const text = count ? `已就绪 · 共 ${count} 个素材` : "等待素材";
+  status.textContent = text;
+  status.dataset.state = canvasNodeStatusState(text);
+  syncCanvasNodeFooterVisibility(node);
+}
+
+function getCanvasAssetCollectionOutput(node, handle = "output") {
+  const members = getCanvasAssetCollection(node).members;
+  if (String(handle).startsWith("member-output:")) {
+    const member = members.find((item) => item.id === String(handle).slice("member-output:".length));
+    return member ? { type: member.kind, url: member.src, originalUrl: member.src,
+      name: member.name, mimeType: member.mimeType, duration: member.duration } : null;
+  }
+  return window.CanvasAssetCollectionRules.getOutput(members);
+}
+
+function renderCanvasAssetCollectionNode(node, value = {}) {
+  const plugin = window.AiOsCanvasNodePlugins?.get?.("asset-collection");
+  if (plugin?.render) {
+    plugin.render(node, value, getCanvasNodePluginContext());
+    return;
+  }
+  const renderer = window.CanvasAssetCollectionNodeRenderer;
+  if (!renderer?.render) throw new Error("Canvas asset collection node renderer is unavailable.");
+  renderer.render(node, value, getCanvasNodePluginContext());
+}
+
+function appendCanvasAssetCollectionMember(node, value) {
+  const state = getCanvasAssetCollection(node);
+  const members = window.CanvasAssetCollectionRules.appendMember(state.members, value);
+  if (members.length === state.members.length) return null;
+  const proposed = { type: "assets", assets: members };
+  const outputs = canvasState.connections.filter((item) =>
+    item.from === node.dataset.id && !String(item.fromPort || "output").startsWith("member-output:"));
+  for (const connection of outputs) {
+    const target = getCanvasNode(connection.to);
+    if (!target) continue;
+    const compatibility = getCanvasConnectionCompatibility(node, target, proposed, {
+      sourcePort: connection.fromPort || "output",
+    });
+    if (!compatibility.ok) {
+      setCanvasStatus(compatibility.message);
+      return null;
+    }
+  }
+  const knownIds = new Set(state.members.map((item) => item.id));
+  const added = members.find((item) => !knownIds.has(item.id)) || null;
+  renderCanvasAssetCollectionNode(node, { ...state, members, activeMemberId: members[0]?.id });
+  refreshCanvasConnectedNodes(node.dataset.id);
+  scheduleCanvasSave();
+  return added;
+}
+
+// Removing one material drops its own output connection and edits the node in
+// a single recorded step, so the trash button behaves like the gallery's
+// delete: one Ctrl+Z restores both the member and its wire.
+function removeCanvasAssetCollectionMember(node, memberId) {
+  const current = getCanvasAssetCollection(node);
+  const target = current.members.find((item) => item.id === String(memberId || ""));
+  if (!target) return false;
+  const before = toCanvasOperationNode(syncCanvasNodeModel(node) || serializeCanvasNode(node));
+  const remaining = current.members.filter((item) => item.id !== target.id);
+  const memberConnections = canvasState.connections.filter((connection) =>
+    connection.from === node.dataset.id && (connection.fromPort || "output") === `member-output:${target.id}`);
+  canvasState.connections = canvasState.connections.filter((connection) => !memberConnections.includes(connection));
+  renderCanvasAssetCollectionNode(node, {
+    ...current,
+    members: remaining,
+    activeMemberId: current.activeMemberId === target.id ? remaining[0]?.id || "" : current.activeMemberId,
+  });
+  const after = toCanvasOperationNode(syncCanvasNodeModel(node) || serializeCanvasNode(node));
+  const forward = [
+    ...memberConnections.map((connection) => ({
+      type: "connection.delete",
+      entityId: normalizeVisibleCanvasConnection(connection).id,
+      before: cloneCanvasOperationValue(connection),
+      after: null,
+    })),
+    { type: "node.upsert", entityId: node.dataset.id, before, after },
+  ];
+  recordCanvasGalleryMemberTransferUndo({ label: "移除素材", forward });
+  scheduleCanvasGalleryMediaCleanup(canvasState.undoStack.at(-1), [target]);
+  refreshCanvasConnectedNodes(node.dataset.id);
+  scheduleCanvasSave();
+  setCanvasStatus("已从合集移除素材，可按 Ctrl+Z 撤销。");
+  return true;
+}
+
+async function fillCanvasAssetCollectionFromFile(node, file, { replaceMemberId = "" } = {}) {
+  const kind = window.CanvasAssetCollectionRules.detectKind({ mimeType: file.type, name: file.name });
+  if (!kind) { setCanvasStatus("不支持此文件，请选择图片、视频或音频。"); return; }
+  const boardId = node.dataset.boardId;
+  setCanvasNodeStatus(node, "上传中...");
+  try {
+    const uploaded = kind === "image"
+      ? { url: await uploadCanvasImageFile(file), mimeType: file.type }
+      : await uploadCanvasMediaFile(file);
+    if (!node.isConnected || canvasState.activeBoardId !== boardId) return;
+    const member = {
+      id: replaceMemberId || createId(),
+      kind,
+      name: file.name || "素材",
+      src: uploaded.url,
+      savedUrl: uploaded.url,
+      mimeType: uploaded.mimeType || file.type,
+      source: "upload",
+      createdAt: new Date().toISOString(),
+    };
+    if (replaceMemberId) {
+      const current = getCanvasAssetCollection(node);
+      const target = current.members.find((item) => item.id === replaceMemberId);
+      const replacement = window.CanvasAssetCollectionRules.normalizeMember(member);
+      if (!target || !replacement) {
+        setCanvasStatus("要替换的素材已经不存在。");
+        return;
+      }
+      const members = current.members.map((item) => item.id === target.id ? replacement : item);
+      renderCanvasAssetCollectionNode(node, {
+        ...current,
+        members,
+        activeMemberId: target.id,
+      });
+      refreshCanvasConnectedNodes(node.dataset.id);
+      setCanvasAssetCollectionStatus(node);
+      setCanvasStatus("已替换素材。");
+      return;
+    }
+    appendCanvasAssetCollectionMember(node, {
+      ...member,
+    });
+    setCanvasAssetCollectionStatus(node);
+  } catch (error) {
+    setCanvasNodeStatus(node, `上传失败：${error.message}`);
+    setCanvasStatus(`素材上传失败：${error.message}`);
+  }
+}
+
+function renderCanvasMidjourneyNode(node, options = {}) {
+  const plugin = window.AiOsCanvasNodePlugins?.get?.("midjourney");
+  if (plugin?.render) {
+    plugin.render(node, options, getCanvasNodePluginContext());
+    return;
+  }
+  const renderer = window.CanvasMidjourneyNodeRenderer;
+  if (!renderer?.render) throw new Error("Canvas Midjourney node renderer is unavailable.");
+  renderer.render(node, options, getCanvasNodePluginContext());
+}
+
+function canvasMidjourneyRequest(node, operation) {
+  const promptInput = node.querySelector(".canvas-midjourney-prompt-input");
+  const model = node.querySelector(".canvas-midjourney-model")?.value || node.dataset.midjourneyModel || "";
+  const refs = getCanvasMidjourneyRefs(node).map(canvasH3ReferencePayload);
+  const request = {
+    model,
+    prompt: String(promptInput?.value || "").trim(),
+    size: node.dataset.midjourneySize || "1:1",
+    n: 1,
+    reference_images: refs,
+    midjourneyOperation: operation,
+    version: node.dataset.midjourneyVersion || MIDJOURNEY_DEFAULT_OPTIONS.version,
+    speed: CANVAS_MIDJOURNEY_SPEEDS.includes(node.dataset.midjourneySpeed)
+      ? node.dataset.midjourneySpeed
+      : MIDJOURNEY_DEFAULT_OPTIONS.speed,
+  };
+  return request;
+}
+
+function canvasMidjourneyRequestError(operation, request) {
+  if (!request.model) return { code: "model_required", error: "请先在 API 设置里添加 Midjourney 接入" };
+  if (operation !== "blend" && !request.prompt) return { code: "prompt_required", error: "请输入提示词" };
+  if (operation === "edit" && !request.reference_images.length) {
+    return { code: "reference_required", error: "图片编辑至少需要 1 张参考图" };
+  }
+  if (operation === "blend" && (request.reference_images.length < 2 || request.reference_images.length > CANVAS_MIDJOURNEY_MAX_REFS)) {
+    return { code: "reference_required", error: "多图融合需要 2-4 张参考图" };
+  }
+  return null;
+}
+
+async function runCanvasMidjourneyNode(node, options = {}) {
+  const guard = options?.guard || null;
+  guard?.assertActive();
+  if (!node?.classList.contains("canvas-node-midjourney")) {
+    return { ok: false, code: "node_kind", error: "目标节点不是 Midjourney 节点。" };
+  }
+  const operation = syncCanvasMidjourneyControls(node);
+  const request = canvasMidjourneyRequest(node, operation);
+  const invalid = canvasMidjourneyRequestError(operation, request);
+  if (invalid) {
+    setCanvasNodeStatus(node, invalid.error);
+    return { ok: false, ...invalid };
+  }
+  const promptInput = node.querySelector(".canvas-midjourney-prompt-input");
+  if (!promptInput?.readOnly) node.dataset.midjourneyPrompt = request.prompt;
+  const runButton = node.querySelector(".canvas-midjourney-run");
+  if (runButton) runButton.disabled = true;
+  setCanvasNodeStatus(node, "正在提交任务...");
+  let completed = null;
+  try {
+    const created = await createCanvasImageJob(request, node, guard);
+    completed = await waitForCanvasImageJob(created.id, node, {
+      guard,
+      deadlineAt: Date.parse(created.deadlineAt) || 0,
+    });
+    if (completed.state !== "completed") throw createCanvasImageJobTerminalError(completed);
+    return commitCanvasImageJobResult(node, completed, request.prompt, null, guard);
+  } catch (error) {
+    if (["scope_expired", "scope_mismatch"].includes(String(error?.code || ""))) throw error;
+    const safeError = getSafeCanvasImageGenerationError(error);
+    setCanvasNodeStatus(node, `失败：${safeError.error}`);
+    return safeError;
+  } finally {
+    if (CANVAS_IMAGE_JOB_ACTIVE_STATES.has(node?.dataset?.imageJobState)) {
+      setCanvasImageNodeGenerationState(node, true);
+      if (guard) queueMicrotask(() => resumeCanvasImageNodeJob(node));
+    } else {
+      setCanvasImageNodeGenerationState(node, false);
+      if (runButton) {
+        runButton.disabled = false;
+        if (!runButton.querySelector("span")) {
+          runButton.innerHTML = '<i data-lucide="wand-sparkles"></i><span>生成图片</span>';
+          window.lucide?.createIcons({ attrs: { "aria-hidden": "true", "stroke-width": 1.8 } });
+        }
+      }
+      window.lucide?.createIcons({ attrs: { "aria-hidden": "true", "stroke-width": 1.8 } });
+    }
+  }
 }
 
 function addCanvasVideoOutputNode(point, options = {}) {
@@ -4524,127 +6328,23 @@ function addCanvasVideoOutputNode(point, options = {}) {
 }
 
 function renderCanvasMinimaxH3Node(node, options = {}) {
-  const requestedAspectRatio = options.aspectRatio || node.dataset.minimaxH3AspectRatio || "16:9";
-  const previous = {
-    prompt: options.prompt ?? node.querySelector(".canvas-h3-prompt")?.value ?? node.dataset.minimaxH3Prompt ?? "",
-    aspectRatio: Object.hasOwn(MINIMAX_H3_ASPECT_RATIOS, requestedAspectRatio) ? requestedAspectRatio : "16:9",
-    megapixels: Number(options.megapixels ?? node.dataset.minimaxH3Megapixels ?? 0.6) === 1 ? 1 : 0.6,
-    steps: Number(options.steps ?? node.dataset.minimaxH3Steps ?? 4) === 8 ? 8 : 4,
-    duration: Math.max(5, Math.min(15, Number(options.duration ?? node.dataset.minimaxH3Duration ?? 12) || 12)),
-    refImageSize: options.refImageSize || node.dataset.minimaxH3RefImageSize || "match",
-    seed: options.seed ?? node.dataset.minimaxH3Seed ?? "",
-  };
-  node.innerHTML = "";
-  node.dataset.minimaxH3Prompt = String(previous.prompt || "");
-  node.dataset.minimaxH3AspectRatio = previous.aspectRatio;
-  node.dataset.minimaxH3Megapixels = String(previous.megapixels);
-  node.dataset.minimaxH3Steps = String(previous.steps);
-  node.dataset.minimaxH3Duration = String(previous.duration);
-  node.dataset.minimaxH3RefImageSize = previous.refImageSize;
-  node.dataset.minimaxH3Seed = String(previous.seed ?? "");
-
-  const inputPort = createCanvasPort("input");
-  const outputPort = createCanvasPort("output");
-  const bar = createCanvasNodeBar("MiniMax H3 生视频");
-  const intro = document.createElement("div");
-  intro.className = "canvas-h3-intro";
-  intro.innerHTML = "<strong>文生视频 · 多模态参考生成</strong><span>最多 9 图 · 3 视频 · 3 音频</span>";
-
-  const references = document.createElement("div");
-  references.className = "canvas-h3-reference-grid";
-
-  const promptLabel = document.createElement("label");
-  promptLabel.className = "canvas-h3-field canvas-h3-prompt-field";
-  const promptCaption = document.createElement("span");
-  promptCaption.textContent = "视频描述";
-  const prompt = document.createElement("textarea");
-  prompt.className = "canvas-h3-prompt";
-  prompt.rows = 6;
-  prompt.placeholder = "描述镜头、人物、动作、对白和声音；可使用 <Picture 1>、<Video 1>、<Audio 1> 引用素材。";
-  prompt.value = previous.prompt;
-  prompt.setAttribute("aria-autocomplete", "list");
-  prompt.setAttribute("aria-expanded", "false");
-  prompt.addEventListener("wheel", stopCanvasTextWheel);
-  prompt.addEventListener("compositionstart", () => {
-    prompt.dataset.h3Composing = "true";
-    closeCanvasH3MentionMenu(prompt);
-  });
-  prompt.addEventListener("compositionend", () => {
-    prompt.dataset.h3Composing = "";
-    updateCanvasH3MentionFromTextarea(node, prompt);
-  });
-  prompt.addEventListener("input", () => {
-    node.dataset.minimaxH3Prompt = prompt.value;
-    updateCanvasH3MentionFromTextarea(node, prompt);
-    scheduleCanvasSave();
-  });
-  prompt.addEventListener("keydown", (event) => handleCanvasH3MentionKeydown(event, node, prompt));
-  prompt.addEventListener("click", () => updateCanvasH3MentionFromTextarea(node, prompt));
-  prompt.addEventListener("blur", () => setTimeout(() => closeCanvasH3MentionMenu(prompt), 0));
-  promptLabel.append(promptCaption, prompt);
-
-  const controls = document.createElement("div");
-  controls.className = "canvas-h3-controls";
-  const aspectRatio = createCanvasH3Select("画幅", [
-    ["1:1", "1:1 方形"],
-    ["2:3", "2:3 竖版照片"],
-    ["3:2", "3:2 横版照片"],
-    ["3:4", "3:4 标准竖版"],
-    ["4:3", "4:3 标准横版"],
-    ["9:16", "9:16 竖屏"],
-    ["16:9", "16:9 横屏"],
-    ["21:9", "21:9 超宽屏"],
-  ], previous.aspectRatio, "minimaxH3AspectRatio", node);
-  const megapixels = createCanvasH3Select("分辨率", [
-    ["0.6", "快速 · 标准分辨率"],
-    ["1", "高清 · 高分辨率"],
-  ], String(previous.megapixels), "minimaxH3Megapixels", node);
-  const resolutionHint = document.createElement("small");
-  resolutionHint.className = "canvas-h3-resolution-hint";
-  megapixels.append(resolutionHint);
-  const steps = createCanvasH3Select("采样质量", [
-    ["4", "快速 · 4 步"],
-    ["8", "高质量 · 8 步"],
-  ], String(previous.steps), "minimaxH3Steps", node);
-  const refImageSize = createCanvasH3Select("参考图", [
-    ["match", "匹配输出"],
-    ["max", "最大保真"],
-  ], previous.refImageSize, "minimaxH3RefImageSize", node);
-  const duration = createCanvasH3Number("时长（秒）", previous.duration, 5, 15, 1, "minimaxH3Duration", node);
-  const seed = createCanvasH3Number("种子（留空随机）", previous.seed, 0, Number.MAX_SAFE_INTEGER, 1, "minimaxH3Seed", node, true);
-  controls.append(aspectRatio, megapixels, steps, refImageSize, duration, seed);
-  [aspectRatio, megapixels].forEach((field) => {
-    field.querySelector("select")?.addEventListener("change", () => updateCanvasH3ResolutionHint(node));
-  });
-
-  const footer = document.createElement("div");
-  footer.className = "canvas-h3-footer";
-  const status = document.createElement("span");
-  status.className = "canvas-h3-status";
-  status.textContent = "输入描述即可生成，参考素材可选";
-  const run = document.createElement("button");
-  run.type = "button";
-  run.className = "canvas-h3-run";
-  run.innerHTML = '<i data-lucide="play"></i><span>生成视频</span>';
-  run.addEventListener("click", () => runCanvasMinimaxH3Node(node));
-  footer.append(status, run);
-
-  node.append(inputPort, outputPort, bar, intro, references, promptLabel, controls, footer, createCanvasResizeHandle());
-  updateCanvasH3ResolutionHint(node);
-  renderCanvasMinimaxH3References(node);
-  syncCanvasMinimaxH3Prompt(node);
-  window.lucide?.createIcons({ attrs: { "aria-hidden": "true", "stroke-width": 1.8 } });
-  scheduleCanvasConnectionRender();
+  const plugin = window.AiOsCanvasNodePlugins?.get?.("minimax-h3");
+  if (plugin?.render) {
+    plugin.render(node, options, getCanvasNodePluginContext());
+    return;
+  }
+  const renderer = window.CanvasH3NodeRenderer;
+  if (!renderer?.render) throw new Error("Canvas MiniMax H3 node renderer is unavailable.");
+  return renderer.render(node, options, getCanvasNodePluginContext());
 }
 
 function calculateCanvasH3Resolution(aspectRatio, megapixels, multiple = 32) {
-  const [widthRatio, heightRatio] = MINIMAX_H3_ASPECT_RATIOS[aspectRatio] || MINIMAX_H3_ASPECT_RATIOS["16:9"];
-  const normalizedMegapixels = Number(megapixels) === 1 ? 1 : 0.6;
-  const scale = Math.sqrt((normalizedMegapixels * 1024 * 1024) / (widthRatio * heightRatio));
-  return {
-    width: Math.round((widthRatio * scale) / multiple) * multiple,
-    height: Math.round((heightRatio * scale) / multiple) * multiple,
-  };
+  return getCanvasH3ControlsUi().calculateResolution(
+    MINIMAX_H3_ASPECT_RATIOS,
+    aspectRatio,
+    megapixels,
+    multiple,
+  );
 }
 
 function updateCanvasH3ResolutionHint(node) {
@@ -4658,48 +6358,32 @@ function updateCanvasH3ResolutionHint(node) {
 }
 
 function createCanvasH3Select(label, choices, value, datasetKey, node) {
-  const field = document.createElement("label");
-  field.className = "canvas-h3-field";
-  const caption = document.createElement("span");
-  caption.textContent = label;
-  const select = document.createElement("select");
-  choices.forEach(([choiceValue, choiceLabel]) => {
-    const option = document.createElement("option");
-    option.value = choiceValue;
-    option.textContent = choiceLabel;
-    select.append(option);
+  return getCanvasH3ControlsUi().createSelectField({
+    document,
+    label,
+    choices,
+    value,
+    onChange: (nextValue) => {
+      node.dataset[datasetKey] = nextValue;
+      scheduleCanvasSave();
+    },
   });
-  select.value = String(value);
-  select.addEventListener("change", () => {
-    node.dataset[datasetKey] = select.value;
-    scheduleCanvasSave();
-  });
-  field.append(caption, select);
-  return field;
 }
 
 function createCanvasH3Number(label, value, min, max, step, datasetKey, node, allowBlank = false) {
-  const field = document.createElement("label");
-  field.className = "canvas-h3-field";
-  const caption = document.createElement("span");
-  caption.textContent = label;
-  const input = document.createElement("input");
-  input.type = "number";
-  input.min = String(min);
-  input.max = String(max);
-  input.step = String(step);
-  input.value = value === "" && allowBlank ? "" : String(value);
-  input.addEventListener("change", () => {
-    if (allowBlank && input.value === "") node.dataset[datasetKey] = "";
-    else {
-      const next = Math.max(min, Math.min(max, Number(input.value) || min));
-      input.value = String(next);
-      node.dataset[datasetKey] = input.value;
-    }
-    scheduleCanvasSave();
+  return getCanvasH3ControlsUi().createNumberField({
+    document,
+    label,
+    value,
+    min,
+    max,
+    step,
+    allowBlank,
+    onChange: (nextValue) => {
+      node.dataset[datasetKey] = nextValue;
+      scheduleCanvasSave();
+    },
   });
-  field.append(caption, input);
-  return field;
 }
 
 function getCanvasIncomingMinimaxH3Refs(node) {
@@ -5177,15 +6861,17 @@ async function runCanvasMinimaxH3Node(node, options) {
     guard?.assertActive();
     const videoUrl = task.videos?.[0];
     if (!videoUrl) throw new Error("任务成功，但没有返回视频文件。");
-    const output = getOrCreateCanvasVideoOutput(node);
+    const output = getOrCreateCanvasAssetOutput(node, "video");
     guard?.assertActive();
-    appendCanvasVideoOutputHistory(output, {
+    const result = {
       src: videoUrl,
       name: `MiniMax H3 ${new Date().toLocaleString()}.mp4`,
       mimeType: "video/mp4",
       promptSummary: prompt.slice(0, 180),
       createdAt: new Date().toISOString(),
-    });
+    };
+    if (output.classList.contains("canvas-node-video-output")) appendCanvasVideoOutputHistory(output, result);
+    else appendCanvasAssetCollectionMember(output, { ...result, kind: "video", source: "generation", sourceNodeId: node.dataset.id });
     setCanvasH3Status(node, "生成完成");
     scheduleCanvasSave();
   } catch (error) {
@@ -5219,8 +6905,10 @@ function setCanvasH3Status(node, message, isError = false) {
   const status = node.querySelector(".canvas-h3-status");
   if (status) {
     status.textContent = message;
+    status.dataset.state = isError ? "failed" : canvasNodeStatusState(message);
     status.classList.toggle("is-error", Boolean(isError));
   }
+  syncCanvasNodeFooterVisibility(node);
 }
 
 function getOrCreateCanvasVideoOutput(node) {
@@ -5239,59 +6927,32 @@ function getOrCreateCanvasVideoOutput(node) {
 }
 
 function getCanvasVideoLegacyItem(node, options = {}) {
-  const src = options.src ?? node?.dataset?.videoSrc ?? "";
-  if (!src) return null;
-  return {
-    src,
-    name: options.name ?? node.dataset.mediaName ?? node.dataset.videoName ?? "生成视频",
-    mimeType: options.mimeType ?? node.dataset.mediaMimeType ?? node.dataset.videoMimeType ?? "video/mp4",
-    duration: options.duration ?? Number(node.dataset.mediaDuration || node.dataset.videoDuration || 0),
-    promptSummary: options.promptSummary ?? node.dataset.videoPromptSummary ?? "",
-    createdAt: options.createdAt ?? node.dataset.videoCreatedAt ?? "",
-  };
+  return CanvasVideoOutputState.legacyItem(node, options);
 }
 
 function getCanvasVideoHistory(node) {
-  let stored = [];
-  try {
-    const parsed = JSON.parse(node?.dataset?.videoHistory || "[]");
-    if (Array.isArray(parsed)) stored = parsed;
-  } catch {
-    stored = [];
-  }
-  const normalized = VideoHistoryRules.normalizeVideoHistory(stored, getCanvasVideoLegacyItem(node), createId);
-  if (node) node.dataset.videoHistory = JSON.stringify(normalized);
-  return normalized;
+  return CanvasVideoOutputState.history(node, {
+    createId,
+    rules: VideoHistoryRules,
+  });
 }
 
 function syncCanvasVideoLegacyFields(node, active) {
-  const video = active || null;
-  node.dataset.videoSrc = video?.src || "";
-  node.dataset.videoName = video?.name || "生成视频";
-  node.dataset.mediaName = video?.name || "生成视频";
-  node.dataset.mediaMimeType = video?.mimeType || "video/mp4";
-  node.dataset.mediaDuration = String(Number(video?.duration || 0));
-  node.dataset.videoMimeType = video?.mimeType || "video/mp4";
-  node.dataset.videoDuration = String(Number(video?.duration || 0));
-  node.dataset.videoPromptSummary = video?.promptSummary || "";
-  node.dataset.videoCreatedAt = video?.createdAt || "";
-  node.classList.toggle("has-media", Boolean(video?.src));
+  CanvasVideoOutputState.syncLegacyFields(node, active);
 }
 
 function setCanvasVideoHistoryState(node, history, activeVideoId = "") {
-  const normalized = VideoHistoryRules.normalizeVideoHistory(history, null, createId);
-  const active = VideoHistoryRules.resolveActiveVideo(normalized, activeVideoId);
-  node.dataset.videoHistory = JSON.stringify(normalized);
-  if (active) node.dataset.videoActiveId = active.id;
-  else delete node.dataset.videoActiveId;
-  syncCanvasVideoLegacyFields(node, active);
-  return active;
+  return CanvasVideoOutputState.writeHistoryState(node, history, activeVideoId, {
+    createId,
+    rules: VideoHistoryRules,
+  });
 }
 
 function getCanvasVideoActiveItem(node) {
-  if (!node?.classList?.contains("canvas-node-video-output")) return null;
-  const history = getCanvasVideoHistory(node);
-  return setCanvasVideoHistoryState(node, history, node.dataset.videoActiveId || "");
+  return CanvasVideoOutputState.activeItem(node, {
+    createId,
+    rules: VideoHistoryRules,
+  });
 }
 
 function appendCanvasVideoOutputHistory(node, video) {
@@ -5343,121 +7004,38 @@ function removeCanvasVideoHistoryItem(node, videoId) {
 }
 
 function updateCanvasVideoHistoryDuration(node, videoId, duration) {
-  const seconds = Number(duration || 0);
-  if (!Number.isFinite(seconds) || seconds <= 0) return;
-  const history = getCanvasVideoHistory(node);
-  const next = history.map((video) => video.id === videoId ? { ...video, duration: seconds } : video);
+  const next = CanvasVideoOutputState.withUpdatedDuration(
+    getCanvasVideoHistory(node),
+    videoId,
+    duration,
+    { createId, rules: VideoHistoryRules },
+  );
+  if (!next) return;
   setCanvasVideoHistoryState(node, next, node.dataset.videoActiveId || videoId);
   scheduleCanvasConnectionRender();
   scheduleCanvasSave();
 }
 
 function serializeCanvasVideoOutputState(node) {
-  return {
-    videoHistory: getCanvasVideoHistory(node),
-    videoActiveId: getCanvasVideoActiveItem(node)?.id || "",
-    videoSrc: node.dataset.videoSrc || "",
-    videoName: node.dataset.videoName || node.dataset.mediaName || "生成视频",
-    videoMimeType: node.dataset.videoMimeType || node.dataset.mediaMimeType || "video/mp4",
-    videoDuration: Number(node.dataset.videoDuration || node.dataset.mediaDuration || 0),
-    mediaName: node.dataset.mediaName || node.dataset.videoName || "生成视频",
-    mediaMimeType: node.dataset.mediaMimeType || node.dataset.videoMimeType || "video/mp4",
-    mediaDuration: Number(node.dataset.mediaDuration || node.dataset.videoDuration || 0),
-    videoPromptSummary: node.dataset.videoPromptSummary || "",
-    videoCreatedAt: node.dataset.videoCreatedAt || "",
-  };
+  return CanvasVideoOutputState.serialize(node, {
+    createId,
+    rules: VideoHistoryRules,
+  });
 }
 
 function getCanvasVideoOutputRenderOptions(item = {}) {
-  return {
-    videoHistory: Array.isArray(item.videoHistory) ? item.videoHistory : [],
-    activeVideoId: item.videoActiveId || "",
-    src: item.videoSrc || item.mediaSrc || "",
-    name: item.mediaName || item.videoName || "生成视频",
-    mimeType: item.mediaMimeType || item.videoMimeType || "video/mp4",
-    duration: item.mediaDuration || item.videoDuration || 0,
-    promptSummary: item.videoPromptSummary || "",
-    createdAt: item.videoCreatedAt || "",
-  };
+  return CanvasVideoOutputState.renderOptions(item);
 }
 
 function renderCanvasVideoOutputNode(node, options = {}) {
-  const wasHistoryOpen = node.classList.contains("is-video-history-open");
-  const legacy = getCanvasVideoLegacyItem(node, options);
-  let history;
-  if (Array.isArray(options.videoHistory) || Array.isArray(options.history)) {
-    history = VideoHistoryRules.normalizeVideoHistory(options.videoHistory || options.history, legacy, createId);
-  } else {
-    history = getCanvasVideoHistory(node);
-    if (!history.length && legacy) history = VideoHistoryRules.normalizeVideoHistory([], legacy, createId);
+  const plugin = window.AiOsCanvasNodePlugins?.get?.("video-output");
+  if (plugin?.render) {
+    plugin.render(node, options, getCanvasNodePluginContext());
+    return;
   }
-  const active = setCanvasVideoHistoryState(
-    node,
-    history,
-    options.activeVideoId ?? node.dataset.videoActiveId ?? "",
-  );
-  const src = active?.src || "";
-  node.innerHTML = "";
-
-  const inputPort = createCanvasPort("input");
-  const outputPort = createCanvasPort("output");
-  const bar = createCanvasNodeBar(src ? "视频输出" : "等待视频");
-  const stage = document.createElement("div");
-  stage.className = "canvas-video-output-stage";
-  if (src) {
-    const video = document.createElement("video");
-    video.src = src;
-    video.controls = true;
-    video.playsInline = true;
-    video.preload = "metadata";
-    video.addEventListener("loadedmetadata", () => {
-      updateCanvasVideoHistoryDuration(node, active.id, video.duration);
-    });
-    stage.append(video);
-  } else {
-    stage.innerHTML = '<span class="canvas-video-output-empty"><i data-lucide="clapperboard"></i><strong>视频将在这里播放</strong><small>连接 MiniMax H3 节点后自动更新</small></span>';
-  }
-  const historyToggle = document.createElement("button");
-  historyToggle.type = "button";
-  historyToggle.className = "canvas-video-history-toggle";
-  historyToggle.title = "查看此节点的视频历史";
-  historyToggle.setAttribute("aria-label", "查看此节点的视频历史");
-  historyToggle.setAttribute("aria-expanded", "false");
-  historyToggle.innerHTML = `<i data-lucide="list-video"></i><b>${history.length}</b>`;
-  historyToggle.hidden = !history.length;
-  historyToggle.addEventListener("pointerdown", (event) => event.stopPropagation());
-  historyToggle.addEventListener("click", (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    setCanvasVideoHistoryOpen(node, node.querySelector(".canvas-video-history-panel")?.hidden !== false);
-  });
-  const historyPanel = document.createElement("section");
-  historyPanel.className = "canvas-video-history-panel";
-  historyPanel.hidden = true;
-  historyPanel.addEventListener("pointerdown", (event) => event.stopPropagation());
-  historyPanel.addEventListener("click", (event) => event.stopPropagation());
-  historyPanel.addEventListener("wheel", (event) => event.stopPropagation());
-  const historyHeader = document.createElement("header");
-  const historyTitle = document.createElement("strong");
-  historyTitle.className = "canvas-video-history-title";
-  const historyClose = document.createElement("button");
-  historyClose.type = "button";
-  historyClose.className = "canvas-video-history-close";
-  historyClose.innerHTML = '<i data-lucide="x"></i>';
-  historyClose.setAttribute("aria-label", "关闭视频历史");
-  historyClose.addEventListener("click", () => setCanvasVideoHistoryOpen(node, false));
-  historyHeader.append(historyTitle, historyClose);
-  const historyList = document.createElement("div");
-  historyList.className = "canvas-video-history-list";
-  const historyHint = document.createElement("footer");
-  historyHint.className = "canvas-video-history-hint";
-  historyHint.textContent = "点击视频可切换当前输出";
-  historyPanel.append(historyHeader, historyList, historyHint);
-
-  node.append(inputPort, outputPort, bar, stage, historyToggle, historyPanel, createCanvasResizeHandle());
-  if (wasHistoryOpen && history.length) setCanvasVideoHistoryOpen(node, true);
-  window.lucide?.createIcons({ attrs: { "aria-hidden": "true", "stroke-width": 1.8 } });
-  scheduleCanvasConnectionRender();
+  const renderer = window.CanvasVideoOutputNodeRenderer;
+  if (!renderer?.render) throw new Error("Canvas video output node renderer is unavailable.");
+  renderer.render(node, options, getCanvasNodePluginContext());
 }
 
 function renderCanvasVideoOutputHistory(node) {
@@ -5573,7 +7151,6 @@ function setCanvasVideoHistoryOpen(node, open) {
   const toggle = node?.querySelector(".canvas-video-history-toggle");
   if (!panel || !toggle) return false;
   if (open) {
-    closeCanvasGalleryHistoryPanels();
     closeCanvasVideoHistoryPanels(node);
     renderCanvasVideoOutputHistory(node);
   }
@@ -5598,15 +7175,20 @@ function closeCanvasVideoHistoryPanels(exceptNode = null) {
 }
 
 function createCanvasNodeFromConnectChoice(choice, point) {
+  if (choice === "image-generator") return addCanvasImageGeneratorNode(point);
+  if (choice === "video-generator") return addCanvasVideoGeneratorNode(point);
   if (choice === "video") return addCanvasVideoNode(point);
   if (choice === "audio") return addCanvasAudioNode(point);
   if (choice === "minimax-h3") return addCanvasMinimaxH3Node(point);
+  if (choice === "video-api") return addCanvasApiVideoNode(point);
   if (choice === "video-output") return addCanvasVideoOutputNode(point);
   if (choice === "text") return addCanvasText(point, { focus: false });
+  if (choice === "note") return addCanvasNote(point, { focus: false });
   if (choice === "gallery") return addCanvasGallery(point);
   if (choice === "llm") return addCanvasLlmNode(point);
   if (choice === "comfy") return addCanvasComfyNode(point);
   if (choice === "loop") return addCanvasLoopNode(point);
+  if (choice === "midjourney") return addCanvasMidjourneyNode(point);
   if (choice === "generator") return addCanvasImagePlaceholder(point);
   return addCanvasUploadPlaceholder(point);
 }
@@ -5625,6 +7207,8 @@ function addCanvasComfyNode(point, options = {}) {
   const node = createCanvasNode("comfy");
   if (point) setCanvasNodePoint(node, point);
   renderCanvasComfyNode(node, options);
+  node.dataset.canvasEngine = "comfyui";
+  node.dataset.canvasNodeType = "comfy";
   applyCanvasNodeSize(node);
   placeCanvasNode(node);
   scheduleCanvasSave();
@@ -5641,14 +7225,392 @@ function addCanvasLoopNode(point) {
   return node;
 }
 
-function addCanvasGallery(point) {
-  const node = createCanvasNode("gallery");
+/* --------------------------------------------------------------------------
+   3D 导演台
+   --------------------------------------------------------------------------
+   A builtin scene node. The card keeps the scene JSON plus one preview frame,
+   and a full screen stage edits the scene in place. The node stays a normal
+   board citizen: it serialises and restores like every other card, and it can
+   export the current camera frame as a plain image node. Nothing here touches
+   the canvas theme, the project manager or the rest of AI OS.
+   -------------------------------------------------------------------------- */
+
+const CANVAS_DIRECTOR3D_PREVIEW_WIDTH = 720;
+const CANVAS_DIRECTOR3D_CARD_WIDTH = 350;
+
+let canvasDirector3dApp = null;
+let canvasDirector3dNode = null;
+
+function canvasDirector3dCore() {
+  return window.CanvasDirector3d || null;
+}
+
+function canvasDirector3dUi() {
+  return window.CanvasDirector3dUi || null;
+}
+
+function readCanvasDirector3dProject(node) {
+  const raw = node?.dataset?.directorProject;
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+function writeCanvasDirector3dProject(node, project) {
+  if (!node || !project) return;
+  try {
+    node.dataset.directorProject = JSON.stringify(project);
+  } catch {
+    setCanvasStatus("3D 场景过大，暂时无法写入节点。");
+  }
+}
+
+function canvasDirector3dSceneName(node) {
+  const project = readCanvasDirector3dProject(node);
+  const name = project ? String(project.name || "").trim() : "";
+  return name || node?.dataset?.directorSceneName || "3D 导演台";
+}
+
+/** Downscales a captured frame so the node cover stays cheap to store. */
+function canvasDirector3dCardPreview(dataUrl) {
+  return new Promise((resolve) => {
+    if (!dataUrl) {
+      resolve("");
+      return;
+    }
+    const image = new Image();
+    image.onload = () => {
+      const scale = Math.min(1, CANVAS_DIRECTOR3D_PREVIEW_WIDTH / (image.naturalWidth || CANVAS_DIRECTOR3D_PREVIEW_WIDTH));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round((image.naturalWidth || 1) * scale));
+      canvas.height = Math.max(1, Math.round((image.naturalHeight || 1) * scale));
+      const context = canvas.getContext("2d");
+      if (!context) {
+        resolve(dataUrl);
+        return;
+      }
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      try {
+        resolve(canvas.toDataURL("image/jpeg", 0.86));
+      } catch {
+        resolve(dataUrl);
+      }
+    };
+    image.onerror = () => resolve(dataUrl);
+    image.src = dataUrl;
+  });
+}
+
+/**
+ * Prefers the asset pipeline so the board JSON stays small, and falls back to
+ * the inline data URL the crop tools already use when uploads are unavailable.
+ */
+async function canvasDirector3dStoreImage(dataUrl, filename, fallback) {
+  try {
+    const response = await fetch(dataUrl);
+    const blob = await response.blob();
+    const file = new File([blob], filename, { type: blob.type || "image/png" });
+    const url = await uploadCanvasImageFile(file);
+    if (url) return url;
+  } catch {
+    /* offline or no upload endpoint: fall through to the inline frame */
+  }
+  return fallback === undefined ? dataUrl : fallback;
+}
+
+function addCanvasDirector3dNode(point, options = {}) {
+  const node = createCanvasNode("director3d");
+  node.dataset.canvasNodeType = "director3d";
   if (point) setCanvasNodePoint(node, point);
-  renderCanvasGalleryNode(node, { images: [] });
+  renderCanvasDirector3dNode(node, options);
   applyCanvasNodeSize(node);
   placeCanvasNode(node);
   scheduleCanvasSave();
   return node;
+}
+
+function renderCanvasDirector3dNode(node, options = {}) {
+  const plugin = window.AiOsCanvasNodePlugins?.get?.("director3d");
+  if (plugin?.render) {
+    plugin.render(node, options, getCanvasNodePluginContext());
+    return;
+  }
+  const renderer = window.CanvasDirector3dNodeRenderer;
+  if (!renderer?.render) throw new Error("Canvas 3D director node renderer is unavailable.");
+  renderer.render(node, options, getCanvasNodePluginContext());
+}
+
+function openCanvasDirector3dWorkbench(node, { exportOnOpen = false } = {}) {
+  const core = canvasDirector3dCore();
+  const ui = canvasDirector3dUi();
+  if (!core || !ui) {
+    setCanvasStatus("3D 导演台组件还没有加载完成。");
+    return null;
+  }
+  canvasDirector3dNode = node;
+  if (!canvasDirector3dApp) {
+    canvasDirector3dApp = ui.createDirector3dApp({
+      core,
+      nodeId: String(node.dataset.id || ""),
+      project: readCanvasDirector3dProject(node) || core.createProject(),
+      previewSrc: node.dataset.directorPreviewSrc || "",
+      onChange: () => scheduleCanvasSave(),
+      onStatus: (message) => {
+        if (message) setCanvasStatus(message);
+      },
+      onSaveScene: (payload) => saveCanvasDirector3dScene(node, payload),
+      onExportFrame: (payload) => exportCanvasDirector3dFrame(node, payload),
+      onClose: ({ dirty }) => {
+        const app = canvasDirector3dApp;
+        canvasDirector3dApp = null;
+        const target = canvasDirector3dNode;
+        canvasDirector3dNode = null;
+        if (dirty && target && app) writeCanvasDirector3dProject(target, app.project);
+        if (dirty && target) scheduleCanvasSave();
+        window.setTimeout(() => app?.destroy?.(), 0);
+      },
+    });
+  }
+  canvasDirector3dApp.open();
+  if (exportOnOpen) canvasDirector3dApp.setStatus("在导演台里摆好画面后，用右上角的导出单帧生成图片节点。");
+  return canvasDirector3dApp;
+}
+
+async function saveCanvasDirector3dScene(node, payload) {
+  if (!node || !payload) return;
+  writeCanvasDirector3dProject(node, payload.project);
+  node.dataset.directorSceneName = String(payload.name || "3D 导演台");
+  if (!payload.dataUrl) {
+    updateCanvasDirector3dNodeCard(node, { name: payload.name });
+    return;
+  }
+  const cardPreview = await canvasDirector3dCardPreview(payload.dataUrl);
+  const stored = await canvasDirector3dStoreImage(cardPreview, `${payload.name || "3d-scene"}.jpg`, cardPreview);
+  node.dataset.directorPreviewSrc = stored;
+  updateCanvasDirector3dNodeCard(node, { previewSrc: stored, name: payload.name });
+  scheduleCanvasSave();
+}
+
+function updateCanvasDirector3dNodeCard(node, { previewSrc, name } = {}) {
+  if (!node) return;
+  const cover = node.querySelector(".canvas-director-cover");
+  const actions = node.querySelector(".canvas-director-actions");
+  if (name) node.dataset.directorSceneName = String(name);
+  if (!cover) return;
+  const src = previewSrc === undefined ? String(node.dataset.directorPreviewSrc || "") : String(previewSrc || "");
+  cover.innerHTML = "";
+  if (src) {
+    const image = document.createElement("img");
+    image.className = "canvas-director-cover-img";
+    image.src = src;
+    image.alt = `${canvasDirector3dSceneName(node)} 预览`;
+    image.loading = "lazy";
+    image.decoding = "async";
+    cover.append(image);
+  }
+  const openButton = actions?.querySelector(".canvas-director-open");
+  if (openButton) openButton.textContent = src ? "打开这个场景" : "打开导演台";
+  if (previewSrc !== undefined) updateCanvasNodeRefs(node);
+}
+
+async function exportCanvasDirector3dFrame(node, payload) {
+  if (!node || !payload) return null;
+  const name = String(payload.name || "导演画面").replace(/[\\/:*?"<>|]/g, "-");
+  const frameUrl = await canvasDirector3dStoreImage(payload.dataUrl, `${name}.png`, payload.dataUrl);
+  const point = {
+    x: Number(node.dataset.x || 0) + (node.offsetWidth || CANVAS_DIRECTOR3D_CARD_WIDTH) + 72,
+    y: Number(node.dataset.y || 0),
+  };
+  // A filled image node is a source on this canvas and refuses an incoming wire,
+  // so the new node is created empty, wired to the stage, then filled with the
+  // exported frame. The connection survives because the port is kept once the
+  // node already has an incoming link.
+  const image = addCanvasImage("", `${name}.png`, point);
+  connectCanvasNodes(node.dataset.id, image.dataset.id, "input", "output");
+  renderCanvasImageNode(image, { src: frameUrl, name: `${name}.png` });
+  if (!node.dataset.directorPreviewSrc) {
+    const cardPreview = await canvasDirector3dCardPreview(payload.dataUrl);
+    const stored = await canvasDirector3dStoreImage(cardPreview, `${name}.jpg`, cardPreview);
+    node.dataset.directorPreviewSrc = stored;
+    updateCanvasDirector3dNodeCard(node, { previewSrc: stored });
+  }
+  selectCanvasNode(image);
+  setCanvasStatus(`已导出 ${payload.width}×${payload.height} 的导演画面。`);
+  seedCanvasDirector3dProject(node, payload.project);
+  return image;
+}
+
+function seedCanvasDirector3dProject(node, project) {
+  if (!node || !project) return;
+  writeCanvasDirector3dProject(node, project);
+  scheduleCanvasSave();
+}
+
+/**
+ * Agent entry point for the 3D stage. It resolves the stage the user is looking
+ * at, points a camera at the cast, records a camera motion, and reports the
+ * scene in words so the conversation can keep talking about it.
+ */
+function createAgentCanvasDirector3dNode(args = {}, context) {
+  const anchorId = args.source_node_id || args.reference_node_ids?.[0] || "";
+  const anchor = anchorId ? findAgentOwnedCanvasNode(anchorId, context) : null;
+  const point = getAgentCanvasPoint(args, anchor);
+  const node = addCanvasDirector3dNode(point);
+  node.dataset.boardId = String(context?.scope?.boardId || "");
+  if (!hasCanvasAgentNumber(args.x) && !hasCanvasAgentNumber(args.y)) {
+    if (anchor) placeAgentCanvasNodesAfterReferences([node], [anchor]);
+    else centerAgentCanvasNodesInViewport([node]);
+  }
+  scheduleAgentCanvasAutoFocus([node]);
+  return node;
+}
+
+function resolveAgentCanvasDirector3dNode(args = {}, context) {
+  const requested = String(args.node_id || "").trim();
+  if (requested) {
+    const node = getCanvasNode(requested) || ensureCanvasNodeMounted(requested);
+    if (!node?.classList?.contains("canvas-node-director3d")) {
+      throw new Error("指定的节点不是 3D 导演台。");
+    }
+    return { node, created: false };
+  }
+  if (canvasDirector3dNode?.isConnected) return { node: canvasDirector3dNode, created: false };
+  const stages = Array.from(document.querySelectorAll("#canvasPlane .canvas-node-director3d"));
+  if (stages.length) return { node: stages[0], created: false };
+  return { node: createAgentCanvasDirector3dNode(args, context), created: true };
+}
+
+function describeAgentCanvasDirector3dContext(core, project, node) {
+  const scene = core.sceneContext(project, { nodeId: String(node?.dataset?.id || ""), time: 0 });
+  return {
+    scene_name: String(project?.name || ""),
+    aspect_ratio: String(project?.aspectRatio || "auto"),
+    duration: Number(project?.duration || 0),
+    object_count: (project?.items || []).length,
+    // Asked of the catalogue rather than a hard-coded pair of ids, so every
+    // character counts - including the box ids an older project stored, which
+    // now resolve to skinned models.
+    character_count: (project?.items || []).filter((item) => core.ITEM_KINDS[item.kind]?.group === "character").length,
+    camera_count: (project?.items || []).filter((item) => item.kind === "camera").length,
+    camera_motion_presets: scene.cameraAnimationPresets,
+    objects: scene.scene,
+  };
+}
+
+async function applyAgentCanvasDirector3d(args = {}, context) {
+  assertCanvasAgentContext(context);
+  const core = canvasDirector3dCore();
+  if (!core) throw new Error("3D 导演台组件还没有加载完成。");
+  const { node, created } = resolveAgentCanvasDirector3dNode(args, context);
+  node.dataset.boardId = String(context.scope.boardId || "");
+  const project = readCanvasDirector3dProject(node) || core.createProject();
+  let camera = (project.items || []).find((item) => item.kind === "camera") || null;
+  if (!camera) camera = core.addItem(project, "camera");
+  const shotPreset = String(args.shot_preset || "").trim();
+  const cameraMotion = String(args.camera_motion || "").trim();
+  if (shotPreset) {
+    if (!core.applyShotPreset(project, camera.id, shotPreset, "", 0)) {
+      throw new Error(`3D 导演台没有这个机位预设：${shotPreset}`);
+    }
+  }
+  if (cameraMotion) {
+    if (!core.applyCameraMotionPreset(project, camera.id, cameraMotion, "", 0)) {
+      throw new Error(`3D 导演台没有这个相机动画：${cameraMotion}`);
+    }
+  }
+  writeCanvasDirector3dProject(node, project);
+  node.dataset.directorSceneName = String(project.name || "3D 导演台");
+  updateCanvasDirector3dNodeCard(node, { name: project.name });
+  if (canvasDirector3dApp && canvasDirector3dNode === node) canvasDirector3dApp.setProject(project);
+  scheduleCanvasSave();
+  const summary = describeAgentCanvasDirector3dContext(core, project, node);
+  const parts = [];
+  if (created) parts.push("已新建 3D 导演台");
+  if (shotPreset) parts.push(`机位换成「${core.SHOT_PRESETS.find((item) => item.id === shotPreset)?.label || shotPreset}」`);
+  if (cameraMotion) parts.push(`相机动画「${core.CAMERA_MOTION_PRESETS.find((item) => item.id === cameraMotion)?.label || cameraMotion}」`);
+  return {
+    node_id: String(node.dataset.id || ""),
+    created,
+    shot_preset: shotPreset,
+    camera_motion: cameraMotion,
+    keyframes: Number(core.keyframesFor(project, camera.id).length),
+    ...summary,
+    message: parts.length
+      ? `3D 导演台：${parts.join("，")}。`
+      : "3D 导演台没有变化，可以再指定机位预设或相机动画。",
+  };
+}
+
+function addCanvasGallery(point) {
+  return addCanvasGalleryContainer(point);
+}
+
+function addCanvasGalleryContainer(point, options = {}) {
+  const node = createCanvasNode("gallery-container");
+  if (point) setCanvasNodePoint(node, point);
+  renderCanvasGalleryContainerNode(node, options.container || {
+    title: options.title || "图集",
+    members: options.members || [],
+    activeMemberId: options.activeMemberId || "",
+    columns: options.columns ?? null,
+    gap: options.gap ?? null,
+  });
+  applyCanvasNodeSize(node);
+  placeCanvasNode(node);
+  if (!options.deferSave) scheduleCanvasSave();
+  return node;
+}
+
+function createCanvasGalleryContainerWithSourceConnection(sourceNode, point, options = {}, { label = "创建图集" } = {}) {
+  const sourceId = String(sourceNode?.dataset?.id || "");
+  const sourceOutput = getCanvasNodeOutput(sourceNode, "output");
+  if (!sourceId || !sourceOutput) {
+    throw new Error("裁切来源节点无效，未创建图集。");
+  }
+  const gallery = addCanvasGalleryContainer(point, { ...options, deferSave: true });
+  const discardGallery = () => {
+    if (!gallery) return;
+    gallery.remove?.();
+    removeCanvasNodeModels(new Set([gallery.dataset.id]));
+  };
+  if (!gallery?.classList?.contains("canvas-node-gallery-container") || !getCanvasPortPoint(gallery, "input")) {
+    discardGallery();
+    throw new Error("裁切 gallery-container 创建失败。");
+  }
+  const compatibility = getCanvasConnectionCompatibility(sourceNode, gallery, sourceOutput);
+  if (!compatibility.ok) {
+    discardGallery();
+    throw new Error(compatibility.message || "裁切结果无法连接到来源节点。");
+  }
+
+  const connection = normalizeVisibleCanvasConnection({
+    from: sourceId,
+    fromPort: "output",
+    to: gallery.dataset.id,
+    toPort: "input",
+  });
+  const node = toCanvasOperationNode(syncCanvasNodeModel(gallery) || serializeCanvasNode(gallery));
+  const forward = [
+    { type: "node.upsert", entityId: String(node.id), before: null, after: cloneCanvasOperationValue(node) },
+    { type: "connection.upsert", entityId: connection.id, before: null, after: cloneCanvasOperationValue(connection) },
+  ];
+  const inverse = [
+    { type: "connection.delete", entityId: connection.id, before: cloneCanvasOperationValue(connection), after: null },
+    { type: "node.delete", entityId: String(node.id), before: cloneCanvasOperationValue(node), after: null },
+  ];
+  canvasState.connections.push(connection);
+  recordCanvasUndo({ label, forward, inverse });
+  forward.forEach((operation) => stageCanvasOperation(operation));
+  updateCanvasNodeRefs(gallery);
+  syncCanvasTextFromLlmInputs(gallery);
+  renderCanvasConnections();
+  setCanvasStatus(compatibility.message || "已连接。");
+  scheduleCanvasConnectionRender();
+  scheduleCanvasSave();
+  return gallery;
 }
 
 async function fillCanvasImageNode(node, file) {
@@ -5660,482 +7622,1041 @@ async function fillCanvasImageNode(node, file) {
 }
 
 function renderCanvasUploadNode(node, { src, name }) {
-  const previousSize = node.dataset.canvasSize || "";
-  const previousResolution = node.dataset.canvasResolution || "";
-  node.innerHTML = "";
-  node.dataset.imageSrc = src || "";
-  node.dataset.imageName = name || "图片节点";
-  node.dataset.originalSrc = src || "";
-  if (previousSize) node.dataset.canvasSize = previousSize;
-  if (previousResolution) node.dataset.canvasResolution = previousResolution;
-  node.dataset.uploadOnly = "true";
-  node.classList.toggle("canvas-node-frameless", Boolean(src));
-
-  const outputPort = createCanvasPort("output");
-  const media = document.createElement("div");
-  media.className = `canvas-image-upload${src ? " has-image" : ""}`;
-  media.title = src ? "双击替换图片" : "双击上传图片";
-  if (src) {
-    const img = document.createElement("img");
-    img.alt = name || "画布图片";
-    img.addEventListener("load", scheduleCanvasConnectionRender);
-    registerCanvasDetailImage(img, src);
-    media.append(img);
-  } else {
-    const title = document.createElement("strong");
-    title.textContent = "上传图片";
-    const hint = document.createElement("span");
-    hint.textContent = "双击选择，或把图片拖进画布";
-    media.append(title, hint);
-  }
-  media.addEventListener("dblclick", (event) => {
-    event.stopPropagation();
-    selectCanvasNode(node);
-    document.querySelector("#canvasNodeImageInput")?.click();
-  });
-
-  const bar = createCanvasNodeBar(name || "图片节点");
-
-  const hasIncoming = canvasState.connections.some((item) => item.to === node.dataset.id);
-  if (hasIncoming) node.append(createCanvasPort("input"), outputPort, bar, media, createCanvasResizeHandle());
-  else node.append(outputPort, bar, media, createCanvasResizeHandle());
-  scheduleCanvasConnectionRender();
-}
-
-function renderCanvasImageNode(node, { src, name }) {
-  const previousPrompt = node.querySelector(".canvas-node-prompt")?.value || "";
-  const previousModel = node.querySelector(".canvas-node-model")?.value || node.dataset.canvasModel || imageModelInput.value || "";
-  const previousSize = node.querySelector(".canvas-node-size")?.value || node.dataset.canvasSize || imageSizeInput.value || "1024x1024";
-  const previousResolution = node.querySelector(".canvas-node-resolution")?.value || node.dataset.canvasResolution || imageResolutionInput.value || "1";
-  const previousMidjourney = {
-    version: node.querySelector(".canvas-midjourney-version")?.value || node.dataset.canvasMidjourneyVersion || MIDJOURNEY_DEFAULT_OPTIONS.version,
-    mode: node.querySelector(".canvas-midjourney-mode")?.value || node.dataset.canvasMidjourneyMode || MIDJOURNEY_DEFAULT_OPTIONS.mode,
-    speed: node.querySelector(".canvas-midjourney-speed")?.value || node.dataset.canvasMidjourneySpeed || MIDJOURNEY_DEFAULT_OPTIONS.speed,
-    quality: node.querySelector(".canvas-midjourney-quality")?.value || node.dataset.canvasMidjourneyQuality || MIDJOURNEY_DEFAULT_OPTIONS.quality,
-    style: node.querySelector(".canvas-midjourney-style")?.value || node.dataset.canvasMidjourneyStyle || MIDJOURNEY_DEFAULT_OPTIONS.style,
-    stylize: Number(node.querySelector(".canvas-midjourney-stylize")?.value || node.dataset.canvasMidjourneyStylize || MIDJOURNEY_DEFAULT_OPTIONS.stylize),
-  };
-  node.innerHTML = "";
-  node.dataset.imageSrc = src || "";
-  node.dataset.imageName = name || "图片";
-  node.dataset.originalSrc = src || "";
-  delete node.dataset.maskSrc;
-  delete node.dataset.maskName;
-  delete node.dataset.openaiMaskSrc;
-  delete node.dataset.openaiMaskName;
-  delete node.dataset.maskBaseSrc;
-  delete node.dataset.maskBaseName;
-  node.dataset.canvasModel = previousModel;
-  node.dataset.canvasSize = previousSize;
-  node.dataset.canvasResolution = previousResolution;
-  node.dataset.canvasMidjourneyVersion = previousMidjourney.version;
-  node.dataset.canvasMidjourneyMode = previousMidjourney.mode;
-  node.dataset.canvasMidjourneySpeed = previousMidjourney.speed;
-  node.dataset.canvasMidjourneyQuality = previousMidjourney.quality;
-  node.dataset.canvasMidjourneyStyle = previousMidjourney.style;
-  node.dataset.canvasMidjourneyStylize = String(previousMidjourney.stylize);
-  node.classList.toggle("canvas-node-frameless", Boolean(src));
-  node.classList.toggle("canvas-node-generator", !src);
-
-  const outputPort = createCanvasPort("output");
-  const media = document.createElement("div");
-  media.className = `canvas-image-upload${src ? " has-image" : ""}`;
-  media.hidden = !src && Boolean(node.dataset.resultSrc);
-  media.title = src ? "双击替换图片" : "双击上传图片";
-  if (src) {
-    const img = document.createElement("img");
-    img.alt = name || "画布图片";
-    img.addEventListener("load", scheduleCanvasConnectionRender);
-    registerCanvasDetailImage(img, src);
-    media.append(img);
-  } else {
-    const title = document.createElement("strong");
-    title.textContent = "上传图片";
-    const hint = document.createElement("span");
-    hint.textContent = "点击选择，或把图片拖进画布";
-    media.append(title, hint);
-  }
-  media.addEventListener("dblclick", (event) => {
-    event.stopPropagation();
-    selectCanvasNode(node);
-    document.querySelector("#canvasNodeImageInput")?.click();
-  });
-
-  const refs = document.createElement("div");
-  refs.className = "canvas-node-refs";
-
-  const result = document.createElement("div");
-  result.className = "canvas-node-result";
-  result.hidden = !node.dataset.resultSrc;
-  if (node.dataset.resultSrc) {
-    const resultImg = document.createElement("img");
-    resultImg.alt = "生成结果";
-    resultImg.addEventListener("load", scheduleCanvasConnectionRender);
-    registerCanvasDetailImage(resultImg, node.dataset.resultSrc);
-    result.append(resultImg);
-    result.append(createCanvasResultDownload(node));
-  }
-
-  const bar = createCanvasNodeBar(name || "图片");
-  const hasIncoming = canvasState.connections.some((item) => item.to === node.dataset.id);
-  if (src) {
-    if (hasIncoming) {
-      node.append(createCanvasPort("input"), outputPort, bar, media, refs, createCanvasResizeHandle());
-      updateCanvasNodeRefs(node);
-    } else {
-      node.append(outputPort, bar, media, createCanvasResizeHandle());
-    }
-    scheduleCanvasConnectionRender();
+  const plugin = window.AiOsCanvasNodePlugins?.get?.("upload");
+  if (plugin?.render) {
+    plugin.render(node, { src, name }, getCanvasNodePluginContext());
     return;
   }
-
-  const inputPort = createCanvasPort("input");
-  const prompt = document.createElement("textarea");
-  prompt.className = "canvas-node-prompt";
-  prompt.rows = 3;
-  prompt.placeholder = "输入生成提示词，连接文字节点后会自动填充";
-  prompt.value = previousPrompt;
-  prompt.addEventListener("wheel", stopCanvasTextWheel);
-
-  const controls = document.createElement("div");
-  controls.className = "canvas-node-controls";
-  const model = document.createElement("select");
-  model.className = "canvas-node-model";
-  fillCanvasNodeModelSelect(model, previousModel);
-  node.dataset.canvasModel = model.value;
-  const size = document.createElement("select");
-  size.className = "canvas-node-size";
-  fillCanvasNodeSizeSelect(size, previousSize, model.value);
-  const customSizeField = createCanvasCustomSizeField(node, previousSize);
-  const resolution = document.createElement("select");
-  resolution.className = "canvas-node-resolution";
-  fillCanvasNodeResolutionSelect(resolution, previousResolution, model.value, size.value);
-  const run = document.createElement("button");
-  run.className = "canvas-node-run";
-  run.type = "button";
-  updateCanvasRunButtonLabel(run, model.value);
-  run.addEventListener("click", () => runCanvasImageEdit(node));
-  model.addEventListener("change", () => {
-    const nextModel = model.value;
-    node.dataset.canvasModel = nextModel;
-    fillCanvasNodeSizeSelect(size, node.dataset.canvasSize, nextModel);
-    node.dataset.canvasSize = size.value;
-    syncCanvasCustomSizeField(node);
-    const resolutionSize = size.value === "custom" ? node.dataset.canvasSize : size.value;
-    fillCanvasNodeResolutionSelect(resolution, node.dataset.canvasResolution, nextModel, resolutionSize);
-    node.dataset.canvasResolution = resolution.value;
-    updateCanvasNodeResolutionAvailability(node);
-    syncCanvasMidjourneyOptions(node, nextModel);
-    updateCanvasRunButtonLabel(run, nextModel);
-  });
-  size.addEventListener("change", () => {
-    node.dataset.canvasSize = size.value;
-    syncCanvasCustomSizeField(node);
-    const resolutionSize = size.value === "custom" ? node.dataset.canvasSize : size.value;
-    fillCanvasNodeResolutionSelect(resolution, node.dataset.canvasResolution || resolution.value, model.value, resolutionSize);
-    node.dataset.canvasResolution = resolution.value;
-    updateCanvasNodeResolutionAvailability(node);
-    updateCanvasRunButtonLabel(run, model.value);
-  });
-  resolution.addEventListener("change", () => {
-    node.dataset.canvasResolution = resolution.value;
-    rememberConcreteImageResolution(resolution);
-    updateCanvasRunButtonLabel(run, model.value);
-    syncCanvasNodeResolutionState(node);
-  });
-  const resolutionHelp = document.createElement("small");
-  resolutionHelp.className = "canvas-node-resolution-help";
-  resolutionHelp.hidden = true;
-  const midjourneyOptions = createCanvasMidjourneyOptions(node, previousMidjourney);
-  controls.append(model, size, resolution, run, customSizeField, resolutionHelp, midjourneyOptions);
-
-  node.append(inputPort, outputPort, bar, refs, prompt, controls, createCanvasResizeHandle());
-  updateCanvasNodeResolutionAvailability(node);
-  syncCanvasMidjourneyOptions(node, model.value, previousMidjourney);
-  updateCanvasNodeRefs(node);
-  scheduleCanvasConnectionRender();
+  const renderer = window.CanvasMediaNodeRenderer;
+  if (!renderer?.renderUpload) throw new Error("Canvas media node renderer is unavailable.");
+  return renderer.renderUpload(
+    node,
+    { src, name },
+    getCanvasNodePluginContext(),
+  );
 }
 
-function renderCanvasGalleryNode(node, { images = [], title = "生成图集", activeImageId = "", columns = null, gap = null } = {}) {
-  const previousColumns = Number(node.dataset.galleryColumns || 0);
-  const previousGap = Number(node.dataset.galleryGap || 0);
-  const hadPreviousGap = node.dataset.galleryGap !== undefined;
-  node.innerHTML = "";
-  const normalizedImages = normalizeCanvasGalleryImages(images);
-  node.dataset.galleryImages = JSON.stringify(normalizedImages);
-  node.dataset.galleryTitle = title;
-  const resolvedColumns = Number.isInteger(columns) ? Math.max(1, Math.min(12, columns)) : previousColumns;
-  const resolvedGap = hasCanvasAgentNumber(gap) ? Math.max(0, Number(gap)) : previousGap;
-  if (resolvedColumns) node.dataset.galleryColumns = String(resolvedColumns);
-  else delete node.dataset.galleryColumns;
-  if (hasCanvasAgentNumber(gap) || hadPreviousGap) node.dataset.galleryGap = String(resolvedGap);
-  else delete node.dataset.galleryGap;
-  const activeImage = resolveCanvasGalleryActiveImage(normalizedImages, activeImageId);
-  if (activeImage) node.dataset.galleryActiveImageId = activeImage.id;
-  else delete node.dataset.galleryActiveImageId;
-  node.classList.toggle("canvas-node-frameless", Boolean(activeImage));
-  node.classList.toggle("canvas-gallery-frameless", Boolean(activeImage));
-  const inputPort = createCanvasPort("input");
-  const outputPort = createCanvasPort("output");
-  const bar = createCanvasNodeBar(title);
-  const barTitle = bar.querySelector(".canvas-node-title");
-  const barDelete = bar.querySelector(".canvas-node-delete");
-  if (barTitle) barTitle.innerHTML = `<i data-lucide="images"></i><span>${escapeHtml(title)}</span>`;
-  if (barDelete) {
-    barDelete.innerHTML = '<i data-lucide="x"></i>';
-    barDelete.setAttribute("aria-label", "删除图集节点");
+function renderCanvasApiNode(node, options = {}) {
+  const plugin = window.AiOsCanvasNodePlugins?.get?.("generator");
+  if (plugin?.render) {
+    node.dataset.canvasEngine = "api";
+    node.dataset.canvasNodeType = "api";
+    node.classList.add("canvas-node-generator", "canvas-node-api");
+    const pluginOptions = {
+      src: options.src || "",
+      name: options.name || CANVAS_GENERATION_FAMILIES.image.label,
+      reusableImage: options.reusableImage || null,
+    };
+    if (Object.hasOwn(options, "prompt")) pluginOptions.prompt = options.prompt;
+    plugin.render(node, pluginOptions, getCanvasNodePluginContext());
+    return node;
   }
-  const stack = document.createElement("div");
-  stack.className = "canvas-gallery-stack";
-  const sliceToggle = document.createElement("button");
-  sliceToggle.type = "button";
-  sliceToggle.className = "canvas-gallery-slice-toggle";
-  sliceToggle.title = "宫格裁切当前图片";
-  sliceToggle.setAttribute("aria-label", "宫格裁切当前图片");
-  sliceToggle.innerHTML = '<i data-lucide="grid-2x2"></i>';
-  sliceToggle.hidden = !activeImage;
-  sliceToggle.addEventListener("pointerdown", (event) => event.stopPropagation());
-  sliceToggle.addEventListener("click", (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    openCanvasGridMenu(node);
+  node.dataset.canvasEngine = "api";
+  node.dataset.canvasNodeType = "api";
+  node.classList.add("canvas-node-generator", "canvas-node-api");
+  const renderer = window.CanvasGeneratorNodeRenderer;
+  if (!renderer?.render) throw new Error("Canvas generator node renderer is unavailable.");
+  const rendererOptions = {
+    src: options.src || "",
+    name: options.name || CANVAS_GENERATION_FAMILIES.image.label,
+  };
+  if (Object.hasOwn(options, "prompt")) rendererOptions.prompt = options.prompt;
+  renderer.render(node, rendererOptions, getCanvasNodePluginContext());
+  return node;
+}
+
+function renderCanvasImageNode(node, options = {}, { reusableImage = null } = {}) {
+  const { src, name, prompt: promptOption } = options || {};
+  const plugin = window.AiOsCanvasNodePlugins?.get?.("generator");
+  if (plugin?.render) {
+    const pluginOptions = { src, name, reusableImage };
+    if (Object.hasOwn(options || {}, "prompt")) pluginOptions.prompt = promptOption;
+    plugin.render(node, pluginOptions, getCanvasNodePluginContext());
+    return;
+  }
+  const renderer = window.CanvasGeneratorNodeRenderer;
+  if (!renderer?.render) throw new Error("Canvas generator node renderer is unavailable.");
+  renderer.render(node, { ...options, reusableImage }, getCanvasNodePluginContext());
+}
+
+function getCanvasGalleryContainer(node) {
+  try {
+    return normalizeCanvasGalleryContainer(JSON.parse(node?.dataset?.galleryContainer || "{}"));
+  } catch {
+    return normalizeCanvasGalleryContainer();
+  }
+}
+
+function getCanvasGalleryContainerMembers(node) {
+  return getCanvasGalleryContainer(node).members;
+}
+
+function getCanvasGalleryContainerOutput(node, handle = "output") {
+  const container = getCanvasGalleryContainer(node);
+  const toImageOutput = (member) => ({
+    type: "image",
+    name: member.name || "图片",
+    url: member.savedUrl || member.src || member.url || "",
+    ...(Number(member.width) > 0 ? { width: Number(member.width) } : {}),
+    ...(Number(member.height) > 0 ? { height: Number(member.height) } : {}),
   });
-  const historyToggle = document.createElement("button");
-  historyToggle.type = "button";
-  historyToggle.className = "canvas-gallery-history-toggle";
-  historyToggle.title = "查看此节点历史记录";
-  historyToggle.setAttribute("aria-label", "查看此节点历史记录");
-  historyToggle.setAttribute("aria-expanded", "false");
-  historyToggle.addEventListener("pointerdown", (event) => event.stopPropagation());
-  historyToggle.addEventListener("click", (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    setCanvasGalleryHistoryOpen(node, node.querySelector(".canvas-gallery-history-panel")?.hidden !== false);
+  const memberId = String(handle || "").startsWith("member-output:")
+    ? String(handle).slice("member-output:".length)
+    : "";
+  if (memberId) {
+    const member = container.members.find((item) => item.id === memberId);
+    return member && isCanvasGalleryImageReady(member) ? toImageOutput(member) : null;
+  }
+  const images = container.members.filter(isCanvasGalleryImageReady).map(toImageOutput);
+  return {
+    type: "images",
+    images: images.map(({ type, ...image }) => image),
+  };
+}
+
+function detachCanvasGalleryMember(node, memberId, point = null) {
+  const result = detachCanvasGalleryContainerMember(node, memberId);
+  return {
+    detached: result.member,
+    container: result.container,
+    point: point && Number.isFinite(Number(point.x)) && Number.isFinite(Number(point.y))
+      ? { x: Number(point.x), y: Number(point.y) }
+      : null,
+  };
+}
+
+function appendCanvasGalleryMember(container, image) {
+  return appendCanvasGalleryContainerMember(container, image);
+}
+
+function detachCanvasGalleryContainerMember(node, memberId) {
+  const container = getCanvasGalleryContainer(node);
+  const member = container.members.find((item) => item.id === String(memberId || ""));
+  if (!member) return { member: null, container };
+  const members = container.members.filter((item) => item.id !== member.id);
+  return {
+    member,
+    container: normalizeCanvasGalleryContainer({
+      ...container,
+      members,
+      activeMemberId: container.activeMemberId === member.id ? (members.at(-1)?.id || "") : container.activeMemberId,
+    }),
+  };
+}
+
+function remapCanvasGalleryMemberConnections(connections, sourceId, memberId, destination) {
+  const outputHandle = `member-output:${memberId}`;
+  const inputHandle = `member-input:${memberId}`;
+  const targetId = String(destination?.id || "");
+  const list = Array.isArray(connections) ? connections : [];
+  if (destination?.type === "remove") {
+    return list.filter((connection) => !(
+      (connection.from === sourceId && connection.fromPort === outputHandle)
+      || (connection.to === sourceId && connection.toPort === inputHandle)
+    ));
+  }
+  if (!targetId) return list;
+  return list.map((connection) => {
+    let remapped = null;
+    if (connection.from === sourceId && connection.fromPort === outputHandle) {
+      remapped = destination.type === "container"
+        ? { ...connection, from: targetId }
+        : { ...connection, from: targetId, fromPort: "output" };
+    }
+    if (connection.to === sourceId && connection.toPort === inputHandle) {
+      remapped = destination.type === "container"
+        ? { ...connection, to: targetId }
+        : { ...connection, to: targetId, toPort: "input" };
+    }
+    if (!remapped) return connection;
+    return { ...remapped, id: getCanvasConnectionId({ ...remapped, id: "" }) };
   });
-  const historyPanel = document.createElement("section");
-  historyPanel.className = "canvas-gallery-history-panel";
-  historyPanel.hidden = true;
-  historyPanel.addEventListener("pointerdown", (event) => event.stopPropagation());
-  historyPanel.addEventListener("click", (event) => event.stopPropagation());
-  historyPanel.addEventListener("wheel", (event) => event.stopPropagation());
-  const historyHeader = document.createElement("header");
-  const historyTitle = document.createElement("strong");
-  historyTitle.className = "canvas-gallery-history-title";
-  const historyClose = document.createElement("button");
-  historyClose.type = "button";
-  historyClose.className = "canvas-gallery-history-close";
-  historyClose.innerHTML = '<i data-lucide="x"></i>';
-  historyClose.setAttribute("aria-label", "关闭历史记录");
-  historyClose.addEventListener("click", () => setCanvasGalleryHistoryOpen(node, false));
-  historyHeader.append(historyTitle, historyClose);
-  const historyList = document.createElement("div");
-  historyList.className = "canvas-gallery-history-list";
-  const historyHint = document.createElement("footer");
-  historyHint.className = "canvas-gallery-history-hint";
-  historyHint.textContent = "点击设为当前图片，拖到画布可复制";
-  historyPanel.append(historyHeader, historyList, historyHint);
-  node.append(inputPort, outputPort, bar, stack, sliceToggle, historyToggle, historyPanel, createCanvasResizeHandle());
-  applyCanvasGalleryLayoutPreferences(node);
-  renderCanvasGalleryImages(node);
-  requestAnimationFrame(() => {
-    window.lucide?.createIcons({
-      attrs: {
-        "aria-hidden": "true",
-        "stroke-width": 1.8,
-      },
+}
+
+function remapCanvasImageNodeConnectionsToGalleryMember(connections, imageId, galleryId, memberId) {
+  const sourceId = String(imageId || "");
+  const targetId = String(galleryId || "");
+  const outputHandle = `member-output:${String(memberId || "")}`;
+  if (!sourceId || !targetId || !memberId) return Array.isArray(connections) ? connections : [];
+  return (Array.isArray(connections) ? connections : []).map((connection) => {
+    let remapped = null;
+    if (connection.from === sourceId) {
+      remapped = { ...connection, from: targetId, fromPort: outputHandle };
+    }
+    if (connection.to === sourceId) {
+      // Gallery members intentionally have output-only handles. Incoming links
+      // therefore remain on the gallery aggregate input.
+      remapped = { ...(remapped || connection), to: targetId, toPort: "input" };
+    }
+    if (!remapped) return connection;
+    return { ...remapped, id: getCanvasConnectionId({ ...remapped, id: "" }) };
+  });
+}
+
+function transferCanvasGalleryContainerMember(sourceNode, memberId, { targetNode = null, point = null } = {}) {
+  if (!sourceNode?.classList?.contains("canvas-node-gallery-container")) return null;
+  const sourceBefore = toCanvasOperationNode(syncCanvasNodeModel(sourceNode) || serializeCanvasNode(sourceNode));
+  const sourceContainer = getCanvasGalleryContainer(sourceNode);
+  const detached = detachCanvasGalleryMember(sourceNode, memberId, point);
+  if (!detached.detached) return null;
+  const sourceMember = Array.from(sourceNode.querySelectorAll?.(".canvas-gallery-member") || [])
+    .find((item) => String(item.dataset?.galleryMemberId || "") === String(detached.detached.id));
+  const memberIntrinsic = getCanvasImageIntrinsicDimensions(sourceMember?.querySelector?.("img"));
+  const member = {
+    ...detached.detached,
+    width: Number(detached.detached.width) > 0 ? Number(detached.detached.width) : memberIntrinsic?.width,
+    height: Number(detached.detached.height) > 0 ? Number(detached.detached.height) : memberIntrinsic?.height,
+  };
+  const memberSource = member.src || member.savedUrl || member.url || "";
+  const reusableImage = findCanvasReusableImage(sourceMember, memberSource);
+  const connectionsBefore = canvasState.connections.map(normalizeVisibleCanvasConnection);
+
+  if (targetNode?.classList?.contains("canvas-node-gallery-container") && targetNode !== sourceNode) {
+    const targetBefore = toCanvasOperationNode(syncCanvasNodeModel(targetNode) || serializeCanvasNode(targetNode));
+    const nextTarget = appendCanvasGalleryMember(getCanvasGalleryContainer(targetNode), member);
+    setCanvasGalleryContainer(targetNode, nextTarget, {
+      preservedMemberImages: reusableImage ? new Map([[member.id, reusableImage]]) : null,
+    });
+    setCanvasGalleryContainer(sourceNode, detached.container);
+    canvasState.connections = remapCanvasGalleryMemberConnections(
+      canvasState.connections,
+      sourceNode.dataset.id,
+      member.id,
+      { type: "container", id: targetNode.dataset.id },
+    );
+    const sourceAfter = toCanvasOperationNode(syncCanvasNodeModel(sourceNode) || serializeCanvasNode(sourceNode));
+    const targetAfter = toCanvasOperationNode(syncCanvasNodeModel(targetNode) || serializeCanvasNode(targetNode));
+    recordCanvasGalleryMemberTransferUndo({
+      label: "移动图集图片",
+      forward: createCanvasGalleryMemberTransferOperations(
+        [
+          { id: sourceNode.dataset.id, before: sourceBefore, after: sourceAfter },
+          { id: targetNode.dataset.id, before: targetBefore, after: targetAfter },
+        ],
+        connectionsBefore,
+        canvasState.connections,
+      ),
+    });
+    refreshCanvasConnectedNodes(sourceNode.dataset.id);
+    refreshCanvasConnectedNodes(targetNode.dataset.id);
+    scheduleCanvasConnectionRender();
+    scheduleCanvasSave();
+    setCanvasStatus(`已将“${member.name || "图片"}”移动到图集。`);
+    return targetNode;
+  }
+
+  const dropPoint = point || {
+    x: Number(sourceNode.dataset.x || 0) + Number(sourceNode.dataset.width || sourceNode.offsetWidth || 0) + 48,
+    y: Number(sourceNode.dataset.y || 0),
+  };
+  const imageNode = addCanvasImage(memberSource, member.name || "图集图片", dropPoint, { reusableImage });
+  if (!imageNode) {
+    setCanvasStatus("无法创建图片节点，已保留图集成员。");
+    return null;
+  }
+  setCanvasGalleryContainer(sourceNode, detached.container);
+  imageNode.dataset.imageSrc = member.savedUrl || member.src || member.url || "";
+  canvasState.connections = remapCanvasGalleryMemberConnections(
+    canvasState.connections,
+    sourceNode.dataset.id,
+    member.id,
+    { type: "image", id: imageNode.dataset.id },
+  );
+  ensureCanvasImageNodeInputPort(imageNode);
+  const sourceAfter = toCanvasOperationNode(syncCanvasNodeModel(sourceNode) || serializeCanvasNode(sourceNode));
+  const imageAfter = toCanvasOperationNode(syncCanvasNodeModel(imageNode) || serializeCanvasNode(imageNode));
+  recordCanvasGalleryMemberTransferUndo({
+    label: "拖出图集图片",
+    forward: createCanvasGalleryMemberTransferOperations(
+      [
+        { id: sourceNode.dataset.id, before: sourceBefore, after: sourceAfter },
+        { id: imageNode.dataset.id, before: null, after: imageAfter },
+      ],
+      connectionsBefore,
+      canvasState.connections,
+    ),
+  });
+  refreshCanvasConnectedNodes(sourceNode.dataset.id);
+  refreshCanvasConnectedNodes(imageNode.dataset.id);
+  scheduleCanvasConnectionRender();
+  scheduleCanvasSave();
+  setCanvasStatus(`已从图集拖出“${member.name || "图片"}”。`);
+  return imageNode;
+}
+
+function createCanvasGalleryMemberTransferOperations(nodes, connectionsBefore, connectionsAfter) {
+  const beforeById = new Map((connectionsBefore || []).map((connection) => [connection.id, connection]));
+  const afterById = new Map((connectionsAfter || []).map((connection) => [connection.id, connection]));
+  const hasSameEndpoints = (left, right) => Boolean(left && right
+    && left.from === right.from
+    && (left.fromPort || "output") === (right.fromPort || "output")
+    && left.to === right.to
+    && (left.toPort || "input") === (right.toPort || "input"));
+  const connectionOperations = [
+    ...beforeById.values()
+      .filter((connection) => !hasSameEndpoints(connection, afterById.get(connection.id)))
+      .map((connection) => ({ type: "connection.delete", entityId: connection.id, before: cloneCanvasOperationValue(connection), after: null })),
+    ...afterById.values()
+      .filter((connection) => !hasSameEndpoints(connection, beforeById.get(connection.id)))
+      .map((connection) => ({ type: "connection.upsert", entityId: connection.id, before: null, after: cloneCanvasOperationValue(connection) })),
+  ];
+  return [
+    ...connectionOperations,
+    ...(nodes || []).map((node) => ({
+      type: node.after ? "node.upsert" : "node.delete",
+      entityId: String(node.id),
+      before: cloneCanvasOperationValue(node.before),
+      after: cloneCanvasOperationValue(node.after),
+    })),
+  ];
+}
+
+function recordCanvasGalleryMemberTransferUndo({ label, forward }) {
+  const inverse = [...(forward || [])].reverse().map((operation) => ({
+    type: operation.type === "node.delete"
+      ? "node.upsert"
+      : operation.type === "node.upsert"
+        ? operation.before ? "node.upsert" : "node.delete"
+        : operation.type === "connection.delete" ? "connection.upsert" : "connection.delete",
+    entityId: operation.entityId,
+    before: cloneCanvasOperationValue(operation.after),
+    after: cloneCanvasOperationValue(operation.before),
+  }));
+  recordCanvasUndo({ label, forward, inverse });
+  forward.forEach((operation) => stageCanvasOperation(operation));
+}
+
+function transferCanvasImageNodeToGallery(imageNode, targetNode) {
+  if (!imageNode?.classList?.contains("canvas-node-image") || !targetNode?.classList?.contains("canvas-node-gallery-container")) return false;
+  const imageId = String(imageNode.dataset.id || "");
+  if (!imageId || imageNode.dataset.uploadOnly === "true") return false;
+  const output = getCanvasNodeOutput(imageNode);
+  if (output?.type !== "image" || !output.url) return false;
+  const sourceBefore = toCanvasOperationNode(syncCanvasNodeModel(imageNode) || serializeCanvasNode(imageNode));
+  const targetBefore = toCanvasOperationNode(syncCanvasNodeModel(targetNode) || serializeCanvasNode(targetNode));
+  const connectionsBefore = canvasState.connections.map(normalizeVisibleCanvasConnection);
+  const reusableImage = findCanvasReusableImage(imageNode, output.url);
+  const intrinsic = getCanvasImageIntrinsicDimensions(reusableImage || imageNode.querySelector?.("img"));
+  const next = appendCanvasGalleryMember(getCanvasGalleryContainer(targetNode), {
+    src: output.url,
+    savedUrl: output.url,
+    name: output.name || "图片",
+    width: Number(output.width) > 0 ? Number(output.width) : intrinsic?.width,
+    height: Number(output.height) > 0 ? Number(output.height) : intrinsic?.height,
+    createdAt: imageNode.dataset.createdAt || "",
+  });
+  const memberId = String(next.members.at(-1)?.id || "");
+  if (!memberId) return false;
+  setCanvasGalleryContainer(targetNode, next, {
+    preservedMemberImages: reusableImage ? new Map([[memberId, reusableImage]]) : null,
+  });
+  canvasState.connections = remapCanvasImageNodeConnectionsToGalleryMember(
+    canvasState.connections,
+    imageId,
+    targetNode.dataset.id,
+    memberId,
+  );
+  const targetAfter = toCanvasOperationNode(syncCanvasNodeModel(targetNode) || serializeCanvasNode(targetNode));
+  document.querySelectorAll("#canvasPlane .canvas-node-group").forEach((group) => {
+    setCanvasGroupMemberIds(group, getCanvasGroupMemberIds(group).filter((id) => id !== imageId));
+  });
+  canvasState.selectedIds.delete(imageId);
+  if (canvasState.activeNode === imageNode) canvasState.activeNode = null;
+  removeCanvasNodeModels(new Set([imageId]));
+  recordCanvasGalleryMemberTransferUndo({
+    label: "拖入图集",
+    forward: createCanvasGalleryMemberTransferOperations(
+      [
+        { id: targetNode.dataset.id, before: targetBefore, after: targetAfter },
+        { id: imageId, before: sourceBefore, after: null },
+      ],
+      connectionsBefore,
+      canvasState.connections,
+    ),
+  });
+  updateCanvasGroupCounts();
+  updateCanvasSelectionFrame();
+  refreshCanvasConnectedNodes(targetNode.dataset.id);
+  scheduleCanvasConnectionRender();
+  scheduleCanvasSave();
+  setCanvasStatus(`已将“${output.name || "图片"}”收纳到图集。`);
+  return true;
+}
+
+function ensureCanvasImageNodeInputPort(node) {
+  if (!node?.classList?.contains("canvas-node-image")) return false;
+  const hasIncoming = canvasState.connections.some((connection) => connection.to === node.dataset.id);
+  if (!hasIncoming) return false;
+  if (node.querySelector?.('[data-canvas-port="input"]')) return true;
+  const src = node.dataset.imageSrc || node.dataset.resultSrc || "";
+  const name = node.dataset.imageName || "图片";
+  if (node.dataset.uploadOnly === "true") renderCanvasUploadNode(node, { src, name });
+  else renderCanvasImageNode(node, { src, name });
+  return Boolean(node.querySelector?.('[data-canvas-port="input"]'));
+}
+
+function appendCanvasGalleryContainerMember(value, member) {
+  const container = normalizeCanvasGalleryContainer(value);
+  const members = normalizeCanvasGalleryImages([...container.members, member]);
+  return normalizeCanvasGalleryContainer({
+    ...container,
+    members,
+    activeMemberId: container.activeMemberId || members.at(-1)?.id || "",
+  });
+}
+
+function setCanvasGalleryContainer(node, value, { render = true, preservedMemberImages = null } = {}) {
+  const container = normalizeCanvasGalleryContainer(value);
+  node.dataset.galleryContainer = JSON.stringify(container);
+  node.dataset.galleryTitle = container.title;
+  if (render) renderCanvasGalleryContainerNode(node, container, { preservedMemberImages });
+  return container;
+}
+
+function setCanvasGalleryContainerMembers(node, members, activeMemberId = "") {
+  const current = getCanvasGalleryContainer(node);
+  return setCanvasGalleryContainer(node, {
+    ...current,
+    members,
+    activeMemberId: activeMemberId || current.activeMemberId,
+  });
+}
+
+function suggestedCanvasGalleryContainerColumns(count) {
+  return CanvasGalleryRules.suggestedColumns(count);
+}
+
+function getCanvasGalleryMinimumWidthForColumns(columns, gap = 16) {
+  return CanvasGalleryRules.minimumWidthForColumns(columns, gap);
+}
+
+function getCanvasGalleryFreeGridLayout(options = {}) {
+  return CanvasGalleryRules.freeGridLayout(options);
+}
+
+function getCanvasGalleryContainerSizeForRequest(node, requestedWidth, requestedHeight, options = {}) {
+  const container = getCanvasGalleryContainer(node);
+  const layout = getCanvasGalleryFreeGridLayout({
+    members: container.members,
+    width: requestedWidth,
+    height: requestedHeight,
+    gap: container.gap ?? 16,
+    layoutMode: options.layoutMode || container.layoutMode,
+    manualColumns: options.manualColumns ?? container.manualColumns,
+    resizeAxis: options.resizeAxis,
+  });
+  return {
+    width: Math.round(layout.width),
+    height: Math.round(layout.height),
+    layout,
+  };
+}
+
+function getCanvasGalleryContainerLayout(count, gap = 10, preferredColumns = null) {
+  return CanvasGalleryRules.containerLayout(count, gap, preferredColumns);
+}
+
+function shouldRenderCanvasGalleryMemberOutput(memberCount) {
+  return CanvasGalleryRules.shouldRenderMemberOutput(memberCount);
+}
+
+function getCanvasGalleryContainerMemberColumnIndices(members, columns, cellSize = 120) {
+  return CanvasGalleryRules.memberColumnIndices(members, columns, cellSize);
+}
+
+function getCanvasGalleryContainerRenderState(value = {}, size = {}) {
+  const container = normalizeCanvasGalleryContainer(value);
+  return {
+    container,
+    layout: getCanvasGalleryFreeGridLayout({
+      members: container.members,
+      width: size?.width,
+      height: size?.height,
+      gap: container.gap ?? 16,
+      layoutMode: container.layoutMode,
+      manualColumns: container.manualColumns,
+    }),
+  };
+}
+
+function collectCanvasGalleryReusableImages(node) {
+  const images = new Map();
+  node?.querySelectorAll?.(".canvas-gallery-member img[data-original-src]").forEach((image) => {
+    const memberId = String(image.closest?.(".canvas-gallery-member")?.dataset?.galleryMemberId || "");
+    const source = String(image.getAttribute?.("data-original-src") || "");
+    if (memberId && source) images.set(memberId, image);
+  });
+  return images;
+}
+
+function takeCanvasGalleryReusableImage(images, memberId, source) {
+  const key = String(memberId || "");
+  const image = images?.get?.(key) || null;
+  const imageSource = String(image?.getAttribute?.("data-original-src") || "");
+  if (!image || !imageSource || imageSource !== String(source || "")) return null;
+  images.delete(key);
+  return image;
+}
+
+function findCanvasReusableImage(node, source) {
+  const requestedSource = String(source || "");
+  const image = Array.from(node?.querySelectorAll?.("img[data-original-src]") || [])
+    .find((candidate) => String(candidate?.getAttribute?.("data-original-src") || "") === requestedSource)
+    || node?.querySelector?.("img[data-original-src]")
+    || null;
+  return String(image?.getAttribute?.("data-original-src") || "") === requestedSource ? image : null;
+}
+
+function getCanvasImageIntrinsicDimensions(image) {
+  const width = Math.round(Number(image?.dataset?.originalWidth) || Number(image?.naturalWidth) || 0);
+  const height = Math.round(Number(image?.dataset?.originalHeight) || Number(image?.naturalHeight) || 0);
+  return width > 0 && height > 0 ? { width, height } : null;
+}
+
+function syncCanvasGalleryMemberIntrinsicSize(node, memberId, image) {
+  const originalSource = String(image?.getAttribute?.("data-original-src") || "");
+  const displayedSource = String(image?.currentSrc || image?.getAttribute?.("src") || "");
+  const isExplicitThumbnail = image?.dataset?.imageQuality === "thumbnail"
+    && Boolean(originalSource && displayedSource && displayedSource !== originalSource);
+  const intrinsic = getCanvasImageIntrinsicDimensions(image);
+  // The thumbnail service already gives us the source dimensions.  Keep them
+  // when the visible asset is a thumbnail so a portrait preview cannot be
+  // laid out as a square before its original image is requested.
+  if (isExplicitThumbnail && !intrinsic) return false;
+  const width = intrinsic?.width || 0;
+  const height = intrinsic?.height || 0;
+  if (!node || !memberId || !width || !height) return false;
+  const container = getCanvasGalleryContainer(node);
+  let changed = false;
+  const members = container.members.map((member) => {
+    if (String(member.id) !== String(memberId)) return member;
+    if (Number(member.width) === width && Number(member.height) === height) return member;
+    changed = true;
+    return { ...member, width, height };
+  });
+  if (!changed) return false;
+  setCanvasGalleryContainer(node, { ...container, members });
+  scheduleCanvasSave();
+  return true;
+}
+
+function renderCanvasGalleryContainerNode(node, value = {}, { preservedMemberImages = null } = {}) {
+  const plugin = window.AiOsCanvasNodePlugins?.get?.("gallery");
+  if (plugin?.render) {
+    plugin.render(node, value, { preservedMemberImages }, getCanvasNodePluginContext());
+    return;
+  }
+  const renderer = window.CanvasGalleryNodeRenderer;
+  if (renderer?.render) {
+    renderer.render(node, value, { preservedMemberImages }, getCanvasNodePluginContext());
+    return;
+  }
+  throw new Error("Canvas gallery node renderer is unavailable.");
+}
+
+function getCanvasSceneConnectionSegments(page) {
+  const segments = [...(page.visualConnections || [])];
+  if (!page.visualConnectionNodes?.length) return segments;
+  const nodes = new Map((page.visualNodes || []).map(item => {
+    const node = Array.isArray(item) ? { id: String(item[0]), kind: item[1], x: item[2], y: item[3], width: item[4], height: item[5], previewSource: item[7] } : item;
+    return [String(node.id), node];
+  }));
+  page.visualConnectionNodes.forEach(([from, to, fromPort, toPort], index) => {
+    [from, to].forEach((id, side) => {
+      const port = (side ? toPort : fromPort) || (side ? "input" : "output");
+      if (!["input", "output", "prompt"].includes(port)) return;
+      const model = canvasVirtualStore.get?.(String(id)) || nodes.get(String(id));
+      if (!model || !["image", "upload"].includes(model.kind)) return;
+      const rect = getCanvasImageContentRect(model);
+      const offset = index * 4 + side * 2;
+      segments[offset] = port === "output" ? rect.right : rect.left;
+      segments[offset + 1] = (rect.top + rect.bottom) / 2;
     });
   });
-  scheduleCanvasConnectionRender();
+  return segments;
 }
 
-function applyCanvasGalleryLayoutPreferences(node) {
-  const list = node?.querySelector(".canvas-gallery-history-list");
-  if (!list) return;
-  const columns = Number(node.dataset.galleryColumns || 0);
-  const gap = Number(node.dataset.galleryGap || 0);
-  if (Number.isInteger(columns) && columns > 0) list.style.gridTemplateColumns = `repeat(${columns}, minmax(0, 1fr))`;
-  else list.style.removeProperty("grid-template-columns");
-  if (Number.isFinite(gap) && node.dataset.galleryGap !== undefined) list.style.gap = `${Math.max(0, gap)}px`;
-  else list.style.removeProperty("gap");
+function renderCanvasNodeIcons(node) {
+  const lucide = window.lucide;
+  if (!lucide?.createElement || !lucide.icons) return;
+  // The bundled Lucide createIcons scans the whole document (and replaces
+  // existing SVGs). Rendering each gallery must only touch its new icons.
+  node.querySelectorAll("[data-lucide]:not(svg)").forEach((placeholder) => {
+    const name = placeholder.getAttribute("data-lucide");
+    const key = name.replace(/(^|[-_\s]+)(\w)/g, (_, separator, letter) => letter.toUpperCase());
+    const definition = lucide.icons[key];
+    if (!definition) return;
+    const attributes = Object.fromEntries(Array.from(placeholder.attributes, (attribute) => [attribute.name, attribute.value]));
+    const [tag, defaults, children] = definition;
+    const icon = lucide.createElement([tag, {
+      ...defaults, "aria-hidden": "true", "stroke-width": 1.8, ...attributes,
+      class: ["lucide", `lucide-${name}`, attributes.class || ""].join(" ").trim(),
+    }, children]);
+    placeholder.replaceWith(icon);
+  });
 }
 
-function ensureCanvasGridMenuMarkup() {
-  let menu = document.querySelector("#canvasGridMenu");
-  if (menu) return menu;
-  menu = document.createElement("div");
-  menu.id = "canvasGridMenu";
-  menu.className = "canvas-grid-menu";
-  menu.hidden = true;
-  const customOptions = Array.from({ length: 5 }, (_, index) => {
-    const value = index + 1;
-    return `<option value="${value}">${value}</option>`;
-  }).join("");
-  menu.innerHTML = `
-    <div class="canvas-grid-menu-panel" role="dialog" aria-label="宫格裁切方式">
-      <section data-grid-menu-view="presets">
-        <header><strong>宫格裁切</strong><span>选择网格</span></header>
-        <div class="canvas-grid-menu-options">
-          <button type="button" class="canvas-grid-menu-option" data-grid-rows="2" data-grid-columns="2"><b>2×2</b><span>4 宫格</span></button>
-          <button type="button" class="canvas-grid-menu-option" data-grid-rows="3" data-grid-columns="3"><b>3×3</b><span>9 宫格</span></button>
-          <button type="button" class="canvas-grid-menu-option" data-grid-rows="4" data-grid-columns="4"><b>4×4</b><span>16 宫格</span></button>
-          <button type="button" class="canvas-grid-menu-option" data-grid-rows="5" data-grid-columns="5"><b>5×5</b><span>25 宫格</span></button>
-          <button type="button" class="canvas-grid-menu-option is-wide" data-grid-custom><b>自定义</b><span>1–5 行 × 1–5 列</span></button>
-        </div>
-      </section>
-      <section data-grid-menu-view="custom" hidden>
-        <header><button type="button" class="canvas-grid-menu-back" data-grid-back="presets" aria-label="返回预设">←</button><strong>自定义网格</strong></header>
-        <div class="canvas-grid-menu-custom">
-          <label><span>行</span><select data-grid-custom-rows>${customOptions}</select></label>
-          <span>×</span>
-          <label><span>列</span><select data-grid-custom-columns>${customOptions}</select></label>
-        </div>
-        <button type="button" class="canvas-grid-menu-option is-primary is-wide" data-grid-custom-confirm><b>继续</b><span>选择输出方式</span></button>
-      </section>
-      <section data-grid-menu-view="actions" hidden>
-        <header><button type="button" class="canvas-grid-menu-back" data-grid-back="presets" aria-label="返回预设">←</button><strong data-grid-summary>宫格裁切</strong></header>
-        <div class="canvas-grid-menu-options is-actions">
-          <button type="button" class="canvas-grid-menu-option" data-grid-action="direct"><b>仅裁剪</b><span>生成独立图片节点</span></button>
-          <button type="button" class="canvas-grid-menu-option" data-grid-action="editor"><b>创建格子</b><span>生成可编辑宫格节点</span></button>
-        </div>
-        <small class="canvas-grid-menu-status" aria-live="polite"></small>
-      </section>
-    </div>
+function reconcilePersistedCanvasGalleryContainerSyncStates(container) {
+  return {
+    ...container,
+    members: reconcilePersistedCanvasGallerySyncStates(container.members),
+  };
+}
+
+function createCanvasCropWorkbenchState(source, member) {
+  return CanvasCropRules.createWorkbenchState(source, member);
+}
+
+function resolveCanvasCropWorkbenchAspectRatio(value) {
+  return CanvasCropRules.resolveAspectRatio(value);
+}
+
+function normalizeCanvasCropWorkbenchFreeRect(rectValue = {}) {
+  return CanvasCropRules.normalizeFreeRect(rectValue);
+}
+
+function getCanvasCropWorkbenchRatioCrop(state) {
+  return CanvasCropRules.getRatioCrop(state);
+}
+
+function getCanvasCropWorkbenchFreeCrop(state) {
+  return CanvasCropRules.getFreeCrop(state);
+}
+
+function getCanvasCropWorkbenchGridCrops(state) {
+  return CanvasCropRules.getGridCrops(state);
+}
+
+function validateCanvasCropWorkbenchCrops(state) {
+  return CanvasCropRules.validateCrops(state);
+}
+
+function ensureCanvasCropWorkbenchMarkup() {
+  let workbench = document.querySelector("#canvasCropWorkbench");
+  if (workbench) return workbench;
+  workbench = document.createElement("div");
+  workbench.id = "canvasCropWorkbench";
+  workbench.className = "canvas-crop-workbench";
+  workbench.hidden = true;
+  workbench.innerHTML = `
+    <section class="canvas-crop-workbench-panel" role="dialog" aria-modal="true" aria-label="图片裁切工作台">
+      <header><strong>裁切工作台</strong><button type="button" data-crop-close aria-label="关闭裁切工作台">×</button></header>
+      <nav class="canvas-crop-workbench-modes" aria-label="裁切方式">
+        <button type="button" data-crop-mode="ratio">比例裁切</button>
+        <button type="button" data-crop-mode="free">自由裁切</button>
+        <button type="button" data-crop-mode="grid">宫格裁切</button>
+      </nav>
+      <div class="canvas-crop-workbench-controls">
+        <div data-crop-controls="ratio"><span>比例</span><button type="button" data-crop-ratio="1:1">1:1</button><button type="button" data-crop-ratio="4:3">4:3</button><button type="button" data-crop-ratio="3:4">3:4</button><button type="button" data-crop-ratio="3:2">3:2</button><button type="button" data-crop-ratio="2:3">2:3</button><button type="button" data-crop-ratio="16:9">16:9</button><button type="button" data-crop-ratio="9:16">9:16</button></div>
+        <div data-crop-controls="free" hidden><span>拖动裁切框移动，拖动右下角调整大小</span></div>
+        <div data-crop-controls="grid" hidden><label>行 <select data-crop-rows>${[1, 2, 3, 4, 5].map((value) => `<option value="${value}">${value}</option>`).join("")}</select></label><label>列 <select data-crop-columns>${[1, 2, 3, 4, 5].map((value) => `<option value="${value}">${value}</option>`).join("")}</select></label><span>拖动格子定位，滚轮缩放</span></div>
+      </div>
+      <div class="canvas-crop-workbench-preview" data-crop-preview></div>
+      <p class="canvas-crop-workbench-status" data-crop-status aria-live="polite"></p>
+      <footer><button type="button" data-crop-cancel>取消</button><button type="button" data-crop-submit>生成裁切图集</button></footer>
   `;
-  ["pointerdown", "click", "wheel"].forEach((type) => {
-    menu.addEventListener(type, (event) => event.stopPropagation());
-  });
-  menu.addEventListener("keydown", (event) => {
-    if (event.key !== "Escape") return;
-    event.preventDefault();
-    closeCanvasGridMenu();
-  });
-  menu.addEventListener("click", async (event) => {
-    const state = canvasGridMenuState;
+  ["pointerdown", "wheel"].forEach((type) => workbench.addEventListener(type, (event) => event.stopPropagation()));
+  workbench.addEventListener("click", (event) => {
+    const state = canvasCropWorkbenchState;
     if (!state || state.busy) return;
-    const preset = event.target.closest("[data-grid-rows][data-grid-columns]");
-    if (preset) {
-      selectCanvasGridSpec(state.sourceNode, {
-        rows: preset.dataset.gridRows,
-        columns: preset.dataset.gridColumns,
-      });
+    if (event.target.closest("[data-crop-close], [data-crop-cancel]")) {
+      closeCanvasCropWorkbench();
       return;
     }
-    if (event.target.closest("[data-grid-custom]")) {
-      state.view = "custom";
-      renderCanvasGridMenu();
+    const mode = event.target.closest("[data-crop-mode]")?.dataset.cropMode;
+    if (mode) {
+      state.mode = mode;
+      state.error = "";
+      renderCanvasCropWorkbench();
       return;
     }
-    if (event.target.closest("[data-grid-custom-confirm]")) {
-      selectCanvasGridSpec(state.sourceNode, {
-        rows: menu.querySelector("[data-grid-custom-rows]")?.value,
-        columns: menu.querySelector("[data-grid-custom-columns]")?.value,
-      });
+    const ratio = event.target.closest("[data-crop-ratio]")?.dataset.cropRatio;
+    if (ratio) {
+      state.aspectRatio = ratio;
+      state.error = "";
+      renderCanvasCropWorkbench();
       return;
     }
-    const back = event.target.closest("[data-grid-back]");
-    if (back) {
-      state.view = back.dataset.gridBack || "presets";
-      state.spec = null;
-      renderCanvasGridMenu();
-      return;
-    }
-    const action = event.target.closest("[data-grid-action]")?.dataset.gridAction;
-    if (!action || !state.spec) return;
-    state.busy = true;
-    state.status = action === "direct" ? "正在裁切并保存图片…" : "正在创建宫格编辑节点…";
-    renderCanvasGridMenu();
-    try {
-      if (action === "direct") {
-        await createCanvasDirectGridSlices(state.sourceNode, state.spec);
-      } else if (typeof addCanvasGridEditorNode === "function") {
-        await addCanvasGridEditorNode(state.sourceNode, { ...state.spec, source: state.active });
-      } else {
-        throw new Error("宫格编辑节点尚未就绪。");
-      }
-      state.busy = false;
-      closeCanvasGridMenu();
-    } catch (error) {
-      state.busy = false;
-      state.status = `操作失败：${error.message || "未知错误"}`;
-      renderCanvasGridMenu();
-    }
+    if (event.target.closest("[data-crop-submit]")) outputCanvasCropWorkbench();
   });
-  document.body.append(menu);
-  return menu;
+  workbench.querySelector("[data-crop-rows]")?.addEventListener("change", (event) => {
+    if (!canvasCropWorkbenchState) return;
+    canvasCropWorkbenchState.rows = event.target.value;
+    canvasCropWorkbenchState.error = "";
+    renderCanvasCropWorkbench();
+  });
+  workbench.querySelector("[data-crop-columns]")?.addEventListener("change", (event) => {
+    if (!canvasCropWorkbenchState) return;
+    canvasCropWorkbenchState.columns = event.target.value;
+    canvasCropWorkbenchState.error = "";
+    renderCanvasCropWorkbench();
+  });
+  (document.querySelector("#aiOsDesktop") || document.body).append(workbench);
+  return workbench;
 }
 
-function positionCanvasGridMenu(menu, anchor) {
-  if (!menu || !anchor) return;
-  const anchorRect = anchor.getBoundingClientRect();
-  const menuRect = menu.getBoundingClientRect();
-  const margin = 12;
-  let left = anchorRect.right + 10;
-  if (left + menuRect.width > window.innerWidth - margin) left = anchorRect.left - menuRect.width - 10;
-  const top = Math.max(margin, Math.min(window.innerHeight - menuRect.height - margin, anchorRect.top));
-  menu.style.left = `${Math.max(margin, left)}px`;
-  menu.style.top = `${top}px`;
+function renderCanvasCropWorkbenchPreview(workbench, state) {
+  const preview = workbench.querySelector("[data-crop-preview]");
+  if (!preview) return;
+  preview.innerHTML = "";
+  const validation = validateCanvasCropWorkbenchCrops(state);
+  if (!validation.valid) {
+    preview.textContent = validation.error;
+    return;
+  }
+  const source = String(state.source.savedUrl || state.source.src || "");
+  if (state.mode === "grid") {
+    const cells = document.createElement("div");
+    cells.className = "canvas-crop-workbench-cells";
+    cells.style.gridTemplateColumns = `repeat(${GridSlicingRules.normalizeGridSpec(state.rows, state.columns).columns}, minmax(0, 1fr))`;
+    cells.style.setProperty("--canvas-crop-workbench-aspect", String(state.sourceWidth / state.sourceHeight));
+    validation.crops.forEach((crop, index) => {
+      const cell = document.createElement("button");
+      cell.type = "button";
+      cell.className = "canvas-crop-workbench-cell";
+      cell.classList.toggle("is-selected", state.selectedCellKey === crop.key || (!state.selectedCellKey && index === 0));
+      cell.dataset.cropKey = crop.key;
+      const image = createDeferredThumbnail(source, `第 ${crop.row} 行第 ${crop.column} 列`);
+      image.draggable = false;
+      image.style.width = `${(state.sourceWidth / crop.width) * 100}%`;
+      image.style.height = `${(state.sourceHeight / crop.height) * 100}%`;
+      image.style.left = `${-(crop.x / crop.width) * 100}%`;
+      image.style.top = `${-(crop.y / crop.height) * 100}%`;
+      cell.append(image);
+      cell.addEventListener("pointerdown", (event) => startCanvasCropWorkbenchCellPan(event, crop.key));
+      cell.addEventListener("wheel", (event) => {
+        event.preventDefault();
+        const transforms = GridSlicingRules.normalizeCellTransforms(
+          getCanvasCropWorkbenchGridCrops({ ...state, cellTransforms: [] }).map((item) => ({ ...item, width: 1, height: 1 })),
+          state.cellTransforms,
+        );
+        const current = transforms.find((item) => item.key === crop.key);
+        state.cellTransforms = transforms.map((item) => item.key === crop.key ? {
+          ...item,
+          zoom: Math.max(1, Math.min(8, (current?.zoom || 1) + (event.deltaY < 0 ? 0.1 : -0.1))),
+        } : item);
+        state.selectedCellKey = crop.key;
+        updateCanvasCropWorkbenchPreviewGeometry();
+      }, { passive: false });
+      cells.append(cell);
+    });
+    preview.append(cells);
+    return;
+  }
+  const stage = document.createElement("div");
+  stage.className = "canvas-crop-workbench-stage";
+  stage.style.aspectRatio = `${state.sourceWidth} / ${state.sourceHeight}`;
+  const image = createDeferredThumbnail(source, state.source.name || "裁切来源图片");
+  stage.append(image);
+  const crop = validation.crops[0];
+  const frame = document.createElement("div");
+  frame.className = "canvas-crop-workbench-frame";
+  frame.style.left = `${(crop.x / state.sourceWidth) * 100}%`;
+  frame.style.top = `${(crop.y / state.sourceHeight) * 100}%`;
+  frame.style.width = `${(crop.width / state.sourceWidth) * 100}%`;
+  frame.style.height = `${(crop.height / state.sourceHeight) * 100}%`;
+  if (state.mode === "free") {
+    const handle = document.createElement("i");
+    handle.dataset.cropResize = "true";
+    frame.append(handle);
+    frame.addEventListener("pointerdown", (event) => startCanvasCropWorkbenchFreeRectDrag(event, frame));
+  }
+  stage.append(frame);
+  preview.append(stage);
 }
 
-function renderCanvasGridMenu() {
-  const state = canvasGridMenuState;
-  const menu = document.querySelector("#canvasGridMenu");
-  if (!state || !menu) return;
-  menu.querySelectorAll("[data-grid-menu-view]").forEach((view) => {
-    view.hidden = view.dataset.gridMenuView !== state.view;
-  });
-  const summary = menu.querySelector("[data-grid-summary]");
-  if (summary && state.spec) summary.textContent = `${state.spec.rows}×${state.spec.columns} 宫格`;
-  const status = menu.querySelector(".canvas-grid-menu-status");
-  if (status) status.textContent = state.status || "";
-  menu.querySelectorAll("button, select").forEach((control) => {
-    control.disabled = Boolean(state.busy);
-  });
-  window.lucide?.createIcons({ attrs: { "aria-hidden": "true", "stroke-width": 1.8 } });
+function updateCanvasCropWorkbenchPreviewGeometry() {
+  const state = canvasCropWorkbenchState;
+  const workbench = document.querySelector("#canvasCropWorkbench");
+  const preview = workbench?.querySelector("[data-crop-preview]");
+  if (!state || !preview) return false;
+  const validation = validateCanvasCropWorkbenchCrops(state);
+  if (!validation.valid) return false;
+  if (state.mode === "grid") {
+    const cells = preview.querySelector(".canvas-crop-workbench-cells");
+    if (!cells || cells.children.length !== validation.crops.length) return false;
+    for (let index = 0; index < validation.crops.length; index += 1) {
+      const crop = validation.crops[index];
+      const cell = cells.children[index];
+      const image = cell?.querySelector("img");
+      if (!cell || cell.dataset.cropKey !== crop.key || !image) return false;
+      cell.classList.toggle("is-selected", state.selectedCellKey === crop.key || (!state.selectedCellKey && index === 0));
+      image.style.width = `${(state.sourceWidth / crop.width) * 100}%`;
+      image.style.height = `${(state.sourceHeight / crop.height) * 100}%`;
+      image.style.left = `${-(crop.x / crop.width) * 100}%`;
+      image.style.top = `${-(crop.y / crop.height) * 100}%`;
+    }
+    return true;
+  }
+  const frame = preview.querySelector(".canvas-crop-workbench-frame");
+  const crop = validation.crops[0];
+  if (!frame || !crop) return false;
+  frame.style.left = `${(crop.x / state.sourceWidth) * 100}%`;
+  frame.style.top = `${(crop.y / state.sourceHeight) * 100}%`;
+  frame.style.width = `${(crop.width / state.sourceWidth) * 100}%`;
+  frame.style.height = `${(crop.height / state.sourceHeight) * 100}%`;
+  return true;
 }
 
-function openCanvasGridMenu(sourceNode) {
-  const active = getCanvasGalleryActiveImage(sourceNode);
-  const src = active?.savedUrl || active?.src || active?.url;
-  if (!sourceNode?.classList?.contains("canvas-node-gallery") || !src) {
-    setCanvasStatus("当前图集没有可裁切的图片。");
+function renderCanvasCropWorkbench() {
+  const state = canvasCropWorkbenchState;
+  const workbench = document.querySelector("#canvasCropWorkbench");
+  if (!state || !workbench) return;
+  workbench.querySelectorAll("[data-crop-mode]").forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.cropMode === state.mode);
+  });
+  workbench.querySelectorAll("[data-crop-controls]").forEach((control) => {
+    control.hidden = control.dataset.cropControls !== state.mode;
+  });
+  workbench.querySelectorAll("[data-crop-ratio]").forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.cropRatio === state.aspectRatio);
+  });
+  const spec = GridSlicingRules.normalizeGridSpec(state.rows, state.columns);
+  workbench.querySelector("[data-crop-rows]").value = String(spec.rows);
+  workbench.querySelector("[data-crop-columns]").value = String(spec.columns);
+  const validation = validateCanvasCropWorkbenchCrops(state);
+  const status = workbench.querySelector("[data-crop-status]");
+  if (status) status.textContent = state.error || (validation.valid
+    ? `${validation.crops.length} 张输出 · 原图 ${state.sourceWidth} × ${state.sourceHeight}px`
+    : validation.error);
+  workbench.querySelectorAll("button, select").forEach((control) => { control.disabled = Boolean(state.busy); });
+  renderCanvasCropWorkbenchPreview(workbench, state);
+}
+
+function getCanvasCropWorkbenchSource(sourceNode, memberId = "") {
+  if (!sourceNode?.classList?.contains("canvas-node")) return null;
+  if (sourceNode.classList.contains("canvas-node-gallery-container")) {
+    const member = getCanvasGalleryContainerMembers(sourceNode).find((item) => item.id === String(memberId || ""));
+    const savedUrl = member?.savedUrl || member?.src || "";
+    return member && savedUrl ? { ...member, savedUrl } : null;
+  }
+  if (!sourceNode.classList.contains("canvas-node-image")) return null;
+  const output = getCanvasNodeOutput(sourceNode);
+  const savedUrl = output?.originalUrl || output?.url || sourceNode.dataset.originalSrc || sourceNode.dataset.resultSrc || sourceNode.dataset.imageSrc || "";
+  if (!savedUrl) return null;
+  const image = sourceNode.querySelector(".canvas-image-upload img, img");
+  return {
+    id: "",
+    name: output?.name || sourceNode.dataset.imageName || "图片",
+    src: savedUrl,
+    savedUrl,
+    width: Number(image?.naturalWidth || image?.width || 0),
+    height: Number(image?.naturalHeight || image?.height || 0),
+  };
+}
+
+// AI 抠图工作台：本地 ONNX（主体模式）与颜色键控（特效模式）共用同一个界面。
+async function openCanvasCutoutWorkbench(sourceNode, memberId = "") {
+  if (!window.BackgroundRemovalUi) {
+    setCanvasStatus("抠图界面没有加载，请刷新页面后再试。");
     return false;
   }
-  closeCanvasGridMenu({ restoreFocus: false });
-  const menu = ensureCanvasGridMenuMarkup();
-  canvasGridMenuState = {
-    sourceNode,
-    active: { ...active, src, savedUrl: active.savedUrl || src },
-    returnFocus: document.activeElement,
-    spec: null,
-    view: "presets",
-    busy: false,
-    status: "",
-  };
-  menu.hidden = false;
-  renderCanvasGridMenu();
-  positionCanvasGridMenu(menu, sourceNode.querySelector(".canvas-gallery-slice-toggle"));
-  menu.querySelector("[data-grid-menu-view=\"presets\"] button")?.focus();
+  const source = getCanvasCropWorkbenchSource(sourceNode, memberId);
+  if (!source?.savedUrl) {
+    setCanvasStatus("当前图片没有可抠图的原图。");
+    return false;
+  }
+  try {
+    return await window.BackgroundRemovalUi.open({
+      node: sourceNode,
+      source: source.src || source.savedUrl,
+      savedUrl: source.savedUrl,
+      name: appendNameSuffix(source.name || "image.png", "抠图"),
+      width: source.width,
+      height: source.height,
+      onSaved: async (result) => placeCanvasCutoutResult(sourceNode, result),
+    });
+  } catch (error) {
+    setCanvasStatus(error?.message || "抠图失败。");
+    return false;
+  }
+}
+
+// 抠图结果作为新图片节点落在原图右侧，不覆盖原图。
+function placeCanvasCutoutResult(sourceNode, result) {
+  if (!result?.url) throw new Error("抠图结果没有返回图片地址。");
+  const anchor = sourceNode?.isConnected ? sourceNode : null;
+  const point = anchor
+    ? {
+      x: Number(anchor.dataset.x || 0) + (anchor.offsetWidth || Number(anchor.dataset.width || 320)) + 72,
+      y: Number(anchor.dataset.y || 0),
+    }
+    : { x: 0, y: 0 };
+  const targetNode = addCanvasImage(result.url, result.filename || "抠图结果.png", point);
+  refreshCanvasConnectedNodes(targetNode.dataset.id);
+  scheduleCanvasConnectionRender();
+  scheduleCanvasSave();
+  setCanvasStatus("已生成抠图结果，原图保留。");
+  focusAgentCanvasNodesInViewport(anchor ? [anchor, targetNode] : [targetNode]);
+  return targetNode;
+}
+
+async function openCanvasCropWorkbench(sourceNode, memberId = "") {
+  let source = getCanvasCropWorkbenchSource(sourceNode, memberId);
+  if (!source) {
+    setCanvasStatus("当前图片没有可裁切的原图。");
+    return false;
+  }
+  if (!source.width || !source.height) {
+    try {
+      const image = await loadImageElement(source.savedUrl || source.src);
+      source = { ...source, width: image.naturalWidth || image.width, height: image.naturalHeight || image.height };
+    } catch {
+      setCanvasStatus("原图加载失败，暂时无法裁切。");
+      return false;
+    }
+  }
+  canvasCropWorkbenchState = createCanvasCropWorkbenchState(sourceNode, source);
+  const workbench = ensureCanvasCropWorkbenchMarkup();
+  workbench.hidden = false;
+  renderCanvasCropWorkbench();
+  workbench.querySelector("[data-crop-mode]")?.focus();
   return true;
 }
 
-function closeCanvasGridMenu({ restoreFocus = true } = {}) {
-  const state = canvasGridMenuState;
+function closeCanvasCropWorkbench() {
+  const state = canvasCropWorkbenchState;
   if (state?.busy) return false;
-  const menu = document.querySelector("#canvasGridMenu");
-  if (menu) menu.hidden = true;
-  canvasGridMenuState = null;
-  if (restoreFocus && state?.returnFocus?.isConnected) state.returnFocus.focus?.();
+  const workbench = document.querySelector("#canvasCropWorkbench");
+  if (workbench) workbench.hidden = true;
+  canvasCropWorkbenchState = null;
   return true;
 }
 
-function selectCanvasGridSpec(sourceNode, spec) {
-  const state = canvasGridMenuState;
-  if (!state || state.sourceNode !== sourceNode) return null;
-  state.spec = GridSlicingRules.normalizeGridSpec(spec?.rows, spec?.columns);
-  state.view = "actions";
-  state.status = "";
-  renderCanvasGridMenu();
-  return state.spec;
+function startCanvasCropWorkbenchFreeRectDrag(event, frame) {
+  const state = canvasCropWorkbenchState;
+  if (!state || state.mode !== "free" || event.button !== 0) return;
+  event.preventDefault();
+  const stage = frame.parentElement;
+  const bounds = stage.getBoundingClientRect();
+  const start = normalizeCanvasCropWorkbenchFreeRect(state.freeRect);
+  const resize = Boolean(event.target.closest("[data-crop-resize]"));
+  const startX = event.clientX;
+  const startY = event.clientY;
+  const update = (moveEvent) => {
+    const deltaX = (moveEvent.clientX - startX) / Math.max(1, bounds.width);
+    const deltaY = (moveEvent.clientY - startY) / Math.max(1, bounds.height);
+    state.freeRect = resize
+      ? normalizeCanvasCropWorkbenchFreeRect({ ...start, width: start.width + deltaX, height: start.height + deltaY })
+      : normalizeCanvasCropWorkbenchFreeRect({ ...start, x: Math.max(0, Math.min(1 - start.width, start.x + deltaX)), y: Math.max(0, Math.min(1 - start.height, start.y + deltaY)) });
+    updateCanvasCropWorkbenchPreviewGeometry();
+  };
+  const stop = () => {
+    window.removeEventListener("pointermove", update);
+    window.removeEventListener("pointerup", stop);
+    window.removeEventListener("pointercancel", stop);
+  };
+  window.addEventListener("pointermove", update);
+  window.addEventListener("pointerup", stop, { once: true });
+  window.addEventListener("pointercancel", stop, { once: true });
+}
+
+function startCanvasCropWorkbenchCellPan(event, key) {
+  const state = canvasCropWorkbenchState;
+  if (!state || state.mode !== "grid" || event.button !== 0) return;
+  event.preventDefault();
+  const cell = event.currentTarget;
+  const bounds = cell.getBoundingClientRect();
+  const regions = GridSlicingRules.getSliceRegions(
+    state.sourceWidth,
+    state.sourceHeight,
+    GridSlicingRules.createEvenBands(state.sourceWidth, GridSlicingRules.normalizeGridSpec(state.rows, state.columns).columns - 1, 0, "v"),
+    GridSlicingRules.createEvenBands(state.sourceHeight, GridSlicingRules.normalizeGridSpec(state.rows, state.columns).rows - 1, 0, "h"),
+  ).map((region) => ({ ...region, key: `r${region.row}-c${region.column}` }));
+  const transforms = GridSlicingRules.normalizeCellTransforms(regions, state.cellTransforms);
+  const start = transforms.find((item) => item.key === key) || { key, centerX: 0.5, centerY: 0.5, zoom: 1 };
+  const startX = event.clientX;
+  const startY = event.clientY;
+  const update = (moveEvent) => {
+    const deltaX = (moveEvent.clientX - startX) / Math.max(1, bounds.width) / start.zoom;
+    const deltaY = (moveEvent.clientY - startY) / Math.max(1, bounds.height) / start.zoom;
+    state.cellTransforms = transforms.map((item) => item.key === key ? {
+      ...item,
+      centerX: Math.max(0, Math.min(1, start.centerX - deltaX)),
+      centerY: Math.max(0, Math.min(1, start.centerY - deltaY)),
+    } : item);
+    state.selectedCellKey = key;
+    updateCanvasCropWorkbenchPreviewGeometry();
+  };
+  const stop = () => {
+    window.removeEventListener("pointermove", update);
+    window.removeEventListener("pointerup", stop);
+    window.removeEventListener("pointercancel", stop);
+  };
+  window.addEventListener("pointermove", update);
+  window.addEventListener("pointerup", stop, { once: true });
+  window.addEventListener("pointercancel", stop, { once: true });
+}
+
+function assertCanvasCropPersistenceComplete(crops, persisted) {
+  if (!Array.isArray(crops) || !crops.length || !Array.isArray(persisted) || persisted.length !== crops.length) {
+    throw new Error("裁切保存不完整，未创建图集。");
+  }
+  const outOfOrder = persisted.find((member, index) => {
+    const crop = crops[index];
+    return !member?.id
+      || !member?.savedUrl
+      || String(member.row ?? "") !== String(crop?.row ?? "")
+      || String(member.column ?? "") !== String(crop?.column ?? "");
+  });
+  if (outOfOrder) throw new Error("裁切保存顺序不一致，未创建图集。");
+  return persisted;
+}
+
+async function createCanvasCropResultContainer(sourceNode, sourceMember, crops, mode, { image } = {}) {
+  if (!sourceNode?.classList?.contains("canvas-node")) {
+    throw new Error("裁切来源节点无效，未创建图集。");
+  }
+  const persisted = assertCanvasCropPersistenceComplete(
+    crops,
+    await persistCanvasGridCrops(image, crops, { sourceName: sourceMember?.name }),
+  );
+  const layout = getCanvasGalleryFreeGridLayout({ members: persisted });
+  const gallery = createCanvasGalleryContainerWithSourceConnection(
+    sourceNode,
+    findCanvasGridImageBlockPoint(sourceNode, layout.width, layout.minHeight),
+    {
+      title: mode === "grid" ? "裁切图集" : "裁切结果",
+      members: persisted,
+      activeMemberId: persisted[0].id,
+    },
+    { label: mode === "grid" ? "创建裁切图集" : "创建裁切结果" },
+  );
+  selectCanvasNode(gallery);
+  return gallery;
+}
+
+async function outputCanvasCropWorkbench() {
+  const state = canvasCropWorkbenchState;
+  if (!state || state.busy) return null;
+  const validation = validateCanvasCropWorkbenchCrops(state);
+  if (!validation.valid) {
+    state.error = validation.error;
+    renderCanvasCropWorkbench();
+    return null;
+  }
+  state.busy = true;
+  state.error = "";
+  renderCanvasCropWorkbench();
+  try {
+    const image = await loadImageElement(state.source.savedUrl || state.source.src);
+    const gallery = await createCanvasCropResultContainer(
+      state.sourceNode,
+      state.source,
+      validation.crops,
+      state.mode,
+      { image },
+    );
+    state.busy = false;
+    closeCanvasCropWorkbench();
+    setCanvasStatus(`已生成 ${validation.crops.length} 张裁切图片。`);
+    return gallery;
+  } catch (error) {
+    state.busy = false;
+    state.error = `裁切失败：${error.message || "未知错误"}`;
+    renderCanvasCropWorkbench();
+    return null;
+  }
 }
 
 async function persistCanvasGridCrops(image, crops, { sourceName, outputSize = null } = {}) {
@@ -6178,178 +8699,12 @@ async function persistCanvasGridCrops(image, crops, { sourceName, outputSize = n
   return settled.map((result) => result.value);
 }
 
-function findCanvasGridImageBlockPoint(sourceNode, specValue, nodeSize) {
-  const spec = GridSlicingRules.normalizeGridSpec(specValue?.rows, specValue?.columns);
-  const sourceX = Number(sourceNode?.dataset.x || 0);
-  const sourceY = Number(sourceNode?.dataset.y || 0);
-  const sourceWidth = Number(sourceNode?.dataset.width || sourceNode?.offsetWidth || 292) || 292;
-  const gap = 24;
-  const blockWidth = spec.columns * nodeSize.width + (spec.columns - 1) * gap;
-  const blockHeight = spec.rows * nodeSize.height + (spec.rows - 1) * gap;
-  const nodes = Array.from(document.querySelectorAll("#canvasPlane .canvas-node")).filter((node) => node !== sourceNode);
-  for (let step = 0; step < 32; step += 1) {
-    const point = { x: sourceX + sourceWidth + 90, y: sourceY + step * (blockHeight + 48) };
-    const overlaps = nodes.some((node) => {
-      const box = getCanvasNodeBox(node);
-      return point.x < box.right + 28
-        && point.x + blockWidth + 28 > box.left
-        && point.y < box.bottom + 28
-        && point.y + blockHeight + 28 > box.top;
-    });
-    if (!overlaps) return point;
-  }
-  return { x: sourceX + sourceWidth + 90, y: sourceY + blockHeight + 48 };
-}
-
-function placeCanvasGridImageNodes(sourceNode, images, specValue) {
-  const spec = GridSlicingRules.normalizeGridSpec(specValue?.rows, specValue?.columns);
-  const first = images[0] || {};
-  const ratio = Math.max(0.05, Number(first.height || 1) / Math.max(1, Number(first.width || 1)));
-  const nodeWidth = Math.max(120, Math.min(220, Math.round(260 / ratio)));
-  const nodeHeight = Math.max(72, Math.round(nodeWidth * ratio));
-  const nodeSize = { width: nodeWidth, height: nodeHeight };
-  const block = findCanvasGridImageBlockPoint(sourceNode, spec, nodeSize);
-  const gap = 24;
-  const nodes = images.map((image, index) => {
-    const row = Number(image.row || Math.floor(index / spec.columns) + 1);
-    const column = Number(image.column || (index % spec.columns) + 1);
-    const point = {
-      x: block.x + (column - 1) * (nodeWidth + gap),
-      y: block.y + (row - 1) * (nodeHeight + gap),
-    };
-    const node = addCanvasImage(image.savedUrl || image.src, image.name, point);
-    node.dataset.width = String(nodeWidth);
-    node.dataset.gridSliceRow = String(row);
-    node.dataset.gridSliceColumn = String(column);
-    applyCanvasNodeSize(node);
-    updateCanvasNodePosition(node);
-    return node;
-  });
-  if (nodes[0]) selectCanvasNode(nodes[0]);
-  scheduleCanvasConnectionRender();
-  scheduleCanvasSave();
-  return nodes;
-}
-
-async function createCanvasDirectGridSlices(sourceNode, specValue) {
-  const active = canvasGridMenuState?.sourceNode === sourceNode
-    ? canvasGridMenuState.active
-    : getCanvasGalleryActiveImage(sourceNode);
-  const src = active?.savedUrl || active?.src || active?.url;
-  if (!sourceNode?.classList?.contains("canvas-node-gallery") || !src) {
-    throw new Error("当前图集没有可裁切的图片。");
-  }
-  const image = await loadImageElement(src);
-  const width = image.naturalWidth || image.width;
-  const height = image.naturalHeight || image.height;
-  if (!width || !height) throw new Error("当前图片没有有效尺寸。");
-  const spec = GridSlicingRules.normalizeGridSpec(specValue?.rows, specValue?.columns);
-  const layout = GridSlicingRules.createGridLayout(width, height, spec.rows, spec.columns, 0);
-  setCanvasStatus(`正在保存 ${layout.regions.length} 张裁切图片…`);
-  const images = await persistCanvasGridCrops(image, layout.regions, { sourceName: active.name });
-  const nodes = placeCanvasGridImageNodes(sourceNode, images, spec);
-  setCanvasStatus(`已裁切并创建 ${nodes.length} 个独立图片节点。`);
-  return nodes;
-}
-
 function createCanvasGridEditorState({ source = {}, sourceNodeId = "", width, height, rows, columns } = {}) {
-  const layout = GridSlicingRules.createGridLayout(width, height, rows, columns, 0);
-  return {
-    version: 1,
-    sourceNodeId: String(sourceNodeId || ""),
-    sourceSrc: source.savedUrl || source.src || source.url || "",
-    sourceName: source.name || "宫格来源.png",
-    sourceWidth: Math.round(width),
-    sourceHeight: Math.round(height),
-    rows: layout.spec.rows,
-    columns: layout.spec.columns,
-    aspect: "match",
-    uniformGap: 0,
-    horizontalBands: layout.horizontalBands,
-    verticalBands: layout.verticalBands,
-    cellTransforms: GridSlicingRules.normalizeCellTransforms(layout.regions, []),
-    selectedCellKey: layout.regions[0]?.key || "",
-    selectedBand: null,
-    editing: false,
-    collapsed: false,
-  };
+  return CanvasGridEditorRules.createState({ source, sourceNodeId, width, height, rows, columns });
 }
 
 function normalizeCanvasGridEditorState(value = {}) {
-  const sourceWidth = Math.max(0, Math.round(Number(value.sourceWidth) || 0));
-  const sourceHeight = Math.max(0, Math.round(Number(value.sourceHeight) || 0));
-  const spec = GridSlicingRules.normalizeGridSpec(value.rows, value.columns);
-  const aspect = ["match", "16:9", "9:16", "3:4", "4:3", "1:1"].includes(value.aspect)
-    ? value.aspect
-    : "match";
-  const requestedGap = Math.max(0, Math.round(Number(value.uniformGap) || 0));
-  const uniformGap = requestedGap - (requestedGap % 2);
-  if (!value.sourceSrc || !sourceWidth || !sourceHeight) {
-    return {
-      version: 1,
-      sourceNodeId: String(value.sourceNodeId || ""),
-      sourceSrc: "",
-      sourceName: "",
-      sourceWidth: 0,
-      sourceHeight: 0,
-      rows: spec.rows,
-      columns: spec.columns,
-      aspect,
-      uniformGap,
-      horizontalBands: [],
-      verticalBands: [],
-      cellTransforms: [],
-      selectedCellKey: "",
-      selectedBand: null,
-      editing: false,
-      collapsed: Boolean(value.collapsed),
-    };
-  }
-  const layout = GridSlicingRules.createGridLayout(
-    sourceWidth,
-    sourceHeight,
-    spec.rows,
-    spec.columns,
-    uniformGap,
-  );
-  let horizontalBands = Array.isArray(value.horizontalBands)
-    && value.horizontalBands.length === spec.rows - 1
-    ? value.horizontalBands
-    : layout.horizontalBands;
-  let verticalBands = Array.isArray(value.verticalBands)
-    && value.verticalBands.length === spec.columns - 1
-    ? value.verticalBands
-    : layout.verticalBands;
-  let regions;
-  try {
-    regions = GridSlicingRules.getSliceRegions(sourceWidth, sourceHeight, verticalBands, horizontalBands)
-      .map((region) => ({ ...region, key: `r${region.row}-c${region.column}` }));
-  } catch {
-    horizontalBands = layout.horizontalBands;
-    verticalBands = layout.verticalBands;
-    regions = layout.regions;
-  }
-  return {
-    version: 1,
-    sourceNodeId: String(value.sourceNodeId || ""),
-    sourceSrc: String(value.sourceSrc || ""),
-    sourceName: String(value.sourceName || "宫格来源.png"),
-    sourceWidth,
-    sourceHeight,
-    rows: spec.rows,
-    columns: spec.columns,
-    aspect,
-    uniformGap,
-    horizontalBands,
-    verticalBands,
-    cellTransforms: GridSlicingRules.normalizeCellTransforms(regions, value.cellTransforms),
-    selectedCellKey: regions.some((region) => region.key === value.selectedCellKey)
-      ? value.selectedCellKey
-      : regions[0]?.key || "",
-    selectedBand: value.selectedBand || null,
-    editing: Boolean(value.editing),
-    collapsed: Boolean(value.collapsed),
-  };
+  return CanvasGridEditorRules.normalizeState(value);
 }
 
 function getCanvasGridEditorState(node) {
@@ -6372,24 +8727,11 @@ function setCanvasGridEditorState(node, state, { save = true } = {}) {
 }
 
 function getCanvasGridEditorRegions(state) {
-  if (!state?.sourceWidth || !state?.sourceHeight) return [];
-  return GridSlicingRules.getSliceRegions(
-    state.sourceWidth,
-    state.sourceHeight,
-    state.verticalBands,
-    state.horizontalBands,
-  ).map((region) => ({ ...region, key: `r${region.row}-c${region.column}` }));
+  return CanvasGridEditorRules.getRegions(state);
 }
 
 function createCanvasGridEditorTrackTemplate(regions, bands, axis) {
-  const firstLine = regions.filter((region) => axis === "vertical" ? region.row === 1 : region.column === 1);
-  const tracks = [];
-  firstLine.forEach((region, index) => {
-    tracks.push(`${axis === "vertical" ? region.width : region.height}fr`);
-    const band = bands[index];
-    if (band) tracks.push(`${Math.max(0, band.end - band.start)}fr`);
-  });
-  return tracks.join(" ");
+  return CanvasGridEditorRules.createTrackTemplate(regions, bands, axis);
 }
 
 function appendCanvasGridEditorBands(layer, state, axis, bands) {
@@ -6423,177 +8765,17 @@ function appendCanvasGridEditorBands(layer, state, axis, bands) {
 }
 
 function renderCanvasGridEditorNode(node, stateValue) {
-  const state = normalizeCanvasGridEditorState(stateValue || getCanvasGridEditorState(node));
-  node.innerHTML = "";
-  node.dataset.gridEditorState = JSON.stringify(state);
-  node.classList.remove("canvas-node-frameless");
-  node.classList.toggle("is-grid-editing", state.editing);
-  node.classList.toggle("is-grid-collapsed", state.collapsed);
-  const inputPort = createCanvasPort("input");
-  const outputPort = createCanvasPort("output");
-  const bar = createCanvasNodeBar("宫格编辑");
-  const shell = document.createElement("div");
-  shell.className = "canvas-grid-editor-shell";
-  const toolbar = document.createElement("div");
-  toolbar.className = "canvas-grid-editor-toolbar";
-  toolbar.innerHTML = `
-    <button type="button" class="canvas-grid-editor-aspect">比例 ${state.aspect === "match" ? "匹配" : state.aspect}</button>
-    <button type="button" class="canvas-grid-editor-grid">网格 ${state.rows}×${state.columns}</button>
-    <button type="button" class="canvas-grid-editor-edit" aria-pressed="${state.editing}">${state.editing ? "完成编辑" : "编辑"}</button>
-    <button type="button" class="canvas-grid-editor-output">输出图集</button>
-    <button type="button" class="canvas-grid-editor-clear">清空</button>
-    <button type="button" class="canvas-grid-editor-collapse" aria-expanded="${!state.collapsed}">${state.collapsed ? "展开" : "折叠"}</button>
-  `;
-  const body = document.createElement("div");
-  body.className = "canvas-grid-editor-body";
-  body.hidden = state.collapsed;
-  const editControls = document.createElement("div");
-  editControls.className = "canvas-grid-editor-edit-controls";
-  editControls.hidden = !state.editing || !state.sourceSrc;
-  const selectedBand = state.selectedBand
-    ? (state.selectedBand.axis === "vertical" ? state.verticalBands : state.horizontalBands)
-      .find((band) => band.id === state.selectedBand.id)
-    : null;
-  const selectedTransform = state.cellTransforms.find((item) => item.key === state.selectedCellKey);
-  editControls.innerHTML = `
-    <label><span>统一间隔</span><input class="canvas-grid-editor-uniform-gap" type="number" min="0" step="2" value="${state.uniformGap}"><em>px</em></label>
-    <label><span>选中线</span><input class="canvas-grid-editor-band-gap" type="number" min="0" step="2" value="${selectedBand ? selectedBand.end - selectedBand.start : 0}" ${selectedBand ? "" : "disabled"}><em>px</em></label>
-    <label class="canvas-grid-editor-zoom-control"><span>选中格缩放</span><input class="canvas-grid-editor-zoom" type="range" min="1" max="8" step="0.05" value="${selectedTransform?.zoom || 1}"><output>${(selectedTransform?.zoom || 1).toFixed(2)}×</output></label>
-  `;
-  const preview = document.createElement("div");
-  preview.className = "canvas-grid-editor-preview";
-  const cells = document.createElement("div");
-  cells.className = "canvas-grid-editor-cells";
-  const bandLayer = document.createElement("div");
-  bandLayer.className = "canvas-grid-editor-band-layer";
-  bandLayer.hidden = !state.editing;
-  const status = document.createElement("div");
-  status.className = "canvas-grid-editor-status";
-  status.setAttribute("aria-live", "polite");
-  if (!state.sourceSrc) {
-    const empty = document.createElement("div");
-    empty.className = "canvas-grid-editor-empty";
-    empty.textContent = "来源图片已清空";
-    cells.append(empty);
-    status.textContent = "重新创建宫格节点可继续编辑。";
-  } else {
-    const regions = getCanvasGridEditorRegions(state);
-    const transforms = new Map(state.cellTransforms.map((transform) => [transform.key, transform]));
-    const ratio = GridSlicingRules.resolveAspectRatio(state.aspect, {
-      width: state.sourceWidth,
-      height: state.sourceHeight,
-      rows: state.rows,
-      columns: state.columns,
-    });
-    cells.style.aspectRatio = `${state.sourceWidth} / ${state.sourceHeight}`;
-    cells.style.gridTemplateColumns = createCanvasGridEditorTrackTemplate(regions, state.verticalBands, "vertical");
-    cells.style.gridTemplateRows = createCanvasGridEditorTrackTemplate(regions, state.horizontalBands, "horizontal");
-    regions.forEach((region, index) => {
-      const crop = GridSlicingRules.getCellCrop(region, ratio, transforms.get(region.key));
-      const cell = document.createElement("div");
-      cell.className = "canvas-grid-editor-cell";
-      cell.classList.toggle("is-selected", state.selectedCellKey === region.key);
-      cell.dataset.cellKey = region.key;
-      cell.dataset.crop = JSON.stringify({
-        x: crop.x,
-        y: crop.y,
-        width: crop.width,
-        height: crop.height,
-        ratio,
-      });
-      cell.style.gridColumn = String((region.column - 1) * 2 + 1);
-      cell.style.gridRow = String((region.row - 1) * 2 + 1);
-      const frame = document.createElement("div");
-      frame.className = "canvas-grid-editor-cell-frame";
-      frame.tabIndex = 0;
-      frame.dataset.cellKey = region.key;
-      const regionRatio = region.width / region.height;
-      if (ratio >= regionRatio) {
-        frame.style.width = "100%";
-        frame.style.height = `${Math.min(100, (region.width / ratio / region.height) * 100)}%`;
-      } else {
-        frame.style.height = "100%";
-        frame.style.width = `${Math.min(100, (region.height * ratio / region.width) * 100)}%`;
-      }
-      const image = createDeferredThumbnail(
-        state.sourceSrc,
-        `${state.sourceName} 第 ${region.row} 行第 ${region.column} 列`,
-      );
-      image.draggable = false;
-      image.style.width = `${(state.sourceWidth / crop.width) * 100}%`;
-      image.style.height = `${(state.sourceHeight / crop.height) * 100}%`;
-      image.style.left = `${-(crop.x / crop.width) * 100}%`;
-      image.style.top = `${-(crop.y / crop.height) * 100}%`;
-      const label = document.createElement("span");
-      label.textContent = String(index + 1);
-      frame.append(image, label);
-      cell.append(frame);
-      frame.addEventListener("pointerdown", (event) => startCanvasGridEditorCellPan(event, node, region.key));
-      frame.addEventListener("click", (event) => {
-        event.stopPropagation();
-        const latest = getCanvasGridEditorState(node);
-        if (latest.selectedCellKey === region.key) return;
-        setCanvasGridEditorState(node, { ...latest, selectedCellKey: region.key });
-      });
-      frame.addEventListener("wheel", (event) => {
-        if (!getCanvasGridEditorState(node).editing) return;
-        event.preventDefault();
-        event.stopPropagation();
-        const current = getCanvasGridEditorState(node).cellTransforms.find((item) => item.key === region.key);
-        const delta = event.deltaY < 0 ? 0.05 : -0.05;
-        setCanvasGridEditorCellZoom(node, region.key, (current?.zoom || 1) + delta, { save: false });
-        clearTimeout(canvasGridEditorWheelTimers.get(node.dataset.id));
-        canvasGridEditorWheelTimers.set(node.dataset.id, setTimeout(() => {
-          canvasGridEditorWheelTimers.delete(node.dataset.id);
-          scheduleCanvasSave();
-        }, 260));
-      }, { passive: false });
-      cells.append(cell);
-    });
-    appendCanvasGridEditorBands(bandLayer, state, "vertical", state.verticalBands);
-    appendCanvasGridEditorBands(bandLayer, state, "horizontal", state.horizontalBands);
-    status.textContent = `${state.rows * state.columns} 格 · ${state.sourceWidth} × ${state.sourceHeight}px 来源快照`;
+  const plugin = window.AiOsCanvasNodePlugins?.get?.("grid-editor");
+  if (plugin?.render) {
+    plugin.render(node, stateValue, getCanvasNodePluginContext());
+    return;
   }
-  preview.append(cells, bandLayer);
-  body.append(editControls, preview, status);
-  shell.append(toolbar, body);
-  node.append(inputPort, outputPort, bar, shell, createCanvasResizeHandle());
-  toolbar.addEventListener("pointerdown", (event) => event.stopPropagation());
-  editControls.addEventListener("pointerdown", (event) => event.stopPropagation());
-  toolbar.querySelector(".canvas-grid-editor-aspect")?.addEventListener("click", (event) => {
-    toggleCanvasGridEditorPopover(node, "aspect", event.currentTarget);
-  });
-  toolbar.querySelector(".canvas-grid-editor-grid")?.addEventListener("click", (event) => {
-    toggleCanvasGridEditorPopover(node, "grid", event.currentTarget);
-  });
-  toolbar.querySelector(".canvas-grid-editor-edit")?.addEventListener("click", () => {
-    const latest = getCanvasGridEditorState(node);
-    setCanvasGridEditorState(node, { ...latest, editing: !latest.editing, collapsed: false });
-  });
-  toolbar.querySelector(".canvas-grid-editor-output")?.addEventListener("click", () => {
-    if (typeof outputCanvasGridEditorGallery === "function") outputCanvasGridEditorGallery(node);
-    else setCanvasStatus("宫格输出功能尚未就绪。");
-  });
-  toolbar.querySelector(".canvas-grid-editor-clear")?.addEventListener("click", () => clearCanvasGridEditor(node));
-  toolbar.querySelector(".canvas-grid-editor-collapse")?.addEventListener("click", () => {
-    setCanvasGridEditorCollapsed(node, !getCanvasGridEditorState(node).collapsed);
-  });
-  editControls.querySelector(".canvas-grid-editor-uniform-gap")?.addEventListener("change", (event) => {
-    setCanvasGridEditorUniformGap(node, event.target.value);
-  });
-  editControls.querySelector(".canvas-grid-editor-band-gap")?.addEventListener("change", (event) => {
-    const latest = getCanvasGridEditorState(node);
-    if (latest.selectedBand) {
-      setCanvasGridEditorBandGap(node, latest.selectedBand.axis, latest.selectedBand.id, event.target.value);
-    }
-  });
-  editControls.querySelector(".canvas-grid-editor-zoom")?.addEventListener("input", (event) => {
-    const latest = getCanvasGridEditorState(node);
-    setCanvasGridEditorCellZoom(node, latest.selectedCellKey, event.target.value, { save: false });
-  });
-  editControls.querySelector(".canvas-grid-editor-zoom")?.addEventListener("change", () => scheduleCanvasSave());
-  window.lucide?.createIcons({ attrs: { "aria-hidden": "true", "stroke-width": 1.8 } });
-  scheduleCanvasConnectionRender();
+  const renderer = window.CanvasGridEditorNodeRenderer;
+  if (renderer?.render) {
+    renderer.render(node, stateValue, getCanvasNodePluginContext());
+    return;
+  }
+  throw new Error("Canvas grid editor node renderer is unavailable.");
 }
 
 function findCanvasGridEditorPoint(sourceNode, estimatedWidth = 620, estimatedHeight = 520) {
@@ -6617,7 +8799,7 @@ function findCanvasGridEditorPoint(sourceNode, estimatedWidth = 620, estimatedHe
 
 async function addCanvasGridEditorNode(sourceNode, options = {}) {
   options.guard?.assertActive();
-  const source = options.source || (sourceNode?.classList?.contains("canvas-node-gallery")
+  const source = options.source || (sourceNode?.classList?.contains("canvas-node-gallery-container")
     ? getCanvasGalleryActiveImage(sourceNode)
     : getCanvasNodeOutput(sourceNode));
   const src = source?.savedUrl || source?.src || source?.url;
@@ -6976,10 +9158,13 @@ async function outputCanvasGridEditorGallery(node, options) {
     ));
     const outputSize = GridSlicingRules.getCommonOutputSize(crops, ratio);
     if (status) status.textContent = `正在保存 ${crops.length} 张 ${outputSize.width} × ${outputSize.height}px PNG…`;
-    const images = await persistCanvasGridCrops(image, crops, {
-      sourceName: state.sourceName,
-      outputSize,
-    });
+    const images = assertCanvasCropPersistenceComplete(
+      crops,
+      await persistCanvasGridCrops(image, crops, {
+        sourceName: state.sourceName,
+        outputSize,
+      }),
+    );
     guard?.assertActive();
     const gallery = createCanvasGridSliceGallery(node, images);
     if (status) status.textContent = `输出完成：${images.length} 张，统一尺寸 ${outputSize.width} × ${outputSize.height}px。`;
@@ -6994,231 +9179,89 @@ async function outputCanvasGridEditorGallery(node, options) {
   }
 }
 
-function findCanvasGridSliceGalleryPoint(sourceNode) {
+function findCanvasGridImageBlockPoint(sourceNode, estimatedWidth = 320, estimatedHeight = 360) {
   const sourceX = Number(sourceNode?.dataset.x || 0);
   const sourceY = Number(sourceNode?.dataset.y || 0);
   const sourceWidth = Number(sourceNode?.dataset.width || sourceNode?.offsetWidth || 292) || 292;
-  const estimatedWidth = 320;
-  const estimatedHeight = 360;
   const nodes = Array.from(document.querySelectorAll("#canvasPlane .canvas-node")).filter((node) => node !== sourceNode);
-  for (let step = 0; step < 24; step += 1) {
-    const point = { x: sourceX + sourceWidth + 90, y: sourceY + step * 390 };
-    const overlaps = nodes.some((node) => {
-      const x = Number(node.dataset.x || 0);
-      const y = Number(node.dataset.y || 0);
-      const width = Number(node.dataset.width || node.offsetWidth || 292) || 292;
-      const height = Number(node.dataset.height || node.offsetHeight || 260) || 260;
-      return point.x < x + width + 28
-        && point.x + estimatedWidth + 28 > x
-        && point.y < y + height + 28
-        && point.y + estimatedHeight + 28 > y;
-    });
-    if (!overlaps) return point;
+  const isOpen = (point) => !nodes.some((node) => {
+    const box = getCanvasNodeBox(node);
+    return point.x < box.right + 28
+      && point.x + estimatedWidth + 28 > box.left
+      && point.y < box.bottom + 28
+      && point.y + estimatedHeight + 28 > box.top;
+  });
+  const rightX = sourceX + sourceWidth + 90;
+  const rowStep = estimatedHeight + 48;
+  for (let step = 0; step < 96; step += 1) {
+    const point = { x: rightX, y: sourceY + step * rowStep };
+    if (isOpen(point)) return point;
   }
-  return { x: sourceX + sourceWidth + 90, y: sourceY };
+  for (let column = 1; column < 96; column += 1) {
+    const point = { x: rightX + column * (estimatedWidth + 48), y: sourceY };
+    if (isOpen(point)) return point;
+  }
+  return { x: rightX + 96 * (estimatedWidth + 48), y: sourceY };
+}
+
+function findCanvasGridSliceGalleryPoint(sourceNode, estimatedWidth = 320, estimatedHeight = 360) {
+  return findCanvasGridImageBlockPoint(sourceNode, estimatedWidth, estimatedHeight);
 }
 
 function createCanvasGridSliceGallery(sourceNode, images) {
   if (!sourceNode?.classList?.contains("canvas-node") || !Array.isArray(images) || !images.length) return null;
-  const point = findCanvasGridSliceGalleryPoint(sourceNode);
-  const gallery = addCanvasGallery(point);
-  renderCanvasGalleryNode(gallery, {
-    images,
-    title: "宫格裁切图集",
-    activeImageId: images[0].id,
-  });
-  applyCanvasNodeSize(gallery);
+  const layout = getCanvasGalleryFreeGridLayout({ members: images });
+  const point = findCanvasGridSliceGalleryPoint(sourceNode, layout.width, layout.minHeight);
+  const gallery = createCanvasGalleryContainerWithSourceConnection(sourceNode, point, {
+    title: "裁切图集",
+    members: images,
+    activeMemberId: images[0].id,
+  }, { label: "创建裁切图集" });
   selectCanvasNode(gallery);
-  scheduleCanvasConnectionRender();
-  scheduleCanvasSave();
   return gallery;
 }
 
 function renderCanvasComfyNode(node, { mode = "", resolution = "", padding = null, qwenAngle = null } = {}) {
-  const previousMode = node.querySelector(".canvas-comfy-mode")?.value || node.dataset.comfyMode || mode || "upscale2";
-  const previousResolution = normalizeCanvasComfyResolution(
-    node.querySelector(".canvas-comfy-resolution")?.value || node.dataset.comfyResolution || resolution || "2048",
-  );
-  const previousQwenAngle = normalizeCanvasComfyQwenAngle(qwenAngle || {
-    horizontal: node.querySelector(".canvas-comfy-qwen-horizontal")?.value || node.dataset.comfyQwenHorizontal,
-    vertical: node.querySelector(".canvas-comfy-qwen-vertical")?.value || node.dataset.comfyQwenVertical,
-    zoom: node.querySelector(".canvas-comfy-qwen-zoom")?.value || node.dataset.comfyQwenZoom,
-  });
-  node.innerHTML = "";
-  node.dataset.comfyMode = previousMode;
-  if (isCanvasComfyResolutionMode(previousMode)) node.dataset.comfyResolution = previousResolution;
-  else delete node.dataset.comfyResolution;
-  const previousPadding = normalizeCanvasComfyPadding(padding || {
-    left: node.dataset.comfyOutpaintLeft,
-    top: node.dataset.comfyOutpaintTop,
-    right: node.dataset.comfyOutpaintRight,
-    bottom: node.dataset.comfyOutpaintBottom,
-  });
-  setCanvasComfyPadding(node, previousPadding);
-  setCanvasComfyQwenAngle(node, previousQwenAngle);
-
-  const inputPort = createCanvasPort("input");
-  const outputPort = createCanvasPort("output");
-  const bar = createCanvasNodeBar("ComfyUI节点");
-
-  const refs = document.createElement("div");
-  refs.className = "canvas-node-refs";
-
-  const controls = document.createElement("div");
-  controls.className = "canvas-node-controls canvas-comfy-controls";
-  const modeField = document.createElement("label");
-  modeField.className = "canvas-comfy-field canvas-comfy-mode-field";
-  const modeLabel = document.createElement("span");
-  modeLabel.textContent = "工作流";
-  const modeSelect = document.createElement("select");
-  modeSelect.className = "canvas-node-model canvas-comfy-mode";
-  [
-    { value: "upscale", label: "图片放大" },
-    { value: "upscale2", label: "图片放大2" },
-    { value: "shoe-swap", label: "换鞋" },
-    { value: "outpaint", label: "扩图 · Z-Image" },
-    { value: "outpaint2", label: "扩图2 · RunningHub" },
-    { value: "flux2-klein-edit", label: "Flux2 Klein 图片编辑" },
-    { value: "qwen-edit-angle", label: "Qwen Edit \u89d2\u5ea6\u5207\u6362" },
-  ].forEach((item) => {
-    const option = document.createElement("option");
-    option.value = item.value;
-    option.textContent = item.label;
-    modeSelect.append(option);
-  });
-  modeSelect.value = ["upscale", "upscale2", "shoe-swap", "outpaint", "outpaint2", "flux2-klein-edit", "qwen-edit-angle"].includes(previousMode) ? previousMode : "upscale2";
-  modeSelect.addEventListener("change", () => {
-    node.dataset.comfyMode = modeSelect.value;
-    syncCanvasComfyResolutionOptions(modeSelect, resolutionSelect, node);
-    setCanvasComfyResolutionFieldVisible(node, resolutionField, resolutionSelect, modeSelect.value);
-    outpaintArea.hidden = !["outpaint", "outpaint2"].includes(modeSelect.value);
-    qwenAngleArea.hidden = modeSelect.value !== "qwen-edit-angle";
-    updateCanvasComfyOutpaintPreview(node);
-    updateCanvasComfyHint(node);
-    scheduleCanvasSave();
-  });
-
-  const resolutionSelect = document.createElement("select");
-  resolutionSelect.className = "canvas-node-resolution canvas-comfy-resolution";
-  const resolutionField = document.createElement("label");
-  resolutionField.className = "canvas-comfy-field canvas-comfy-resolution-field";
-  const resolutionLabel = document.createElement("span");
-  resolutionLabel.textContent = "输出尺寸";
-  resolutionSelect.value = previousResolution;
-  syncCanvasComfyResolutionOptions(modeSelect, resolutionSelect, node);
-  setCanvasComfyResolutionFieldVisible(node, resolutionField, resolutionSelect, modeSelect.value);
-  resolutionSelect.addEventListener("change", () => {
-    if (isCanvasComfyResolutionMode(modeSelect.value)) node.dataset.comfyResolution = resolutionSelect.value;
-    else delete node.dataset.comfyResolution;
-    updateCanvasComfyHint(node);
-    scheduleCanvasSave();
-  });
-
-  const run = document.createElement("button");
-  run.className = "canvas-node-run canvas-comfy-run";
-  run.type = "button";
-  run.textContent = "执行";
-  run.addEventListener("click", () => runCanvasComfyNode(node));
-  modeField.append(modeLabel, modeSelect);
-  resolutionField.append(resolutionLabel, resolutionSelect);
-  const actionRow = document.createElement("div");
-  actionRow.className = "canvas-comfy-action-row";
-  actionRow.append(resolutionField, run);
-  controls.append(modeField, actionRow);
-
-  const hint = document.createElement("p");
-  hint.className = "canvas-comfy-hint";
-  const inputSummary = document.createElement("section");
-  inputSummary.className = "canvas-comfy-input-summary";
-  inputSummary.append(refs, hint);
-
-  const outpaintArea = createCanvasComfyOutpaintArea(node);
-  outpaintArea.hidden = !["outpaint", "outpaint2"].includes(modeSelect.value);
-  const qwenAngleArea = createCanvasComfyQwenAngleFields(node, previousQwenAngle);
-  qwenAngleArea.hidden = modeSelect.value !== "qwen-edit-angle";
-
-  node.append(inputPort, outputPort, bar, inputSummary, outpaintArea, qwenAngleArea, controls, createCanvasResizeHandle());
-  updateCanvasNodeRefs(node);
-  updateCanvasComfyOutpaintPreview(node);
-  updateCanvasComfyHint(node);
-  scheduleCanvasConnectionRender();
+  const plugin = window.AiOsCanvasNodePlugins?.get?.("comfy");
+  if (plugin?.render) {
+    plugin.render(node, { mode, resolution, padding, qwenAngle }, getCanvasNodePluginContext());
+    return;
+  }
+  const renderer = window.CanvasComfyNodeRenderer;
+  if (!renderer?.render) throw new Error("Canvas ComfyUI node renderer is unavailable.");
+  renderer.render(node, { mode, resolution, padding, qwenAngle }, getCanvasNodePluginContext());
 }
 
 function normalizeCanvasComfyPadding(value = {}) {
-  const normalize = (item, fallback) => Math.max(0, Math.min(1600, Math.round(Number(item ?? fallback) / 8) * 8));
-  return {
-    left: normalize(value.left, 200),
-    top: normalize(value.top, 0),
-    right: normalize(value.right, 200),
-    bottom: normalize(value.bottom, 0),
-  };
+  return CanvasComfyRules.normalizePadding(value);
 }
 
 function setCanvasComfyPadding(node, padding) {
-  node.dataset.comfyOutpaintLeft = String(padding.left);
-  node.dataset.comfyOutpaintTop = String(padding.top);
-  node.dataset.comfyOutpaintRight = String(padding.right);
-  node.dataset.comfyOutpaintBottom = String(padding.bottom);
+  return CanvasComfyRules.setPadding(node, padding);
 }
 
 function getCanvasComfyPadding(node) {
-  return normalizeCanvasComfyPadding({
-    left: node.dataset.comfyOutpaintLeft,
-    top: node.dataset.comfyOutpaintTop,
-    right: node.dataset.comfyOutpaintRight,
-    bottom: node.dataset.comfyOutpaintBottom,
-  });
+  return CanvasComfyRules.getPadding(node);
 }
 
 function createCanvasComfyOutpaintArea(node) {
-  const area = document.createElement("section");
-  area.className = "canvas-comfy-outpaint";
-  area.innerHTML = `
-    <div class="canvas-comfy-outpaint-head">
-      <strong>扩展图片区域</strong>
-      <span>从原图边缘向外拖动</span>
-    </div>
-    <div class="canvas-comfy-outpaint-preview">
-      <div class="canvas-comfy-outpaint-frame">
-        <div class="canvas-comfy-outpaint-image"><span>连接图片后预览</span></div>
-        <button class="canvas-comfy-outpaint-handle is-top" type="button" data-comfy-outpaint-side="top" aria-label="从原图向上扩展"></button>
-        <button class="canvas-comfy-outpaint-handle is-right" type="button" data-comfy-outpaint-side="right" aria-label="从原图向右扩展"></button>
-        <button class="canvas-comfy-outpaint-handle is-bottom" type="button" data-comfy-outpaint-side="bottom" aria-label="从原图向下扩展"></button>
-        <button class="canvas-comfy-outpaint-handle is-left" type="button" data-comfy-outpaint-side="left" aria-label="从原图向左扩展"></button>
-        <button class="canvas-comfy-outpaint-handle is-top-left" type="button" data-comfy-outpaint-side="top-left" aria-label="从原图向左上扩展"></button>
-        <button class="canvas-comfy-outpaint-handle is-top-right" type="button" data-comfy-outpaint-side="top-right" aria-label="从原图向右上扩展"></button>
-        <button class="canvas-comfy-outpaint-handle is-bottom-right" type="button" data-comfy-outpaint-side="bottom-right" aria-label="从原图向右下扩展"></button>
-        <button class="canvas-comfy-outpaint-handle is-bottom-left" type="button" data-comfy-outpaint-side="bottom-left" aria-label="从原图向左下扩展"></button>
-      </div>
-    </div>
-    <div class="canvas-comfy-padding-grid">
-      <label><span>上</span><input type="number" min="0" max="1600" step="8" data-padding-side="top"></label>
-      <label><span>右</span><input type="number" min="0" max="1600" step="8" data-padding-side="right"></label>
-      <label><span>下</span><input type="number" min="0" max="1600" step="8" data-padding-side="bottom"></label>
-      <label><span>左</span><input type="number" min="0" max="1600" step="8" data-padding-side="left"></label>
-    </div>
-  `;
-  const padding = getCanvasComfyPadding(node);
-  area.querySelectorAll("[data-padding-side]").forEach((input) => {
-    input.value = padding[input.dataset.paddingSide];
-    input.addEventListener("input", () => {
-      const next = getCanvasComfyPadding(node);
-      next[input.dataset.paddingSide] = input.value;
-      setCanvasComfyPadding(node, normalizeCanvasComfyPadding(next));
-      updateCanvasComfyOutpaintPreview(node);
-      updateCanvasComfyHint(node);
-      scheduleCanvasSave();
-    });
-    input.addEventListener("change", () => syncCanvasComfyPaddingInputs(node));
+  return CanvasComfyOutpaintUi.createOutpaintArea({
+    document,
+    node,
+    getPadding: getCanvasComfyPadding,
+    setPadding: setCanvasComfyPadding,
+    normalizePadding: normalizeCanvasComfyPadding,
+    onPreview: updateCanvasComfyOutpaintPreview,
+    onHint: updateCanvasComfyHint,
+    onSave: scheduleCanvasSave,
+    onPointerDown: handleCanvasComfyOutpaintDrag,
   });
-  area.addEventListener("pointerdown", (event) => handleCanvasComfyOutpaintDrag(event, node));
-  return area;
 }
 
 function syncCanvasComfyPaddingInputs(node) {
-  const padding = getCanvasComfyPadding(node);
-  node.querySelectorAll("[data-padding-side]").forEach((input) => {
-    input.value = padding[input.dataset.paddingSide];
+  return CanvasComfyOutpaintUi.syncPaddingInputs({
+    node,
+    getPadding: getCanvasComfyPadding,
   });
 }
 
@@ -7323,328 +9366,79 @@ function layoutCanvasComfyOutpaintFrame(node) {
 }
 
 function renderCanvasLoopNode(node) {
-  node.innerHTML = "";
-  const inputPort = createCanvasPort("input");
-  const outputPort = createCanvasPort("output");
-  const bar = createCanvasNodeBar("循环节点");
-  const refs = document.createElement("div");
-  refs.className = "canvas-node-refs";
-  const hint = document.createElement("p");
-  hint.className = "canvas-loop-hint";
-  node.append(inputPort, outputPort, bar, refs, hint, createCanvasResizeHandle());
-  updateCanvasNodeRefs(node);
-  updateCanvasLoopHint(node);
-  scheduleCanvasConnectionRender();
+  const plugin = window.AiOsCanvasNodePlugins?.get?.("loop");
+  if (plugin?.render) {
+    plugin.render(node, {}, getCanvasNodePluginContext());
+    return;
+  }
+  const renderer = window.CanvasLoopNodeRenderer;
+  if (!renderer?.render) throw new Error("Canvas loop node renderer is unavailable.");
+  renderer.render(node, {}, getCanvasNodePluginContext());
 }
 
 
 function normalizeCanvasComfyQwenAngle(value = {}) {
-  const normalize = (item, fallback, min, max, decimals = 0) => {
-    const number = Number(item ?? fallback);
-    if (!Number.isFinite(number)) return fallback;
-    const factor = 10 ** decimals;
-    const rounded = Math.round(number * factor) / factor;
-    return Math.max(min, Math.min(max, rounded));
-  };
-  return {
-    horizontal: normalize(value.horizontal, 49, -180, 180),
-    vertical: normalize(value.vertical, 0, -30, 60),
-    zoom: normalize(value.zoom, 5, 0, 10, 1),
-  };
+  return CanvasComfyRules.normalizeQwenAngle(value);
 }
 
 function setCanvasComfyQwenAngle(node, value = {}) {
-  const angle = normalizeCanvasComfyQwenAngle(value);
-  node.dataset.comfyQwenHorizontal = String(angle.horizontal);
-  node.dataset.comfyQwenVertical = String(angle.vertical);
-  node.dataset.comfyQwenZoom = String(angle.zoom);
-  return angle;
+  return CanvasComfyRules.setQwenAngle(node, value);
 }
 
 function getCanvasComfyQwenAngle(node) {
-  return normalizeCanvasComfyQwenAngle({
-    horizontal: node.dataset.comfyQwenHorizontal,
-    vertical: node.dataset.comfyQwenVertical,
-    zoom: node.dataset.comfyQwenZoom,
-  });
+  return CanvasComfyRules.getQwenAngle(node);
 }
 
 function describeCanvasComfyQwenHorizontal(value) {
-  const angle = Number(value) || 0;
-  const abs = Math.abs(angle);
-  const side = angle >= 0 ? "\u53f3" : "\u5de6";
-  if (abs < 12) return "\u6b63\u9762";
-  if (abs < 68) return side + "\u524d\u65b9";
-  if (abs < 112) return side + "\u4fa7\u9762";
-  if (abs < 158) return side + "\u540e\u65b9";
-  return "\u80cc\u9762";
+  return CanvasComfyRules.describeQwenHorizontal(value);
 }
 
 function describeCanvasComfyQwenVertical(value) {
-  const angle = Number(value) || 0;
-  if (angle > 18) return "\u4fef\u89c6";
-  if (angle < -18) return "\u4ef0\u89c6";
-  return "\u5e73\u89c6";
+  return CanvasComfyRules.describeQwenVertical(value);
 }
 
 function describeCanvasComfyQwenZoom(value) {
-  const zoom = Number(value) || 0;
-  if (zoom > 6.7) return "近景";
-  if (zoom < 3.4) return "远景";
-  return "中景";
+  return CanvasComfyRules.describeQwenZoom(value);
 }
 
 function getCanvasComfyQwenSvgPoint(svg, event) {
-  const rect = svg.getBoundingClientRect();
-  const viewBox = svg.viewBox.baseVal;
-  const width = rect.width || viewBox.width || 260;
-  const height = rect.height || viewBox.height || 170;
-  return {
-    x: ((event.clientX - rect.left) / width) * viewBox.width,
-    y: ((event.clientY - rect.top) / height) * viewBox.height,
-  };
+  return CanvasComfyQwenUi.getSvgPoint(svg, event);
 }
 
 function updateCanvasComfyQwenAngleUi(node, area = null) {
-  const root = area || node.querySelector(".canvas-comfy-qwen-angle");
-  if (!root) return;
-  const angle = getCanvasComfyQwenAngle(node);
-  root.querySelectorAll("[data-qwen-key]").forEach((input) => {
-    const key = input.dataset.qwenKey;
-    if (!key || !(key in angle)) return;
-    if (input.type === "number" && document.activeElement === input) return;
-    input.value = String(angle[key]);
+  return CanvasComfyQwenUi.updateQwenAngleUi({
+    document,
+    node,
+    area,
+    getAngle: getCanvasComfyQwenAngle,
+    describeHorizontal: describeCanvasComfyQwenHorizontal,
+    describeVertical: describeCanvasComfyQwenVertical,
+    describeZoom: describeCanvasComfyQwenZoom,
   });
-
-  const setText = (selector, value) => {
-    const target = root.querySelector(selector);
-    if (target) target.textContent = value;
-  };
-  setText('[data-qwen-value="horizontal"]', String(angle.horizontal) + "\u00b0");
-  setText('[data-qwen-value="vertical"]', String(angle.vertical) + "\u00b0");
-  setText('[data-qwen-value="zoom"]', String(angle.zoom));
-  setText('[data-qwen-label="horizontal"]', describeCanvasComfyQwenHorizontal(angle.horizontal));
-  setText('[data-qwen-label="vertical"]', describeCanvasComfyQwenVertical(angle.vertical));
-  setText('[data-qwen-label="zoom"]', describeCanvasComfyQwenZoom(angle.zoom));
-
-  const svg = root.querySelector(".canvas-comfy-qwen-svg");
-  if (!svg) return;
-  const orbitCx = 130;
-  const orbitCy = 108;
-  const orbitRx = 92;
-  const orbitRy = 39;
-  const targetX = 130;
-  const targetY = 82;
-  const radians = angle.horizontal * Math.PI / 180;
-  const orbitX = orbitCx + Math.sin(radians) * orbitRx;
-  const orbitY = orbitCy + Math.cos(radians) * orbitRy;
-  const verticalProgress = (angle.vertical + 30) / 90;
-  const inverseVerticalProgress = 1 - verticalProgress;
-  const verticalX = inverseVerticalProgress ** 3 * 54 + 3 * inverseVerticalProgress ** 2 * verticalProgress * 24 + 3 * inverseVerticalProgress * verticalProgress ** 2 * 28 + verticalProgress ** 3 * 66;
-  const verticalY = inverseVerticalProgress ** 3 * 142 + 3 * inverseVerticalProgress ** 2 * verticalProgress * 104 + 3 * inverseVerticalProgress * verticalProgress ** 2 * 54 + verticalProgress ** 3 * 22;
-  const zoomProgress = angle.zoom / 10;
-  const distanceScale = 1.12 - zoomProgress * 0.42;
-  const cameraBaseX = targetX + (orbitX - targetX) * distanceScale;
-  const cameraBaseY = targetY + (orbitY - targetY) * distanceScale;
-  const overheadLift = verticalProgress * 92;
-  const lowerLift = Math.max(0, -angle.vertical) * 0.18;
-  const cameraX = Math.max(42, Math.min(216, cameraBaseX));
-  const cameraY = Math.max(38, Math.min(124, cameraBaseY - overheadLift + lowerLift - 4));
-  const viewLabel = describeCanvasComfyQwenHorizontal(angle.horizontal);
-  const tiltLabel = describeCanvasComfyQwenVertical(angle.vertical);
-
-  const cameraBehindPlane = Math.cos(radians) < -0.08;
-  svg.querySelectorAll("[data-qwen-camera]").forEach((camera) => {
-    const layer = camera.dataset.qwenCameraLayer || "front";
-    camera.setAttribute("transform", "translate(" + cameraX.toFixed(1) + " " + cameraY.toFixed(1) + ")");
-    camera.classList.toggle("is-camera-back", layer === "back");
-    camera.classList.toggle("is-camera-front", layer !== "back");
-    camera.setAttribute("opacity", layer === "back" ? (cameraBehindPlane ? "0.48" : "0") : (cameraBehindPlane ? "0" : "1"));
-  });
-  const orbitHandle = svg.querySelector("[data-qwen-orbit-handle]");
-  if (orbitHandle) {
-    orbitHandle.setAttribute("cx", orbitX.toFixed(1));
-    orbitHandle.setAttribute("cy", orbitY.toFixed(1));
-  }
-  svg.classList.toggle("is-camera-behind-plane", cameraBehindPlane);
-  const updateRay = (selector) => {
-    const ray = svg.querySelector(selector);
-    if (!ray) return;
-    ray.setAttribute("x1", targetX.toFixed(1));
-    ray.setAttribute("y1", targetY.toFixed(1));
-    ray.setAttribute("x2", cameraX.toFixed(1));
-    ray.setAttribute("y2", cameraY.toFixed(1));
-  };
-  updateRay("[data-qwen-camera-ray-back]");
-  updateRay("[data-qwen-camera-ray-front]");
-  const verticalHandle = svg.querySelector("[data-qwen-vertical-handle]");
-  if (verticalHandle) {
-    verticalHandle.setAttribute("cx", verticalX.toFixed(1));
-    verticalHandle.setAttribute("cy", verticalY.toFixed(1));
-  }
-  const plane = svg.querySelector("[data-qwen-plane]");
-  if (plane) plane.setAttribute("transform", "translate(" + targetX.toFixed(1) + " 78)");
-  setText('[data-qwen-svg-label="view"]', viewLabel);
-  setText('[data-qwen-svg-label="tilt"]', tiltLabel);
 }
 
 function createCanvasComfyQwenAngleFields(node, value = {}) {
   const angle = setCanvasComfyQwenAngle(node, value);
-  const area = document.createElement("section");
-  area.className = "canvas-comfy-qwen-angle";
-  const stopQwenPointer = (event) => event.stopPropagation();
-  ["pointerdown", "mousedown", "touchstart", "click", "dblclick", "dragstart"].forEach((type) => {
-    area.addEventListener(type, stopQwenPointer);
+  return CanvasComfyQwenUi.createQwenAngleFields({
+    document,
+    node,
+    angle,
+    getAngle: getCanvasComfyQwenAngle,
+    setAngle: setCanvasComfyQwenAngle,
+    describeHorizontal: describeCanvasComfyQwenHorizontal,
+    describeVertical: describeCanvasComfyQwenVertical,
+    describeZoom: describeCanvasComfyQwenZoom,
+    onHint: updateCanvasComfyHint,
+    onSave: scheduleCanvasSave,
   });
-  area.addEventListener("wheel", stopQwenPointer, { passive: true });
-  const head = document.createElement("div");
-  head.className = "canvas-comfy-qwen-angle-head";
-  const title = document.createElement("strong");
-  title.textContent = "Qwen \u89d2\u5ea6\u53c2\u6570";
-  const tip = document.createElement("div");
-  tip.className = "canvas-comfy-qwen-legend";
-  tip.innerHTML = [
-    '<span class="is-horizontal"><i></i><b>\u7c89\u8272</b>\u6c34\u5e73\u73af\u7ed5</span>',
-    '<span class="is-vertical"><i></i><b>\u9752\u8272</b>\u4e0a\u4e0b\u4fef\u4ef0</span>',
-    '<span class="is-zoom"><i></i><b>\u9ec4\u8272</b>\u6444\u50cf\u673a\u8fdc\u8fd1</span>',
-  ].join("");
-  head.append(title, tip);
-
-  const visual = document.createElement("div");
-  visual.className = "canvas-comfy-qwen-visual";
-  visual.innerHTML = [
-    '<svg class="canvas-comfy-qwen-svg" viewBox="0 0 260 170" role="img" aria-label="Qwen camera angle visualizer">',
-    '<defs><linearGradient id="qwenOrbitGradient" x1="0" x2="1"><stop offset="0" stop-color="#24e0c2"/><stop offset="1" stop-color="#ff3e8d"/></linearGradient><filter id="qwenGlow"><feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>',
-    '<g class="canvas-comfy-qwen-floor"><path d="M24 132 H236 M42 118 H218 M60 104 H200 M78 90 H182 M96 76 H164 M38 144 L112 50 M76 148 L126 50 M116 150 L138 50 M156 150 L150 50 M196 148 L164 50 M224 140 L176 50"/></g>',
-    '<ellipse data-qwen-drag="horizontal" class="canvas-comfy-qwen-orbit" cx="130" cy="108" rx="92" ry="39"/>',
-    '<ellipse class="canvas-comfy-qwen-inner-orbit" cx="130" cy="108" rx="31" ry="13"/>',
-    '<line data-qwen-camera-ray-back class="canvas-comfy-qwen-ray canvas-comfy-qwen-ray-back" x1="130" y1="82" x2="130" y2="147"/>',
-    '<g class="canvas-comfy-qwen-view-label"><text data-qwen-svg-label="view" x="130" y="15" text-anchor="middle">\u6b63\u9762</text><text data-qwen-svg-label="tilt" x="130" y="29" text-anchor="middle">\u5e73\u89c6</text></g>',
-    '<g data-qwen-camera data-qwen-camera-layer="back" class="canvas-comfy-qwen-camera canvas-comfy-qwen-eye" transform="translate(130 147)"><ellipse class="canvas-comfy-qwen-eye-glow" cx="0" cy="0" rx="20" ry="15"/><path class="canvas-comfy-qwen-eye-white" d="M-17 0 C-10 -10 10 -10 17 0 C10 10 -10 10 -17 0 Z"/><circle class="canvas-comfy-qwen-eye-iris" cx="0" cy="0" r="7.2"/><circle class="canvas-comfy-qwen-eye-pupil" cx="0" cy="0" r="3.1"/><circle class="canvas-comfy-qwen-eye-spark" cx="-2.7" cy="-2.7" r="1.5"/></g>',
-    '<g data-qwen-plane class="canvas-comfy-qwen-plane" transform="translate(130 78)"><ellipse class="canvas-comfy-qwen-plane-shadow" cx="0" cy="45" rx="30" ry="8"/><rect class="canvas-comfy-qwen-plane-card" x="-28" y="-42" width="56" height="84" rx="6"/><line x1="-20" y1="-24" x2="20" y2="-24"/><line x1="-20" y1="0" x2="20" y2="0"/><line x1="-20" y1="24" x2="20" y2="24"/><line x1="0" y1="-34" x2="0" y2="34"/><circle class="canvas-comfy-qwen-plane-center" cx="0" cy="0" r="2.2"/></g>',
-    '<line data-qwen-camera-ray-front class="canvas-comfy-qwen-ray canvas-comfy-qwen-ray-front" x1="130" y1="82" x2="130" y2="147"/>',
-    '<path data-qwen-drag="vertical" class="canvas-comfy-qwen-tilt-rail" d="M54 142 C24 104 28 54 66 22"/>',
-    '<circle data-qwen-vertical-handle data-qwen-drag="vertical" class="canvas-comfy-qwen-tilt-handle" cx="54" cy="83" r="10"/>',
-    '<circle data-qwen-orbit-handle data-qwen-drag="horizontal" class="canvas-comfy-qwen-orbit-handle" cx="130" cy="147" r="10"/>',
-    '<g data-qwen-camera data-qwen-camera-layer="front" class="canvas-comfy-qwen-camera canvas-comfy-qwen-eye" transform="translate(130 147)"><ellipse class="canvas-comfy-qwen-eye-glow" cx="0" cy="0" rx="20" ry="15"/><path class="canvas-comfy-qwen-eye-white" d="M-17 0 C-10 -10 10 -10 17 0 C10 10 -10 10 -17 0 Z"/><circle class="canvas-comfy-qwen-eye-iris" cx="0" cy="0" r="7.2"/><circle class="canvas-comfy-qwen-eye-pupil" cx="0" cy="0" r="3.1"/><circle class="canvas-comfy-qwen-eye-spark" cx="-2.7" cy="-2.7" r="1.5"/></g>',
-    '</svg>',
-  ].join("");
-
-  const readout = document.createElement("div");
-  readout.className = "canvas-comfy-qwen-readout";
-  readout.innerHTML = [
-    '<div><span>\u6c34\u5e73</span><strong data-qwen-value="horizontal">' + angle.horizontal + '\u00b0</strong><em data-qwen-label="horizontal"></em></div>',
-    '<div><span>\u5782\u76f4</span><strong data-qwen-value="vertical">' + angle.vertical + '\u00b0</strong><em data-qwen-label="vertical"></em></div>',
-    '<div><span>\u7f29\u653e</span><strong data-qwen-value="zoom">' + angle.zoom + '</strong><em data-qwen-label="zoom"></em></div>',
-  ].join("");
-
-  const grid = document.createElement("div");
-  grid.className = "canvas-comfy-qwen-angle-grid";
-  const applyAngle = (nextValue) => {
-    setCanvasComfyQwenAngle(node, nextValue);
-    updateCanvasComfyQwenAngleUi(node, area);
-    updateCanvasComfyHint(node);
-    scheduleCanvasSave();
-  };
-  [
-    { key: "horizontal", className: "canvas-comfy-qwen-horizontal", label: "水平角", min: -180, max: 180, step: 1 },
-    { key: "vertical", className: "canvas-comfy-qwen-vertical", label: "垂直角", min: -30, max: 60, step: 1 },
-    { key: "zoom", className: "canvas-comfy-qwen-zoom", label: "缩放", min: 0, max: 10, step: 0.1 },
-  ].forEach((field) => {
-    const label = document.createElement("label");
-    const span = document.createElement("span");
-    span.textContent = field.label;
-    const row = document.createElement("div");
-    row.className = "canvas-comfy-qwen-field-row";
-    const numberInput = document.createElement("input");
-    numberInput.type = "number";
-    numberInput.className = field.className;
-    numberInput.dataset.qwenKey = field.key;
-    numberInput.min = String(field.min);
-    numberInput.max = String(field.max);
-    numberInput.step = String(field.step || 1);
-    numberInput.value = String(angle[field.key]);
-    const rangeInput = document.createElement("input");
-    rangeInput.type = "range";
-    rangeInput.className = "canvas-comfy-qwen-range";
-    rangeInput.dataset.qwenKey = field.key;
-    rangeInput.min = String(field.min);
-    rangeInput.max = String(field.max);
-    rangeInput.step = String(field.step || 1);
-    rangeInput.value = String(angle[field.key]);
-    const onInput = (event) => {
-      const next = getCanvasComfyQwenAngle(node);
-      next[field.key] = event.currentTarget.value;
-      applyAngle(next);
-    };
-    numberInput.addEventListener("input", onInput);
-    rangeInput.addEventListener("input", onInput);
-    numberInput.addEventListener("change", () => updateCanvasComfyQwenAngleUi(node, area));
-    row.append(numberInput, rangeInput);
-    label.append(span, row);
-    grid.append(label);
-  });
-
-  const svg = visual.querySelector(".canvas-comfy-qwen-svg");
-  const clampLocal = (item, min, max) => Math.max(min, Math.min(max, item));
-  const updateFromPointer = (event, dragType) => {
-    const point = getCanvasComfyQwenSvgPoint(svg, event);
-    const next = getCanvasComfyQwenAngle(node);
-    if (dragType === "vertical") {
-      const y = clampLocal(point.y, 24, 142);
-      next.vertical = Math.round(((142 - y) / 118) * 90 - 30);
-    } else if (dragType === "zoom") {
-      const x = clampLocal(point.x, 64, 196);
-      next.zoom = Math.round(((x - 64) / 132) * 100) / 10;
-    } else {
-      const radians = Math.atan2((point.x - 130) / 92, (point.y - 108) / 39);
-      next.horizontal = Math.round(radians * 180 / Math.PI);
-    }
-    applyAngle(next);
-  };
-  svg.addEventListener("pointerdown", (event) => {
-    const dragNode = event.target.closest?.("[data-qwen-drag]");
-    if (!dragNode) return;
-    const dragType = dragNode.dataset.qwenDrag;
-    event.preventDefault();
-    event.stopPropagation();
-    svg.setPointerCapture?.(event.pointerId);
-    const move = (moveEvent) => {
-      moveEvent.preventDefault();
-      moveEvent.stopPropagation();
-      updateFromPointer(moveEvent, dragType);
-    };
-    const up = (upEvent) => {
-      svg.releasePointerCapture?.(upEvent.pointerId);
-      svg.removeEventListener("pointermove", move);
-      svg.removeEventListener("pointerup", up);
-      svg.removeEventListener("pointercancel", up);
-    };
-    svg.addEventListener("pointermove", move);
-    svg.addEventListener("pointerup", up);
-    svg.addEventListener("pointercancel", up);
-    updateFromPointer(event, dragType);
-  });
-
-  const visualColumn = document.createElement("div");
-  visualColumn.className = "canvas-comfy-qwen-visual-column";
-  visualColumn.append(visual, readout);
-  const body = document.createElement("div");
-  body.className = "canvas-comfy-qwen-body";
-  body.append(visualColumn, grid);
-  area.append(head, body);
-  updateCanvasComfyQwenAngleUi(node, area);
-  return area;
 }
 
 function isCanvasComfyResolutionMode(mode) {
-  return ["upscale", "upscale2"].includes(mode);
+  return CanvasComfyRules.isResolutionMode(mode);
 }
 
 function normalizeCanvasComfyResolution(value) {
-  const resolution = String(value || "2048");
-  if (resolution === "8192") return "6144";
-  return ["2048", "4096", "6144"].includes(resolution) ? resolution : "2048";
+  return CanvasComfyRules.normalizeResolution(value);
 }
 
 function setCanvasComfyResolutionFieldVisible(node, resolutionField, resolutionSelect, mode) {
@@ -7710,131 +9504,76 @@ function updateCanvasComfyHint(node) {
     hint.textContent = "\u8f93\u5165 " + count + "/1 \u00b7 Qwen \u89d2\u5ea6\u5207\u6362 \u00b7 \u6c34\u5e73 " + angle.horizontal + "\u00b0 \u5782\u76f4 " + angle.vertical + "\u00b0 \u7f29\u653e " + angle.zoom;
   } else if (mode === "upscale") {
     hint.textContent = `输入 ${count}/1 · 图片放大 · 目标长边 ${resolutionLabel}`;
+  } else if (mode === "remove-background") {
+    hint.textContent = `\u8f93\u5165 ${count}/1 \u00b7 ComfyUI \u62a0\u56fe \u00b7 \u8f93\u51fa\u900f\u660e\u5e95 PNG`;
   } else {
     hint.textContent = `输入 ${count}/1 · 图片放大2 · 目标长边 ${resolutionLabel}`;
   }
 }
 
 function renderCanvasLlmNode(node, { prompt = "", model = "", images = [], output = "" } = {}) {
-  const previousPrompt = node.querySelector(".canvas-llm-prompt")?.value || node.dataset.llmPrompt || prompt;
-  const previousModel = node.querySelector(".canvas-llm-model")?.value || node.dataset.llmModel || model || chatModelInput.value || CANVAS_LLM_MODELS[0];
-  const previousOutput = node.dataset.llmOutput || output || "";
-  const previousImages = images.length ? images : getCanvasLlmImages(node);
-  node.innerHTML = "";
-  node.dataset.llmPrompt = previousPrompt;
-  node.dataset.llmModel = previousModel;
-  node.dataset.llmImages = JSON.stringify(previousImages);
-  node.dataset.llmOutput = previousOutput;
-
-  const inputPort = createCanvasPort("input");
-  const outputPort = createCanvasPort("output");
-  const bar = createCanvasNodeBar("LLM语言节点");
-
-  const imageStrip = document.createElement("div");
-  imageStrip.className = "canvas-llm-images";
-  renderCanvasLlmImages(node, imageStrip);
-
-  const upload = document.createElement("button");
-  upload.type = "button";
-  upload.className = "canvas-llm-upload";
-  upload.textContent = "＋ 上传图片";
-  upload.addEventListener("click", (event) => {
-    event.stopPropagation();
-    selectCanvasNode(node);
-    document.querySelector("#canvasNodeImageInput")?.click();
-  });
-
-  const promptBox = document.createElement("textarea");
-  promptBox.className = "canvas-node-prompt canvas-llm-prompt";
-  promptBox.rows = 4;
-  promptBox.placeholder = "输入要让模型回答或反推图片的要求...";
-  promptBox.value = previousPrompt;
-  promptBox.addEventListener("wheel", stopCanvasTextWheel);
-  promptBox.addEventListener("input", () => {
-    node.dataset.llmPrompt = promptBox.value;
-  });
-  const presetBar = createCanvasLlmPresetBar(node, promptBox);
-
-  const controls = document.createElement("div");
-  controls.className = "canvas-llm-controls";
-  const select = document.createElement("select");
-  select.className = "canvas-node-model canvas-llm-model";
-  fillCanvasLlmModelSelect(select, previousModel);
-  select.addEventListener("change", () => {
-    node.dataset.llmModel = select.value;
-  });
-  const run = document.createElement("button");
-  run.className = "canvas-node-run canvas-llm-run";
-  run.type = "button";
-  run.textContent = "生成文字";
-  run.addEventListener("click", () => runCanvasLlmNode(node));
-  controls.append(select, run);
-
-  node.append(inputPort, outputPort, bar, imageStrip, upload, promptBox, presetBar, controls, createCanvasResizeHandle());
-  updateCanvasNodeRefs(node);
-  syncCanvasLlmPromptState(node);
-  scheduleCanvasConnectionRender();
+  const plugin = window.AiOsCanvasNodePlugins?.get?.("llm");
+  if (plugin?.render) {
+    plugin.render(node, { prompt, model, images, output }, getCanvasNodePluginContext());
+    return true;
+  }
+  const renderer = window.CanvasLlmNodeRenderer;
+  if (!renderer?.render) {
+    node.dataset.llmPrompt = String(prompt || "");
+    node.dataset.llmModel = String(model || "");
+    node.dataset.llmImages = JSON.stringify(Array.isArray(images) ? images : []);
+    node.dataset.llmOutput = String(output || "");
+    return false;
+  }
+  renderer.render(node, { prompt, model, images, output }, getCanvasNodePluginContext());
+  return true;
 }
 
 function getCanvasLlmCustomPresets() {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(CANVAS_LLM_PRESETS_STORAGE_KEY) || "[]");
-    if (!Array.isArray(parsed)) return [];
-    return parsed
-      .map((item) => ({
-        label: String(item?.label || "").trim(),
-        text: String(item?.text || "").trim(),
-      }))
-      .filter((item) => item.label && item.text);
-  } catch {
-    return [];
-  }
+  const rules = getCanvasLlmPresetRules();
+  if (!rules?.readCustomPresets) return [];
+  return rules.readCustomPresets(localStorage, CANVAS_LLM_PRESETS_STORAGE_KEY);
 }
 
 function saveCanvasLlmCustomPresets(presets) {
-  try {
-    localStorage.setItem(CANVAS_LLM_PRESETS_STORAGE_KEY, JSON.stringify(Array.isArray(presets) ? presets : []));
-  } catch {
+  const rules = getCanvasLlmPresetRules();
+  if (!rules?.writeCustomPresets) return false;
+  if (!rules.writeCustomPresets(localStorage, CANVAS_LLM_PRESETS_STORAGE_KEY, presets)) {
     setCanvasStatus("预设提示词保存失败，浏览器本地存储不可用。");
+    return false;
   }
+  return true;
 }
 
 function getCanvasLlmHiddenPresetLabels() {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(CANVAS_LLM_HIDDEN_PRESETS_STORAGE_KEY) || "[]");
-    return Array.isArray(parsed) ? parsed.map((item) => String(item || "").trim()).filter(Boolean) : [];
-  } catch {
-    return [];
-  }
+  const rules = getCanvasLlmPresetRules();
+  if (!rules?.readHiddenLabels) return [];
+  return rules.readHiddenLabels(localStorage, CANVAS_LLM_HIDDEN_PRESETS_STORAGE_KEY);
 }
 
 function saveCanvasLlmHiddenPresetLabels(labels) {
-  try {
-    const unique = [...new Set((Array.isArray(labels) ? labels : []).map((item) => String(item || "").trim()).filter(Boolean))];
-    localStorage.setItem(CANVAS_LLM_HIDDEN_PRESETS_STORAGE_KEY, JSON.stringify(unique));
-  } catch {
+  const rules = getCanvasLlmPresetRules();
+  if (!rules?.writeHiddenLabels) return false;
+  if (!rules.writeHiddenLabels(localStorage, CANVAS_LLM_HIDDEN_PRESETS_STORAGE_KEY, labels)) {
     setCanvasStatus("预设标签删除状态保存失败，浏览器本地存储不可用。");
+    return false;
   }
+  return true;
 }
 
 function getCanvasLlmPromptPresets() {
-  const seen = new Set();
-  const hiddenDefaults = new Set(getCanvasLlmHiddenPresetLabels());
-  const defaults = CANVAS_LLM_DEFAULT_PRESETS
-    .filter((item) => !hiddenDefaults.has(item.label))
-    .map((item) => ({ ...item, source: "default" }));
-  const custom = getCanvasLlmCustomPresets().map((item) => ({ ...item, source: "custom" }));
-  return [...defaults, ...custom]
-    .map((item) => ({
-      label: String(item.label || "").trim(),
-      text: String(item.text || "").trim(),
-      source: item.source || "custom",
-    }))
-    .filter((item) => {
-      if (!item.label || !item.text || seen.has(item.label)) return false;
-      seen.add(item.label);
-      return true;
-    });
+  const rules = getCanvasLlmPresetRules();
+  if (!rules?.resolvePromptPresets) {
+    return CANVAS_LLM_DEFAULT_PRESETS.map((preset) => ({
+      ...preset,
+      source: "default",
+    }));
+  }
+  return rules.resolvePromptPresets({
+    defaults: CANVAS_LLM_DEFAULT_PRESETS,
+    hiddenLabels: getCanvasLlmHiddenPresetLabels(),
+    customPresets: getCanvasLlmCustomPresets(),
+  });
 }
 
 function applyCanvasLlmPreset(node, promptBox, preset) {
@@ -7851,17 +9590,10 @@ function applyCanvasLlmPreset(node, promptBox, preset) {
 }
 
 function resetCanvasLlmPresetDeleteConfirm(list) {
-  list?.querySelectorAll?.(".canvas-llm-preset-item.is-confirming").forEach((item) => {
-    window.clearTimeout(item._canvasLlmDeleteTimer);
-    item._canvasLlmDeleteTimer = 0;
-    item.classList.remove("is-confirming");
-    const remove = item.querySelector(".canvas-llm-preset-delete");
-    const label = item.dataset.presetLabel || "";
-    if (remove) {
-      remove.textContent = "×";
-      remove.title = label ? `删除预设标签：${label}` : "删除预设标签";
-      remove.setAttribute("aria-label", remove.title);
-    }
+  const ui = getCanvasLlmPresetUi();
+  if (!ui?.resetPresetDeleteConfirm) return false;
+  return ui.resetPresetDeleteConfirm(list, {
+    clearTimeout: window.clearTimeout.bind(window),
   });
 }
 
@@ -7878,150 +9610,113 @@ function deleteCanvasLlmPreset(preset) {
 }
 
 function renderCanvasLlmPresetChips(node, promptBox, list) {
-  if (!list) return;
-  const addToggle = list.querySelector(".canvas-llm-preset-add");
-  list.innerHTML = "";
-  getCanvasLlmPromptPresets().forEach((preset) => {
-    const item = document.createElement("span");
-    item.className = "canvas-llm-preset-item";
-    item.dataset.presetLabel = preset.label;
-    const chip = document.createElement("button");
-    chip.type = "button";
-    chip.className = "canvas-llm-preset-chip";
-    chip.textContent = preset.label;
-    chip.title = preset.text;
-    chip.addEventListener("click", () => {
+  const ui = getCanvasLlmPresetUi();
+  if (!ui?.renderPresetChips) return false;
+  return ui.renderPresetChips({
+    document,
+    list,
+    presets: getCanvasLlmPromptPresets(),
+    onApply: (preset) => {
       resetCanvasLlmPresetDeleteConfirm(list);
       applyCanvasLlmPreset(node, promptBox, preset);
-    });
-
-    const remove = document.createElement("button");
-    remove.type = "button";
-    remove.className = "canvas-llm-preset-delete";
-    remove.textContent = "×";
-    remove.title = `删除预设标签：${preset.label}`;
-    remove.setAttribute("aria-label", `删除预设标签：${preset.label}`);
-    remove.addEventListener("click", (event) => {
-      event.stopPropagation();
-      if (item.classList.contains("is-confirming")) {
-        window.clearTimeout(item._canvasLlmDeleteTimer);
-        deleteCanvasLlmPreset(preset);
-        return;
-      }
-      resetCanvasLlmPresetDeleteConfirm(list);
-      item.classList.add("is-confirming");
-      remove.textContent = "确认";
-      remove.title = `再次点击确认删除：${preset.label}`;
-      remove.setAttribute("aria-label", remove.title);
-      item._canvasLlmDeleteTimer = window.setTimeout(() => resetCanvasLlmPresetDeleteConfirm(list), CANVAS_LLM_DELETE_CONFIRM_MS);
-      setCanvasStatus(`再次点击确认删除：${preset.label}`);
-    });
-
-    item.append(chip, remove);
-    list.append(item);
+    },
+    onDelete: deleteCanvasLlmPreset,
+    onStatus: setCanvasStatus,
+    confirmDelay: CANVAS_LLM_DELETE_CONFIRM_MS,
+    setTimeout: window.setTimeout.bind(window),
+    clearTimeout: window.clearTimeout.bind(window),
   });
-  if (addToggle) list.append(addToggle);
 }
 
 function createCanvasLlmPresetBar(node, promptBox) {
-  const wrap = document.createElement("section");
-  wrap.className = "canvas-llm-presets";
-  wrap.setAttribute("aria-label", "预设提示词");
-  ["pointerdown", "mousedown", "touchstart", "click", "dblclick", "dragstart"].forEach((type) => {
-    wrap.addEventListener(type, (event) => event.stopPropagation());
+  const ui = getCanvasLlmPresetUi();
+  if (!ui?.createPresetBar) return null;
+  return ui.createPresetBar({
+    document,
+    renderList: (list) => renderCanvasLlmPresetChips(node, promptBox, list),
+    resetDeleteConfirm: resetCanvasLlmPresetDeleteConfirm,
+    createEditor: () => createCanvasLlmPresetEditor(),
   });
-
-  const list = document.createElement("div");
-  list.className = "canvas-llm-preset-list";
-  renderCanvasLlmPresetChips(node, promptBox, list);
-
-  const addToggle = document.createElement("button");
-  addToggle.type = "button";
-  addToggle.className = "canvas-llm-preset-add";
-  addToggle.textContent = "+";
-  addToggle.title = "添加预设提示词";
-  addToggle.setAttribute("aria-label", "添加预设提示词");
-  addToggle.setAttribute("aria-expanded", "false");
-  list.append(addToggle);
-
-  const editor = createCanvasLlmPresetEditor();
-  addToggle.addEventListener("click", () => {
-    resetCanvasLlmPresetDeleteConfirm(list);
-    editor.hidden = !editor.hidden;
-    addToggle.classList.toggle("is-open", !editor.hidden);
-    wrap.classList.toggle("is-editing", !editor.hidden);
-    addToggle.setAttribute("aria-expanded", String(!editor.hidden));
-    if (!editor.hidden) editor.querySelector(".canvas-llm-preset-name")?.focus();
-  });
-
-  wrap.append(list, editor);
-  return wrap;
 }
 
 function createCanvasLlmPresetEditor() {
-  const editor = document.createElement("div");
-  editor.className = "canvas-llm-preset-editor";
-  editor.hidden = true;
-
-  const row = document.createElement("div");
-  row.className = "canvas-llm-preset-editor-row";
-
-  const nameInput = document.createElement("input");
-  nameInput.className = "canvas-llm-preset-name";
-  nameInput.type = "text";
-  nameInput.maxLength = 12;
-  nameInput.placeholder = "提示词标签命名";
-
-  const save = document.createElement("button");
-  save.type = "button";
-  save.className = "canvas-llm-preset-save";
-  save.textContent = "添加";
-
-  const textInput = document.createElement("textarea");
-  textInput.className = "canvas-llm-preset-text";
-  textInput.rows = 5;
-  textInput.placeholder = "预设提示词填写区";
-  textInput.addEventListener("wheel", stopCanvasTextWheel);
-
-  save.addEventListener("click", () => {
-    const label = nameInput.value.trim();
-    const text = textInput.value.trim();
-    if (!label || !text) {
-      setCanvasStatus("请先填写标签名和预设提示词。");
-      return;
-    }
-    const presets = getCanvasLlmCustomPresets().filter((item) => item.label !== label);
-    presets.push({ label, text });
-    saveCanvasLlmCustomPresets(presets);
-    nameInput.value = "";
-    textInput.value = "";
-    refreshCanvasLlmPresetBars();
-    setCanvasStatus(`已添加预设提示词：${label}`);
+  const ui = getCanvasLlmPresetUi();
+  if (!ui?.createPresetEditor) return null;
+  return ui.createPresetEditor({
+    document,
+    stopWheel: stopCanvasTextWheel,
+    onStatus: setCanvasStatus,
+    onSave: ({ label, text }) => {
+      const presets = getCanvasLlmCustomPresets().filter((item) => item.label !== label);
+      presets.push({ label, text });
+      saveCanvasLlmCustomPresets(presets);
+      refreshCanvasLlmPresetBars();
+      setCanvasStatus(`已添加预设提示词：${label}`);
+    },
   });
-
-  row.append(nameInput, save);
-  editor.append(row, textInput);
-  return editor;
 }
 
 function refreshCanvasLlmPresetBars() {
+  if (!getCanvasLlmPresetUi()) return false;
   document.querySelectorAll("#canvasPlane .canvas-node-llm").forEach((node) => {
     const promptBox = node.querySelector(".canvas-llm-prompt");
-    const list = node.querySelector(".canvas-llm-preset-list");
-    if (!promptBox || !list) return;
+    if (!promptBox) return;
+    let list = node.querySelector(".canvas-llm-preset-list");
+    if (!list) {
+      const presetBar = createCanvasLlmPresetBar(node, promptBox);
+      if (!presetBar) return;
+      const controls = node.querySelector(".canvas-llm-controls");
+      if (controls) controls.before(presetBar);
+      else node.append(presetBar);
+      list = presetBar.querySelector(".canvas-llm-preset-list");
+    }
+    if (!list) return;
     renderCanvasLlmPresetChips(node, promptBox, list);
     syncCanvasLlmPromptState(node);
   });
+  return true;
 }
+
+function restorePendingCanvasLlmNodes() {
+  const plugin = window.AiOsCanvasNodePlugins?.get?.("llm");
+  const renderer = window.CanvasLlmNodeRenderer;
+  if (!plugin?.render && !renderer?.render) return false;
+  document.querySelectorAll("#canvasPlane .canvas-node-llm").forEach((node) => {
+    if (node.querySelector(".canvas-llm-prompt")) return;
+    let images = [];
+    try {
+      const parsed = JSON.parse(node.dataset.llmImages || "[]");
+      if (Array.isArray(parsed)) images = parsed;
+    } catch {}
+    renderCanvasLlmNode(node, {
+      prompt: node.dataset.llmPrompt || "",
+      model: node.dataset.llmModel || "",
+      images,
+      output: node.dataset.llmOutput || "",
+    });
+    updateCanvasNodeRefs(node);
+  });
+  return true;
+}
+
+window.addEventListener("ai-os-module-load-progress", (event) => {
+  const detail = event?.detail;
+  if (detail?.componentId !== "canvas-node-llm" || detail?.status !== "loaded") return;
+  queueMicrotask(() => {
+    restorePendingCanvasLlmNodes();
+    refreshCanvasLlmPresetBars();
+  });
+});
 
 function fillCanvasLlmModelSelect(select, preferred) {
   const available = visionModelOptions;
   const fallback = available.length ? available : CANVAS_LLM_MODELS;
+  const catalogById = new Map(visionModelCatalog.map(model => [model.id, model]));
   select.innerHTML = "";
   fallback.forEach((model) => {
     const option = document.createElement("option");
     option.value = model;
-    option.textContent = getModelDisplayName(model);
+    option.textContent = catalogById.get(model)?.modelId || model;
     select.append(option);
   });
   select.value = fallback.includes(preferred) ? preferred : fallback[0];
@@ -8092,6 +9787,9 @@ function normalizeCanvasGalleryImages(images) {
   return (Array.isArray(images) ? images : []).map((image, index) => {
     const item = image && typeof image === "object" ? image : {};
     const src = item.src || item.url || item.savedUrl || "";
+    const remote = /^https?:\/\//i.test(String(item.savedUrl || src));
+    const width = Number(item.width);
+    const height = Number(item.height);
     return {
       ...item,
       id: String(item.id || createId()),
@@ -8099,8 +9797,218 @@ function normalizeCanvasGalleryImages(images) {
       name: item.name || `生成图 ${index + 1}`,
       savedUrl: item.savedUrl || src,
       createdAt: item.createdAt || "",
+      width: Number.isFinite(width) && width > 0 ? width : null,
+      height: Number.isFinite(height) && height > 0 ? height : null,
+      ...(item.syncState ? { syncState: item.syncState } : remote ? { syncState: "pending" } : {}),
     };
   }).filter((image) => image.src);
+}
+
+function normalizeCanvasGalleryContainer(value = {}) {
+  const source = value && typeof value === "object" ? value : {};
+  const members = normalizeCanvasGalleryImages(source.members || source.images || []);
+  const active = resolveCanvasGalleryActiveImage(members, source.activeMemberId || source.activeImageId);
+  const columns = Number(source.columns);
+  const gap = Number(source.gap);
+  const layoutMode = source.layoutMode === "manual" ? "manual" : "default";
+  const manualColumns = Number(source.manualColumns);
+  return {
+    version: 2,
+    title: String(source.title || "图集"),
+    members,
+    activeMemberId: active?.id || "",
+    layoutMode,
+    manualColumns: layoutMode === "manual" && Number.isInteger(manualColumns) && manualColumns > 0
+      ? Math.min(12, manualColumns)
+      : null,
+    columns: Number.isInteger(columns) && columns > 0 ? Math.min(12, columns) : null,
+    gap: Number.isFinite(gap) && gap >= 0 ? gap : null,
+  };
+}
+
+function migrateLegacyCanvasGalleryItem(item) {
+  if (!item || item.kind !== "gallery") return item;
+  const {
+    galleryTitle,
+    galleryImages,
+    galleryActiveImageId,
+    galleryColumns,
+    galleryGap,
+    ...rest
+  } = item;
+  return {
+    ...rest,
+    kind: "gallery-container",
+    galleryContainer: normalizeCanvasGalleryContainer({
+      title: galleryTitle || "图集",
+      members: galleryImages || [],
+      activeMemberId: galleryActiveImageId || "",
+      columns: galleryColumns,
+      gap: galleryGap,
+    }),
+  };
+}
+
+function migrateCanvasBoardGalleryContainers(board) {
+  const source = board && typeof board === "object" ? board : {};
+  const nodes = Array.isArray(source.nodes) ? source.nodes : [];
+  const migratedNodes = nodes.map((item) => migrateLegacyCanvasGalleryItem(item));
+  if (!nodes.some((item, index) => item !== migratedNodes[index])) return source;
+  return { ...source, nodes: migratedNodes };
+}
+
+function countLegacyCanvasGalleryItems(board) {
+  return Array.isArray(board?.nodes)
+    ? board.nodes.filter((item) => item?.kind === "gallery").length
+    : 0;
+}
+
+function stageCanvasGalleryContainerMigrationOperations(legacyBoard, migratedBoard) {
+  const legacyNodes = new Map(
+    (Array.isArray(legacyBoard?.nodes) ? legacyBoard.nodes : [])
+      .filter((item) => item?.kind === "gallery" && item.id !== undefined)
+      .map((item) => [String(item.id), item]),
+  );
+  (Array.isArray(migratedBoard?.nodes) ? migratedBoard.nodes : []).forEach((item) => {
+    const before = legacyNodes.get(String(item?.id));
+    if (!before || item?.kind !== "gallery-container") return;
+    stageCanvasOperation({
+      type: "node.upsert",
+      entityId: String(item.id),
+      before: toCanvasOperationNode(before),
+      after: toCanvasOperationNode(item),
+    });
+  });
+}
+
+function snapshotLegacyCanvasGalleryBoard(board) {
+  if (!board?.id || !Array.isArray(board.nodes) || !board.nodes.some((item) => item?.kind === "gallery")) return false;
+  try {
+    const key = `canvas-gallery-container-pre-migration:${board.id}:v2`;
+    if (!localStorage.getItem(key)) {
+      localStorage.setItem(key, JSON.stringify({
+        kind: "gallery-container-pre-migration",
+        boardId: String(board.id),
+        sourceRevision: Number(board.revision || 0),
+        savedAt: new Date().toISOString(),
+        board,
+      }));
+    }
+    return true;
+  } catch (cause) {
+    const error = new Error("迁移前快照保存失败，已取消迁移以保护原始图集。");
+    error.code = "canvas_gallery_migration_snapshot_failed";
+    error.cause = cause;
+    throw error;
+  }
+}
+
+function reconcilePersistedCanvasGallerySyncStates(images) {
+  return (Array.isArray(images) ? images : []).map((image) => {
+    const remoteUrl = [image?.savedUrl, image?.src, image?.url]
+      .find((value) => /^https?:\/\//i.test(String(value || "")));
+    if (
+      image?.syncState === "syncing"
+      && remoteUrl
+      && !canvasGalleryLocalizationPromises.has(remoteUrl)
+    ) {
+      return { ...image, syncState: "pending" };
+    }
+    return image;
+  });
+}
+
+function isCanvasGalleryImageReady(image) {
+  if (!image) return false;
+  const source = String(image.src || image.savedUrl || image.url || "");
+  return Boolean(source) && !/^https?:\/\//i.test(source) && !["pending", "syncing", "sync_failed"].includes(String(image.syncState || ""));
+}
+
+function getCanvasGalleryImageSyncLabel(image) {
+  if (image?.syncState === "sync_failed") return "原图同步失败 · 点击重试";
+  return "正在同步原图到本机…";
+}
+
+function applyRecoveredCanvasGalleryImage(images, targetImageId, recovered) {
+  const localUrl = String(recovered?.local_url || "");
+  if (!/^\/output\//.test(localUrl)) return Array.isArray(images) ? images : [];
+  return (Array.isArray(images) ? images : []).map((image) => {
+    if (image.id === targetImageId) {
+      const next = {
+        ...image,
+        src: localUrl,
+        savedUrl: localUrl,
+        syncState: "ready",
+        ...(Number(recovered?.width) > 0 ? { width: Number(recovered.width) } : {}),
+        ...(Number(recovered?.height) > 0 ? { height: Number(recovered.height) } : {}),
+      };
+      if (Object.prototype.hasOwnProperty.call(next, "url")) next.url = localUrl;
+      return next;
+    }
+    return image;
+  });
+}
+
+async function recoverCanvasGalleryContainerMember(node, targetMemberId) {
+  if (!node?.classList?.contains("canvas-node-gallery-container")) {
+    throw new Error("目标不是图集容器。");
+  }
+  const memberId = String(targetMemberId || "");
+  const initial = getCanvasGalleryContainer(node);
+  const target = initial.members.find((member) => member.id === memberId);
+  const remoteUrl = [target?.savedUrl, target?.src, target?.url]
+    .find((value) => /^https?:\/\//i.test(String(value || "")));
+  if (!target || !remoteUrl) throw new Error("图集成员没有可恢复的远程原图。");
+
+  const setTargetSyncState = (container, syncState) => setCanvasGalleryContainer(node, {
+    ...container,
+    members: container.members.map((member) => (
+      member.id === memberId ? { ...member, syncState } : member
+    )),
+    activeMemberId: container.activeMemberId,
+  });
+  setTargetSyncState(initial, "syncing");
+  try {
+    const recovered = await localizeCanvasRemoteImage(remoteUrl);
+    const latest = getCanvasGalleryContainer(node);
+    const members = applyRecoveredCanvasGalleryImage(latest.members, memberId, recovered);
+    setCanvasGalleryContainer(node, {
+      ...latest,
+      members,
+      activeMemberId: latest.activeMemberId,
+    });
+    refreshCanvasConnectedNodes(node.dataset.id);
+    scheduleCanvasConnectionRender();
+    scheduleCanvasSave();
+    setCanvasStatus("原图已同步到本机。");
+    return recovered;
+  } catch (error) {
+    const latest = getCanvasGalleryContainer(node);
+    setTargetSyncState(latest, "sync_failed");
+    scheduleCanvasSave();
+    throw error;
+  }
+}
+
+async function localizeCanvasRemoteImage(source) {
+  const remoteUrl = String(source || "");
+  if (!/^https?:\/\//i.test(remoteUrl)) throw new Error("远程图片地址无效。");
+  if (!canvasGalleryLocalizationPromises.has(remoteUrl)) {
+    const pending = fetch(IMAGE_SYNC_LOCALIZE_API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ source: remoteUrl }),
+    }).then(async (response) => {
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "原图同步失败。");
+      if (!/^\/output\//.test(String(data.item?.local_url || ""))) throw new Error("原图没有成功保存到本机。");
+      return data.item;
+    }).finally(() => {
+      canvasGalleryLocalizationPromises.delete(remoteUrl);
+    });
+    canvasGalleryLocalizationPromises.set(remoteUrl, pending);
+  }
+  return canvasGalleryLocalizationPromises.get(remoteUrl);
 }
 
 function resolveCanvasGalleryActiveImage(images, preferredId) {
@@ -8109,39 +10017,52 @@ function resolveCanvasGalleryActiveImage(images, preferredId) {
 }
 
 function getCanvasGalleryImages(node) {
-  try {
-    const images = JSON.parse(node.dataset.galleryImages || "[]");
-    const normalized = normalizeCanvasGalleryImages(images);
-    const serialized = JSON.stringify(normalized);
-    if (node.dataset.galleryImages !== serialized) node.dataset.galleryImages = serialized;
-    return normalized;
-  } catch {
-    return [];
+  // The unified material node replaced the picture-only gallery as the place a
+  // generation result lands, so every reader of "the images behind this output"
+  // has to understand both shapes.
+  if (node?.classList?.contains("canvas-node-asset-collection")) {
+    return getCanvasAssetCollection(node).members
+      .filter((member) => member.kind === "image")
+      .map((member) => ({
+        id: member.id,
+        name: member.name,
+        src: member.src,
+        url: member.src,
+        originalUrl: member.src,
+        savedUrl: member.savedUrl || member.src,
+        createdAt: member.createdAt,
+        sourceNodeId: member.sourceNodeId,
+        promptSummary: member.promptSummary,
+      }));
   }
+  return node?.classList?.contains("canvas-node-gallery-container") ? getCanvasGalleryContainerMembers(node) : [];
 }
 
 function setCanvasGalleryImages(node, images) {
   const normalized = normalizeCanvasGalleryImages(images);
-  node.dataset.galleryImages = JSON.stringify(normalized);
-  const active = resolveCanvasGalleryActiveImage(normalized, node.dataset.galleryActiveImageId);
-  if (active) node.dataset.galleryActiveImageId = active.id;
-  else delete node.dataset.galleryActiveImageId;
-  renderCanvasGalleryImages(node);
+  if (!node?.classList?.contains("canvas-node-gallery-container")) return;
+  const active = resolveCanvasGalleryActiveImage(normalized, getCanvasGalleryContainer(node).activeMemberId);
+  setCanvasGalleryContainerMembers(node, normalized, active?.id || "");
+  refreshCanvasConnectedNodes(node.dataset.id);
+  scheduleCanvasConnectionRender();
+  scheduleCanvasSave();
 }
 
 function getCanvasGalleryActiveImage(node) {
-  const active = resolveCanvasGalleryActiveImage(getCanvasGalleryImages(node), node?.dataset.galleryActiveImageId);
-  if (active && node.dataset.galleryActiveImageId !== active.id) node.dataset.galleryActiveImageId = active.id;
-  if (!active) delete node.dataset.galleryActiveImageId;
-  return active;
+  if (!node?.classList?.contains("canvas-node-gallery-container")) return null;
+  const container = getCanvasGalleryContainer(node);
+  return resolveCanvasGalleryActiveImage(container.members, container.activeMemberId);
 }
 
 function setCanvasGalleryActiveImage(node, imageId) {
-  if (!node?.classList?.contains("canvas-node-gallery")) return null;
-  const image = getCanvasGalleryImages(node).find((item) => item.id === String(imageId || ""));
+  if (!node?.classList?.contains("canvas-node-gallery-container")) return null;
+  const container = getCanvasGalleryContainer(node);
+  const image = container.members.find((item) => item.id === String(imageId || ""));
   if (!image) return null;
-  node.dataset.galleryActiveImageId = image.id;
-  renderCanvasGalleryImages(node);
+  node.dataset.galleryContainer = JSON.stringify({ ...container, activeMemberId: image.id });
+  node.querySelectorAll?.(".canvas-gallery-member").forEach((member) => {
+    member.classList.toggle("is-active", member.dataset.galleryMemberId === image.id);
+  });
   refreshCanvasConnectedNodes(node.dataset.id);
   scheduleCanvasConnectionRender();
   scheduleCanvasSave();
@@ -8149,427 +10070,115 @@ function setCanvasGalleryActiveImage(node, imageId) {
   return image;
 }
 
-function removeCanvasGalleryImage(node, index) {
-  if (!node?.classList?.contains("canvas-node-gallery")) return;
-  const images = getCanvasGalleryImages(node);
-  if (index < 0 || index >= images.length) return;
-  images.splice(index, 1);
-  const fallback = resolveCanvasGalleryActiveImage(images, node.dataset.galleryActiveImageId);
-  if (fallback) node.dataset.galleryActiveImageId = fallback.id;
-  else delete node.dataset.galleryActiveImageId;
-  setCanvasGalleryImages(node, images);
-  refreshCanvasConnectedNodes(node.dataset.id);
-  scheduleCanvasConnectionRender();
-  scheduleCanvasSave();
-  setCanvasStatus(images.length ? "\u5df2\u5220\u9664\u56fe\u96c6\u56fe\u7247\uff0c\u8fd8\u5269 " + images.length + " \u5f20\u3002" : "\u5df2\u6e05\u7a7a\u56fe\u96c6\u56fe\u7247\u3002");
-}
-
-function requestCanvasGalleryImageDelete(node, index) {
-  if (!node?.classList?.contains("canvas-node-gallery")) return;
-  const images = getCanvasGalleryImages(node);
-  const image = images[index];
-  if (!image) return;
-  const isActive = image.id === node.dataset.galleryActiveImageId;
-  const remaining = images.length - 1;
-  const consequence = remaining
-    ? `${isActive ? "这是当前图片，删除后会自动切换到其他结果。" : ""} 图集中还会保留 ${remaining} 张图片。`
-    : "这是图集中的最后一张图片，删除后图集将变为空图集。";
-  requestCanvasDeleteConfirmation({
-    title: "删除这张图片？",
-    message: `${consequence} 删除后可立即撤销，也可稍后使用 Ctrl+Z 恢复。`,
-    confirmLabel: "删除图片",
-    onConfirm: () => {
-      removeCanvasGalleryImage(node, index);
-      showCanvasDeleteUndo(`已删除「${image.name || `生成图 ${index + 1}`}」`);
-    },
-  });
-}
-
 function requestCanvasGalleryNodeDelete(node) {
-  if (!node?.classList?.contains("canvas-node-gallery")) return;
-  const imageCount = getCanvasGalleryImages(node).length;
+  if (!node?.classList?.contains("canvas-node-gallery-container")) return;
+  const galleryImages = getCanvasGalleryImages(node);
+  const imageCount = galleryImages.length;
   const connectionCount = canvasState.connections.filter((item) => (
     item.from === node.dataset.id || item.to === node.dataset.id
   )).length;
-  const imageLabel = imageCount ? `${imageCount} 张历史图片` : "空图集";
+  const imageLabel = imageCount ? `${imageCount} 张图片` : "空图集";
   const connectionLabel = connectionCount ? `和 ${connectionCount} 条相关连线` : "";
   requestCanvasDeleteConfirmation({
     title: "删除整个图集？",
-    message: `将删除这个节点中的${imageLabel}${connectionLabel}。删除后可立即撤销，也可稍后使用 Ctrl+Z 恢复。`,
+    message: `将删除这个节点中的${imageLabel}${connectionLabel}。可使用 Ctrl+Z 撤销；撤销记录清除后，未被其他节点使用的本地图片会被永久清理。`,
     confirmLabel: "删除图集",
     onConfirm: () => {
-      deleteCanvasNodes([node]);
-      showCanvasDeleteUndo(imageCount ? `已删除图集和 ${imageCount} 张历史图片` : "已删除图集");
+      const deletion = deleteCanvasNodes([node]);
+      scheduleCanvasGalleryMediaCleanup(deletion?.command, galleryImages);
+      setCanvasStatus(imageCount ? `已删除图集和 ${imageCount} 张图片；可使用 Ctrl+Z 撤销。` : "已删除图集；可使用 Ctrl+Z 撤销。");
     },
   });
 }
 
-function syncCanvasGalleryAspectRatio(node, imageElement) {
-  const width = Number(imageElement?.naturalWidth || 0);
-  const height = Number(imageElement?.naturalHeight || 0);
-  if (!node || width <= 0 || height <= 0) return false;
-  const ratio = width / height;
-  if (!Number.isFinite(ratio) || ratio <= 0) return false;
-  node.dataset.galleryAspectRatio = String(ratio);
-  node.style.setProperty("--canvas-gallery-aspect-ratio", String(ratio));
-  delete node.dataset.height;
-  node.style.removeProperty("--canvas-node-media-height");
-  scheduleCanvasConnectionRender({ trailing: false });
-  scheduleCanvasSave();
-  return true;
+function getCanvasGalleryMediaUrls(images) {
+  return [...new Set((Array.isArray(images) ? images : [])
+    .map((image) => String(image?.savedUrl || image?.src || image?.url || "").trim())
+    .filter((url) => url.startsWith("/output/")))];
 }
 
-function renderCanvasGalleryImages(node) {
-  const stack = node.querySelector(".canvas-gallery-stack");
-  const historyToggle = node.querySelector(".canvas-gallery-history-toggle");
-  const sliceToggle = node.querySelector(".canvas-gallery-slice-toggle");
-  if (!stack || !historyToggle) return;
-  const images = getCanvasGalleryImages(node);
-  const active = getCanvasGalleryActiveImage(node);
-  if (sliceToggle) sliceToggle.hidden = !active;
-  node.classList.toggle("canvas-node-frameless", Boolean(active));
-  node.classList.toggle("canvas-gallery-frameless", Boolean(active));
-  stack.innerHTML = "";
-  historyToggle.innerHTML = "";
-  historyToggle.innerHTML = '<i class="canvas-gallery-history-icon" data-lucide="images"></i>';
-  const historyBadge = document.createElement("b");
-  historyBadge.textContent = String(images.length);
-  historyToggle.append(historyBadge);
-  historyToggle.hidden = !images.length;
-  if (!images.length) {
-    const empty = document.createElement("div");
-    empty.className = "canvas-gallery-empty";
-    empty.textContent = "生成后的图片会排在这里";
-    stack.append(empty);
-    setCanvasGalleryHistoryOpen(node, false);
-    window.lucide?.createIcons({ attrs: { "aria-hidden": "true", "stroke-width": 1.8 } });
-    return;
-  }
-  const layerCount = Math.min(5, Math.max(0, images.length - 1));
-  for (let layer = layerCount; layer >= 1; layer -= 1) {
-    const back = document.createElement("span");
-    back.className = "canvas-gallery-stack-layer";
-    back.style.setProperty("--gallery-stack-layer", String(layer));
-    back.style.setProperty("--gallery-stack-scale", String(1 - layer * 0.006));
-    stack.append(back);
-  }
-  const cover = document.createElement("button");
-  cover.type = "button";
-  cover.className = "canvas-gallery-cover";
-  cover.dataset.galleryIndex = String(images.findIndex((image) => image.id === active.id));
-  const image = document.createElement("img");
-  image.alt = active.name || "当前生成图";
-  const syncAspect = () => syncCanvasGalleryAspectRatio(node, image);
-  image.addEventListener("load", syncAspect, { once: true });
-  registerCanvasDetailImage(image, active.src || active.url);
-  cover.append(image);
-  if (image.complete) syncAspect();
-  bindCanvasGalleryCoverInteraction(cover, node, Number(cover.dataset.galleryIndex));
-  stack.append(cover);
-  renderCanvasGalleryHistory(node);
-  window.lucide?.createIcons({ attrs: { "aria-hidden": "true", "stroke-width": 1.8 } });
-  requestAnimationFrame(() => scheduleCanvasConnectionRender({ trailing: false }));
+function scheduleCanvasGalleryMediaCleanup(command, images) {
+  const candidateUrls = getCanvasGalleryMediaUrls(images);
+  if (!command || !candidateUrls.length) return;
+  canvasGalleryMediaCleanupJobs.set(command, { candidateUrls });
 }
 
-function renderCanvasGalleryHistory(node) {
-  const list = node.querySelector(".canvas-gallery-history-list");
-  const title = node.querySelector(".canvas-gallery-history-title");
-  if (!list || !title) return;
-  const images = getCanvasGalleryImages(node);
-  const active = getCanvasGalleryActiveImage(node);
-  title.textContent = `结果 \u00b7 ${images.length}`;
-  list.innerHTML = "";
-  [...images].reverse().forEach((galleryImage) => {
-    const index = images.findIndex((item) => item.id === galleryImage.id);
-    const item = document.createElement("article");
-    item.className = `canvas-gallery-history-item${galleryImage.id === active?.id ? " is-active" : ""}`;
-    item.dataset.galleryImageId = galleryImage.id;
-    const select = document.createElement("button");
-    select.type = "button";
-    select.className = "canvas-gallery-history-select";
-    select.setAttribute("aria-label", `设为当前图片：${galleryImage.name || `生成图 ${index + 1}`}`);
-    select.setAttribute("aria-current", galleryImage.id === active?.id ? "true" : "false");
-    select.title = galleryImage.name || `生成图 ${index + 1}`;
-    const img = createDeferredThumbnail(
-      galleryImage.src || galleryImage.url,
-      galleryImage.name || `生成图 ${index + 1}`,
-    );
-    img.draggable = false;
-    select.append(img);
-    const actions = document.createElement("span");
-    actions.className = "canvas-gallery-history-actions";
-    const download = document.createElement("button");
-    download.type = "button";
-    download.className = "canvas-gallery-history-action canvas-gallery-history-download";
-    download.innerHTML = '<i data-lucide="download"></i>';
-    download.title = "下载图片";
-    download.setAttribute("aria-label", "下载图片");
-    download.addEventListener("click", async (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      await downloadAsset(galleryImage.savedUrl || galleryImage.src, `${galleryImage.name || `生成图-${index + 1}`}.png`, event.currentTarget);
+function finalizeCanvasGalleryMediaCleanup(commands) {
+  const expired = Array.from(commands || []).filter((command) => (
+    command
+    && !canvasState.undoStack.includes(command)
+    && !canvasState.redoStack.includes(command)
+    && canvasGalleryMediaCleanupJobs.has(command)
+  ));
+  expired.forEach((command) => {
+    const job = canvasGalleryMediaCleanupJobs.get(command);
+    canvasGalleryMediaCleanupJobs.delete(command);
+    fetch(CANVAS_MEDIA_CLEANUP_API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ candidateUrls: job.candidateUrls }),
+    }).then(async (response) => {
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || "图集图片清理失败");
+      const deletedCount = Number(result.deletedCount || 0);
+      if (deletedCount) setCanvasStatus(`已清理 ${deletedCount} 张不再使用的本地图片。`);
+    }).catch((error) => {
+      setCanvasStatus(`图集已删除；本地图片暂未清理：${error.message}`);
     });
-    const remove = document.createElement("button");
-    remove.type = "button";
-    remove.className = "canvas-gallery-history-action canvas-gallery-history-remove";
-    remove.innerHTML = '<i data-lucide="trash-2"></i>';
-    remove.title = "删除图片";
-    remove.setAttribute("aria-label", "删除图片");
-    remove.addEventListener("click", (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      requestCanvasGalleryImageDelete(node, index);
-    });
-    actions.append(download, remove);
-    item.append(select, actions);
-    bindCanvasGalleryItemDrag(item, galleryImage, index, {
-      onClick: () => setCanvasGalleryActiveImage(node, galleryImage.id),
-    });
-    list.append(item);
   });
-  window.lucide?.createIcons({ attrs: { "aria-hidden": "true", "stroke-width": 1.8 } });
 }
 
-function setCanvasGalleryHistoryOpen(node, open) {
-  const panel = node?.querySelector(".canvas-gallery-history-panel");
-  const toggle = node?.querySelector(".canvas-gallery-history-toggle");
-  if (!panel || !toggle) return false;
-  if (open) {
-    closeCanvasVideoHistoryPanels();
-    closeCanvasGalleryHistoryPanels(node);
-    renderCanvasGalleryHistory(node);
-  }
-  panel.hidden = !open;
-  node.classList.toggle("is-gallery-history-open", Boolean(open));
-  toggle.setAttribute("aria-expanded", open ? "true" : "false");
-  return Boolean(open);
-}
-
-function closeCanvasGalleryHistoryPanels(exceptNode = null) {
-  let closed = false;
-  document.querySelectorAll("#canvasPlane .canvas-node-gallery.is-gallery-history-open").forEach((node) => {
-    if (node === exceptNode) return;
-    const panel = node.querySelector(".canvas-gallery-history-panel");
-    const toggle = node.querySelector(".canvas-gallery-history-toggle");
-    if (panel) panel.hidden = true;
-    if (toggle) toggle.setAttribute("aria-expanded", "false");
-    node.classList.remove("is-gallery-history-open");
-    closed = true;
-  });
-  return closed;
-}
-
-function updateCanvasGalleryLayout(node, options = {}) {
-  if (!node?.classList?.contains("canvas-node-gallery")) return;
-  const grid = node.querySelector(".canvas-gallery-grid");
-  const items = Array.from(grid?.querySelectorAll(".canvas-gallery-item") || []);
-  const count = items.length;
-  if (!grid || !count) return;
-
-  const style = getComputedStyle(grid);
-  const gap = Number.parseFloat(style.columnGap || style.gap) || 10;
-  const paddingX = (Number.parseFloat(style.paddingLeft) || 0) + (Number.parseFloat(style.paddingRight) || 0);
-  const paddingY = (Number.parseFloat(style.paddingTop) || 0) + (Number.parseFloat(style.paddingBottom) || 0);
-  const width = Math.max(1, grid.clientWidth - paddingX);
-  const height = Math.max(1, grid.clientHeight - paddingY);
-  const ratios = items
-    .map((item) => {
-      const img = item.querySelector("img");
-      return img?.naturalWidth > 0 && img?.naturalHeight > 0 ? img.naturalWidth / img.naturalHeight : 1;
-    })
-    .filter((ratio) => Number.isFinite(ratio) && ratio > 0);
-  const averageRatio = ratios.length
-    ? ratios.reduce((sum, ratio) => sum + ratio, 0) / ratios.length
-    : 1;
-  const fitRatio = clampNumber(averageRatio, 0.35, 2.4);
-  let bestColumns = 1;
-  let bestRowHeight = 0;
-  let bestItemWidth = 0;
-
-  let bestScore = 0;
-
-  for (let columns = 1; columns <= count; columns += 1) {
-    const rows = Math.ceil(count / columns);
-    const maxRowHeight = (height - gap * (rows - 1)) / rows;
-    const maxItemWidth = (width - gap * (columns - 1)) / columns;
-    const itemWidth = Math.min(maxItemWidth, maxRowHeight * fitRatio);
-    const rowHeight = itemWidth / fitRatio;
-    const usedWidth = itemWidth * Math.min(columns, count) + gap * (Math.min(columns, count) - 1);
-    const usedHeight = rowHeight * rows + gap * (rows - 1);
-    const fillScore = (itemWidth * rowHeight) + (usedWidth / width) * 120 + (usedHeight / height) * 40;
-    if (fillScore > bestScore) {
-      bestScore = fillScore;
-      bestColumns = columns;
-      bestRowHeight = rowHeight;
-      bestItemWidth = itemWidth;
+function scheduleCanvasGalleryMemberHoverConnectionSync() {
+  const now = performance.now();
+  canvasGalleryMemberHoverConnectionSyncUntil = Math.max(canvasGalleryMemberHoverConnectionSyncUntil, now + 220);
+  if (canvasGalleryMemberHoverConnectionSyncFrame) return;
+  const tick = (timestamp) => {
+    renderCanvasConnections();
+    if (timestamp < canvasGalleryMemberHoverConnectionSyncUntil) {
+      canvasGalleryMemberHoverConnectionSyncFrame = requestAnimationFrame(tick);
+      return;
     }
-  }
-
-  if (!bestScore) {
-    bestColumns = count;
-    bestItemWidth = Math.max(1, (width - gap * (count - 1)) / count);
-    bestRowHeight = Math.min(height, bestItemWidth / fitRatio);
-  }
-
-  const nextColumns = String(bestColumns);
-  const nextItemWidth = `${Math.max(1, Math.floor(bestItemWidth))}px`;
-  const nextRowHeight = `${Math.max(1, Math.floor(bestRowHeight))}px`;
-  if (grid.style.getPropertyValue("--canvas-gallery-columns") !== nextColumns) grid.style.setProperty("--canvas-gallery-columns", nextColumns);
-  if (grid.style.getPropertyValue("--canvas-gallery-item-width") !== nextItemWidth) grid.style.setProperty("--canvas-gallery-item-width", nextItemWidth);
-  if (grid.style.getPropertyValue("--canvas-gallery-row-height") !== nextRowHeight) grid.style.setProperty("--canvas-gallery-row-height", nextRowHeight);
-  if (options.renderConnections !== false) scheduleCanvasConnectionRender({ trailing: false });
+    canvasGalleryMemberHoverConnectionSyncFrame = 0;
+  };
+  canvasGalleryMemberHoverConnectionSyncFrame = requestAnimationFrame(tick);
 }
 
-function bindCanvasGalleryCoverInteraction(cover, node, index) {
+function bindCanvasGalleryContainerMemberDrag(item, sourceNode, member) {
   let start = null;
   let moved = false;
   let suppressClick = false;
+  const payload = {
+    src: member.src || member.url,
+    savedUrl: member.savedUrl || member.src || member.url,
+    name: member.name || "图集图片",
+  };
 
-  const stop = (event, cancelled = false) => {
+  const finish = (event, cancelled = false) => {
     if (!start) return;
-    event?.stopPropagation?.();
-    cover.releasePointerCapture?.(event?.pointerId);
-    cover.classList.remove("is-dragging");
-    if (moved && !cancelled) {
-      updateCanvasGroupMembership(start.nodes.map((item) => item.node));
-      releaseCanvasGroupFocus();
-      scheduleCanvasSave();
+    item.releasePointerCapture?.(event?.pointerId);
+    item.classList.remove("is-dragging");
+    const targetNode = document.elementFromPoint(event.clientX, event.clientY)?.closest?.(".canvas-node-gallery-container");
+    const shouldTransfer = moved && !cancelled && isCanvasClientPoint(event.clientX, event.clientY)
+      && targetNode !== sourceNode;
+    if (moved) {
       suppressClick = true;
       window.setTimeout(() => { suppressClick = false; }, 0);
     }
+    if (shouldTransfer) {
+      transferCanvasGalleryContainerMember(sourceNode, member.id, {
+        targetNode,
+        point: getCanvasPointFromClient(event.clientX, event.clientY),
+      });
+    }
+    removeCanvasGalleryDragGhost();
+    canvasState.draggedGalleryImage = null;
     start = null;
     moved = false;
   };
 
-  cover.addEventListener("pointerdown", (event) => {
-    if (event.button !== 0) return;
-    event.stopPropagation();
-    if (!node.classList.contains("is-selected")) selectCanvasNode(node);
-    const selectedNodes = getCanvasDragNodes(getSelectedCanvasNodes());
-    start = {
-      x: event.clientX,
-      y: event.clientY,
-      nodes: selectedNodes.map((item) => ({
-        node: item,
-        x: Number(item.dataset.x),
-        y: Number(item.dataset.y),
-      })),
-    };
-    moved = false;
-    cover.setPointerCapture?.(event.pointerId);
-  });
-
-  cover.addEventListener("pointermove", (event) => {
-    if (!start) return;
-    const distance = Math.hypot(event.clientX - start.x, event.clientY - start.y);
-    if (distance < 6) return;
-    if (!moved) {
-      moved = true;
-      cover.classList.add("is-dragging");
-    }
-    const deltaX = (event.clientX - start.x) / canvasState.scale;
-    const deltaY = (event.clientY - start.y) / canvasState.scale;
-    start.nodes.forEach((item) => {
-      item.node.dataset.x = String(item.x + deltaX);
-      item.node.dataset.y = String(item.y + deltaY);
-      updateCanvasNodePosition(item.node);
-    });
-    event.preventDefault();
-  });
-
-  cover.addEventListener("pointerup", (event) => stop(event));
-  cover.addEventListener("pointercancel", (event) => stop(event, true));
-  cover.addEventListener("click", (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    if (suppressClick) {
-      suppressClick = false;
-      return;
-    }
-    if (!node.classList.contains("is-selected")) selectCanvasNode(node);
-  });
-}
-
-function bindCanvasGalleryItemDrag(item, image, index, options = {}) {
-  const payload = {
-    src: image.src || image.url,
-    savedUrl: image.savedUrl || image.src || image.url,
-    name: image.name || `生成图 ${index + 1}`,
-  };
-  let start = null;
-  let moved = false;
-  let suppressClick = false;
-
-  item.draggable = false;
-  item.addEventListener("dragstart", (event) => {
-    if (event.target.closest?.(".canvas-gallery-history-action, .canvas-gallery-history-close, .canvas-gallery-history-toggle")) {
-      event.preventDefault();
-      return;
-    }
-    const serialized = JSON.stringify(payload);
-    event.dataTransfer?.setData("application/x-canvas-gallery-image", serialized);
-    event.dataTransfer?.setData("text/plain", serialized);
-    if (event.dataTransfer) event.dataTransfer.effectAllowed = "copy";
-    canvasState.draggedGalleryImage = payload;
-    item.classList.add("is-dragging");
-    suppressClick = true;
-  });
-
-  item.addEventListener("dragend", () => {
-    item.classList.remove("is-dragging");
-    canvasState.draggedGalleryImage = null;
-    window.setTimeout(() => { suppressClick = false; }, 0);
-  });
-
-  item.addEventListener("mousedown", (event) => {
-    if (event.target.closest?.(".canvas-gallery-remove, .canvas-gallery-history-action, .canvas-gallery-history-close, .canvas-gallery-history-toggle")) return;
-    if (event.button !== 0) return;
-    event.stopPropagation();
-    start = { x: event.clientX, y: event.clientY };
-    moved = false;
-    canvasState.draggedGalleryImage = payload;
-
-    const move = (moveEvent) => {
-      if (!start) return;
-      const distance = Math.hypot(moveEvent.clientX - start.x, moveEvent.clientY - start.y);
-      if (distance < 8) return;
-      moved = true;
-      item.classList.add("is-dragging");
-      updateCanvasGalleryDragGhost(payload, moveEvent.clientX, moveEvent.clientY);
-      moveEvent.preventDefault();
-    };
-
-    const up = (upEvent) => {
-      window.removeEventListener("mousemove", move);
-      window.removeEventListener("mouseup", up);
-      item.classList.remove("is-dragging");
-      const sourceGallery = item.closest(".canvas-node-gallery");
-      const sourcePanel = item.closest(".canvas-gallery-history-panel");
-      const shouldCopy = moved && isCanvasClientPoint(upEvent.clientX, upEvent.clientY)
-        && !isClientPointInsideElement(sourceGallery, upEvent.clientX, upEvent.clientY)
-        && !isClientPointInsideElement(sourcePanel, upEvent.clientX, upEvent.clientY);
-      if (moved) {
-        suppressClick = true;
-        window.setTimeout(() => { suppressClick = false; }, 0);
-      }
-      if (shouldCopy) {
-        createCanvasImageFromGalleryDrop(payload, getCanvasPointFromClient(upEvent.clientX, upEvent.clientY), upEvent);
-      }
-      removeCanvasGalleryDragGhost();
-      start = null;
-      moved = false;
-      canvasState.draggedGalleryImage = null;
-    };
-
-    window.addEventListener("mousemove", move);
-    window.addEventListener("mouseup", up, { once: true });
-  });
-
   item.addEventListener("pointerdown", (event) => {
-    if (event.target.closest?.(".canvas-gallery-remove, .canvas-gallery-history-action, .canvas-gallery-history-close, .canvas-gallery-history-toggle")) return;
-    if (event.button !== 0) return;
+    if (event.button !== 0 || event.target.closest?.("[data-canvas-port]")) return;
     event.stopPropagation();
-    if (event.pointerType === "mouse") return;
     start = { x: event.clientX, y: event.clientY };
     moved = false;
     canvasState.draggedGalleryImage = payload;
@@ -8578,8 +10187,7 @@ function bindCanvasGalleryItemDrag(item, image, index, options = {}) {
 
   item.addEventListener("pointermove", (event) => {
     if (!start) return;
-    const distance = Math.hypot(event.clientX - start.x, event.clientY - start.y);
-    if (distance < 8) return;
+    if (Math.hypot(event.clientX - start.x, event.clientY - start.y) < 8) return;
     moved = true;
     item.classList.add("is-dragging");
     updateCanvasGalleryDragGhost(payload, event.clientX, event.clientY);
@@ -8587,46 +10195,27 @@ function bindCanvasGalleryItemDrag(item, image, index, options = {}) {
   });
 
   item.addEventListener("pointerup", (event) => {
+    // A nested member output port owns its own connection drag. Do not swallow
+    // its pointerup here, otherwise the window-level connection finish handler
+    // never receives the release event.
     if (!start) return;
     event.stopPropagation();
-    item.releasePointerCapture?.(event.pointerId);
-    item.classList.remove("is-dragging");
-    const sourceGallery = item.closest(".canvas-node-gallery");
-    const sourcePanel = item.closest(".canvas-gallery-history-panel");
-    const shouldCopy = moved && isCanvasClientPoint(event.clientX, event.clientY)
-      && !isClientPointInsideElement(sourceGallery, event.clientX, event.clientY)
-      && !isClientPointInsideElement(sourcePanel, event.clientX, event.clientY);
-    if (moved) {
-      suppressClick = true;
-      window.setTimeout(() => { suppressClick = false; }, 0);
-    }
-    if (shouldCopy) {
-      createCanvasImageFromGalleryDrop(payload, getCanvasPointFromClient(event.clientX, event.clientY), event);
-    }
-    removeCanvasGalleryDragGhost();
-    start = null;
-    moved = false;
-    canvasState.draggedGalleryImage = null;
+    finish(event);
   });
-
-  item.addEventListener("pointercancel", () => {
-    removeCanvasGalleryDragGhost();
-    start = null;
-    moved = false;
-    canvasState.draggedGalleryImage = null;
-    item.classList.remove("is-dragging");
+  item.addEventListener("pointercancel", (event) => finish(event, true));
+  item.addEventListener("pointerenter", scheduleCanvasGalleryMemberHoverConnectionSync);
+  item.addEventListener("pointerleave", scheduleCanvasGalleryMemberHoverConnectionSync);
+  item.addEventListener("transitionrun", (event) => {
+    // The external caption can keep the hover lift after pointerleave. Follow
+    // the actual return animation too, so the wire stays attached to its port.
+    if (event.propertyName === "transform") scheduleCanvasGalleryMemberHoverConnectionSync();
   });
-
   item.addEventListener("click", (event) => {
-    if (event.target.closest?.(".canvas-gallery-remove, .canvas-gallery-history-action, .canvas-gallery-history-close, .canvas-gallery-history-toggle")) return;
-    event.stopPropagation();
-    if (suppressClick) {
-      suppressClick = false;
-      return;
-    }
-    if (typeof options.onClick === "function") options.onClick();
-    else openCanvasGalleryPreview(item.closest(".canvas-node-gallery"), index);
-  });
+    if (!suppressClick) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    suppressClick = false;
+  }, true);
 }
 
 function openCanvasGalleryPreview(node, index = 0) {
@@ -8652,7 +10241,9 @@ function updateCanvasGalleryDragGhost(image, clientX, clientY) {
   }
   const ghost = canvasState.galleryDragGhost;
   const img = ghost.querySelector("img");
-  if (img && img.src !== image.src) img.src = image.src;
+  if (img && img.getAttribute("data-original-src") !== image.src) {
+    window.imageResources?.observe(img, image.src, { allowOriginalFallback: false, unload: false });
+  }
   ghost.style.transform = `translate(${clientX + 18}px, ${clientY + 18}px)`;
 }
 
@@ -8664,22 +10255,16 @@ function removeCanvasGalleryDragGhost() {
 function isCanvasClientPoint(clientX, clientY) {
   const viewport = document.querySelector("#infiniteCanvas");
   const rect = viewport?.getBoundingClientRect();
-  return Boolean(rect
-    && clientX >= rect.left
-    && clientX <= rect.right
-    && clientY >= rect.top
-    && clientY <= rect.bottom);
+  return CanvasGeometryRules.pointInRect({ x: clientX, y: clientY }, rect);
 }
 
 function isClientPointInsideElement(element, clientX, clientY) {
   const rect = element?.getBoundingClientRect?.();
-  return Boolean(rect
-    && rect.width > 0
-    && rect.height > 0
-    && clientX >= rect.left
-    && clientX <= rect.right
-    && clientY >= rect.top
-    && clientY <= rect.bottom);
+  return CanvasGeometryRules.pointInRect(
+    { x: clientX, y: clientY },
+    rect,
+    { requireArea: true },
+  );
 }
 
 function createCanvasImageFromGalleryDrop(payload, point, event) {
@@ -8723,40 +10308,103 @@ function replaceCanvasImageNode(node, src, name) {
 function getCanvasModelPortPoint(id, kind = "input") {
   const model = getCanvasNodeModel(id);
   if (!model) return null;
-  const rect = canvasVirtualStore.getRect(id);
+  const rect = getCanvasImageContentRect(model, canvasVirtualStore.getRect(id));
   if (!rect) return null;
   const height = rect.bottom - rect.top;
+  const memberHandle = String(kind || "");
+  const isMemberOutput = memberHandle.startsWith("member-output:");
+  const memberMatch = memberHandle.match(/^member-output:(.+)$/);
+  if (memberMatch) {
+    const members = Array.isArray(model.galleryContainer?.members) ? model.galleryContainer.members : [];
+    const memberIndex = members.findIndex((member) => String(member?.id) === memberMatch[1]);
+    if (memberIndex < 0) return null;
+    if (members.length === 1) return { x: rect.right, y: rect.top + height * 0.5 };
+    const layout = getCanvasGalleryFreeGridLayout({
+      members,
+      width: Number(model.width) || rect.right - rect.left,
+      height: Number(model.height) || height,
+      gap: model.galleryContainer?.gap ?? 16,
+      layoutMode: model.galleryContainer?.layoutMode,
+      manualColumns: model.galleryContainer?.manualColumns,
+    });
+    const columns = layout.columns;
+    const rows = layout.rows;
+    const membersTop = rect.top + Math.min(54, height * 0.25);
+    const membersHeight = Math.max(1, height - (membersTop - rect.top) - 34);
+    const row = memberIndex < 0 ? 0 : Math.floor(memberIndex / columns);
+    return {
+      x: isMemberOutput ? rect.right : rect.left,
+      y: Math.round(membersTop + membersHeight * ((row + 0.5) / rows)),
+    };
+  }
   if (kind === "output") return { x: rect.right, y: rect.top + height * 0.5 };
   if (kind === "prompt") return { x: rect.left, y: rect.top + height * 0.72 };
   return { x: rect.left, y: rect.top + height * 0.5 };
 }
 
 function getCanvasConnectionPortPoint(id, kind) {
-  return getCanvasModelPortPoint(id, kind);
+  const nodeId = String(id || "");
+  const portKind = String(kind || "input");
+  if (!nodeId) return null;
+  const cacheKey = `${String(canvasState.activeBoardId || "")}\u0000${nodeId}\u0000${portKind}`;
+  const revision = canvasVirtualStore.getRevision(nodeId);
+  const preferMounted = !canvasState.isRestoring;
+  const cached = canvasConnectionPortPointCache.get(cacheKey);
+  if (cached && cached.revision === revision && cached.preferMounted === preferMounted) return cached.point;
+  // A mounted port is the visual source of truth because responsive node CSS
+  // can differ from the saved virtual-model width. During restore, prefer the
+  // stable model geometry until the DOM has completed its first layout.
+  const modelPoint = getCanvasModelPortPoint(id, portKind);
+  const mountedPoint = getCanvasPortPoint(getCanvasNode(id), portKind);
+  const point = preferMounted
+    ? mountedPoint || modelPoint
+    : modelPoint || mountedPoint;
+  if (!point) return null;
+  if (canvasConnectionPortPointCache.size >= CANVAS_CONNECTION_PORT_CACHE_LIMIT) {
+    const oldestKey = canvasConnectionPortPointCache.keys().next().value;
+    if (oldestKey) canvasConnectionPortPointCache.delete(oldestKey);
+  }
+  canvasConnectionPortPointCache.set(cacheKey, { revision, point, preferMounted });
+  return point;
 }
 
 function getCanvasConnectionPathData(from, to) {
-  const distance = Math.max(80, Math.abs(to.x - from.x) * 0.45);
-  return `M ${from.x} ${from.y} C ${from.x + distance} ${from.y}, ${to.x - distance} ${to.y}, ${to.x} ${to.y}`;
+  return CanvasConnectionRules.pathData(from, to);
+}
+
+function getCachedCanvasViewportSize(viewport) {
+  if (!viewport) return { width: 0, height: 0 };
+  if (!canvasViewportSizeObserver) {
+    canvasViewportSize = { width: viewport.clientWidth, height: viewport.clientHeight };
+    if (typeof ResizeObserver === "function") {
+      canvasViewportSizeObserver = new ResizeObserver(() => {
+        canvasViewportSize = { width: viewport.clientWidth, height: viewport.clientHeight };
+      });
+      canvasViewportSizeObserver.observe(viewport);
+    }
+  }
+  return canvasViewportSize;
 }
 
 function getVisibleCanvasConnections() {
+  if (!canvasState.connections.length) return [];
   const viewport = document.querySelector("#infiniteCanvas");
   const rules = window.CanvasVirtualizationRules;
   if (!viewport || !rules) return [];
+  const viewportSize = getCachedCanvasViewportSize(viewport);
   const visibleRect = rules.getViewportCanvasRect(
-    { width: viewport.clientWidth, height: viewport.clientHeight },
+    viewportSize,
     canvasState,
     360,
   );
   const visible = canvasState.connections.flatMap((item, index) => {
     if (!canvasVirtualStore.has(item.from) || !canvasVirtualStore.has(item.to)) return [];
-    const from = getCanvasConnectionPortPoint(item.from, "output");
+    const from = getCanvasConnectionPortPoint(item.from, item.fromPort || "output");
     const to = getCanvasConnectionPortPoint(item.to, item.toPort || "input");
     if (!from || !to) return [];
     const bounds = rules.getConnectionBounds(from, to);
     if (!rules.rectsIntersect(bounds, visibleRect)) return [];
-    return [{ item, index, from, to, key: `${item.from}->${item.to}:${item.toPort || "input"}:${index}` }];
+    return [{ item, index, from, to, key: CanvasConnectionRules.connectionKey(item, index) }];
   });
   const maximum = canvasState.scale < 0.15
     ? 80
@@ -8777,11 +10425,39 @@ function initializeCanvasConnectionSvg(svg) {
   canvasConnectionElements.clear();
   canvasTempConnectionPath = null;
   svg.replaceChildren();
+  svg.addEventListener("pointerdown", (event) => {
+    const hit = event.target.closest?.(".canvas-connection-hit[data-connection-from][data-connection-to]");
+    if (hit) event.stopPropagation();
+  });
   svg.addEventListener("click", (event) => {
     const hit = event.target.closest?.(".canvas-connection-hit[data-connection-from][data-connection-to]");
     if (!hit) return;
     event.stopPropagation();
-    disconnectCanvasNodes(hit.dataset.connectionFrom, hit.dataset.connectionTo);
+    disconnectCanvasNodes(hit.dataset.connectionFrom, hit.dataset.connectionTo, hit.dataset.connectionFromPort || "output", hit.dataset.connectionToPort || "input");
+  });
+}
+
+function initializeCanvasConnectionOverlaySvg(svg) {
+  if (canvasConnectionOverlaySvg === svg) return;
+  canvasConnectionOverlaySvg = svg;
+  canvasConnectionOverlayElements.clear();
+  svg.replaceChildren();
+}
+
+function syncCanvasGalleryMemberOutputPortVisibility() {
+  const connectedMemberPorts = new Set();
+  canvasState.connections.forEach((item) => {
+    const fromPort = String(item.fromPort || "output");
+    if (!fromPort.startsWith("member-output:")) return;
+    connectedMemberPorts.add(`${String(item.from || "")}\u0000${fromPort}`);
+  });
+  document.querySelectorAll(".canvas-gallery-member-output-port").forEach((port) => {
+    const node = port.closest(".canvas-node-gallery-container");
+    const fromId = String(node?.dataset?.id || "");
+    const fromPort = String(port.dataset.canvasPort || "");
+    const connected = fromPort.startsWith("member-output:")
+      && connectedMemberPorts.has(`${fromId}\u0000${fromPort}`);
+    port.classList.toggle("is-connected", connected);
   });
 }
 
@@ -8789,11 +10465,14 @@ function renderCanvasConnections() {
   const svg = document.querySelector("#canvasConnections");
   if (!svg) return;
   initializeCanvasConnectionSvg(svg);
+  const overlaySvg = document.querySelector("#canvasConnectionsOverlay");
+  if (overlaySvg) initializeCanvasConnectionOverlaySvg(overlaySvg);
   const visible = getVisibleCanvasConnections();
   const interactive = canvasState.scale >= 0.3;
   const activeKeys = new Set();
   visible.forEach(({ item, from, to, key }) => {
     activeKeys.add(key);
+    const isMemberConnection = String(item.fromPort || "output").startsWith("member-output:");
     let entry = canvasConnectionElements.get(key);
     if (!entry) {
       const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
@@ -8802,11 +10481,28 @@ function renderCanvasConnections() {
       entry = { path, hit: null };
       canvasConnectionElements.set(key, entry);
     }
+    entry.path.classList.toggle("is-member-connection", isMemberConnection);
+    if (isMemberConnection && overlaySvg) {
+      let overlayPath = canvasConnectionOverlayElements.get(key);
+      if (!overlayPath) {
+        overlayPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        overlayPath.setAttribute("class", "canvas-connection-path");
+        overlaySvg.append(overlayPath);
+        canvasConnectionOverlayElements.set(key, overlayPath);
+      }
+      const overlayD = getCanvasConnectionPathData(from, to);
+      if (overlayPath.getAttribute("d") !== overlayD) overlayPath.setAttribute("d", overlayD);
+    } else {
+      canvasConnectionOverlayElements.get(key)?.remove();
+      canvasConnectionOverlayElements.delete(key);
+    }
     if (interactive && !entry.hit) {
       const hit = document.createElementNS("http://www.w3.org/2000/svg", "path");
       hit.setAttribute("class", "canvas-connection-hit");
       hit.dataset.connectionFrom = String(item.from);
       hit.dataset.connectionTo = String(item.to);
+      hit.dataset.connectionFromPort = String(item.fromPort || "output");
+      hit.dataset.connectionToPort = String(item.toPort || "input");
       svg.append(hit);
       entry.hit = hit;
     } else if (!interactive && entry.hit) {
@@ -8823,12 +10519,18 @@ function renderCanvasConnections() {
     entry.hit?.remove();
     canvasConnectionElements.delete(key);
   });
+  canvasConnectionOverlayElements.forEach((path, key) => {
+    if (activeKeys.has(key)) return;
+    path.remove();
+    canvasConnectionOverlayElements.delete(key);
+  });
+  syncCanvasGalleryMemberOutputPortVisibility();
 
   if (canvasState.tempConnection) {
     const reverse = canvasState.tempConnection.direction === "input";
     const from = reverse
       ? canvasState.tempConnection.fromPoint
-      : getCanvasConnectionPortPoint(canvasState.tempConnection.from, "output");
+      : getCanvasConnectionPortPoint(canvasState.tempConnection.from, canvasState.tempConnection.fromPort || "output");
     const to = reverse
       ? getCanvasConnectionPortPoint(canvasState.tempConnection.to, canvasState.tempConnection.toPort || "input")
       : canvasState.tempConnection.to;
@@ -8864,30 +10566,41 @@ function scheduleCanvasConnectionRender(options = {}) {
 
 function getCanvasPortPoint(node, kind) {
   if (!node) return null;
-  const port = node.querySelector(`.canvas-port-${kind}`) || (kind === "prompt" ? node.querySelector(".canvas-port-input") : null);
+  const port = Array.from(node.querySelectorAll("[data-canvas-port]")).find((item) => item.dataset.canvasPort === kind)
+    || node.querySelector(`.canvas-port-${kind}`)
+    || (kind === "prompt" ? node.querySelector(".canvas-port-input") : null);
   if (!port) return null;
+  const viewport = document.querySelector("#infiniteCanvas");
+  const portRect = port.getBoundingClientRect?.();
+  const viewportRect = viewport?.getBoundingClientRect?.();
+  const hasVisiblePortRect = portRect
+    && viewportRect
+    && Number.isFinite(portRect.left)
+    && Number.isFinite(portRect.top)
+    && portRect.width > 0
+    && portRect.height > 0;
+  if (hasVisiblePortRect) {
+    return screenToCanvas(
+      portRect.left + portRect.width / 2 - viewportRect.left,
+      portRect.top + portRect.height / 2 - viewportRect.top,
+    );
+  }
   const nodeX = Number(node.dataset.x);
   const nodeY = Number(node.dataset.y);
-  if (Number.isFinite(nodeX) && Number.isFinite(nodeY)) {
+  if (Number.isFinite(nodeX) && Number.isFinite(nodeY) && port.offsetParent === node) {
     return {
       x: nodeX + port.offsetLeft + port.offsetWidth / 2,
-      y: nodeY + port.offsetTop,
+      y: nodeY + port.offsetTop + port.offsetHeight / 2,
     };
   }
-  const viewport = document.querySelector("#infiniteCanvas");
-  if (!viewport) return null;
-  const portRect = port.getBoundingClientRect();
-  const viewportRect = viewport.getBoundingClientRect();
-  return screenToCanvas(
-    portRect.left + portRect.width / 2 - viewportRect.left,
-    portRect.top + portRect.height / 2 - viewportRect.top,
-  );
+  return null;
 }
 
-function createCanvasPort(kind) {
+function createCanvasPort(kind, { handle = kind } = {}) {
   const port = document.createElement("button");
   port.className = `canvas-port canvas-port-${kind}`;
   port.type = "button";
+  port.dataset.canvasPort = handle;
   port.title = kind === "output" ? "连接到其它节点" : "接收图片或提示词连接";
   if (kind === "output") {
     port.addEventListener("pointerdown", (event) => {
@@ -8895,7 +10608,7 @@ function createCanvasPort(kind) {
       event.stopPropagation();
       port.setPointerCapture?.(event.pointerId);
       const node = port.closest(".canvas-node");
-      if (node) startCanvasConnectionDrag(node, event);
+      if (node) startCanvasConnectionDrag(node, event, handle);
     });
   } else if (kind === "input") {
     port.addEventListener("pointerdown", (event) => {
@@ -8904,7 +10617,7 @@ function createCanvasPort(kind) {
       event.stopPropagation();
       port.setPointerCapture?.(event.pointerId);
       const node = port.closest(".canvas-node");
-      if (node) startCanvasInputConnectionDrag(node, event, "input");
+      if (node) startCanvasInputConnectionDrag(node, event, handle);
     });
   }
   port.addEventListener("click", (event) => {
@@ -8912,15 +10625,22 @@ function createCanvasPort(kind) {
     const node = port.closest(".canvas-node");
     if (!node) return;
     if (kind === "output") {
-      canvasState.pendingConnection = node.dataset.id;
+      canvasState.pendingConnection = { fromId: node.dataset.id, fromPort: handle };
       document.querySelectorAll(".canvas-node.is-connecting").forEach((item) => item.classList.remove("is-connecting"));
       node.classList.add("is-connecting");
       return;
     }
     if (!canvasState.pendingConnection) return;
-    connectCanvasNodes(canvasState.pendingConnection, node.dataset.id, kind);
+    const pending = canvasState.pendingConnection;
+    const fromId = typeof pending === "string" ? pending : pending?.fromId;
+    const fromPort = typeof pending === "string" ? "output" : pending?.fromPort || "output";
+    connectCanvasNodes(fromId, node.dataset.id, handle, fromPort);
   });
   return port;
+}
+
+function resolveCanvasConnectionDropPort(node, target, kind, fallback) {
+  return CanvasConnectionRules.resolveDropPort(node, target, kind, fallback);
 }
 
 function startCanvasInputConnectionDrag(targetNode, startEvent, toPort = "input") {
@@ -8952,7 +10672,9 @@ function startCanvasInputConnectionDrag(targetNode, startEvent, toPort = "input"
     canvasState.tempConnection = null;
     const sourceNode = findCanvasNodeAtClient(event.clientX, event.clientY, targetNode);
     if (sourceNode && sourceNode !== targetNode) {
-      connectCanvasNodes(sourceNode.dataset.id, targetNode.dataset.id, toPort);
+      const sourceTarget = document.elementFromPoint(event.clientX, event.clientY);
+      const fromPort = resolveCanvasConnectionDropPort(sourceNode, sourceTarget, "output", "output");
+      connectCanvasNodes(sourceNode.dataset.id, targetNode.dataset.id, toPort, fromPort);
       return;
     }
     targetNode.classList.remove("is-connecting");
@@ -8974,17 +10696,18 @@ function startCanvasInputConnectionDrag(targetNode, startEvent, toPort = "input"
   window.addEventListener("pointercancel", cancel, { once: true });
 }
 
-function startCanvasConnectionDrag(sourceNode, startEvent) {
+function startCanvasConnectionDrag(sourceNode, startEvent, fromPort = "output") {
   const isEmptyMaterialNode = sourceNode?.dataset.uploadOnly === "true"
     || sourceNode?.classList.contains("canvas-node-video")
     || sourceNode?.classList.contains("canvas-node-audio");
-  if (!getCanvasNodeOutput(sourceNode) && !isEmptyMaterialNode) {
+  if (!getCanvasNodeOutput(sourceNode, fromPort) && !isEmptyMaterialNode) {
     setCanvasStatus("这个节点还没有可连接的内容。");
     return;
   }
-  canvasState.pendingConnection = sourceNode.dataset.id;
+  canvasState.pendingConnection = { fromId: sourceNode.dataset.id, fromPort };
   canvasState.tempConnection = {
     from: sourceNode.dataset.id,
+    fromPort,
     to: getCanvasPointFromClient(startEvent.clientX, startEvent.clientY),
   };
   document.querySelectorAll(".canvas-node.is-connecting").forEach((item) => item.classList.remove("is-connecting"));
@@ -8995,6 +10718,7 @@ function startCanvasConnectionDrag(sourceNode, startEvent) {
   const move = (event) => {
     canvasState.tempConnection = {
       from: sourceNode.dataset.id,
+      fromPort,
       to: getCanvasPointFromClient(event.clientX, event.clientY),
     };
     scheduleCanvasConnectionRender({ trailing: false });
@@ -9008,13 +10732,14 @@ function startCanvasConnectionDrag(sourceNode, startEvent) {
     const target = document.elementFromPoint(event.clientX, event.clientY);
     const targetNode = findCanvasNodeAtClient(event.clientX, event.clientY, sourceNode);
     if (targetNode && targetNode !== sourceNode) {
-      connectCanvasNodes(sourceNode.dataset.id, targetNode.dataset.id, "input");
+      const toPort = resolveCanvasConnectionDropPort(targetNode, target, "input", "input");
+      connectCanvasNodes(sourceNode.dataset.id, targetNode.dataset.id, toPort, fromPort);
       return;
     }
     canvasState.pendingConnection = null;
     sourceNode.classList.remove("is-connecting");
     renderCanvasConnections();
-    showCanvasConnectMenu(event, sourceNode.dataset.id, { direction: "output" });
+    showCanvasConnectMenu(event, sourceNode.dataset.id, { direction: "output", fromPort });
   };
 
   const cancel = () => {
@@ -9060,10 +10785,11 @@ function showCanvasConnectMenu(event, fromId, options = {}) {
   const viewport = document.querySelector("#infiniteCanvas");
   if (!menu || !viewport) return;
   const rect = viewport.getBoundingClientRect();
-  const localX = event.clientX - rect.left;
-  const localY = event.clientY - rect.top;
+  const localX = toSystemDelta(event.clientX - rect.left);
+  const localY = toSystemDelta(event.clientY - rect.top);
   canvasState.connectMenu = {
     fromId,
+    fromPort: options.fromPort || "output",
     point: screenToCanvas(localX, localY),
     direction: options.direction || "output",
     toId: options.toId || "",
@@ -9094,13 +10820,13 @@ function showCanvasConnectMenu(event, fromId, options = {}) {
       });
     } else {
       menu.querySelector('[data-connect-node="gallery"]')?.toggleAttribute("hidden", true);
-      menu.querySelector('[data-connect-node="generator"]')?.toggleAttribute("hidden", true);
+      menu.querySelector('[data-connect-node="image-generator"]')?.toggleAttribute("hidden", true);
+      menu.querySelector('[data-connect-node="video-generator"]')?.toggleAttribute("hidden", true);
       menu.querySelector('[data-connect-node="llm"]')?.toggleAttribute("hidden", true);
-      menu.querySelector('[data-connect-node="comfy"]')?.toggleAttribute("hidden", true);
     }
   } else {
     const sourceNode = getCanvasNode(fromId);
-    const sourceOutput = getCanvasNodeOutput(sourceNode) || (sourceNode?.classList.contains("canvas-node-loop")
+    const sourceOutput = getCanvasNodeOutput(sourceNode, options.fromPort || "output") || (sourceNode?.classList.contains("canvas-node-loop")
       ? { type: "loop", name: "循环节点", images: [] }
       : null);
     if (sourceOutput?.type === "generator") {
@@ -9109,7 +10835,7 @@ function showCanvasConnectMenu(event, fromId, options = {}) {
       });
     } else if (sourceOutput?.type === "loop") {
       buttons.forEach((button) => {
-        button.hidden = button.dataset.connectNode !== "comfy";
+        button.hidden = button.dataset.connectNode !== "image-generator";
       });
     } else if (sourceOutput?.type === "llm") {
       buttons.forEach((button) => {
@@ -9117,11 +10843,11 @@ function showCanvasConnectMenu(event, fromId, options = {}) {
       });
     } else if (sourceOutput?.type === "text") {
       buttons.forEach((button) => {
-        button.hidden = !["generator", "llm"].includes(button.dataset.connectNode);
+        button.hidden = !["image-generator", "video-generator", "llm"].includes(button.dataset.connectNode);
       });
-    } else if (sourceOutput?.type === "image" || sourceOutput?.type === "group") {
+    } else if (sourceOutput?.type === "image" || sourceOutput?.type === "group" || sourceOutput?.type === "images") {
       buttons.forEach((button) => {
-        button.hidden = !["generator", "llm", "comfy", "loop"].includes(button.dataset.connectNode);
+        button.hidden = !["image-generator", "video-generator", "llm", "loop"].includes(button.dataset.connectNode);
       });
     }
   }
@@ -9135,6 +10861,174 @@ function hideCanvasConnectMenu() {
   const menu = document.querySelector("#canvasConnectMenu");
   if (menu) menu.hidden = true;
   canvasState.connectMenu = null;
+}
+
+function findConnectedCanvasAssetOutput(sourceNode, kind) {
+  const legacyClass = kind === "video" ? "canvas-node-video-output" : "canvas-node-gallery-container";
+  const connected = canvasState.connections
+    .filter((item) => item.from === sourceNode?.dataset.id)
+    .map((item) => getCanvasNode(item.to))
+    .filter(Boolean);
+  return connected.find((item) => item.classList.contains("canvas-node-asset-collection"))
+    || connected.find((item) => item.classList.contains(legacyClass)) || null;
+}
+
+function getOrCreateCanvasAssetOutput(sourceNode, kind) {
+  const connected = findConnectedCanvasAssetOutput(sourceNode, kind);
+  if (connected) return connected;
+  const output = addCanvasAssetCollection({
+    x: Number(sourceNode.dataset.x || 0) + Number(sourceNode.dataset.width || sourceNode.offsetWidth || 400) + 90,
+    y: Number(sourceNode.dataset.y || 0),
+  });
+  connectCanvasNodes(sourceNode.dataset.id, output.dataset.id, "input");
+  return output;
+}
+
+function getCanvasImageCatalogModel(model) {
+  const id = String(model || "").trim();
+  return imageModelCatalog.find((item) => String(item?.id || "") === id) || { id };
+}
+
+function readCanvasModelParameters(node) {
+  try {
+    const parsed = JSON.parse(node?.dataset?.canvasModelParameters || "{}");
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+// 自动选择 resolves its concrete model only when the job is submitted, so the
+// node cannot honestly present one model's protocol defaults. Keep the picker
+// honest: model-specific parameters appear once an exact model is chosen.
+function isCanvasImageAutomaticSelection(node) {
+  const select = node?.querySelector?.(".canvas-node-model");
+  return select?.dataset?.modelSelection === "auto" || node?.dataset?.modelSelection === "auto";
+}
+
+function canvasModelParameterDescriptor(model) {
+  const catalog = getCanvasImageCatalogModel(model);
+  const platform = String(catalog.platform || "").trim().toLowerCase();
+  return {
+    ...catalog,
+    id: String(catalog.id || model || ""),
+    protocol: platform === "google"
+      ? "gemini"
+      : String(catalog.modelProtocol || catalog.providerProtocol || "").trim().toLowerCase(),
+    capabilities: Array.isArray(catalog.capabilities) ? catalog.capabilities : ["image.generate"],
+    metadata: {
+      ...(catalog.metadata || {}),
+      parameterOverrides: catalog.parameterOverrides || catalog.metadata?.parameterOverrides || {},
+    },
+  };
+}
+
+function createCanvasModelParameterOptions(node) {
+  const container = document.createElement("div");
+  container.className = "canvas-model-options";
+  container.hidden = true;
+  const commit = () => {
+    const fields = new Map((container._canvasParameterFields || []).map((field) => [field.key, field]));
+    const values = {};
+    container.querySelectorAll("[data-canvas-model-param]").forEach((control) => {
+      const key = String(control.dataset.canvasModelParam || "");
+      const field = fields.get(key);
+      if (!field) return;
+      const raw = String(control.value ?? "").trim();
+      if (!raw) return;
+      if (field.type === "number") {
+        const number = Number(raw);
+        if (!Number.isFinite(number)) return;
+        values[key] = number;
+      } else {
+        values[key] = raw;
+      }
+    });
+    node.dataset.canvasModelParameters = JSON.stringify(values);
+    scheduleCanvasSave();
+  };
+  container.addEventListener("change", commit);
+  container.addEventListener("input", (event) => {
+    if (event.target.matches?.('input[type="number"], input[type="text"]')) commit();
+  });
+  return container;
+}
+
+function syncCanvasModelParameterOptions(node, model, preferred = {}) {
+  const container = node?.querySelector(".canvas-model-options");
+  if (!container || !window.AiOsModelParameters?.canvasFieldsForModel) return;
+  const automatic = isCanvasImageAutomaticSelection(node);
+  const descriptor = canvasModelParameterDescriptor(model);
+  const fields = window.AiOsModelParameters.canvasFieldsForModel(descriptor, { automatic });
+  node.dataset.canvasModelParameterModel = String(model || "");
+  if (automatic) {
+    // Keep the stored values but hide the controls. Automatic selection picks a
+    // concrete model only at submit time, so showing one model's protocol
+    // defaults here would be guesswork. The values return with an exact model.
+    container._canvasParameterFields = [];
+    container.innerHTML = "";
+    container.hidden = true;
+    return;
+  }
+  const stored = { ...readCanvasModelParameters(node), ...(preferred && typeof preferred === "object" ? preferred : {}) };
+  const allowedKeys = new Set(fields.map((field) => field.key));
+  const retained = Object.fromEntries(Object.entries(stored).filter(([key, value]) => (
+    allowedKeys.has(key) && value !== undefined && value !== null && String(value).trim() !== ""
+  )));
+  node.dataset.canvasModelParameters = JSON.stringify(retained);
+  const defaults = descriptor.metadata.parameterOverrides || {};
+  container._canvasParameterFields = fields;
+  container.innerHTML = "";
+  container.hidden = !fields.length;
+  if (!fields.length) {
+    node.dataset.canvasModelParameters = "{}";
+    return;
+  }
+  fields.forEach((field) => {
+    const label = document.createElement("label");
+    const title = document.createElement("span");
+    title.textContent = field.label;
+    let control;
+    if (field.type === "select") {
+      control = document.createElement("select");
+      const choices = [""].concat(Array.isArray(field.options) ? field.options : []);
+      const value = retained[field.key] ?? defaults[field.key] ?? "";
+      if (value !== "" && !choices.includes(String(value))) choices.push(String(value));
+      choices.forEach((choice) => {
+        const option = document.createElement("option");
+        option.value = choice;
+        option.textContent = choice === "" ? "模型默认" : choice;
+        control.append(option);
+      });
+      control.value = String(value);
+    } else {
+      control = document.createElement("input");
+      control.type = field.type === "number" ? "number" : "text";
+      if (field.type === "number") {
+        control.min = String(field.min);
+        control.max = String(field.max);
+        control.step = String(field.step);
+      }
+      control.value = String(retained[field.key] ?? defaults[field.key] ?? "");
+      control.autocomplete = "off";
+    }
+    control.dataset.canvasModelParam = field.key;
+    label.append(title, control);
+    container.append(label);
+  });
+}
+
+function getCanvasImageProtocolParams(node, model) {
+  const protocolParams = {};
+  // The node's own controls (size in the request body, plus resolution/quality
+  // derived from them) always apply. Automatic selection resolves the concrete
+  // model only at submit time, so saved per-model protocol defaults must not
+  // travel with the request in that case.
+  const automatic = isCanvasImageAutomaticSelection(node);
+  if (supportsSeparateImageResolution(model)) protocolParams.resolution = getCanvasImageResolution(node);
+  if (isGptImage2LikeModel(model)) protocolParams.quality = getCanvasImageQuality(node);
+  if (automatic) return protocolParams;
+  return { ...protocolParams, ...readCanvasModelParameters(node) };
 }
 
 function createCanvasMidjourneyOptions(node, preferred = {}) {
@@ -9234,11 +11128,18 @@ function syncCanvasMidjourneyOptions(node, model, preferred = {}) {
   node.dataset.canvasMidjourneyStylize = String(options.stylize);
 }
 
+function getCanvasImageModels() {
+  return Array.from(imageModelInput.options || [])
+    .map((option) => ({
+      value: option.value,
+      label: option.textContent || option.value,
+      platform: getImageModelPlatform(option.value),
+    }));
+}
+
 function fillCanvasNodeModelSelect(select, preferred) {
-  const imageModels = Array.from(imageModelInput.options || []).map((option) => ({
-    value: option.value,
-    label: option.textContent || option.value,
-  }));
+  preferred = window.ImageModelPicker?.resolveModelId?.(imageModelCatalog, preferred) || preferred;
+  const imageModels = getCanvasImageModels();
   if (!imageModels.length) {
     const fallback = document.createElement("option");
     fallback.value = imageModelInput.value || "gpt-image-1";
@@ -9254,14 +11155,21 @@ function fillCanvasNodeModelSelect(select, preferred) {
     select.append(option);
   });
   select.value = imageModels.some((item) => item.value === preferred) ? preferred : (imageModels[0]?.value || "");
+  select.dataset.platform = getImageModelPlatform(select.value);
+  return select.value;
 }
 
 function refreshCanvasImageModelSelects() {
   document.querySelectorAll("#canvasPlane .canvas-node-image:not([data-upload-only='true']) .canvas-node-model").forEach((select) => {
     const node = select.closest(".canvas-node");
+    if (node?.dataset.canvasEngine === "comfyui") return;
     const current = node?.dataset.canvasModel || select.value || imageModelInput.value || "";
     fillCanvasNodeModelSelect(select, current);
     if (node) node.dataset.canvasModel = select.value;
+    if (node) node.dataset.canvasPlatform = getImageModelPlatform(select.value) || node.dataset.canvasPlatform || "openai";
+    select.dataset.platform = getImageModelPlatform(select.value) || node?.dataset.canvasPlatform || "";
+    if (node) select.dataset.modelSelection = node.dataset.modelSelection || select.dataset.modelSelection || "auto";
+    enhanceCanvasImageModelSelect(select)?.setModels(imageModelCatalog);
     const size = node?.querySelector(".canvas-node-size");
     if (size) {
       fillCanvasNodeSizeSelect(size, node.dataset.canvasSize || size.value, select.value);
@@ -9275,6 +11183,7 @@ function refreshCanvasImageModelSelects() {
     if (node) {
       updateCanvasNodeResolutionAvailability(node);
       syncCanvasMidjourneyOptions(node, select.value);
+      syncCanvasModelParameterOptions(node, select.value);
     }
     const run = node?.querySelector(".canvas-node-run");
     if (run) updateCanvasRunButtonLabel(run, select.value);
@@ -9305,9 +11214,12 @@ function fillCanvasNodeSizeSelect(select, preferred, model = imageModelInput.val
 }
 
 function getImageResolutionChoiceContext(model, size = "auto") {
+  const catalogModel = imageModelCatalog.find((item) => item.id === model) || null;
   return {
     platform: getImageModelPlatform(model),
     family: getImageModelFamily(model),
+    providerProtocol: String(catalogModel?.providerProtocol || ""),
+    providerHost: String(catalogModel?.providerHost || ""),
     ratio: String(size || "auto").trim().toLowerCase(),
     configuredResolutions: getAllowedImageResolutionLevels(model),
   };
@@ -9571,6 +11483,8 @@ function isHighResolutionCanvasRequest(node) {
 
 function getCanvasImageQuality(node) {
   const model = node.querySelector(".canvas-node-model")?.value || node.dataset.canvasModel || "";
+  const explicit = String(readCanvasModelParameters(node).quality || "").trim();
+  if (explicit) return explicit;
   if (!isGptImage2LikeModel(model)) return "auto";
   const size = node.querySelector(".canvas-node-size")?.value || node.dataset.canvasSize || "auto";
   const level = getEffectiveImageResolutionLevel(model, node.querySelector(".canvas-node-resolution")?.value || node.dataset.canvasResolution || 1, size);
@@ -9592,14 +11506,14 @@ function isGptImage2CanvasNode(node) {
   return isGptImage2LikeModel(node.querySelector(".canvas-node-model")?.value || node.dataset.canvasModel || "");
 }
 
-function connectCanvasNodes(fromId, toId, toPort = "input") {
+function connectCanvasNodes(fromId, toId, toPort = "input", fromPort = "output") {
   if (!fromId || !toId || fromId === toId) {
     setCanvasStatus("请选择另一个图片节点作为目标。");
     return;
   }
   const sourceNode = getCanvasNode(fromId);
   const targetNode = getCanvasNode(toId);
-  const sourceOutput = getCanvasNodeOutput(sourceNode);
+  const sourceOutput = getCanvasNodeOutput(sourceNode, fromPort);
   const emptyLoopToComfy = sourceNode?.classList.contains("canvas-node-loop")
     && targetNode?.classList.contains("canvas-node-comfy");
   const allowEmptyUploadToInput = sourceNode?.dataset.uploadOnly === "true"
@@ -9630,13 +11544,17 @@ function connectCanvasNodes(fromId, toId, toPort = "input") {
     setCanvasStatus("这个节点不能接收这种连接。");
     return;
   }
-  const compatibility = getCanvasConnectionCompatibility(sourceNode, targetNode, output);
+  const compatibility = getCanvasConnectionCompatibility(sourceNode, targetNode, output, { sourcePort: fromPort });
   if (!compatibility.ok) {
+    // A refused wire must not leave the source port armed, otherwise the next
+    // click on any input port would silently retry the same rejected pairing.
+    canvasState.pendingConnection = null;
+    document.querySelectorAll(".canvas-node.is-connecting").forEach((item) => item.classList.remove("is-connecting"));
     setCanvasStatus(compatibility.message);
     return;
   }
-  if (!canvasState.connections.some((item) => item.from === fromId && item.to === toId && (item.toPort || "input") === resolvedPort)) {
-    const connection = normalizeVisibleCanvasConnection({ from: fromId, to: toId, toPort: resolvedPort });
+  if (!canvasState.connections.some((item) => item.from === fromId && item.to === toId && (item.fromPort || "output") === fromPort && (item.toPort || "input") === resolvedPort)) {
+    const connection = normalizeVisibleCanvasConnection({ from: fromId, fromPort, to: toId, toPort: resolvedPort });
     canvasState.connections.push(connection);
     const forward = {
       type: "connection.upsert",
@@ -9665,11 +11583,13 @@ function connectCanvasNodes(fromId, toId, toPort = "input") {
   scheduleCanvasSave();
 }
 
-function getCanvasH3ConnectionCapacity(sourceNode, targetNode, output) {
+function getCanvasH3ConnectionCapacity(sourceNode, targetNode, output, sourcePort = "output") {
   if (!targetNode?.classList.contains("canvas-node-minimax-h3")) return { ok: true };
   const sourceId = sourceNode?.dataset.id || "";
   const targetId = targetNode.dataset.id || "";
-  if (canvasState.connections.some((item) => item.from === sourceId && item.to === targetId)) return { ok: true };
+  // Validate against everything except this very connection, so appending a
+  // material to an already connected collection still counts the new member.
+  const incoming = getCanvasIncomingItems(targetId, { from: sourceId, fromPort: sourcePort });
 
   let type = "";
   let additional = 0;
@@ -9680,7 +11600,7 @@ function getCanvasH3ConnectionCapacity(sourceNode, targetNode, output) {
     additional = output.url ? 1 : 0;
     limit = 9;
     label = "图片";
-  } else if (output.type === "group") {
+  } else if (output.type === "group" || output.type === "images") {
     type = "image";
     additional = (output.images || []).filter((item) => item?.url).length;
     limit = 9;
@@ -9695,29 +11615,95 @@ function getCanvasH3ConnectionCapacity(sourceNode, targetNode, output) {
     additional = output.url ? 1 : 0;
     limit = 3;
     label = "音频";
+  } else if (output.type === "assets") {
+    for (const [kind, max, kindLabel] of [["image", 9, "图片"], ["video", 3, "视频"], ["audio", 3, "音频"]]) {
+      const count = incoming.filter((item) => item.type === kind && item.url).length
+        + output.assets.filter((item) => item.kind === kind && item.src).length;
+      if (count > max) return { ok: false, message: `${kindLabel}参考最多 ${max} 个，请先断开多余连接。` };
+    }
+    return { ok: true };
   } else {
     return { ok: true };
   }
 
-  const current = getCanvasIncomingItems(targetId).filter((item) => item.type === type && item.url).length;
+  const current = incoming.filter((item) => item.type === type && item.url).length;
   return current + additional <= limit
     ? { ok: true }
     : { ok: false, message: `${label}参考最多 ${limit} 个，请先断开多余连接。` };
 }
 
-function getCanvasConnectionCompatibility(sourceNode, targetNode, output) {
+// The API video node takes exactly one reference frame, so its input port has to
+// refuse the second picture instead of silently keeping the first one.
+function getCanvasApiVideoConnectionCapacity(sourceNode, targetNode, output, sourcePort = "output") {
+  if (!targetNode?.classList.contains("canvas-node-video-api")) return { ok: true };
+  const sourceId = sourceNode?.dataset.id || "";
+  const targetId = targetNode.dataset.id || "";
+  const incomingImages = getCanvasIncomingItems(targetId, { from: sourceId, fromPort: sourcePort })
+    .filter((item) => item.type === "image" && item.url).length;
+  const additional = output.type === "image" ? 1 : output.type === "group" || output.type === "images"
+    ? (output.images || []).filter((item) => item?.url).length
+    : output.type === "assets" ? (output.assets || []).filter((item) => item.kind === "image" && item.src).length
+    : 0;
+  if (!additional) return { ok: true };
+  return incomingImages + additional <= 1
+    ? { ok: true }
+    : { ok: false, message: "首帧参考最多 1 张，请先断开多余连接。" };
+}
+
+// Imagine takes up to four references and blend takes two to four, so the port
+// stops the fifth picture instead of letting the request fail upstream.
+function getCanvasMidjourneyConnectionCapacity(sourceNode, targetNode, output, sourcePort = "output") {
+  if (!targetNode?.classList.contains("canvas-node-midjourney")) return { ok: true };
+  const sourceId = sourceNode?.dataset.id || "";
+  const targetId = targetNode.dataset.id || "";
+  const incomingImages = getCanvasIncomingItems(targetId, { from: sourceId, fromPort: sourcePort })
+    .filter((item) => item.type === "image" && item.url).length;
+  const additional = output.type === "image" ? 1 : output.type === "group" || output.type === "images"
+    ? (output.images || []).filter((item) => item?.url).length
+    : output.type === "assets" ? output.assets.filter((item) => item.kind === "image" && item.src).length : 0;
+  if (!additional) return { ok: true };
+  return incomingImages + additional <= CANVAS_MIDJOURNEY_MAX_REFS
+    ? { ok: true }
+    : { ok: false, message: `Midjourney 参考图最多 ${CANVAS_MIDJOURNEY_MAX_REFS} 张，请先断开多余连接。` };
+}
+
+function getCanvasConnectionCompatibility(sourceNode, targetNode, output, options = {}) {
   if (!sourceNode || !targetNode || !output) return { ok: false, message: "连接内容不可用。" };
-  const h3Capacity = getCanvasH3ConnectionCapacity(sourceNode, targetNode, output);
+  const sourcePort = String(options.sourcePort || "output");
+  let assetsTargetKind = "";
+  if (output.type === "assets") {
+    assetsTargetKind = targetNode.classList.contains("canvas-node-minimax-h3") ? "video-generator"
+      : targetNode.classList.contains("canvas-node-video-api") ? "image"
+        : targetNode.classList.contains("canvas-node-image") && targetNode.dataset.uploadOnly !== "true" && !targetNode.dataset.imageSrc
+          ? "image" : ["canvas-node-midjourney", "canvas-node-llm", "canvas-node-comfy", "canvas-node-loop"]
+            .some((kind) => targetNode.classList.contains(kind)) ? "image" : "";
+    if (!assetsTargetKind) return { ok: false, message: "素材合集不能连接到这个节点。" };
+    if ((output.assets || []).some((asset) => !window.CanvasAssetCollectionRules.canConnect(asset.kind, assetsTargetKind))) {
+      return { ok: false, message: "合集包含此节点不支持的素材类型，请使用单项输出端口连接。" };
+    }
+  }
+  const h3Capacity = getCanvasH3ConnectionCapacity(sourceNode, targetNode, output, sourcePort);
   if (!h3Capacity.ok) return h3Capacity;
+  const apiVideoCapacity = getCanvasApiVideoConnectionCapacity(sourceNode, targetNode, output, sourcePort);
+  if (!apiVideoCapacity.ok) return apiVideoCapacity;
+  const midjourneyCapacity = getCanvasMidjourneyConnectionCapacity(sourceNode, targetNode, output, sourcePort);
+  if (!midjourneyCapacity.ok) return midjourneyCapacity;
+  if (output.type === "assets") {
+    return assetsTargetKind === "video-generator"
+      ? { ok: true, message: "已连接，合集里的素材会作为视频参考。" }
+      : { ok: true, message: "已连接，合集里的图片会作为参考图。" };
+  }
   if (output.type === "video-generator") {
     return targetNode.classList.contains("canvas-node-video-output")
-      ? { ok: true, message: "已连接，生成结果会更新到视频输出节点。" }
-      : { ok: false, message: "MiniMax H3 生成端只能连接到视频输出节点。" };
+      || targetNode.classList.contains("canvas-node-asset-collection")
+      ? { ok: true, message: "已连接，视频结果会追加到素材合集。" }
+      : { ok: false, message: "视频生成端只能连接到素材合集或旧视频输出节点。" };
   }
   if (output.type === "generator") {
-    return targetNode.classList.contains("canvas-node-gallery")
-      ? { ok: true, message: "已连接，生成结果会追加到图集。" }
-      : { ok: false, message: "生成节点只能连接到生成图集节点。" };
+    return targetNode.classList.contains("canvas-node-gallery-container")
+      || targetNode.classList.contains("canvas-node-asset-collection")
+      ? { ok: true, message: "已连接，生成结果会追加到素材合集。" }
+      : { ok: false, message: "生成节点只能连接到素材合集或旧图集节点。" };
   }
   if (output.type === "loop") {
     return targetNode.classList.contains("canvas-node-comfy")
@@ -9726,6 +11712,7 @@ function getCanvasConnectionCompatibility(sourceNode, targetNode, output) {
   }
   if (output.type === "llm") {
     if (targetNode.classList.contains("canvas-node-minimax-h3")) return { ok: true, message: "已连接，LLM 文本会作为视频描述。" };
+    if (targetNode.classList.contains("canvas-node-video-api")) return { ok: true, message: "已连接，LLM 文本会作为视频描述。" };
     return targetNode.classList.contains("canvas-node-text")
       ? { ok: true, message: "已连接，LLM 生成文字会填充到提示词节点。" }
       : { ok: false, message: "LLM 节点只能连接到提示词节点。" };
@@ -9733,6 +11720,12 @@ function getCanvasConnectionCompatibility(sourceNode, targetNode, output) {
   if (output.type === "text") {
     if (targetNode.classList.contains("canvas-node-minimax-h3")) {
       return { ok: true, message: "已连接，提示词会作为视频描述。" };
+    }
+    if (targetNode.classList.contains("canvas-node-video-api")) {
+      return { ok: true, message: "已连接，提示词会作为视频描述。" };
+    }
+    if (targetNode.classList.contains("canvas-node-midjourney")) {
+      return { ok: true, message: "已连接，提示词会作为 Midjourney 提示词。" };
     }
     if (targetNode.classList.contains("canvas-node-llm")) {
       return { ok: true, message: "已连接，提示词会作为 LLM 输入。" };
@@ -9745,9 +11738,18 @@ function getCanvasConnectionCompatibility(sourceNode, targetNode, output) {
     }
     return { ok: false, message: "提示词节点只能连接到生成节点或 LLM 节点。" };
   }
-  if (output.type === "image" || output.type === "group") {
+  if (output.type === "grid-editor") {
+    return targetNode.classList.contains("canvas-node-gallery-container")
+      ? { ok: true, message: "已连接宫格编辑节点和裁切结果图集。" }
+      : { ok: false, message: "宫格编辑节点只能连接到裁切结果图集。" };
+  }
+  if (output.type === "image" || output.type === "group" || output.type === "images") {
+    if (targetNode.classList.contains("canvas-node-asset-collection")) return { ok: true, message: "已连接素材合集。" };
+    if (targetNode.classList.contains("canvas-node-gallery-container")) return { ok: true, message: "已连接裁切来源和结果图集。" };
     if (targetNode.classList.contains("canvas-node-grid-editor")) return { ok: true, message: "已连接宫格来源快照。" };
     if (targetNode.classList.contains("canvas-node-minimax-h3")) return { ok: true, message: "已连接，图片会作为 H3 参考素材。" };
+    if (targetNode.classList.contains("canvas-node-video-api")) return { ok: true, message: "已连接，图片会作为视频首帧参考。" };
+    if (targetNode.classList.contains("canvas-node-midjourney")) return { ok: true, message: "已连接，图片会作为 Midjourney 参考图。" };
     if (targetNode.classList.contains("canvas-node-llm")) return { ok: true, message: "已连接，图片会作为 LLM 视觉输入。" };
     if (targetNode.classList.contains("canvas-node-comfy")) return { ok: true, message: "已连接，图片会作为 ComfyUI 输入。" };
     if (targetNode.classList.contains("canvas-node-loop")) return { ok: true, message: "已连接，图片会进入循环队列。" };
@@ -9757,6 +11759,7 @@ function getCanvasConnectionCompatibility(sourceNode, targetNode, output) {
     return { ok: false, message: "图片只能连接到生成节点、LLM 节点、循环节点或 ComfyUI 节点。" };
   }
   if (output.type === "video" || output.type === "audio") {
+    if (targetNode.classList.contains("canvas-node-asset-collection")) return { ok: true, message: "已连接素材合集。" };
     return targetNode.classList.contains("canvas-node-minimax-h3")
       ? { ok: true, message: `已连接，${output.type === "video" ? "视频" : "音频"}会作为 H3 参考素材。` }
       : { ok: false, message: "视频和音频素材目前只能连接到 MiniMax H3 节点。" };
@@ -9764,11 +11767,17 @@ function getCanvasConnectionCompatibility(sourceNode, targetNode, output) {
   return { ok: false, message: "这种节点暂不支持连接。" };
 }
 
-function disconnectCanvasNodes(fromId, toId) {
+function disconnectCanvasNodes(fromId, toId, fromPort = null, toPort = null) {
   const removed = canvasState.connections
-    .filter((item) => item.from === fromId && item.to === toId)
+    .filter((item) => item.from === fromId
+      && item.to === toId
+      && (fromPort === null || (item.fromPort || "output") === fromPort)
+      && (toPort === null || (item.toPort || "input") === toPort))
     .map(normalizeVisibleCanvasConnection);
-  canvasState.connections = canvasState.connections.filter((item) => item.from !== fromId || item.to !== toId);
+  canvasState.connections = canvasState.connections.filter((item) => !(item.from === fromId
+    && item.to === toId
+    && (fromPort === null || (item.fromPort || "output") === fromPort)
+    && (toPort === null || (item.toPort || "input") === toPort)));
   const forward = removed.map((connection) => ({
     type: "connection.delete",
     entityId: connection.id,
@@ -9799,6 +11808,13 @@ function updateCanvasNodeRefs(node) {
   if (node.classList.contains("canvas-node-minimax-h3")) {
     renderCanvasMinimaxH3References(node);
     syncCanvasMinimaxH3Prompt(node);
+  }
+  if (node.classList.contains("canvas-node-video-api")) {
+    syncCanvasApiVideoControls(node);
+    syncCanvasApiVideoPrompt(node);
+  }
+  if (node.classList.contains("canvas-node-midjourney")) {
+    syncCanvasMidjourneyControls(node);
   }
   if (node.classList.contains("canvas-node-llm")) {
     renderCanvasLlmImages(node);
@@ -9900,18 +11916,31 @@ function bindCanvasRefPointerSort(thumb, node, refKey) {
   thumb.addEventListener("pointercancel", finish);
 }
 
-function getCanvasIncomingItems(nodeId) {
+// `exclude` drops the materials a single existing connection already supplies,
+// so re-validating that same connection can count its full, updated output
+// instead of double counting the stale snapshot sitting in canvasState.
+function getCanvasIncomingItems(nodeId, exclude = null) {
   return canvasState.connections
     .filter((item) => item.to === nodeId)
+    .filter((item) => !exclude
+      || item.from !== exclude.from
+      || (item.fromPort || "output") !== (exclude.fromPort || "output"))
     .flatMap((item) => {
       const node = getCanvasNode(item.from);
-      const output = getCanvasNodeOutput(node);
+      const output = getCanvasNodeOutput(node, item.fromPort || "output");
       if (!output) return [];
-      if (output.type === "group") {
+      if (output.type === "assets") {
+        return (output.assets || []).map((asset) => ({
+          type: asset.kind, url: asset.src, originalUrl: asset.src, name: asset.name,
+          mimeType: asset.mimeType, duration: asset.duration,
+          key: `asset:${item.from}:${asset.id}`,
+        }));
+      }
+      if (output.type === "group" || output.type === "images") {
         return (output.images || []).map((image, index) => ({
           ...image,
           type: "image",
-          key: `group:${item.from}:${index}`,
+          key: `group:${item.from}:${item.fromPort || "output"}:${index}`,
         }));
       }
       if (output.type === "loop") {
@@ -9919,13 +11948,13 @@ function getCanvasIncomingItems(nodeId) {
           ...image,
           type: "image",
           loopSource: item.from,
-          key: `loop:${item.from}:${index}`,
+          key: `loop:${item.from}:${item.fromPort || "output"}:${index}`,
         }));
       }
       if (output.type === "generator") return [];
       return [{
         ...output,
-        key: `${output.type}:${item.from}`,
+        key: `${output.type}:${item.from}:${item.fromPort || "output"}`,
       }];
     })
     .filter(Boolean);
@@ -10037,6 +12066,40 @@ function syncCanvasPromptFromTextInputs(node) {
   prompt.classList.add("is-synced");
 }
 
+function getCanvasTextElement(target) {
+  if (!target) return null;
+  if (target.classList?.contains("canvas-text")) return target;
+  return target.querySelector?.(".canvas-text") || null;
+}
+
+function getCanvasTextValue(target) {
+  const text = getCanvasTextElement(target);
+  if (!text) return "";
+  const renderer = window.CanvasTextNodeRenderer;
+  if (renderer?.getValue) return renderer.getValue(text);
+  return String(text.dataset.markdownSource ?? text.textContent ?? "");
+}
+
+function setCanvasTextValue(target, value) {
+  const text = getCanvasTextElement(target);
+  if (!text) return "";
+  const source = String(value ?? "");
+  const renderer = window.CanvasTextNodeRenderer;
+  if (renderer?.setValue) return renderer.setValue(text, source);
+  text.dataset.markdownSource = source;
+  text.textContent = source;
+  return source;
+}
+
+function focusCanvasText(target) {
+  const text = getCanvasTextElement(target);
+  if (!text) return false;
+  const renderer = window.CanvasTextNodeRenderer;
+  if (renderer?.beginEdit) return renderer.beginEdit(text);
+  text.focus();
+  return true;
+}
+
 function syncCanvasTextFromLlmInputs(node) {
   if (!node?.classList.contains("canvas-node-text")) return;
   const text = node.querySelector(".canvas-text");
@@ -10050,12 +12113,13 @@ function syncCanvasTextFromLlmInputs(node) {
     return;
   }
   const next = llmTexts.join("\n");
-  if (text.textContent !== next) text.textContent = next;
+  if (getCanvasTextValue(text) !== next) setCanvasTextValue(text, next);
   text.dataset.syncedFromLlm = "true";
 }
 
-function getCanvasNodeOutput(node) {
+function getCanvasNodeOutput(node, handle = "output") {
   if (!node) return null;
+  if (node.classList.contains("canvas-node-asset-collection")) return getCanvasAssetCollectionOutput(node, handle);
   if (node.classList.contains("canvas-node-grid-editor")) {
     const state = getCanvasGridEditorState(node);
     if (!state.sourceSrc) return null;
@@ -10068,6 +12132,22 @@ function getCanvasNodeOutput(node) {
   }
   if (node.classList.contains("canvas-node-minimax-h3")) {
     return { type: "video-generator", name: "MiniMax H3 生视频" };
+  }
+  if (node.classList.contains("canvas-node-video-api")) {
+    return { type: "video-generator", name: "API 生视频" };
+  }
+  if (node.classList.contains("canvas-node-midjourney")) {
+    return { type: "generator", name: "Midjourney 生成" };
+  }
+  if (node.classList.contains("canvas-node-director3d")) {
+    // The stage is a generator: it can be wired before its first frame exists,
+    // the same way an empty image node is. Consumers such as the reference
+    // collectors drop empty urls, so an unwritten frame never becomes a ref.
+    return {
+      type: "image",
+      name: node.dataset.directorSceneName || "3D 导演台画面",
+      url: node.dataset.directorPreviewSrc || "",
+    };
   }
   if (node.classList.contains("canvas-node-video-output")) {
     const active = getCanvasVideoActiveItem(node);
@@ -10105,7 +12185,7 @@ function getCanvasNodeOutput(node) {
   if (node.classList.contains("canvas-node-image")) {
     const url = node.dataset.resultSrc || node.dataset.imageSrc;
     if (node.dataset.uploadOnly === "true" && !url) return null;
-    if (!url) return { type: "generator", name: node.dataset.imageName || "生成节点" };
+    if (!url) return { type: "generator", name: node.dataset.imageName || "API 生成" };
     return {
       type: "image",
       name: node.dataset.imageName || "参考图",
@@ -10120,7 +12200,7 @@ function getCanvasNodeOutput(node) {
     };
   }
   if (node.classList.contains("canvas-node-text")) {
-    const text = node.querySelector(".canvas-text")?.textContent?.trim();
+    const text = getCanvasTextValue(node).trim();
     if (!text) return null;
     return {
       type: "text",
@@ -10136,7 +12216,7 @@ function getCanvasNodeOutput(node) {
   if (node.classList.contains("canvas-node-comfy")) {
     return {
       type: "generator",
-      name: "ComfyUI节点",
+      name: "ComfyUI 生成",
     };
   }
   if (node.classList.contains("canvas-node-loop")) {
@@ -10157,16 +12237,8 @@ function getCanvasNodeOutput(node) {
       images,
     };
   }
-  if (node.classList.contains("canvas-node-gallery")) {
-    const image = getCanvasGalleryActiveImage(node);
-    const url = image?.savedUrl || image?.src || image?.url;
-    if (!url) return null;
-    return {
-      type: "image",
-      name: image.name || "生成图",
-      url,
-      originalUrl: image.src || image.url || url,
-    };
+  if (node.classList.contains("canvas-node-gallery-container")) {
+    return getCanvasGalleryContainerOutput(node, handle);
   }
   return null;
 }
@@ -10235,9 +12307,35 @@ function syncCanvasImageJobProgress(node, job) {
   const previousState = String(node.dataset.imageJobState || "");
   node.dataset.imageJobId = String(job.id || node.dataset.imageJobId || "");
   node.dataset.imageJobState = String(job.state || "unknown");
-  if (CANVAS_IMAGE_JOB_ACTIVE_STATES.has(job.state)) {
+  if (job.state === "syncing") {
+    setCanvasImageNodeGenerationState(node, true);
+    setCanvasNodeStatus(node, "图片已生成，正在同步原图到本机…");
+    renderCanvasImageRecoveryAction(node, job.id, { disabled: true });
+  } else if (job.state === "sync_failed") {
+    if (node.dataset.imageJobCommittedId === String(job.id || "")) {
+      delete node.dataset.imageJobCommittedId;
+    }
+    setCanvasImageNodeGenerationState(node, false);
+    setCanvasNodeStatus(node, "图片已生成，但原图尚未同步到本机");
+    renderCanvasImageRecoveryAction(node, job.id);
+  } else if (job.state === "task_pending") {
+    setCanvasImageNodeGenerationState(node, false);
+    setCanvasNodeStatus(node, "任务已提交，可继续查询结果");
+    renderCanvasImageRecoveryAction(node, job.id);
+  } else if (CANVAS_IMAGE_JOB_ACTIVE_STATES.has(job.state)) {
     setCanvasImageNodeGenerationState(node, true);
     setCanvasNodeStatus(node, job.state === "queued" ? "已提交，等待图片服务…" : "图片生成中…");
+    clearCanvasImageRecoveryAction(node);
+  } else {
+    setCanvasImageNodeGenerationState(node, false);
+    clearCanvasImageRecoveryAction(node);
+    // A terminal job must replace whatever progress text is on the node. Keeping the
+    // previous message would leave a failed task looking like a finished one.
+    if (job.state === "failed") {
+      setCanvasNodeStatus(node, `失败：${String(job.error || "图片生成失败。")}`);
+    } else if (job.state === "unknown") {
+      setCanvasNodeStatus(node, "结果待确认；为避免重复扣费，系统不会自动重新提交。");
+    }
   }
   if (previousJobId !== node.dataset.imageJobId || previousState !== node.dataset.imageJobState) scheduleCanvasSave();
 }
@@ -10327,6 +12425,12 @@ function commitCanvasImageJobResult(node, job, prompt, fallback, guard) {
   const data = job?.result || {};
   const [returnedImage] = extractImages(data);
   if (!returnedImage) throw new Error("empty-image-response");
+  const localUrl = String(returnedImage.savedUrl || returnedImage.src || "");
+  if (!/^\/output\//.test(localUrl)) {
+    const error = new Error("图片已生成，但原图尚未同步到本机。");
+    error.code = "image_sync_failed";
+    throw error;
+  }
   if (node.dataset.imageJobCommittedId === job.id) {
     return { ok: true, image: returnedImage, gallery: null, model: data.model || job.model, ...(fallback ? { fallback } : {}) };
   }
@@ -10347,8 +12451,12 @@ function commitCanvasImageJobResult(node, job, prompt, fallback, guard) {
 
 async function resumeCanvasImageNodeJob(node) {
   const jobId = String(node?.dataset?.imageJobId || "");
-  if (!jobId || !CANVAS_IMAGE_JOB_ACTIVE_STATES.has(node.dataset.imageJobState)) return null;
-  setCanvasImageNodeGenerationState(node, true);
+  if (!jobId) return null;
+  const wasActive = CANVAS_IMAGE_JOB_ACTIVE_STATES.has(node.dataset.imageJobState);
+  const shouldReconcileCompleted = node.dataset.imageJobState === "completed";
+  const shouldReconcilePending = ["sync_failed", "task_pending"].includes(node.dataset.imageJobState);
+  if (!wasActive && !shouldReconcileCompleted && !shouldReconcilePending) return null;
+  if (wasActive) setCanvasImageNodeGenerationState(node, true);
   try {
     const job = await waitForCanvasImageJob(jobId, node);
     if (job.state === "completed") {
@@ -10364,6 +12472,7 @@ async function resumeCanvasImageNodeJob(node) {
   } catch (error) {
     if (String(error?.code || "") === "scope_mismatch") return null;
     const safeError = getSafeCanvasImageGenerationError(error);
+    if (["image_sync_failed", "image_task_pending"].includes(safeError.code)) return safeError;
     setCanvasNodeStatus(node, `失败：${safeError.error}`);
     return safeError;
   } finally {
@@ -10378,9 +12487,15 @@ async function runCanvasImageEdit(node, options) {
   const guard = options?.guard || null;
   const autoFailover = options?.autoFailover === true;
   guard?.assertActive();
+  const engine = node.dataset.canvasEngine || "api";
+  if (engine === "comfyui") {
+    return runCanvasComfyNode(node, options);
+  }
   syncCanvasPromptFromTextInputs(node);
   const prompt = node.querySelector(".canvas-node-prompt")?.value.trim();
   let activeModel = node.querySelector(".canvas-node-model")?.value;
+  const automaticSelection = node.querySelector(".canvas-node-model")?.dataset.modelSelection === "auto"
+    || node.dataset.modelSelection === "auto";
   const refs = getCanvasIncomingRefs(node.dataset.id);
   if (!prompt) {
     setCanvasNodeStatus(node, "请输入提示词");
@@ -10398,7 +12513,7 @@ async function runCanvasImageEdit(node, options) {
   const attemptedModelIds = new Set();
   let fallback = null;
   try {
-    if (autoFailover) {
+    if (autoFailover && !automaticSelection) {
       const prepared = await prepareCanvasImageNodeCandidate(node, {
         refs,
         size: getCanvasOutputSize(node),
@@ -10426,7 +12541,12 @@ async function runCanvasImageEdit(node, options) {
 
       const size = getCanvasOutputSize(node);
       const resolution = getCanvasImageResolution(node);
-      const requestPrompt = isMidjourneyModel(activeModel) ? prompt : getCanvasPromptWithResolution(node, prompt);
+      // Dreamina receives the frame and the quality flag as real arguments, so
+      // the English hints other platforms need would only pollute the picture
+      // description here.
+      const requestPrompt = isMidjourneyModel(activeModel) || getImageModelPlatform(activeModel) === "jimeng"
+        ? prompt
+        : getCanvasPromptWithResolution(node, prompt);
       let requestRefs;
       try {
         requestRefs = isMidjourneyModel(activeModel) ? refs : await prepareOpenAIEditRefs(refs, activeModel);
@@ -10439,9 +12559,15 @@ async function runCanvasImageEdit(node, options) {
       attemptedModelIds.add(activeModel);
       let returnedImage = null;
       try {
-        const requestBody = { model: activeModel, prompt: requestPrompt, size, n: 1, reference_images: requestRefs };
-        if (isMidjourneyModel(activeModel)) Object.assign(requestBody, getMidjourneyPayload(node.querySelector(".canvas-midjourney-options")));
-        else Object.assign(requestBody, { quality: getCanvasImageQuality(node), resolution });
+        const requestBody = {
+          ...(!automaticSelection ? { model: activeModel } : {}),
+          prompt: requestPrompt,
+          size,
+          n: 1,
+          reference_images: requestRefs,
+        };
+        if (!automaticSelection && isMidjourneyModel(activeModel)) Object.assign(requestBody, getMidjourneyPayload(node.querySelector(".canvas-midjourney-options")));
+        else Object.assign(requestBody, getCanvasImageProtocolParams(node, activeModel));
         const createdJob = await createCanvasImageJob(requestBody, node, guard);
         const completedJob = await waitForCanvasImageJob(createdJob.id, node, {
           guard,
@@ -10455,7 +12581,9 @@ async function runCanvasImageEdit(node, options) {
         const safeError = returnedImage
           ? { ok: false, code: "gallery_update_failed", error: "图片已经生成，但暂时没有写入图集。", image: returnedImage }
           : getSafeCanvasImageGenerationError(error);
-        if (autoFailover && !returnedImage && (isCanvasImageFailoverError(safeError) || safeError.code === "generation_timeout")) {
+        if (["image_sync_failed", "image_task_pending"].includes(safeError.code)) return safeError;
+        if (autoFailover && !automaticSelection && !returnedImage && (isCanvasImageFailoverError(safeError) || safeError.code === "generation_timeout")) {
+          markCanvasImageCandidateFailure(activeModel, safeError.code);
           const nextCandidate = await resolveCanvasImageFailoverCandidate({
             currentModel: activeModel,
             refs,
@@ -10581,6 +12709,7 @@ async function runCanvasComfyNode(node, options) {
       outpaint2: RUNNINGHUB_OUTPAINT_API_URL,
       "flux2-klein-edit": FLUX2_KLEIN_EDIT_API_URL,
       "qwen-edit-angle": QWEN_EDIT_ANGLE_API_URL,
+      "remove-background": COMFY_REMOVE_BACKGROUND_API_URL,
     })[mode] || UPSCALE2_API_URL;
     const queue = loopRefs.length ? loopRefs : (mode === "shoe-swap" ? [refs[0]] : [refs[0]]);
     const images = [];
@@ -10626,7 +12755,9 @@ async function runCanvasComfyNode(node, options) {
           image: ref.originalUrl || ref.url,
           name: ref.name || "flux2_klein_input.png",
           ...(comfyMaskUrl ? { mask_image: comfyMaskUrl, mask_name: ref.maskName || "flux2_klein_mask.png" } : {}),
-          prompt: getCanvasIncomingPromptTexts(node.dataset.id).join("\n") || "\u4fdd\u6301\u4e3b\u4f53\u6784\u56fe\u3001\u6750\u8d28\u3001\u989c\u8272\u548c\u4f4d\u7f6e\u81ea\u7136\u4e00\u81f4\uff0c\u53ea\u6309\u63d0\u793a\u8fdb\u884c\u56fe\u7247\u7f16\u8f91\u3002",
+          prompt: getCanvasIncomingPromptTexts(node.dataset.id).join("\n")
+            || node.dataset.comfyPrompt
+            || "\u4fdd\u6301\u4e3b\u4f53\u6784\u56fe\u3001\u6750\u8d28\u3001\u989c\u8272\u548c\u4f4d\u7f6e\u81ea\u7136\u4e00\u81f4\uff0c\u53ea\u6309\u63d0\u793a\u8fdb\u884c\u56fe\u7247\u7f16\u8f91\u3002",
         };
       } else if (mode === "qwen-edit-angle") {
         const angle = getCanvasComfyQwenAngle(node);
@@ -10668,6 +12799,7 @@ async function runCanvasComfyNode(node, options) {
       outpaint2: "\u753b\u5e03\u6269\u56fe2",
       "flux2-klein-edit": "Flux2 Klein \u56fe\u7247\u7f16\u8f91",
       "qwen-edit-angle": "Qwen \u89d2\u5ea6\u5207\u6362",
+      "remove-background": "\u753b\u5e03\u62a0\u56fe",
     })[mode] || "\u753b\u5e03\u653e\u59272";
     const historyModel = ({
       "shoe-swap": "\u6362\u978b / ComfyUI",
@@ -10676,6 +12808,7 @@ async function runCanvasComfyNode(node, options) {
       outpaint2: "RunningHub\u6269\u56fe\u5de5\u4f5c\u6d41",
       "flux2-klein-edit": "Flux2 Klein / ComfyUI",
       "qwen-edit-angle": "Qwen Edit \u89d2\u5ea6\u5207\u6362 / ComfyUI",
+      "remove-background": "ComfyUI \u62a0\u56fe",
     })[mode] || "SeedVR2 / ComfyUI";
     await saveImageHistory(`${modeName}：${refs[0].name || "图片"}`, images, historyModel, "canvas");
     guard?.assertActive();
@@ -10734,8 +12867,7 @@ function fillOrCreatePromptNodeFromLlm(node, content) {
   }
 
   targets.forEach((target) => {
-    const text = target.querySelector(".canvas-text");
-    if (text) text.textContent = content;
+    setCanvasTextValue(target, content);
     syncCanvasTextFromLlmInputs(target);
     refreshCanvasConnectedNodes(target.dataset.id);
   });
@@ -10782,8 +12914,15 @@ function appendCanvasGenerationToGallery(sourceNode, image) {
   const src = typeof image === "string" ? image : image?.src;
   const savedUrl = typeof image === "string" ? image : image?.savedUrl || image?.src;
   if (!src) return null;
-  const gallery = getOrCreateCanvasGalleryForNode(sourceNode);
-  const images = getCanvasGalleryImages(gallery);
+  const gallery = getOrCreateCanvasAssetOutput(sourceNode, "image");
+  if (gallery.classList.contains("canvas-node-asset-collection")) {
+    const member = appendCanvasAssetCollectionMember(gallery, {
+      id: createId(), kind: "image", name: "生成图", src, savedUrl: savedUrl || src,
+      createdAt: new Date().toISOString(), source: "generation", sourceNodeId: sourceNode.dataset.id,
+    });
+    return { gallery, image: member };
+  }
+  const images = getCanvasGalleryContainerMembers(gallery);
   const nextImage = {
     id: createId(),
     name: `生成图 ${images.length + 1}`,
@@ -10792,8 +12931,10 @@ function appendCanvasGenerationToGallery(sourceNode, image) {
     createdAt: new Date().toISOString(),
   };
   images.push(nextImage);
-  setCanvasGalleryImages(gallery, images);
-  setCanvasGalleryActiveImage(gallery, nextImage.id);
+  setCanvasGalleryContainerMembers(gallery, images, nextImage.id);
+  refreshCanvasConnectedNodes(gallery.dataset.id);
+  scheduleCanvasConnectionRender();
+  scheduleCanvasSave();
   setCanvasStatus(`已追加到生成图集：${images.length} 张`);
   return { gallery, image: nextImage };
 }
@@ -10806,7 +12947,7 @@ function migrateLegacyCanvasResultsToGalleries(results) {
     const src = item.src || item.savedUrl;
     if (!sourceNode || !src) return;
     const gallery = getOrCreateCanvasGalleryForNode(sourceNode);
-    const images = getCanvasGalleryImages(gallery);
+    const images = getCanvasGalleryContainerMembers(gallery);
     const exists = images.some((image) => {
       const existingSrc = image?.src || image?.savedUrl || image?.url;
       return existingSrc && existingSrc === src;
@@ -10818,14 +12959,19 @@ function migrateLegacyCanvasResultsToGalleries(results) {
       savedUrl: item.savedUrl || src,
       createdAt: item.createdAt || new Date().toISOString(),
     });
-    setCanvasGalleryImages(gallery, images);
+    setCanvasGalleryContainerMembers(gallery, images, images.at(-1)?.id || "");
     migrated += 1;
   });
   return migrated;
 }
 
 function getOrCreateCanvasGalleryForNode(sourceNode) {
-  const existing = findConnectedCanvasGallery(sourceNode);
+  // Legacy result migration still targets the picture-only gallery node, so
+  // this lookup deliberately ignores the unified material collection.
+  const existing = canvasState.connections
+    .filter((item) => item.from === sourceNode.dataset.id)
+    .map((item) => getCanvasNode(item.to))
+    .find((node) => node?.classList.contains("canvas-node-gallery-container")) || null;
   if (existing) return existing;
 
   const point = {
@@ -10839,22 +12985,29 @@ function getOrCreateCanvasGalleryForNode(sourceNode) {
 
 function findConnectedCanvasGallery(sourceNode) {
   if (!sourceNode) return null;
-  return canvasState.connections
-    .filter((item) => item.from === sourceNode.dataset.id)
-    .map((item) => getCanvasNode(item.to))
-    .find((node) => node?.classList.contains("canvas-node-gallery")) || null;
+  // Prefer the unified material output; fall back to the legacy picture gallery
+  // so boards saved before the material node keep their existing wires.
+  return findConnectedCanvasAssetOutput(sourceNode, "image");
 }
 
 function ensureAgentCanvasImageInGallery(sourceNode, image, context) {
   assertCanvasAgentContext(context);
   const src = image?.src || image?.savedUrl || image?.url || "";
   if (!src) return null;
-  const gallery = findConnectedCanvasGallery(sourceNode) || getOrCreateCanvasGalleryForNode(sourceNode);
+  const gallery = getOrCreateCanvasAssetOutput(sourceNode, "image");
   gallery.dataset.boardId = String(context.scope.boardId);
   if (!canvasState.connections.some((item) => item.from === sourceNode.dataset.id && item.to === gallery.dataset.id)) {
     connectCanvasNodes(sourceNode.dataset.id, gallery.dataset.id, "input");
   }
-  const images = getCanvasGalleryImages(gallery);
+  if (gallery.classList.contains("canvas-node-asset-collection")) {
+    appendCanvasAssetCollectionMember(gallery, {
+      id: createId(), kind: "image", name: "生成图", src, savedUrl: image.savedUrl || src,
+      source: "generation", sourceNodeId: sourceNode.dataset.id, createdAt: new Date().toISOString(),
+    });
+    assertCanvasAgentContext(context);
+    return gallery;
+  }
+  const images = getCanvasGalleryContainerMembers(gallery);
   if (!images.some((item) => (item.savedUrl || item.src || item.url) === (image.savedUrl || src)
     || (item.src || item.url) === src)) {
     images.push({
@@ -10864,10 +13017,41 @@ function ensureAgentCanvasImageInGallery(sourceNode, image, context) {
       savedUrl: image.savedUrl || src,
       createdAt: new Date().toISOString(),
     });
-    setCanvasGalleryImages(gallery, images);
+    setCanvasGalleryContainerMembers(gallery, images, images.at(-1)?.id || "");
   }
   assertCanvasAgentContext(context);
   return gallery;
+}
+
+function openCanvasImageOriginalPreview(node, image) {
+  const source = image.getAttribute("data-original-src");
+  if (!source) return;
+  const gallery = node.classList.contains("canvas-node-gallery-container")
+    ? getCanvasGalleryContainerMembers(node).filter(isCanvasGalleryImageReady) : [];
+  openPreview(source, source, { gallery });
+}
+
+function deleteCanvasImageSelection(node, image) {
+  const memberId = image.closest(".canvas-gallery-member")?.dataset.galleryMemberId;
+  if (!memberId) { deleteCanvasNodes([node]); return; }
+  const container = getCanvasGalleryContainer(node);
+  const deleted = container.members.find((member) => member.id === memberId);
+  if (!deleted) return;
+  const before = toCanvasOperationNode(syncCanvasNodeModel(node) || serializeCanvasNode(node));
+  const remaining = container.members.filter((member) => member.id !== memberId);
+  const connections = canvasState.connections.filter((connection) => connection.from === node.dataset.id && connection.fromPort === `member-output:${memberId}`);
+  canvasState.connections = canvasState.connections.filter((connection) => !connections.includes(connection));
+  setCanvasGalleryContainerMembers(node, remaining, container.activeMemberId === memberId ? remaining[0]?.id || "" : container.activeMemberId);
+  const after = toCanvasOperationNode(syncCanvasNodeModel(node) || serializeCanvasNode(node));
+  const forward = [
+    ...connections.map((connection) => ({ type: "connection.delete", entityId: normalizeVisibleCanvasConnection(connection).id, before: cloneCanvasOperationValue(connection), after: null })),
+    { type: "node.upsert", entityId: node.dataset.id, before, after },
+  ];
+  recordCanvasGalleryMemberTransferUndo({ label: "删除图集图片", forward });
+  scheduleCanvasGalleryMediaCleanup(canvasState.undoStack.at(-1), [deleted]);
+  refreshCanvasConnectedNodes(node.dataset.id);
+  scheduleCanvasSave();
+  setCanvasStatus("已删除选中的图片，可按 Ctrl+Z 撤销。");
 }
 
 function createCanvasResultDownload(node) {
@@ -10883,8 +13067,17 @@ function createCanvasResultDownload(node) {
 }
 
 function setCanvasNodeStatus(node, message) {
-  const bar = node.querySelector(".canvas-node-bar span");
-  if (bar) bar.textContent = message;
+  // Status always lands in the node's own status band. It must never fall back
+  // to a title-band span: that used to overwrite the node name with progress
+  // text on every node kind that had no dedicated status element.
+  const target = getCanvasNodeStatusElement(node);
+  if (!target) return;
+  const text = String(message ?? "");
+  target.textContent = text;
+  target.dataset.state = canvasNodeStatusState(text);
+  if (text) target.title = text;
+  else target.removeAttribute("title");
+  syncCanvasNodeFooterVisibility(node);
 }
 
 function refreshCanvasConnectedNodes(sourceId) {
@@ -10984,7 +13177,9 @@ function mountCanvasVirtualNode(id, level = "full") {
   };
   context.virtualizedMount = true;
   try {
-    return restoreCanvasBoardNode(model, canvasVirtualBoard || {}, context);
+    const node = restoreCanvasBoardNode(model, canvasVirtualBoard || {}, context);
+    if (node && canvasState.selectedIds.has(String(id))) node.classList.add("is-selected");
+    return node;
   } catch (error) {
     console.error(`Canvas node ${String(id)} failed to mount:`, error);
     setCanvasStatus(`节点加载失败：${error.message}`);
@@ -11046,6 +13241,7 @@ function unpinCanvasNode(id) {
 
 function removeCanvasNodeModels(ids) {
   Array.from(ids || []).map(String).forEach((id) => {
+    unpinCanvasNode(id);
     canvasVirtualizer.unmountId(id);
     canvasVirtualStore.remove(id);
   });
@@ -11053,8 +13249,14 @@ function removeCanvasNodeModels(ids) {
 
 function clearCanvasPlane() {
   canvasViewportDataSource.cancel();
-  closeCanvasGridMenu({ restoreFocus: false });
+  closeCanvasCropWorkbench();
+  hideCanvasAlignmentGuides();
   const plane = document.querySelector("#canvasPlane");
+  if (canvasTransformFrame) cancelAnimationFrame(canvasTransformFrame);
+  canvasTransformFrame = 0;
+  canvasTransformSavePending = false;
+  canvasState.externalClipboard = null;
+  canvasState.externalClipboardEpoch = (canvasState.externalClipboardEpoch || 0) + 1;
   if (plane) window.imageResources?.disconnect(plane);
   clearTimeout(canvasDetailTimer);
   canvasDetailTimer = 0;
@@ -11068,7 +13270,13 @@ function clearCanvasPlane() {
   });
   canvasVirtualStore.clear();
   canvasSceneLayer?.clear();
+  canvasSceneInteractionSequence += 1;
+  canvasSceneNodeRequests.clear();
+  for (const entry of canvasSceneTextureCache.values()) canvasMediaScheduler.cancelKey(entry.originalTaskKey);
   canvasSceneTextureCache.clear();
+  canvasImageDimensions.clear();
+  canvasSceneOriginalDemand.clear();
+  canvasConnectionPortPointCache.clear();
   document.querySelector("#infiniteCanvas")?.classList.remove("has-scene-layer");
   canvasPersistedNodes.clear();
   canvasPersistedConnections.clear();
@@ -11082,6 +13290,10 @@ function clearCanvasPlane() {
   canvasState.selectedIds.clear();
   canvasState.selectionFrameVisible = false;
   canvasState.activeNode = null;
+  canvasState.selectedSceneItems.clear();
+  canvasState.selectionRevision += 1;
+  canvasState.selectionDragging = false;
+  canvasState.selectionActionPromise = null;
   renderCanvasConnections();
   updateCanvasOrigin();
   updateCanvasGroupAction();
@@ -11108,18 +13320,22 @@ function serializeCanvasNode(node) {
       width: Number(node.dataset.width || 0),
       height: Number(node.dataset.height || 0),
     };
+  if (node.dataset.assetId) base.assetId = node.dataset.assetId;
+  if (node.dataset.zOrder !== undefined) base.zOrder = Number(node.dataset.zOrder) || 0;
   if (base.kind === "text") {
-    base.text = node.querySelector(".canvas-text")?.textContent || "";
+    base.text = getCanvasTextValue(node);
+    base.textName = node.dataset.textName || "文字";
+    } else if (base.kind === "note") {
+      base.text = node.querySelector(".canvas-note-text")?.textContent || "";
+      base.noteColor = normalizeCanvasNoteColor(node.dataset.noteColor);
     } else if (base.kind === "group") {
       base.groupTitle = node.dataset.groupTitle || "图片组";
       base.groupMembers = getCanvasGroupMemberIds(node);
       base.groupImages = getCanvasGroupImages(node);
-    } else if (base.kind === "gallery") {
-      base.galleryTitle = node.dataset.galleryTitle || "生成图集";
-      base.galleryImages = getCanvasGalleryImages(node);
-      base.galleryActiveImageId = node.dataset.galleryActiveImageId || "";
-      base.galleryColumns = Number(node.dataset.galleryColumns || 0) || null;
-      base.galleryGap = node.dataset.galleryGap === undefined ? null : Number(node.dataset.galleryGap || 0);
+    } else if (base.kind === "gallery-container") {
+      base.galleryContainer = getCanvasGalleryContainer(node);
+    } else if (base.kind === "asset-collection") {
+      base.assetCollection = getCanvasAssetCollection(node);
     } else if (base.kind === "grid-editor") {
       base.gridEditorState = { ...getCanvasGridEditorState(node), editing: false };
     } else if (base.kind === "llm") {
@@ -11138,8 +13354,30 @@ function serializeCanvasNode(node) {
       base.minimaxH3ImageOrder = getCanvasH3ReferenceOrder(node, "images");
       base.minimaxH3VideoOrder = getCanvasH3ReferenceOrder(node, "videos");
       base.minimaxH3AudioOrder = getCanvasH3ReferenceOrder(node, "audios");
+    } else if (base.kind === "video-api") {
+      base.apiVideoPrompt = node.querySelector(".canvas-api-video-prompt-input")?.value || node.dataset.apiVideoPrompt || "";
+      base.apiVideoModel = node.querySelector(".canvas-api-video-model")?.value || node.dataset.apiVideoModel || "";
+      base.apiVideoRatio = node.dataset.apiVideoRatio || "";
+      base.apiVideoResolution = node.dataset.apiVideoResolution || "";
+      base.apiVideoDuration = Number(node.dataset.apiVideoDuration || 0);
+      base.apiVideoTaskId = node.dataset.apiVideoTaskId || "";
+    } else if (base.kind === "midjourney") {
+      base.midjourneyOperation = readCanvasMidjourneyOperation(node);
+      base.midjourneyPrompt = node.dataset.midjourneyPrompt || node.querySelector(".canvas-midjourney-prompt-input")?.value || "";
+      base.midjourneyModel = node.querySelector(".canvas-midjourney-model")?.value || node.dataset.midjourneyModel || "";
+      base.midjourneySize = node.dataset.midjourneySize || "1:1";
+      base.midjourneyVersion = node.dataset.midjourneyVersion || MIDJOURNEY_DEFAULT_OPTIONS.version;
+      base.midjourneySpeed = node.dataset.midjourneySpeed || MIDJOURNEY_DEFAULT_OPTIONS.speed;
+      base.imageJobId = node.dataset.imageJobId || "";
+      base.imageJobState = node.dataset.imageJobState || "";
+      base.imageJobCommittedId = node.dataset.imageJobCommittedId || "";
+      base.refOrder = getCanvasNodeRefOrder(node);
     } else if (base.kind === "video-output") {
       Object.assign(base, serializeCanvasVideoOutputState(node));
+    } else if (base.kind === "director-3d") {
+      base.directorProject = readCanvasDirector3dProject(node);
+      base.directorSceneName = node.dataset.directorSceneName || "";
+      base.directorPreviewSrc = node.dataset.directorPreviewSrc || "";
     } else if (base.kind === "video" || base.kind === "audio") {
       base.mediaSrc = base.kind === "video" ? (node.dataset.videoSrc || "") : (node.dataset.audioSrc || "");
       base.mediaName = node.dataset.mediaName || (base.kind === "video" ? "视频素材" : "音频素材");
@@ -11148,6 +13386,8 @@ function serializeCanvasNode(node) {
     } else if (base.kind === "comfy") {
       base.comfyMode = node.querySelector(".canvas-comfy-mode")?.value || node.dataset.comfyMode || "upscale2";
       if (isCanvasComfyResolutionMode(base.comfyMode)) base.comfyResolution = node.querySelector(".canvas-comfy-resolution")?.value || node.dataset.comfyResolution || "2048";
+      base.comfyPrompt = node.dataset.comfyPrompt || "";
+      base.canvasGenerationPrompt = node.dataset.canvasGenerationPrompt || base.comfyPrompt;
       base.comfyPadding = getCanvasComfyPadding(node);
       base.comfyQwenAngle = getCanvasComfyQwenAngle(node);
       base.refOrder = getCanvasNodeRefOrder(node);
@@ -11171,6 +13411,9 @@ function serializeCanvasNode(node) {
       base.imageJobCommittedId = node.dataset.imageJobCommittedId || "";
       base.prompt = node.querySelector(".canvas-node-prompt")?.value || "";
       base.model = node.querySelector(".canvas-node-model")?.value || node.dataset.canvasModel || "";
+      base.engine = "api";
+      base.platform = getImageModelPlatform(base.model) || node.dataset.canvasPlatform || "";
+      base.modelSelection = node.querySelector(".canvas-node-model")?.dataset.modelSelection || node.dataset.modelSelection || "exact";
       base.size = node.querySelector(".canvas-node-size")?.value || node.dataset.canvasSize || "1024x1024";
       base.resolution = node.querySelector(".canvas-node-resolution")?.value || node.dataset.canvasResolution || "1";
       base.midjourneyVersion = node.querySelector(".canvas-midjourney-version")?.value || node.dataset.canvasMidjourneyVersion || MIDJOURNEY_DEFAULT_OPTIONS.version;
@@ -11179,32 +13422,59 @@ function serializeCanvasNode(node) {
       base.midjourneyQuality = node.querySelector(".canvas-midjourney-quality")?.value || node.dataset.canvasMidjourneyQuality || MIDJOURNEY_DEFAULT_OPTIONS.quality;
       base.midjourneyStyle = node.querySelector(".canvas-midjourney-style")?.value || node.dataset.canvasMidjourneyStyle || MIDJOURNEY_DEFAULT_OPTIONS.style;
       base.midjourneyStylize = Number(node.querySelector(".canvas-midjourney-stylize")?.value || node.dataset.canvasMidjourneyStylize || MIDJOURNEY_DEFAULT_OPTIONS.stylize);
+      base.modelParameters = readCanvasModelParameters(node);
       base.refOrder = getCanvasNodeRefOrder(node);
   }
   return base;
 }
 
 function resetCanvasUndoHistory() {
+  const discarded = [...canvasState.undoStack, ...canvasState.redoStack];
   canvasState.undoStack = [];
   canvasState.redoStack = [];
+  finalizeCanvasGalleryMediaCleanup(discarded);
 }
 
 function recordCanvasUndo(command) {
   if (canvasState.isRestoring || canvasState.isUndoing || !command) return false;
+  const discarded = [...canvasState.redoStack];
   const estimatedBytes = new TextEncoder().encode(JSON.stringify(command)).byteLength;
   const entry = { ...command, estimatedBytes };
   canvasState.undoStack.push(entry);
   canvasState.redoStack = [];
   let bytes = canvasState.undoStack.reduce((total, item) => total + item.estimatedBytes, 0);
   while (canvasState.undoStack.length > canvasState.undoLimit || bytes > 32 * 1024 * 1024) {
-    bytes -= canvasState.undoStack.shift().estimatedBytes;
+    const expired = canvasState.undoStack.shift();
+    bytes -= expired.estimatedBytes;
+    discarded.push(expired);
   }
-  return true;
+  finalizeCanvasGalleryMediaCleanup(discarded);
+  return entry;
+}
+
+function syncCanvasNodeNameFromModel(node, model) {
+  if (!node || !model) return;
+  const isTextNode = node.classList.contains("canvas-node-text");
+  const nextName = isTextNode
+    ? String(model.textName || "文字").replace(/\s+/g, " ").trim().slice(0, 80) || "文字"
+    : String(model.imageName || "").replace(/\s+/g, " ").trim().slice(0, 80);
+  if (!nextName) return;
+  node.dataset[isTextNode ? "textName" : "imageName"] = nextName;
+  const title = node.querySelector(":scope > .canvas-node-bar .canvas-node-title");
+  if (title && title.textContent !== nextName) title.textContent = nextName;
+  if (!isTextNode) {
+    node.querySelectorAll("img[data-canvas-original-src]").forEach((image) => {
+      image.alt = nextName;
+    });
+  }
 }
 
 function applyCanvasOperationLocally(operation) {
   const entityId = String(operation.entityId || operation.after?.id || operation.before?.id || "");
   if (operation.type === "node.delete") {
+    canvasState.selectedIds.delete(entityId);
+    canvasState.selectedSceneItems.delete(entityId);
+    unpinCanvasNode(entityId);
     const mounted = canvasPagedStore.getMounted(entityId);
     if (mounted) {
       canvasNodeResizeObserver?.unobserve(mounted);
@@ -11214,14 +13484,20 @@ function applyCanvasOperationLocally(operation) {
   } else if (operation.type === "node.upsert" && operation.after) {
     const mounted = canvasPagedStore.getMounted(entityId);
     if (mounted) {
-      ["x", "y", "width", "height"].forEach((field) => {
+      syncCanvasNodeNameFromModel(mounted, operation.after);
+      if (operation.after.kind === "asset-collection" && operation.after.assetCollection) {
+        renderCanvasAssetCollectionNode(mounted, operation.after.assetCollection);
+      } else if (operation.after.kind === "gallery-container" && operation.after.galleryContainer) {
+        renderCanvasGalleryContainerNode(mounted, operation.after.galleryContainer);
+      }
+      ["x", "y", "width", "height", "zOrder"].forEach((field) => {
         if (operation.after[field] !== undefined) mounted.dataset[field] = String(operation.after[field]);
       });
       if (operation.after.text !== undefined) {
-        const text = mounted.querySelector(".canvas-text");
-        if (text) text.textContent = operation.after.text;
+        setCanvasTextValue(mounted, operation.after.text);
       }
       updateCanvasNodePosition(mounted);
+      syncCanvasNodeStacking();
     } else {
       canvasVirtualizer.schedule();
     }
@@ -11229,6 +13505,8 @@ function applyCanvasOperationLocally(operation) {
     syncVisibleCanvasConnections();
     scheduleCanvasConnectionRender();
   }
+  scheduleCanvasSceneRender();
+  dispatchCanvasSelectionChange();
 }
 
 function stageCanvasOperation(operation, options = {}) {
@@ -11289,14 +13567,19 @@ function undoCanvasChange(event) {
 }
 
 function getCanvasNodeKind(node) {
+  if (node.classList.contains("canvas-node-note")) return "note";
   if (node.classList.contains("canvas-node-text")) return "text";
   if (node.classList.contains("canvas-node-grid-editor")) return "grid-editor";
+  if (node.classList.contains("canvas-node-director3d")) return "director-3d";
   if (node.classList.contains("canvas-node-video-output")) return "video-output";
   if (node.classList.contains("canvas-node-minimax-h3")) return "minimax-h3";
+  if (node.classList.contains("canvas-node-video-api")) return "video-api";
   if (node.classList.contains("canvas-node-video")) return "video";
   if (node.classList.contains("canvas-node-audio")) return "audio";
   if (node.classList.contains("canvas-node-group")) return "group";
-  if (node.classList.contains("canvas-node-gallery")) return "gallery";
+  if (node.classList.contains("canvas-node-gallery-container")) return "gallery-container";
+  if (node.classList.contains("canvas-node-asset-collection")) return "asset-collection";
+  if (node.classList.contains("canvas-node-midjourney")) return "midjourney";
   if (node.classList.contains("canvas-node-llm")) return "llm";
   if (node.classList.contains("canvas-node-comfy")) return "comfy";
   if (node.classList.contains("canvas-node-loop")) return "loop";
@@ -11329,7 +13612,10 @@ function sameCanvasOperationValue(left, right) {
   return JSON.stringify(left ?? null) === JSON.stringify(right ?? null);
 }
 
-function collectCanvasDirtyOperations() {
+// The dirty scan turns DOM-only drift into operations. Callers that are just
+// flushing state before reading a snapshot pass recordUndo:false so the flush
+// does not scatter extra history entries into the user's undo stack.
+function collectCanvasDirtyOperations({ recordUndo = true } = {}) {
   if (canvasState.isRestoring) return [];
   const staged = [];
   canvasPagedStore.mountedElements().forEach((node) => {
@@ -11352,7 +13638,7 @@ function collectCanvasDirtyOperations() {
       after,
     });
     if (operation) staged.push(operation);
-    if (!alreadyPending) {
+    if (!alreadyPending && recordUndo) {
       recordCanvasUndo({
         label: before ? "编辑节点" : "创建节点",
         forward: [{ type: "node.upsert", entityId: id, before, after }],
@@ -11403,6 +13689,7 @@ async function ensureCanvasBoardPersisted() {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       id: canvasState.activeBoardId,
+      projectId: canvasState.activeProjectId || undefined,
       title: canvasState.activeBoardTitle || "未命名画布",
       createdAt: canvasState.activeBoardCreatedAt || new Date().toISOString(),
       viewport: { x: canvasState.x, y: canvasState.y, scale: canvasState.scale },
@@ -11418,14 +13705,12 @@ async function ensureCanvasBoardPersisted() {
   return true;
 }
 
-function applyCanvasOperationAcknowledgements(batch, result) {
-  const acknowledged = new Set(
-    (result.results || [])
-      .filter((item) => ["applied", "duplicate"].includes(item.status))
-      .map((item) => String(item.operationId)),
-  );
-  batch.forEach((operation) => {
-    if (!acknowledged.has(String(operation.operationId))) return;
+/**
+ * Records operations as they now exist on the server, so the next dirty sweep
+ * compares against stored state instead of staging the same payload again.
+ */
+function recordCanvasPersistedOperations(operations) {
+  operations.forEach((operation) => {
     const id = String(operation.entityId || "");
     if (operation.type === "node.upsert") canvasPersistedNodes.set(id, cloneCanvasOperationValue(operation.after));
     else if (operation.type === "node.delete") canvasPersistedNodes.delete(id);
@@ -11437,6 +13722,313 @@ function applyCanvasOperationAcknowledgements(batch, result) {
       canvasVisibleConnectionBaselineIds.delete(id);
     }
   });
+}
+
+function applyCanvasOperationAcknowledgements(batch, result) {
+  const acknowledged = new Set(
+    (result.results || [])
+      .filter((item) => ["applied", "duplicate"].includes(item.status))
+      .map((item) => String(item.operationId)),
+  );
+  recordCanvasPersistedOperations(batch.filter((operation) => acknowledged.has(String(operation.operationId))));
+}
+
+/* -------------------------------------------------------------------------- *
+ * Live collaboration
+ *
+ * Two accounts opening the same shared canvas have to see each other and each
+ * other's work. The storage layer already gives us everything the sync needs:
+ * operations are idempotent by operationId and every accepted batch returns a
+ * monotonic board revision. So the client announces its own batches and the
+ * server relays the *accepted* ones to the rest of the room; a receiver applies
+ * them locally without re-uploading, and any continuity gap falls back to a
+ * full re-read of the board. Presence and cursors ride on the same socket.
+ * -------------------------------------------------------------------------- */
+
+function canvasCollabUserName(user) {
+  return String(user?.displayName || user?.username || "协作者");
+}
+
+function canvasCollabInitials(user) {
+  const name = canvasCollabUserName(user).trim();
+  if (!name) return "?";
+  const ascii = name.match(/[A-Za-z0-9]+/g);
+  if (ascii?.length) return ascii.slice(0, 2).map((part) => part[0]).join("").toUpperCase();
+  return name.slice(0, 2);
+}
+
+/**
+ * Identity colour is derived from the account, not from a token: the set of
+ * collaborators is open ended, and two accounts on one board must never share
+ * a colour by accident. Themes still own every surface that carries meaning.
+ */
+function canvasCollabHue(seed) {
+  const text = String(seed || "");
+  let hash = 0;
+  for (let index = 0; index < text.length; index += 1) {
+    hash = (hash * 31 + text.charCodeAt(index)) % 360;
+  }
+  return hash;
+}
+
+function canvasCollabCursorLayer() {
+  const plane = document.querySelector("#canvasPlane");
+  if (!plane) return null;
+  if (!canvasCollabState.cursorLayer?.isConnected) {
+    // The editor template already carries this layer, so it is adopted instead
+    // of creating a second one: two layers would leave the visible pointers in
+    // the copy that nothing else knows about.
+    const existing = plane.querySelector(".canvas-collab-cursors");
+    if (existing) {
+      canvasCollabState.cursorLayer = existing;
+    } else {
+      const layer = document.createElement("div");
+      layer.className = "canvas-collab-cursors is-idle";
+      layer.setAttribute("aria-hidden", "true");
+      plane.append(layer);
+      canvasCollabState.cursorLayer = layer;
+    }
+  }
+  return canvasCollabState.cursorLayer;
+}
+
+function renderCanvasCollabPresence() {
+  const wrap = document.querySelector("#canvasPresence");
+  const avatars = document.querySelector("#canvasPresenceAvatars");
+  const label = document.querySelector("#canvasPresenceLabel");
+  if (!wrap || !avatars || !label) return;
+  const users = canvasCollabState.users;
+  wrap.hidden = users.length === 0;
+  if (!users.length) {
+    avatars.replaceChildren();
+    label.textContent = "";
+    return;
+  }
+  avatars.replaceChildren(...users.slice(0, 4).map((user) => {
+    const chip = document.createElement("span");
+    chip.className = "canvas-presence-avatar";
+    chip.style.setProperty("--collab-hue", String(canvasCollabHue(user.userId || user.username || user.clientId)));
+    chip.textContent = canvasCollabInitials(user);
+    chip.title = canvasCollabUserName(user);
+    return chip;
+  }));
+  if (users.length > 4) {
+    const more = document.createElement("span");
+    more.className = "canvas-presence-avatar canvas-presence-more";
+    more.textContent = `+${users.length - 4}`;
+    avatars.append(more);
+  }
+  label.textContent = `${users.length} 人协作中`;
+}
+
+function pruneCanvasCollabCursors(now = Date.now()) {
+  const layer = canvasCollabState.cursorLayer;
+  const ttl = Number(window.CanvasCollabClient?.CURSOR_TTL_MS) || 6000;
+  for (const [clientId, cursor] of canvasCollabState.cursors) {
+    if (now - cursor.seenAt <= ttl) continue;
+    canvasCollabState.cursors.delete(clientId);
+    cursor.element?.remove();
+  }
+  if (!canvasCollabState.cursors.size) {
+    clearInterval(canvasCollabState.cursorPruneTimer);
+    canvasCollabState.cursorPruneTimer = 0;
+  }
+  layer?.classList.toggle("is-idle", canvasCollabState.cursors.size === 0);
+}
+
+function renderCanvasCollabCursor(cursor) {
+  const layer = canvasCollabCursorLayer();
+  if (!layer) return;
+  let entry = canvasCollabState.cursors.get(cursor.clientId);
+  if (!entry) {
+    const element = document.createElement("div");
+    element.className = "canvas-collab-cursor";
+    element.style.setProperty("--collab-hue", String(canvasCollabHue(cursor.userId || cursor.username || cursor.clientId)));
+    const dot = document.createElement("i");
+    dot.className = "canvas-collab-cursor-dot";
+    dot.innerHTML = '<i data-lucide="mouse-pointer-2"></i>';
+    const name = document.createElement("span");
+    name.className = "canvas-collab-cursor-name";
+    element.append(dot, name);
+    layer.append(element);
+    entry = { element, name, seenAt: cursor.seenAt };
+    canvasCollabState.cursors.set(cursor.clientId, entry);
+  }
+  // The layer ships idle-hidden and is normally revealed by the prune pass, but
+  // that pass runs on a timer: without this the very first cursor of a session
+  // would stay invisible for up to a second and a half.
+  layer.classList.remove("is-idle");
+  const label = canvasCollabUserName(cursor);
+  if (entry.name.textContent !== label) entry.name.textContent = label;
+  entry.seenAt = cursor.seenAt;
+  entry.element.dataset.nodeId = cursor.nodeId || "";
+  entry.element.classList.toggle("is-over-node", Boolean(cursor.nodeId));
+  entry.element.style.transform = `translate(${cursor.x}px, ${cursor.y}px) scale(var(--collab-inverse-scale, 1))`;
+  window.lucide?.createIcons({ attrs: { "aria-hidden": "true", "stroke-width": 1.8 } });
+  if (!canvasCollabState.cursorPruneTimer) {
+    canvasCollabState.cursorPruneTimer = window.setInterval(() => pruneCanvasCollabCursors(), 1500);
+  }
+}
+
+function clearCanvasCollabCursors() {
+  for (const cursor of canvasCollabState.cursors.values()) cursor.element?.remove();
+  canvasCollabState.cursors.clear();
+  clearInterval(canvasCollabState.cursorPruneTimer);
+  canvasCollabState.cursorPruneTimer = 0;
+  canvasCollabCursorLayer()?.classList.add("is-idle");
+}
+
+/**
+ * Applies a batch another account already saved. The operations are not staged
+ * for upload: the server wrote them, and re-sending them would make this
+ * client's next local save collide on the revision it just adopted.
+ */
+function applyCanvasCollabOperations(operations) {
+  const list = (Array.isArray(operations) ? operations : []).filter((operation) => operation && typeof operation === "object");
+  const entityOperations = [];
+  let title = "";
+  for (const operation of list) {
+    if (operation.type === "board.patch") {
+      if (operation.after?.title !== undefined) title = String(operation.after.title);
+      continue;
+    }
+    entityOperations.push(operation);
+  }
+  const applied = canvasPagedStore.applyCommitted(entityOperations);
+  recordCanvasPersistedOperations(entityOperations);
+  entityOperations.forEach((operation) => applyCanvasOperationLocally(operation));
+  if (title && title !== canvasState.activeBoardTitle) {
+    canvasState.activeBoardTitle = title;
+    renderCanvasBoardList();
+    dispatchCanvasBoardChanged();
+  }
+  return applied;
+}
+
+/**
+ * A gap means this client missed a batch — usually after a dropped socket. The
+ * board is re-read from the server instead of guessing at the missing state;
+ * local work is flushed first so nothing the user just did is thrown away.
+ */
+async function reloadCanvasBoardForCollaboration(reason = "") {
+  const boardId = String(canvasState.activeBoardId || "");
+  if (!boardId || canvasCollabState.reloading || canvasState.boardOpening) return false;
+  canvasCollabState.reloading = true;
+  try {
+    await flushCanvasOperations().catch(() => {});
+    const response = await fetch(`${CANVAS_BOARDS_API_URL}?scope=all`);
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "画布重新同步失败");
+    updateCanvasBoardStores(data);
+    const board = canvasState.boards.find((item) => String(item.id) === boardId);
+    if (!board) {
+      setCanvasStatus("画布已不可用，可能已被删除或取消共享。");
+      await showCanvasLibrary({ reload: true });
+      return false;
+    }
+    const restored = await openCanvasBoardFromHistory(board);
+    if (restored) setCanvasStatus(reason ? `已同步协作者的改动（${reason}）` : "已同步协作者的改动");
+    return restored;
+  } catch (error) {
+    setCanvasStatus(`画布同步失败：${error.message}`);
+    return false;
+  } finally {
+    canvasCollabState.reloading = false;
+  }
+}
+
+function handleCanvasCollabPatch(message) {
+  const boardId = String(canvasState.activeBoardId || "");
+  if (!boardId || canvasCollabState.boardId !== boardId) return;
+  const revision = Number(message.boardRevision);
+  const local = Number(canvasState.activeBoardRevision || 0);
+  if (Number.isFinite(revision) && revision <= local) return;
+  if (Number.isFinite(revision) && revision > local + 1) {
+    void reloadCanvasBoardForCollaboration("版本断层");
+    return;
+  }
+  const applied = applyCanvasCollabOperations(message.operations);
+  if (Number.isFinite(revision)) {
+    canvasState.activeBoardRevision = revision;
+    canvasPagedStore.boardRevision = revision;
+  }
+  const actor = canvasCollabUserName(message.actor);
+  if (applied) setCanvasStatus(`${actor} 更新了画布`);
+}
+
+function handleCanvasCollabBoard(message) {
+  const actor = canvasCollabUserName(message.actor);
+  if (message.state === "trashed") setCanvasStatus(`${actor} 把这张画布移入了回收站`);
+  else if (message.state === "deleted") setCanvasStatus(`${actor} 永久删除了这张画布`);
+  else if (message.state === "refresh") void reloadCanvasBoardForCollaboration("内容较大");
+}
+
+function ensureCanvasCollabClient(boardId) {
+  const id = String(boardId || "");
+  if (!id) return null;
+  if (canvasCollabState.client && canvasCollabState.boardId === id) return canvasCollabState.client;
+  closeCanvasCollabClient();
+  if (!window.CanvasCollabClient) return null;
+  canvasCollabState.boardId = id;
+  const client = new window.CanvasCollabClient({
+    boardId: id,
+    clientId: canvasCollabState.clientId,
+    onUsers: (users, info) => {
+      canvasCollabState.users = users;
+      renderCanvasCollabPresence();
+      if (!users.length) clearCanvasCollabCursors();
+      const revision = Number(info?.revision);
+      if (Number.isFinite(revision) && revision > Number(canvasState.activeBoardRevision || 0)) {
+        void reloadCanvasBoardForCollaboration("他人改动");
+      }
+    },
+    onCursor: (cursor) => renderCanvasCollabCursor(cursor),
+    onPatch: (message) => handleCanvasCollabPatch(message),
+    onBoard: (message) => handleCanvasCollabBoard(message),
+    onState: (state) => {
+      document.querySelector("#canvasEditorScreen")?.classList.toggle("is-collab-offline", state === "disconnected" || state === "failed");
+    },
+  });
+  canvasCollabState.client = client;
+  client.open();
+  return client;
+}
+
+function closeCanvasCollabClient() {
+  canvasCollabState.client?.close?.();
+  canvasCollabState.client = null;
+  canvasCollabState.boardId = "";
+  canvasCollabState.users = [];
+  renderCanvasCollabPresence();
+  clearCanvasCollabCursors();
+  document.querySelector("#canvasEditorScreen")?.classList.remove("is-collab-offline");
+}
+
+/**
+ * The single place that decides whether this client is watching a board. Every
+ * editor entry and exit already passes through setCanvasAppScreen(), so the
+ * socket follows the screen instead of being opened from each call site.
+ */
+function syncCanvasCollabConnection() {
+  const shouldWatch = canvasState.appScreen === "editor" && Boolean(canvasState.activeBoardId);
+  if (!shouldWatch) {
+    closeCanvasCollabClient();
+    return false;
+  }
+  ensureCanvasCollabClient(canvasState.activeBoardId);
+  return true;
+}
+
+function sendCanvasCollabCursor(event) {
+  const client = canvasCollabState.client;
+  if (!client || !client.send) return;
+  const point = getCanvasPointFromEvent(event);
+  const node = event.target?.closest?.("#canvasPlane .canvas-node");
+  client.sendCursor(point.x, point.y, node?.dataset?.id || "");
+}
+
+function handleCanvasCollabPointerLeave() {
+  canvasCollabState.client?.flushCursor?.();
 }
 
 async function flushCanvasOperations(options = {}) {
@@ -11455,6 +14047,9 @@ async function flushCanvasOperations(options = {}) {
         body: JSON.stringify({
           baseRevision: canvasState.activeBoardRevision,
           operations: batch,
+          // Lets the server echo this batch to the room without sending it
+          // back to the client that already applied it.
+          clientId: canvasCollabState.clientId,
         }),
         keepalive: Boolean(options.keepalive),
       });
@@ -11475,6 +14070,11 @@ async function flushCanvasOperations(options = {}) {
     canvasState.activeBoardRevision = Number(sent.data.boardRevision ?? canvasState.activeBoardRevision);
     canvasPagedStore.ackOperations(sent.data);
     applyCanvasOperationAcknowledgements(batch, sent.data);
+    if (canvasPagedStore.scenePage && batch.some(op => op.type.startsWith("node."))) {
+      canvasViewportDataSource.lastFulfilled = null;
+      const { mountRect, viewport } = canvasVirtualizer.getRects();
+      requestCanvasViewportPage({ ...mountRect, scale: viewport.scale }).catch(error => setCanvasStatus(error.message));
+    }
     canvasState.hasUnsavedChanges = canvasPagedStore.getPendingOperations().length > 0;
     if (canvasState.hasUnsavedChanges) {
       clearTimeout(canvasState.saveTimer);
@@ -11489,7 +14089,7 @@ async function flushCanvasOperations(options = {}) {
   }
 }
 
-async function saveCanvasBoardNow() {
+async function saveCanvasBoardNow({ recordUndo = true } = {}) {
   if (canvasState.isRestoring) return;
   clearTimeout(canvasState.saveTimer);
   clearTimeout(canvasViewportSaveTimer);
@@ -11498,9 +14098,13 @@ async function saveCanvasBoardNow() {
     canvasState.hasUnsavedChanges = false;
     return;
   }
-  collectCanvasDirtyOperations();
+  collectCanvasDirtyOperations({ recordUndo });
   try {
-    await flushCanvasOperations();
+    const boardId = canvasState.activeBoardId;
+    do {
+      await flushCanvasOperations();
+      clearTimeout(canvasState.saveTimer);
+    } while (boardId === canvasState.activeBoardId && canvasPagedStore.getPendingOperations().length);
   } catch (error) {
     setCanvasStatus(error.message);
   }
@@ -11586,24 +14190,126 @@ function flushCanvasSave() {
   flushCanvasOperations({ keepalive: true }).catch(() => {});
 }
 
+function scheduleCanvasBoardsHydration() {
+  if (canvasState.boardsHydrationScheduled || canvasState.boardsLoadedAt || canvasState.boardsLoadPromise) return;
+  const sessionReady = document.documentElement.dataset.aiAuth === "ready" || Boolean(window.AiOsSession);
+  if (!sessionReady) {
+    if (!canvasState.boardsHydrationAwaitingSession) {
+      canvasState.boardsHydrationAwaitingSession = true;
+      window.addEventListener("ai-os-session", () => {
+        canvasState.boardsHydrationAwaitingSession = false;
+        scheduleCanvasBoardsHydration();
+      }, { once: true });
+    }
+    return;
+  }
+  canvasState.boardsHydrationScheduled = true;
+  const hydrate = () => {
+    canvasState.boardsHydrationScheduled = false;
+    if (!canvasState.boardsLoadedAt && !canvasState.boardsLoadPromise) {
+      loadCanvasBoards({ silent: true });
+    }
+  };
+  if (typeof window.requestIdleCallback === "function") window.requestIdleCallback(hydrate, { timeout: 900 });
+  else window.setTimeout(hydrate, 180);
+}
+
 async function loadCanvasBoards(options = {}) {
-  const { restoreFirst = false, createIfEmpty = false } = options || {};
+  const { restoreFirst = false, createIfEmpty = false, silent = false } = options || {};
+  if (canvasState.boardsLoadPromise) return canvasState.boardsLoadPromise;
+  const request = (async () => {
+    try {
+      const boardUrl = new URL(CANVAS_BOARDS_API_URL, window.location.origin);
+      if (canvasState.canvasScope && canvasState.canvasScope !== "all") boardUrl.searchParams.set("scope", canvasState.canvasScope);
+      if (canvasState.activeProjectId) boardUrl.searchParams.set("projectId", canvasState.activeProjectId);
+      const [response, projectsResponse] = await Promise.all([
+        fetch(`${boardUrl.pathname}${boardUrl.search}`),
+        fetch("/api/canvas/projects"),
+      ]);
+      const data = await response.json();
+      const projectsData = await projectsResponse.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "画布历史读取失败");
+      updateCanvasBoardStores(data);
+      canvasState.projects = Array.isArray(projectsData?.projects) ? projectsData.projects : canvasState.projects;
+      canvasState.boardsLoadedAt = Date.now();
+      if (restoreFirst && canvasState.boards.length) await openCanvasBoardFromHistory(canvasState.boards[0]);
+      else if (createIfEmpty && !canvasState.boards.length) await createNewCanvasBoard("未命名画布");
+      renderCanvasBoardList();
+    } catch (error) {
+      if (!silent) setCanvasStatus(error.message);
+    }
+  })();
+  canvasState.boardsLoadPromise = request;
   try {
-    const response = await fetch(CANVAS_BOARDS_API_URL);
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || "画布历史读取失败");
-    updateCanvasBoardStores(data);
-    if (restoreFirst && canvasState.boards.length) await openCanvasBoardFromHistory(canvasState.boards[0]);
-    else if (createIfEmpty && !canvasState.boards.length) await createNewCanvasBoard("未命名画布");
-    renderCanvasBoardList();
-  } catch (error) {
-    setCanvasStatus(error.message);
+    return await request;
+  } finally {
+    if (canvasState.boardsLoadPromise === request) canvasState.boardsLoadPromise = null;
   }
 }
 
 function updateCanvasBoardStores(data) {
   canvasState.boards = Array.isArray(data?.boards) ? data.boards : [];
   canvasState.trashedBoards = Array.isArray(data?.trash) ? data.trash : [];
+  if (data?.counts && typeof data.counts === "object") {
+    canvasState.canvasScopeCounts = {
+      all: Number(data.counts.all || 0),
+      mine: Number(data.counts.mine || 0),
+      shared: Number(data.counts.shared || 0),
+      trash: Number(data.counts.trash || 0),
+    };
+  }
+}
+
+/**
+ * 共享面板要显示画布的名字，但资源表里的名字可能还停在最初登记的“画布 <boardId>”，
+ * 而画布列表里已经有真实标题了，这里给它兜个底。
+ */
+function boardTitleByResourceId(resourceId) {
+  const target = String(resourceId || "").trim();
+  if (!target) return "";
+  const board = [...canvasState.boards, ...canvasState.trashedBoards]
+    .find((item) => String(item.resourceId || "") === target);
+  return String(board?.title || "");
+}
+
+async function openCanvasBoardByResourceId(resourceId) {
+  const targetResourceId = String(resourceId || "").trim();
+  if (!targetResourceId) {
+    await showCanvasLibrary({ reload: true });
+    return false;
+  }
+  try {
+    const [response, projectsResponse] = await Promise.all([
+      fetch(`${CANVAS_BOARDS_API_URL}?scope=all`),
+      fetch("/api/canvas/projects"),
+    ]);
+    const data = await response.json().catch(() => ({}));
+    const projectsData = await projectsResponse.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "画布读取失败");
+    updateCanvasBoardStores(data);
+    if (projectsResponse.ok && Array.isArray(projectsData.projects)) canvasState.projects = projectsData.projects;
+    renderCanvasBoardList();
+    const board = canvasState.boards.find((item) => String(item.resourceId || "") === targetResourceId);
+    if (!board) {
+      await showCanvasLibrary({ reload: false });
+      setCanvasStatus("找不到可访问的画布，可能已删除或共享权限已变更。");
+      return false;
+    }
+    return openCanvasBoardFromHistory(board);
+  } catch (error) {
+    await showCanvasLibrary({ reload: false });
+    setCanvasStatus(`画布打开失败：${error.message}`);
+    return false;
+  }
+}
+
+async function handleCanvasAppActivation(event) {
+  const detail = event?.detail;
+  if (detail?.appId !== "canvas") return false;
+  const resourceId = String(detail?.params?.resourceId || "").trim();
+  if (resourceId) return openCanvasBoardByResourceId(resourceId);
+  await showCanvasLibrary({ reload: !canvasState.boardsLoadedAt });
+  return true;
 }
 
 function hasCanvasContent() {
@@ -11632,6 +14338,7 @@ function beginCanvasBoardRestore(board) {
   canvasState.isRestoring = true;
   clearCanvasPlane();
   canvasState.activeBoardId = board.id;
+  canvasState.activeProjectId = board.isOwner === false ? "" : String(board.projectId || "");
   canvasState.activeBoardTitle = board.title || "未命名画布";
   canvasState.activeBoardCreatedAt = board.createdAt || new Date().toISOString();
   canvasState.activeBoardRevision = Number(board.revision || 0);
@@ -11646,6 +14353,7 @@ function beginCanvasBoardRestore(board) {
 }
 
 function addCanvasBoardModelToVirtualStore(item, board, context) {
+  item = migrateLegacyCanvasGalleryItem(item);
   const model = canvasVirtualStore.upsert(item);
   context.maxId = Math.max(context.maxId, Number(model.id) || 0);
   if (model.resultSrc) {
@@ -11660,29 +14368,33 @@ function addCanvasBoardModelToVirtualStore(item, board, context) {
 }
 
 function restoreCanvasBoardNode(item, board, context) {
-  const node = createCanvasNode(getCanvasCreateKindFromSerialized(item.kind));
+  item = migrateLegacyCanvasGalleryItem(item);
+  const legacyComfyGenerator = isLegacyCanvasComfyGenerator(item);
+  const node = createCanvasNode(legacyComfyGenerator ? "comfy" : getCanvasCreateKindFromSerialized(item.kind));
   node.dataset.id = String(item.id);
+  node.dataset.zOrder = String(Number(item.zOrder ?? item.z) || 0);
+  canvasNodeStackClock = Math.max(canvasNodeStackClock, Number(node.dataset.zOrder));
   node.dataset.x = String(Number(item.x || 0));
   node.dataset.y = String(Number(item.y || 0));
   if (item.width) node.dataset.width = String(item.width);
   if (item.height) node.dataset.height = String(item.height);
+  if (item.assetId) node.dataset.assetId = String(item.assetId);
   context.maxId = Math.max(context.maxId, Number(item.id) || 0);
   if (item.kind === "text") {
+    node.dataset.textName = String(item.textName || "文字").replace(/\s+/g, " ").trim().slice(0, 80) || "文字";
     renderCanvasTextNode(node, item.text || "写下一个想法");
+  } else if (item.kind === "note") {
+    renderCanvasNoteNode(node, { text: item.text || "", color: item.noteColor });
   } else if (item.kind === "group") {
     renderCanvasGroupNode(node, {
       title: item.groupTitle || "图片组",
       memberIds: Array.isArray(item.groupMembers) ? item.groupMembers : [],
       images: Array.isArray(item.groupImages) ? item.groupImages : [],
     });
-  } else if (item.kind === "gallery") {
-    renderCanvasGalleryNode(node, {
-      title: item.galleryTitle || "生成图集",
-      images: Array.isArray(item.galleryImages) ? item.galleryImages : [],
-      activeImageId: item.galleryActiveImageId || "",
-      columns: item.galleryColumns ?? null,
-      gap: item.galleryGap ?? null,
-    });
+  } else if (item.kind === "gallery-container") {
+    renderCanvasGalleryContainerNode(node, item.galleryContainer || {});
+  } else if (item.kind === "asset-collection") {
+    renderCanvasAssetCollectionNode(node, item.assetCollection || {});
   } else if (item.kind === "grid-editor") {
     renderCanvasGridEditorNode(node, { ...(item.gridEditorState || {}), editing: false });
   } else if (item.kind === "llm") {
@@ -11705,8 +14417,39 @@ function restoreCanvasBoardNode(item, board, context) {
     node.dataset.minimaxH3ImageOrder = JSON.stringify(item.minimaxH3ImageOrder || []);
     node.dataset.minimaxH3VideoOrder = JSON.stringify(item.minimaxH3VideoOrder || []);
     node.dataset.minimaxH3AudioOrder = JSON.stringify(item.minimaxH3AudioOrder || []);
+  } else if (item.kind === "video-api") {
+    renderCanvasApiVideoNode(node, {
+      prompt: item.apiVideoPrompt || "",
+      model: item.apiVideoModel || "",
+      ratio: item.apiVideoRatio || "",
+      resolution: item.apiVideoResolution || "",
+      duration: item.apiVideoDuration || "",
+      taskId: item.apiVideoTaskId || "",
+    });
+  } else if (item.kind === "midjourney") {
+    renderCanvasMidjourneyNode(node, {
+      operation: item.midjourneyOperation || "imagine",
+      prompt: item.midjourneyPrompt || "",
+      model: item.midjourneyModel || "",
+      size: item.midjourneySize || "1:1",
+      version: item.midjourneyVersion || MIDJOURNEY_DEFAULT_OPTIONS.version,
+      speed: item.midjourneySpeed || MIDJOURNEY_DEFAULT_OPTIONS.speed,
+    });
+    if (Array.isArray(item.refOrder)) setCanvasNodeRefOrder(node, item.refOrder);
+    if (item.imageJobId) {
+      node.dataset.imageJobId = item.imageJobId;
+      node.dataset.imageJobState = item.imageJobState || "unknown";
+      if (item.imageJobCommittedId) node.dataset.imageJobCommittedId = item.imageJobCommittedId;
+      queueMicrotask(() => resumeCanvasImageNodeJob(node));
+    }
   } else if (item.kind === "video-output") {
     renderCanvasVideoOutputNode(node, getCanvasVideoOutputRenderOptions(item));
+  } else if (item.kind === "director-3d") {
+    renderCanvasDirector3dNode(node, {
+      project: item.directorProject || null,
+      previewSrc: item.directorPreviewSrc || "",
+    });
+    node.dataset.directorSceneName = item.directorSceneName || "";
   } else if (item.kind === "video") {
     renderCanvasVideoNode(node, {
       src: item.mediaSrc || item.videoSrc || "",
@@ -11721,13 +14464,15 @@ function restoreCanvasBoardNode(item, board, context) {
       mimeType: item.mediaMimeType || "audio/mpeg",
       duration: item.mediaDuration || 0,
     });
-  } else if (item.kind === "comfy") {
+  } else if (item.kind === "comfy" || legacyComfyGenerator) {
     renderCanvasComfyNode(node, {
-      mode: item.comfyMode || "upscale2",
-      resolution: isCanvasComfyResolutionMode(item.comfyMode) ? (item.comfyResolution || "2048") : "2048",
+      mode: item.comfyMode || item.comfyWorkflow || "upscale2",
+      resolution: isCanvasComfyResolutionMode(item.comfyMode || item.comfyWorkflow) ? (item.comfyResolution || item.resolution || "2048") : "2048",
       padding: item.comfyPadding,
       qwenAngle: item.comfyQwenAngle,
     });
+    node.dataset.comfyPrompt = item.comfyPrompt || item.prompt || "";
+    node.dataset.canvasGenerationPrompt = item.canvasGenerationPrompt || node.dataset.comfyPrompt || "";
     if (Array.isArray(item.refOrder)) setCanvasNodeRefOrder(node, item.refOrder);
   } else if (item.kind === "loop") {
     renderCanvasLoopNode(node);
@@ -11735,6 +14480,10 @@ function restoreCanvasBoardNode(item, board, context) {
   } else {
     if (!item.uploadOnly) {
       if (item.model) node.dataset.canvasModel = item.model;
+      node.dataset.canvasEngine = "api";
+      node.dataset.canvasNodeType = "api";
+      node.dataset.canvasPlatform = item.platform || getImageModelPlatform(item.model) || "openai";
+      node.dataset.modelSelection = item.modelSelection || "exact";
       if (item.size) node.dataset.canvasSize = item.size;
       if (item.resolution) node.dataset.canvasResolution = item.resolution;
       if (item.midjourneyVersion) node.dataset.canvasMidjourneyVersion = item.midjourneyVersion;
@@ -11743,9 +14492,13 @@ function restoreCanvasBoardNode(item, board, context) {
       if (item.midjourneyQuality) node.dataset.canvasMidjourneyQuality = item.midjourneyQuality;
       if (item.midjourneyStyle) node.dataset.canvasMidjourneyStyle = item.midjourneyStyle;
       if (item.midjourneyStylize !== undefined) node.dataset.canvasMidjourneyStylize = String(item.midjourneyStylize);
+      if (item.modelParameters && typeof item.modelParameters === "object") {
+        node.dataset.canvasModelParameters = JSON.stringify(item.modelParameters);
+      }
     }
     if (item.uploadOnly) renderCanvasUploadNode(node, { src: item.imageSrc || "", name: item.imageName || "图片节点" });
-    else renderCanvasImageNode(node, { src: item.imageSrc || "", name: item.imageName || "图片卡片" });
+    else if (item.imageSrc) renderCanvasImageNode(node, { src: item.imageSrc, name: item.imageName || "图片卡片" });
+    else renderCanvasApiNode(node, { name: item.imageName || "API 生成" });
     if (item.imageJobId) {
       node.dataset.imageJobId = item.imageJobId;
       node.dataset.imageJobState = item.imageJobState || "unknown";
@@ -11771,10 +14524,17 @@ function restoreCanvasBoardNode(item, board, context) {
       const prompt = node.querySelector(".canvas-node-prompt");
       if (prompt) prompt.value = item.prompt || "";
       if (item.model) node.dataset.canvasModel = item.model;
+      node.dataset.canvasEngine = "api";
+      node.dataset.canvasNodeType = "api";
+      if (item.platform) node.dataset.canvasPlatform = item.platform;
       const model = node.querySelector(".canvas-node-model");
       if (model && item.model) {
         model.value = item.model;
         if (!model.value) model.dataset.pendingModel = item.model;
+      }
+      if (model) {
+        model.dataset.modelSelection = node.dataset.modelSelection;
+        enhanceCanvasImageModelSelect(model)?.refresh();
       }
       const size = node.querySelector(".canvas-node-size");
       if (size && item.size) {
@@ -11794,6 +14554,7 @@ function restoreCanvasBoardNode(item, board, context) {
         style: item.midjourneyStyle,
         stylize: item.midjourneyStylize,
       });
+      syncCanvasModelParameterOptions(node, node.dataset.canvasModel || model?.value || item.model || "", item.modelParameters || {});
     }
   }
   if (context.virtualizedMount) {
@@ -11810,10 +14571,7 @@ function prepareCanvasBoardRestoreFinalState(board, context) {
   canvasState.nextNode = Math.max(canvasState.nextNode, context.maxId + 1);
   canvasPagedStore.upsertConnections(Array.isArray(board.connections) ? board.connections : []);
   syncVisibleCanvasConnections();
-  context.migratedLegacyCount = 0;
-  canvasState.x = Number(board.viewport?.x ?? 80);
-  canvasState.y = Number(board.viewport?.y ?? 60);
-  canvasState.scale = normalizeCanvasScale(board.viewport?.scale, 1);
+  Object.assign(canvasState, CanvasViewRules.normalizeViewport(board.viewport));
   applyCanvasTransform();
 }
 
@@ -11830,7 +14588,13 @@ function completeCanvasBoardRestore(context, { refsAlreadyRefreshed = false } = 
 }
 
 function restoreCanvasBoardVirtually(board) {
+  const legacyBoard = board;
+  const migratedLegacyCount = countLegacyCanvasGalleryItems(board);
+  snapshotLegacyCanvasGalleryBoard(board);
+  board = migrateCanvasBoardGalleryContainers(board);
   const context = beginCanvasBoardRestore(board);
+  context.migratedLegacyCount = migratedLegacyCount;
+  if (migratedLegacyCount) stageCanvasGalleryContainerMigrationOperations(legacyBoard, board);
   const nodes = Array.isArray(board.nodes) ? board.nodes : [];
   nodes.forEach((item) => addCanvasBoardModelToVirtualStore(item, board, context));
   prepareCanvasBoardRestoreFinalState(board, context);
@@ -11851,10 +14615,12 @@ function refreshAllCanvasRefs() {
 
 async function refreshCanvasRefsProgressively(onProgress) {
   const rules = window.canvasBoardLoadingRules;
+  const boardId = canvasState.activeBoardId;
   const nodes = Array.from(document.querySelectorAll("#canvasPlane .canvas-node"));
   let batchStartedAt = performance.now();
   if (!nodes.length) onProgress?.({ phase: "refs", completed: 0, total: 0 });
   for (let index = 0; index < nodes.length; index += 1) {
+    if (canvasState.activeBoardId !== boardId) return;
     updateCanvasNodeRefs(nodes[index]);
     onProgress?.({ phase: "refs", completed: index + 1, total: nodes.length });
     if (performance.now() - batchStartedAt >= rules.FRAME_BUDGET_MS && index < nodes.length - 1) {
@@ -11867,9 +14633,15 @@ async function refreshCanvasRefsProgressively(onProgress) {
 }
 
 async function restoreCanvasBoardProgressively(board, onProgress) {
+  const legacyBoard = board;
+  const migratedLegacyCount = countLegacyCanvasGalleryItems(board);
+  snapshotLegacyCanvasGalleryBoard(board);
+  board = migrateCanvasBoardGalleryContainers(board);
   const rules = window.canvasBoardLoadingRules;
   const nodes = Array.isArray(board.nodes) ? board.nodes : [];
   const context = beginCanvasBoardRestore(board);
+  context.migratedLegacyCount = migratedLegacyCount;
+  if (migratedLegacyCount) stageCanvasGalleryContainerMigrationOperations(legacyBoard, board);
   let batchStartedAt = performance.now();
   if (!nodes.length) onProgress?.({ phase: "nodes", completed: 0, total: 0 });
   for (let index = 0; index < nodes.length; index += 1) {
@@ -11881,25 +14653,46 @@ async function restoreCanvasBoardProgressively(board, onProgress) {
     }
   }
   prepareCanvasBoardRestoreFinalState(board, context);
-  canvasVirtualizer.flushNow();
+  await mountCanvasBoardViewportProgressively();
   await refreshCanvasRefsProgressively(onProgress);
   onProgress?.({ phase: "finalize" });
   await waitForCanvasRestorePaint();
   completeCanvasBoardRestore(context, { refsAlreadyRefreshed: true });
 }
 
+async function mountCanvasBoardViewportProgressively() {
+  // Keep the loader responsive and allow layout/paint between rich-node
+  // batches. A synchronous flush only measures JS, hiding deferred paint cost.
+  canvasPendingRestoreRefsBoardId = canvasState.activeBoardId;
+  canvasVirtualizer.flushNow({ ignoreBudget: false });
+  await waitForCanvasRestorePaint();
+  // The virtualizer continues the remaining batches itself. Unlock after the
+  // first paint instead of blocking input until the overscan area is mounted.
+}
+
 async function openCanvasBoardFromHistory(board) {
   if (!board || canvasState.boardOpening) return false;
-  closeCanvasBoardPanel();
+  hideCanvasBoardMenu();
   if (Array.isArray(board.nodes)) {
     const rules = window.canvasBoardLoadingRules;
     if (!rules.shouldUseProgressiveRestore(board.nodes.length)) {
-      restoreCanvasBoard(board);
-      return true;
+      try {
+        restoreCanvasBoard(board);
+        showCanvasEditor();
+        return true;
+      } catch (error) {
+        canvasState.isRestoring = false;
+        prepareBlankCanvasLanding();
+        await showCanvasLibrary({ reload: false });
+        setCanvasStatus(`画布打开失败：${error.message}`);
+        return false;
+      }
     }
     canvasState.boardOpening = true;
     const startedAt = performance.now();
+    canvasState.activeBoardId = String(board.id);
     canvasState.activeBoardTitle = board.title || "未命名画布";
+    showCanvasEditor();
     setCanvasBoardLoading(true, { title: canvasState.activeBoardTitle, progress: 0 });
     try {
       await waitForCanvasRestorePaint();
@@ -11911,6 +14704,7 @@ async function openCanvasBoardFromHistory(board) {
     } catch (error) {
       canvasState.isRestoring = false;
       prepareBlankCanvasLanding();
+      await showCanvasLibrary({ reload: false });
       setCanvasStatus(`画布打开失败：${error.message}`);
       return false;
     } finally {
@@ -11921,7 +14715,9 @@ async function openCanvasBoardFromHistory(board) {
 
   canvasState.boardOpening = true;
   canvasState.isRestoring = true;
+  canvasState.activeBoardId = String(board.id);
   canvasState.activeBoardTitle = board.title || "未命名画布";
+  showCanvasEditor();
   setCanvasBoardLoading(true, { title: canvasState.activeBoardTitle, progress: 0 });
   try {
     clearCanvasPlane();
@@ -11931,9 +14727,7 @@ async function openCanvasBoardFromHistory(board) {
     canvasState.activeBoardRevision = Number(board.revision || 0);
     canvasState.activeBoardPersisted = true;
     canvasPagedStore.boardRevision = canvasState.activeBoardRevision;
-    canvasState.x = Number(board.viewport?.x ?? 80);
-    canvasState.y = Number(board.viewport?.y ?? 60);
-    canvasState.scale = normalizeCanvasScale(board.viewport?.scale, 1);
+    Object.assign(canvasState, CanvasViewRules.normalizeViewport(board.viewport));
     canvasVirtualBoard = board;
     canvasVirtualRestoreContext = { maxId: 0, legacyResults: [], migratedLegacyCount: 0 };
     applyCanvasTransformNow();
@@ -11946,13 +14740,14 @@ async function openCanvasBoardFromHistory(board) {
         await new Promise((resolve) => setTimeout(resolve, 100));
       }
     } while (page?.state === "migrating" && canvasState.activeBoardId === String(board.id));
-    canvasVirtualizer.flushNow();
+    await mountCanvasBoardViewportProgressively();
     completeCanvasBoardRestore(canvasVirtualRestoreContext);
     updateCanvasBoardLoading({ phase: "complete" });
     return true;
   } catch (error) {
     canvasState.isRestoring = false;
     prepareBlankCanvasLanding();
+    await showCanvasLibrary({ reload: false });
     setCanvasStatus(`画布打开失败：${error.message}`);
     return false;
   } finally {
@@ -11964,11 +14759,21 @@ async function openCanvasBoardFromHistory(board) {
 function getSafeCanvasImageGenerationError(error, fallbackCode = "generation_failed") {
   const text = String(error?.message || error || "").toLowerCase();
   const errorCode = String(error?.code || "");
+  if (["image_task_pending", "image_job_not_submitted"].includes(errorCode)) {
+    return { ok: false, code: errorCode, error: String(error.message) };
+  }
   if (["image_job_timeout_unknown", "image_job_result_unknown", "image_job_interrupted_unknown"].includes(errorCode)) {
     return {
       ok: false,
       code: "generation_timeout",
       error: String(error?.message || "图片任务结果暂时无法确认；任务记录已保留，为避免重复扣费，系统不会自动重新提交。"),
+    };
+  }
+  if (errorCode === "image_sync_failed") {
+    return {
+      ok: false,
+      code: "image_sync_failed",
+      error: "图片已生成，但下载原图未完成。可点击“恢复原图”继续下载，无需重新生成。",
     };
   }
   if (/timeout|timed out|aborted/.test(text)) {
@@ -11977,11 +14782,21 @@ function getSafeCanvasImageGenerationError(error, fallbackCode = "generation_fai
   if (/\b429\b|rate.?limit|too many requests|请求过于频繁/.test(text)) {
     return { ok: false, code: "image_api_rate_limited", error: "生图接口请求受限，正在切换备用接口。" };
   }
+  if (/balance|quota|credit|余额|额度/.test(text)) {
+    return { ok: false, code: "image_api_balance_failed", error: "生图接口余额或额度不足，请在设置中更换可用接口。" };
+  }
   if (/401|403|unauthorized|forbidden|auth|api.?key/.test(text)) {
     return { ok: false, code: "image_api_auth_failed", error: "生图接口认证失败，请在设置中检查该接口。" };
   }
-  if (/balance|quota|credit|余额|额度/.test(text)) {
-    return { ok: false, code: "image_api_balance_failed", error: "生图接口余额或额度不足，请在设置中更换可用接口。" };
+  if (
+    errorCode === "UPSTREAM_PROTOCOL"
+    && /unsupported\s+(?:\d+k\s+)?image\s+model|unsupported\s+model|model(?:\s+is)?\s+not\s+(?:supported|available|found)|unknown\s+model|model_not_found|invalid\s+model|no\s+such\s+model|模型(?:不可用|不存在|不支持)/i.test(text)
+  ) {
+    return {
+      ok: false,
+      code: "image_api_upstream_rejected",
+      error: "当前接口无法受理所选生图模型，正在切换同模型备用接口。",
+    };
   }
   if (/empty-image-response/.test(text)) {
     return { ok: false, code: "empty_image_response", error: "图片服务没有返回可用图片，请稍后重试。" };
@@ -11995,16 +14810,18 @@ async function createNewCanvasBoard(title = `画布 ${canvasState.boards.length 
   clearCanvasPlane();
   resetCanvasView();
   canvasState.activeBoardId = createId();
+  canvasState.activeProjectId = canvasState.activeProjectId || "";
   canvasState.activeBoardTitle = boardTitle;
   canvasState.activeBoardCreatedAt = new Date().toISOString();
   canvasState.activeBoardRevision = 0;
   canvasState.activeBoardPersisted = false;
   syncCanvasWorkspaceState();
   canvasState.isRestoring = false;
+  showCanvasEditor();
   dispatchCanvasBoardChanged();
   resetCanvasUndoHistory();
-  closeCanvasBoardPanel();
   await saveCanvasBoardNow();
+  await loadCanvasBoards();
   setCanvasStatus(`已新建：${boardTitle}`);
 }
 
@@ -12020,10 +14837,13 @@ function promptCreateCanvasBoard() {
     return;
   }
   canvasState.boardRenameId = null;
+  canvasState.projectRenameId = null;
   panel.dataset.mode = "create";
   if (title) title.textContent = "新建画布";
   if (hint) hint.textContent = "给这个画布起一个方便识别的名字。";
   if (submit) submit.textContent = "创建";
+  const label = panel.querySelector(".canvas-name-field > span");
+  if (label) label.textContent = "画布名称";
   input.value = fallback;
   panel.hidden = false;
   requestAnimationFrame(() => {
@@ -12036,6 +14856,7 @@ function closeCanvasNamePanel() {
   const panel = document.querySelector("#canvasNamePanel");
   if (panel) panel.hidden = true;
   canvasState.boardRenameId = null;
+  canvasState.projectRenameId = null;
 }
 
 function openCanvasClearConfirm() {
@@ -12138,9 +14959,22 @@ function showCanvasDeleteUndo(message) {
 function submitCanvasBoardName(event) {
   event.preventDefault();
   const input = document.querySelector("#canvasNameInput");
+  const mode = document.querySelector("#canvasNamePanel")?.dataset.mode || "create";
+  if (mode === "project-create") {
+    const name = normalizeCanvasProjectName(input?.value);
+    if (name) createCanvasProject(name);
+    closeCanvasNamePanel();
+    return;
+  }
+  if (mode === "project-rename") {
+    const name = normalizeCanvasProjectName(input?.value);
+    if (name) renameCanvasProject(canvasState.projectRenameId, name);
+    closeCanvasNamePanel();
+    return;
+  }
   const fallback = `画布 ${canvasState.boards.length + 1}`;
   const title = normalizeCanvasBoardTitle(input?.value) || fallback;
-  if (document.querySelector("#canvasNamePanel")?.dataset.mode === "rename") {
+  if (mode === "rename") {
     renameCanvasBoard(canvasState.boardRenameId, title);
     closeCanvasNamePanel();
     return;
@@ -12159,10 +14993,13 @@ function promptRenameCanvasBoard(id) {
   const submit = document.querySelector("#canvasNameSubmit");
   if (!panel || !input) return;
   canvasState.boardRenameId = id;
+  canvasState.projectRenameId = null;
   panel.dataset.mode = "rename";
   if (title) title.textContent = "重命名画布";
   if (hint) hint.textContent = "修改历史画布的名称，不会改变画布内容。";
   if (submit) submit.textContent = "保存";
+  const label = panel.querySelector(".canvas-name-field > span");
+  if (label) label.textContent = "画布名称";
   input.value = board.title || "未命名画布";
   panel.hidden = false;
   requestAnimationFrame(() => {
@@ -12175,22 +15012,31 @@ function normalizeCanvasBoardTitle(title) {
   return String(title || "").replace(/\s+/g, " ").trim().slice(0, 80);
 }
 
-function openCanvasBoardPanel() {
-  renderCanvasBoardList();
-  const panel = document.querySelector("#canvasBoardPanel");
-  if (panel) panel.hidden = false;
-}
-
-function closeCanvasBoardPanel() {
-  const panel = document.querySelector("#canvasBoardPanel");
-  if (panel) panel.hidden = true;
-  syncCanvasWorkspaceState();
+function normalizeCanvasProjectName(name) {
+  return String(name || "").replace(/\s+/g, " ").trim().slice(0, 80);
 }
 
 function toggleCanvasBoardTrash() {
   canvasState.boardView = canvasState.boardView === "trash" ? "active" : "trash";
   canvasState.boardSearchQuery = "";
   renderCanvasBoardList();
+}
+
+/**
+ * 画布卡片右上角的操作按钮用 lucide 图标。
+ * 这里刻意不用 data-lucide + createIcons：那套会把占位元素整节点替换掉，
+ * 挂在元素上的监听会一起丢。直接 createElement 生成 svg 塞进按钮里最稳。
+ */
+function canvasBoardActionIcon(name, size = 14) {
+  const lucide = window.lucide;
+  const iconNode = lucide?.[name];
+  if (!lucide?.createElement || !iconNode) return null;
+  const svg = lucide.createElement(iconNode);
+  svg.setAttribute("width", String(size));
+  svg.setAttribute("height", String(size));
+  svg.setAttribute("stroke-width", "2");
+  svg.setAttribute("aria-hidden", "true");
+  return svg;
 }
 
 function renderCanvasBoardList() {
@@ -12200,13 +15046,22 @@ function renderCanvasBoardList() {
   const hint = document.querySelector("#canvasBoardHint");
   const trashButton = document.querySelector("#canvasBoardTrash");
   const search = document.querySelector("#canvasBoardSearch");
-  const isTrash = canvasState.boardView === "trash";
+  const isTrash = canvasState.canvasScope === "trash" || canvasState.boardView === "trash";
   const sourceBoards = isTrash ? canvasState.trashedBoards : canvasState.boards;
   const query = normalizeCanvasSearchText(canvasState.boardSearchQuery);
-  const boards = query ? sourceBoards.filter((board) => fuzzyMatchCanvasBoard(board, query)) : sourceBoards;
-  if (title) title.textContent = isTrash ? "回收站" : "选择画布";
-  if (hint) hint.textContent = isTrash ? "这些画布已删除，可以恢复或彻底删除。" : "打开已有画布，或者建立一个新的。";
+  let boards = sourceBoards;
+  if (canvasState.activeProjectId) boards = boards.filter((board) => String(board.projectId || "") === canvasState.activeProjectId);
+  if (!isTrash && canvasState.canvasScope === "mine") boards = boards.filter((board) => board.isOwner !== false);
+  if (!isTrash && canvasState.canvasScope === "shared") boards = boards.filter((board) => board.isOwner === false);
+  if (!isTrash && canvasState.canvasScope === "recent") boards = [...boards].sort((a, b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || ""))).slice(0, 20);
+  if (query) boards = boards.filter((board) => fuzzyMatchCanvasBoard(board, query));
+  const project = canvasState.projects.find((item) => item.id === canvasState.activeProjectId);
+  const scopeLabels = { all: "全部画布", mine: "我的画布", shared: "协同文件", recent: "最近使用", trash: "回收站" };
+  if (title) title.textContent = project?.name || scopeLabels[canvasState.canvasScope] || "全部画布";
+  if (hint) hint.textContent = isTrash ? "这些画布已删除，可以恢复或彻底删除。" : "按项目整理画布，选择卡片即可继续编辑。";
   if (count) count.textContent = query ? `${boards.length}/${sourceBoards.length} 个` : `${sourceBoards.length} 个`;
+  const breadcrumb = document.querySelector("#canvasGalleryBreadcrumb");
+  if (breadcrumb) breadcrumb.textContent = project ? `${project.name} · ${boards.length} 个画布` : (scopeLabels[canvasState.canvasScope] || "全部画布");
   if (search && search.value !== canvasState.boardSearchQuery) search.value = canvasState.boardSearchQuery;
   if (trashButton) {
     trashButton.classList.toggle("active", isTrash);
@@ -12216,6 +15071,15 @@ function renderCanvasBoardList() {
     window.lucide?.createIcons({ attrs: { "aria-hidden": "true", "stroke-width": 1.8 } });
   }
   if (!list) return;
+  renderCanvasProjectList();
+  const allCount = document.querySelector("#canvasScopeAllCount");
+  const mineCount = document.querySelector("#canvasScopeMineCount");
+  const sharedCount = document.querySelector("#canvasScopeSharedCount");
+  const trashCount = document.querySelector("#canvasScopeTrashCount");
+  if (allCount) allCount.textContent = canvasState.canvasScopeCounts.all;
+  if (mineCount) mineCount.textContent = canvasState.canvasScopeCounts.mine;
+  if (sharedCount) sharedCount.textContent = canvasState.canvasScopeCounts.shared;
+  if (trashCount) trashCount.textContent = canvasState.canvasScopeCounts.trash;
   list.innerHTML = "";
   if (!boards.length) {
     const empty = document.createElement("div");
@@ -12225,6 +15089,7 @@ function renderCanvasBoardList() {
     return;
   }
   boards.forEach((board) => {
+    const canManage = board.isOwner !== false;
     const card = document.createElement("button");
     card.type = "button";
     card.className = `canvas-board-item${board.id === canvasState.activeBoardId ? " active" : ""}`;
@@ -12235,34 +15100,71 @@ function renderCanvasBoardList() {
     meta.textContent = formatCanvasDate(board.updatedAt || board.createdAt);
     const badge = document.createElement("small");
     badge.textContent = `${Number(board.nodeCount ?? board.nodes?.length ?? 0)} 节点`;
+    const projectBadge = document.createElement("span");
+    projectBadge.className = "canvas-board-project-badge";
+    projectBadge.textContent = board.isOwner === false
+      ? `来自 ${board.ownerDisplayName || "协同成员"}`
+      : canvasState.projects.find((item) => item.id === board.projectId)?.name || "未分类";
     card.append(createCanvasBoardPreview(board));
     const remove = document.createElement("i");
-    remove.textContent = isTrash ? "删" : "×";
+    remove.className = "canvas-board-action canvas-board-delete";
     remove.title = isTrash ? "彻底删除" : "移入回收站";
-    remove.addEventListener("click", (event) => {
-      event.stopPropagation();
-      if (isTrash) permanentlyDeleteCanvasBoard(board.id);
-      else deleteCanvasBoard(board.id);
-    });
-    card.append(badge, title, meta, remove);
+    remove.setAttribute("aria-label", isTrash ? "彻底删除画布" : "把画布移入回收站");
+    remove.dataset.boardAction = isTrash ? "delete-forever" : "delete";
+    remove.hidden = !canManage;
+    const removeIcon = canvasBoardActionIcon("Trash2");
+    if (removeIcon) remove.append(removeIcon);
+    const share = document.createElement("i");
+    share.className = "canvas-board-action canvas-board-share";
+    share.title = "共享设置";
+    share.setAttribute("aria-label", "共享设置");
+    share.dataset.boardAction = "share";
+    share.dataset.canvasShare = board.resourceId || "";
+    share.hidden = isTrash || !canManage;
+    const shareIcon = canvasBoardActionIcon("Share2");
+    if (shareIcon) share.append(shareIcon);
+    card.append(projectBadge, badge, title, meta, share, remove);
     if (isTrash) {
       const restore = document.createElement("em");
-      restore.textContent = "恢复";
+      restore.className = "canvas-board-restore";
       restore.title = "恢复画布";
-      restore.addEventListener("click", (event) => {
-        event.stopPropagation();
-        restoreDeletedCanvasBoard(board.id);
-      });
+      restore.setAttribute("aria-label", "恢复画布");
+      restore.dataset.boardAction = "restore";
+      restore.hidden = !canManage;
+      const restoreIcon = canvasBoardActionIcon("RotateCcw", 13);
+      const restoreLabel = document.createElement("b");
+      restoreLabel.textContent = "恢复";
+      if (restoreIcon) restore.append(restoreIcon);
+      restore.append(restoreLabel);
       card.append(restore);
     }
     card.addEventListener("pointerdown", (event) => event.stopPropagation());
     card.addEventListener("contextmenu", (event) => {
       event.preventDefault();
       event.stopPropagation();
-      if (!isTrash) showCanvasBoardMenu(board.id, event.clientX, event.clientY);
+      if (!isTrash && canManage) showCanvasBoardMenu(board.id, event.clientX, event.clientY);
     });
     card.addEventListener("click", async (event) => {
       event.preventDefault();
+      const action = event.target?.closest?.("[data-board-action]")?.dataset.boardAction || "";
+      if (action === "share") {
+        if (board.resourceId) {
+          window.AiOsManagement?.openCanvasShareDialog?.(board.resourceId).catch?.((error) => setCanvasStatus(error.message));
+        }
+        return;
+      }
+      if (action === "delete") {
+        await deleteCanvasBoard(board.id);
+        return;
+      }
+      if (action === "delete-forever") {
+        await permanentlyDeleteCanvasBoard(board.id);
+        return;
+      }
+      if (action === "restore") {
+        await restoreDeletedCanvasBoard(board.id);
+        return;
+      }
       if (isTrash) return;
       await openCanvasBoardFromHistory(board);
     });
@@ -12289,12 +15191,12 @@ function normalizeCanvasSearchText(value) {
 
 function showCanvasBoardMenu(id, clientX, clientY) {
   const menu = document.querySelector("#canvasBoardMenu");
-  const workspace = document.querySelector(".canvas-workspace");
-  if (!menu || !workspace) return;
-  const rect = workspace.getBoundingClientRect();
+  const library = document.querySelector("#canvasLibraryScreen");
+  if (!menu || !library) return;
+  const rect = library.getBoundingClientRect();
   menu.dataset.boardId = id;
-  menu.style.left = `${clientX - rect.left}px`;
-  menu.style.top = `${clientY - rect.top}px`;
+  menu.style.left = `${toSystemDelta(clientX - rect.left)}px`;
+  menu.style.top = `${toSystemDelta(clientY - rect.top)}px`;
   menu.hidden = false;
 }
 
@@ -12318,7 +15220,10 @@ function createCanvasBoardPreview(board) {
   grid.className = `canvas-board-preview-grid count-${Math.min(images.length, 4)}`;
   images.slice(0, 4).forEach((image) => {
     const thumbnail = createDeferredThumbnail(image, board.title || "画布预览", {
-      allowOriginalFallback: false,
+      // Older canvases can reference provider-hosted images. Those images may be
+      // displayable by <img> while CORS blocks the worker from creating WebP.
+      // Keep the card informative by falling back only after thumbnail creation fails.
+      allowOriginalFallback: true,
       unload: false,
     });
     const markError = () => thumbnail.classList.add("is-error");
@@ -12341,7 +15246,19 @@ function getCanvasBoardPreviewImages(board) {
   (board?.nodes || []).forEach((node) => {
     if (node.resultSrc) images.push(node.resultSrc);
     if (node.imageSrc) images.push(node.imageSrc);
-    if (node.kind === "gallery" && node.galleryImages) {
+    if (node.kind === "gallery-container" && node.galleryContainer) {
+      try {
+        const container = typeof node.galleryContainer === "string"
+          ? JSON.parse(node.galleryContainer || "{}")
+          : node.galleryContainer;
+        (container?.members || []).forEach((item) => {
+          const src = item?.src || item?.savedUrl || item?.url;
+          if (src) images.push(src);
+        });
+      } catch {
+        // Ignore malformed gallery container data.
+      }
+    } else if (node.kind === "gallery" && node.galleryImages) {
       try {
         const galleryImages = Array.isArray(node.galleryImages)
           ? node.galleryImages
@@ -12420,12 +15337,9 @@ async function restoreDeletedCanvasBoard(id) {
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.error || "恢复失败");
     await loadCanvasBoards();
-    canvasState.boardView = "active";
-    const board = canvasState.boards.find((item) => item.id === id);
-    if (board) await openCanvasBoardFromHistory(board);
     renderCanvasBoardList();
     renderUnifiedHistory();
-    setCanvasStatus("已恢复画布。");
+    setCanvasStatus("已恢复画布，可在“全部画布”里找到。");
   } catch (error) {
     setCanvasStatus(error.message);
   }
@@ -12462,6 +15376,12 @@ function getCanvasCopySourceNode() {
 
 function copySelectedCanvasNodes(event) {
   if (isCanvasTypingTarget(document.activeElement)) return;
+  if (hasCanvasSceneSelection()) {
+    event.preventDefault();
+    canvasState.clipboard = null;
+    canvasState.selectionActionPromise = copyCanvasSceneSelection().catch(error => setCanvasStatus(error.message));
+    return;
+  }
   const sourceNode = getCanvasCopySourceNode();
   if (!sourceNode) return;
   event.preventDefault();
@@ -12480,12 +15400,14 @@ function copySelectedCanvasNodes(event) {
   const externalConnections = canvasState.connections
     .filter((item) => ids.has(String(item.from)) !== ids.has(String(item.to)))
     .map((item) => ({ ...item, selectedSide: ids.has(String(item.from)) ? "from" : "to" }));
-  canvasState.clipboard = { selectedId, nodes, connections: internalConnections, externalConnections };
+  canvasState.clipboard = { selectedId, nodes, connections: internalConnections, externalConnections, pasteCount: 0 };
   setCanvasStatus(`已复制 ${nodes.length} 个节点。`);
 }
 
 function getCanvasCreateKindFromSerialized(kind) {
-  if (["text", "group", "gallery", "grid-editor", "llm", "comfy", "loop", "video", "audio", "minimax-h3", "video-output"].includes(kind)) return kind;
+  if (kind === "gallery") return "gallery-container";
+  if (kind === "director-3d") return "director3d";
+  if (["text", "note", "group", "gallery-container", "asset-collection", "grid-editor", "llm", "comfy", "loop", "video", "audio", "minimax-h3", "midjourney", "video-api", "video-output"].includes(kind)) return kind;
   return "image";
 }
 
@@ -12508,34 +15430,246 @@ function remapCanvasH3ReferenceOrder(order, idMap) {
   });
 }
 
+function renderCanvasProjectList() {
+  const list = document.querySelector("#canvasProjectList");
+  if (!list) return;
+  list.innerHTML = "";
+  canvasState.projects.forEach((project) => {
+    const row = document.createElement("div");
+    row.className = "canvas-gallery-project-row";
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `canvas-gallery-project-item${canvasState.activeProjectId === project.id ? " is-active" : ""}`;
+    button.dataset.projectId = project.id;
+    button.innerHTML = '<i data-lucide="folder"></i>';
+    const name = document.createElement("span");
+    name.textContent = project.name;
+    const count = document.createElement("b");
+    count.textContent = Number(project.canvasCount || 0);
+    button.append(name, count);
+    button.addEventListener("click", () => {
+      canvasState.activeProjectId = project.id;
+      canvasState.canvasScope = "all";
+      canvasState.boardView = "active";
+      document.querySelectorAll("[data-canvas-scope]").forEach((item) => item.classList.toggle("is-active", false));
+      loadCanvasBoards().catch((error) => setCanvasStatus(error.message));
+    });
+    const action = document.createElement("button");
+    action.type = "button";
+    action.className = "canvas-gallery-project-action";
+    action.title = `重命名项目“${project.name}”`;
+    action.setAttribute("aria-label", action.title);
+    action.innerHTML = '<i data-lucide="pencil"></i>';
+    action.addEventListener("click", () => promptRenameCanvasProject(project.id));
+    row.append(button, action);
+    list.append(row);
+  });
+  window.lucide?.createIcons({ attrs: { "aria-hidden": "true", "stroke-width": 1.8 } });
+}
+
+function promptCreateCanvasProject() {
+  const panel = document.querySelector("#canvasNamePanel");
+  const input = document.querySelector("#canvasNameInput");
+  if (!panel || !input) return;
+  canvasState.boardRenameId = null;
+  canvasState.projectRenameId = null;
+  panel.dataset.mode = "project-create";
+  document.querySelector("#canvasNameTitle").textContent = "新建项目";
+  document.querySelector("#canvasNameHint").textContent = "一个项目可以包含多个画布。";
+  document.querySelector(".canvas-name-field > span").textContent = "项目名称";
+  document.querySelector("#canvasNameSubmit").textContent = "创建";
+  input.value = "新项目";
+  panel.hidden = false;
+  requestAnimationFrame(() => { input.focus(); input.select(); });
+}
+
+function promptRenameCanvasProject(projectId) {
+  const project = canvasState.projects.find((item) => item.id === projectId);
+  const panel = document.querySelector("#canvasNamePanel");
+  const input = document.querySelector("#canvasNameInput");
+  if (!project || !panel || !input) return;
+  canvasState.boardRenameId = null;
+  canvasState.projectRenameId = projectId;
+  panel.dataset.mode = "project-rename";
+  document.querySelector("#canvasNameTitle").textContent = "重命名项目";
+  document.querySelector("#canvasNameHint").textContent = "项目中的画布和共享状态不会改变。";
+  document.querySelector(".canvas-name-field > span").textContent = "项目名称";
+  document.querySelector("#canvasNameSubmit").textContent = "保存";
+  input.value = project.name;
+  panel.hidden = false;
+  requestAnimationFrame(() => { input.focus(); input.select(); });
+}
+
+async function createCanvasProject(name) {
+  try {
+    const response = await fetch("/api/canvas/projects", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "项目创建失败");
+    canvasState.activeProjectId = data.project.id;
+    canvasState.canvasScope = "all";
+    document.querySelectorAll("[data-canvas-scope]").forEach((item) => item.classList.toggle("is-active", false));
+    await loadCanvasBoards();
+    setCanvasStatus(`已创建项目：${data.project.name}`);
+  } catch (error) {
+    setCanvasStatus(error.message);
+  }
+}
+
+async function renameCanvasProject(projectId, name) {
+  if (!projectId || !name) return;
+  try {
+    const response = await fetch(`/api/canvas/projects/${encodeURIComponent(projectId)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "项目重命名失败");
+    await loadCanvasBoards();
+    setCanvasStatus(`项目已重命名：${data.project.name}`);
+  } catch (error) {
+    setCanvasStatus(error.message);
+  }
+}
+
+function promptMoveCanvasBoard(boardId) {
+  const board = canvasState.boards.find((item) => item.id === boardId);
+  const panel = document.querySelector("#canvasProjectMovePanel");
+  const select = document.querySelector("#canvasProjectMoveSelect");
+  if (!board || board.isOwner === false || !panel || !select) return;
+  canvasState.boardMoveId = boardId;
+  select.innerHTML = "";
+  canvasState.projects.forEach((project) => {
+    const option = document.createElement("option");
+    option.value = project.id;
+    option.textContent = project.name;
+    option.selected = project.id === board.projectId;
+    select.append(option);
+  });
+  panel.hidden = false;
+  requestAnimationFrame(() => select.focus());
+}
+
+function closeCanvasProjectMovePanel() {
+  const panel = document.querySelector("#canvasProjectMovePanel");
+  if (panel) panel.hidden = true;
+  canvasState.boardMoveId = null;
+}
+
+function submitCanvasProjectMove(event) {
+  event.preventDefault();
+  const boardId = canvasState.boardMoveId;
+  const projectId = document.querySelector("#canvasProjectMoveSelect")?.value || "";
+  closeCanvasProjectMovePanel();
+  if (!boardId || !projectId) return;
+  moveCanvasToProject(boardId, projectId)
+    .then(() => setCanvasStatus("画布已移动到新项目。"))
+    .catch((error) => setCanvasStatus(error.message));
+}
+
+async function loadCanvasWorkspace({ scope = canvasState.canvasScope, projectId = canvasState.activeProjectId } = {}) {
+  canvasState.canvasScope = scope;
+  canvasState.activeProjectId = projectId || "";
+  canvasState.boardView = scope === "trash" ? "trash" : "active";
+  setCanvasAppScreen("library");
+  await loadCanvasBoards();
+  renderCanvasWorkspace();
+  return { projects: canvasState.projects, boards: canvasState.boards, trash: canvasState.trashedBoards };
+}
+
+function renderCanvasWorkspace() {
+  renderCanvasBoardList();
+  return { scope: canvasState.canvasScope, projectId: canvasState.activeProjectId };
+}
+
+function openCanvasProjectDialog() {
+  promptCreateCanvasProject();
+}
+
+async function moveCanvasToProject(boardId, projectId) {
+  const response = await fetch(`${CANVAS_BOARDS_API_URL}/${encodeURIComponent(boardId)}/project`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ projectId }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || "画布移动失败");
+  await loadCanvasBoards();
+  renderCanvasWorkspace();
+  return data;
+}
+
+function cloneCanvasConnectionWithMappedNodes(connection, idMap) {
+  const from = idMap.get(String(connection?.from));
+  const to = idMap.get(String(connection?.to));
+  if (!from || !to) return null;
+  return {
+    from,
+    fromPort: connection.fromPort || "output",
+    to,
+    toPort: connection.toPort || "input",
+  };
+}
+
+function nextCanvasPasteOffset(clipboard) {
+  // DX OS advances both axes by 28 per paste and resets on a fresh copy.
+  clipboard.pasteCount = (Number(clipboard.pasteCount) || 0) + 1;
+  return 28 * clipboard.pasteCount;
+}
+
+function isLegacyCanvasComfyGenerator(item = {}) {
+  return ["image", "generator"].includes(String(item.kind || ""))
+    && item.uploadOnly !== true
+    && String(item.engine || "").toLowerCase() === "comfyui"
+    && !String(item.imageSrc || "").trim();
+}
+
 function pasteCanvasNodes(event) {
+  if (isCanvasTypingTarget(document.activeElement)) return;
+  if (canvasState.selectionActionPromise) {
+    event.preventDefault();
+    const pending = canvasState.selectionActionPromise;
+    canvasState.selectionActionPromise = null;
+    pending.then(() => pasteCanvasNodes({ preventDefault() {} }));
+    return;
+  }
   if (!canvasState.clipboard || isCanvasTypingTarget(document.activeElement)) return;
   event.preventDefault();
+  if (canvasState.clipboard.nodes.length > 120) {
+    pasteCanvasModelClipboard();
+    return;
+  }
+  const offset = nextCanvasPasteOffset(canvasState.clipboard);
   const idMap = new Map();
   const pasted = [];
-  canvasState.clipboard.nodes.forEach((item) => {
-    const node = createCanvasNode(getCanvasCreateKindFromSerialized(item.kind));
+  canvasState.clipboard.nodes.forEach((legacyItem) => {
+    const item = migrateLegacyCanvasGalleryItem(legacyItem);
+    const legacyComfyGenerator = isLegacyCanvasComfyGenerator(item);
+    const node = createCanvasNode(legacyComfyGenerator ? "comfy" : getCanvasCreateKindFromSerialized(item.kind));
     idMap.set(String(item.id), node.dataset.id);
-    node.dataset.x = String(Number(item.x || 0) + 48);
-    node.dataset.y = String(Number(item.y || 0) + 48);
+    node.dataset.x = String(Number(item.x || 0) + offset);
+    node.dataset.y = String(Number(item.y || 0) + offset);
     if (item.width) node.dataset.width = String(item.width);
     if (item.height) node.dataset.height = String(item.height);
     if (item.kind === "text") {
+      node.dataset.textName = String(item.textName || "文字").replace(/\s+/g, " ").trim().slice(0, 80) || "文字";
       renderCanvasTextNode(node, item.text || "写下一个想法");
+    } else if (item.kind === "note") {
+      renderCanvasNoteNode(node, { text: item.text || "", color: item.noteColor });
     } else if (item.kind === "group") {
       renderCanvasGroupNode(node, {
         title: item.groupTitle || "图片组",
         memberIds: Array.isArray(item.groupMembers) ? item.groupMembers : [],
         images: Array.isArray(item.groupImages) ? item.groupImages : [],
       });
-    } else if (item.kind === "gallery") {
-      renderCanvasGalleryNode(node, {
-        title: item.galleryTitle || "生成图集",
-        images: Array.isArray(item.galleryImages) ? item.galleryImages : [],
-        activeImageId: item.galleryActiveImageId || "",
-        columns: item.galleryColumns ?? null,
-        gap: item.galleryGap ?? null,
-      });
+    } else if (item.kind === "gallery-container") {
+      renderCanvasGalleryContainerNode(node, item.galleryContainer || {});
+    } else if (item.kind === "asset-collection") {
+      renderCanvasAssetCollectionNode(node, item.assetCollection || {});
     } else if (item.kind === "grid-editor") {
       renderCanvasGridEditorNode(node, { ...(item.gridEditorState || {}), editing: false });
     } else if (item.kind === "llm") {
@@ -12558,8 +15692,33 @@ function pasteCanvasNodes(event) {
       node.dataset.minimaxH3ImageOrder = JSON.stringify(item.minimaxH3ImageOrder || []);
       node.dataset.minimaxH3VideoOrder = JSON.stringify(item.minimaxH3VideoOrder || []);
       node.dataset.minimaxH3AudioOrder = JSON.stringify(item.minimaxH3AudioOrder || []);
+    } else if (item.kind === "video-api") {
+      renderCanvasApiVideoNode(node, {
+        prompt: item.apiVideoPrompt || "",
+        model: item.apiVideoModel || "",
+        ratio: item.apiVideoRatio || "",
+        resolution: item.apiVideoResolution || "",
+        duration: item.apiVideoDuration || "",
+        taskId: item.apiVideoTaskId || "",
+      });
+    } else if (item.kind === "midjourney") {
+      renderCanvasMidjourneyNode(node, {
+        operation: item.midjourneyOperation || "imagine",
+        prompt: item.midjourneyPrompt || "",
+        model: item.midjourneyModel || "",
+        size: item.midjourneySize || "1:1",
+        version: item.midjourneyVersion || MIDJOURNEY_DEFAULT_OPTIONS.version,
+        speed: item.midjourneySpeed || MIDJOURNEY_DEFAULT_OPTIONS.speed,
+      });
+      if (Array.isArray(item.refOrder)) setCanvasNodeRefOrder(node, item.refOrder);
     } else if (item.kind === "video-output") {
       renderCanvasVideoOutputNode(node, getCanvasVideoOutputRenderOptions(item));
+    } else if (item.kind === "director-3d") {
+      renderCanvasDirector3dNode(node, {
+        project: item.directorProject || null,
+        previewSrc: item.directorPreviewSrc || "",
+      });
+      node.dataset.directorSceneName = item.directorSceneName || "";
     } else if (item.kind === "video") {
       renderCanvasVideoNode(node, {
         src: item.mediaSrc || item.videoSrc || "",
@@ -12574,20 +15733,32 @@ function pasteCanvasNodes(event) {
         mimeType: item.mediaMimeType || "audio/mpeg",
         duration: item.mediaDuration || 0,
       });
-    } else if (item.kind === "comfy") {
+    } else if (item.kind === "comfy" || legacyComfyGenerator) {
       renderCanvasComfyNode(node, {
-        mode: item.comfyMode || "upscale2",
-        resolution: isCanvasComfyResolutionMode(item.comfyMode) ? (item.comfyResolution || "2048") : "2048",
+        mode: item.comfyMode || item.comfyWorkflow || "upscale2",
+        resolution: isCanvasComfyResolutionMode(item.comfyMode || item.comfyWorkflow) ? (item.comfyResolution || item.resolution || "2048") : "2048",
         padding: item.comfyPadding,
         qwenAngle: item.comfyQwenAngle,
       });
+      node.dataset.comfyPrompt = item.comfyPrompt || item.prompt || "";
+      node.dataset.canvasGenerationPrompt = item.canvasGenerationPrompt || node.dataset.comfyPrompt || "";
       if (Array.isArray(item.refOrder)) setCanvasNodeRefOrder(node, item.refOrder);
     } else if (item.kind === "loop") {
       renderCanvasLoopNode(node);
       if (Array.isArray(item.refOrder)) setCanvasNodeRefOrder(node, item.refOrder);
     } else {
+      if (!item.uploadOnly) {
+        node.dataset.canvasEngine = "api";
+        node.dataset.canvasNodeType = "api";
+        node.dataset.canvasPlatform = item.platform || getImageModelPlatform(item.model) || "openai";
+        node.dataset.modelSelection = item.modelSelection || "exact";
+      }
+      if (item.modelParameters && typeof item.modelParameters === "object") {
+        node.dataset.canvasModelParameters = JSON.stringify(item.modelParameters);
+      }
       if (item.uploadOnly) renderCanvasUploadNode(node, { src: item.imageSrc || "", name: item.imageName || "图片节点" });
-      else renderCanvasImageNode(node, { src: item.imageSrc || "", name: item.imageName || "图片卡片" });
+      else if (item.imageSrc) renderCanvasImageNode(node, { src: item.imageSrc, name: item.imageName || "图片卡片" });
+      else renderCanvasApiNode(node, { name: item.imageName || "API 生成" });
       if (item.originalSrc) node.dataset.originalSrc = item.originalSrc;
       if (item.maskSrc) node.dataset.maskSrc = item.maskSrc;
       if (item.maskName) node.dataset.maskName = item.maskName;
@@ -12603,6 +15774,10 @@ function pasteCanvasNodes(event) {
         if (item.model) node.dataset.canvasModel = item.model;
         const model = node.querySelector(".canvas-node-model");
         if (model && item.model) model.value = item.model;
+        if (model) {
+          model.dataset.modelSelection = node.dataset.modelSelection || "exact";
+          enhanceCanvasImageModelSelect(model)?.refresh();
+        }
         const size = node.querySelector(".canvas-node-size");
         if (size && item.size) {
           size.value = item.size;
@@ -12620,25 +15795,25 @@ function pasteCanvasNodes(event) {
           style: item.midjourneyStyle,
           stylize: item.midjourneyStylize,
         });
+        syncCanvasModelParameterOptions(node, node.dataset.canvasModel || model?.value || item.model || "", item.modelParameters || {});
       }
     }
     applyCanvasNodeSize(node);
     placeCanvasNode(node);
     pasted.push(node);
   });
-  canvasState.clipboard.connections.forEach((item) => {
-    const from = idMap.get(String(item.from));
-    const to = idMap.get(String(item.to));
-    if (from && to) canvasState.connections.push({ from, to, toPort: item.toPort || "input" });
-  });
+  canvasState.clipboard.connections
+    .map((item) => cloneCanvasConnectionWithMappedNodes(item, idMap))
+    .filter(Boolean)
+    .forEach((item) => canvasState.connections.push(item));
   canvasState.clipboard.externalConnections?.forEach((item) => {
     if (item.selectedSide === "from" && getCanvasNode(item.to)) {
       const from = idMap.get(String(item.from));
-      if (from) canvasState.connections.push({ from, to: item.to, toPort: item.toPort || "input" });
+      if (from) canvasState.connections.push({ from, fromPort: item.fromPort || "output", to: item.to, toPort: item.toPort || "input" });
     }
     if (item.selectedSide === "to" && getCanvasNode(item.from)) {
       const to = idMap.get(String(item.to));
-      if (to) canvasState.connections.push({ from: item.from, to, toPort: item.toPort || "input" });
+      if (to) canvasState.connections.push({ from: item.from, fromPort: item.fromPort || "output", to, toPort: item.toPort || "input" });
     }
   });
   pasted.forEach((node) => {
@@ -12676,19 +15851,37 @@ async function handleCanvasClipboardPaste(event) {
   if (!imageFiles.length && !text) return;
 
   event.preventDefault();
-  const basePoint = getCanvasViewportCenterPoint();
+  const center = getCanvasViewportCenterPoint();
+  const boardId = canvasState.activeBoardId;
+  const clipboardEpoch = canvasState.externalClipboardEpoch || 0;
+  const signature = JSON.stringify([imageFiles.map(file => [file.name, file.type, file.size]), text]);
+  let sequence = canvasState.externalClipboard;
+  if (!sequence || sequence.signature !== signature || sequence.boardId !== boardId
+    || Math.hypot(sequence.center.x - center.x, sequence.center.y - center.y) > 1) {
+    sequence = { signature, boardId, center, count: 0 };
+    canvasState.externalClipboard = sequence;
+  }
+  // Reserve before awaiting uploads so rapid paste events cannot share a slot.
+  const offset = sequence.count * 28;
+  sequence.count += imageFiles.length + (text ? 1 : 0);
+  const basePoint = { x: center.x + offset, y: center.y + offset };
   const created = [];
-  for (const [index, file] of imageFiles.entries()) {
-    const url = await uploadCanvasImageFile(file);
-    created.push(addCanvasImage(url, file.name || `剪贴板图片 ${index + 1}.png`, {
-      x: basePoint.x + index * 34,
-      y: basePoint.y + index * 34,
-    }));
+  if (imageFiles.length) {
+    // Clipboard pictures land in the unified material node too.
+    const node = addCanvasAssetCollection({
+      x: basePoint.x,
+      y: basePoint.y,
+    }, { title: "素材", mode: imageFiles.length === 1 ? "single" : "collection" });
+    for (const file of imageFiles) {
+      await fillCanvasAssetCollectionFromFile(node, file);
+      if (canvasState.activeBoardId !== boardId || (canvasState.externalClipboardEpoch || 0) !== clipboardEpoch) return;
+    }
+    created.push(node);
   }
   if (text) {
     created.push(addCanvasText({
-      x: basePoint.x + imageFiles.length * 34,
-      y: basePoint.y + imageFiles.length * 34,
+      x: basePoint.x + (imageFiles.length ? 28 : 0),
+      y: basePoint.y + (imageFiles.length ? 28 : 0),
     }, { text, focus: false }));
   }
   clearCanvasSelection();
@@ -12703,7 +15896,7 @@ function isCanvasTypingTarget(target) {
 
 function isCanvasWheelControlTarget(target) {
   if (!target?.closest) return false;
-  if (target.closest("textarea, input, [contenteditable='true'], .canvas-custom-size-field, .canvas-board-panel")) return true;
+  if (target.closest("textarea, input, [contenteditable='true'], .canvas-custom-size-field, .canvas-library-screen")) return true;
   const select = target.closest("select");
   if (!select) return false;
   try {
@@ -12714,8 +15907,8 @@ function isCanvasWheelControlTarget(target) {
 }
 
 function handleCanvasBoardPanelWheel(event) {
-  const panel = document.querySelector("#canvasBoardPanel");
-  if (!panel || panel.hidden) return;
+  const library = document.querySelector("#canvasLibraryScreen");
+  if (!library || library.hidden) return;
   const list = document.querySelector("#canvasBoardList");
   if (!list) return;
   event.preventDefault();
@@ -12727,6 +15920,10 @@ function handleCanvasBoardPanelWheel(event) {
 function createCanvasGroupFromSelection(event) {
   if (event) event.preventDefault();
   if (isCanvasTypingTarget(document.activeElement)) return;
+  if (hasCanvasSceneSelection()) {
+    createCanvasSceneGroup().catch(error => setCanvasStatus(error.message));
+    return;
+  }
   const selected = getSelectedCanvasNodes()
     .filter((node) => !node.classList.contains("canvas-node-group") && !node.closest(".canvas-node-group"));
   const imageNodes = selected.filter((node) => {
@@ -12766,7 +15963,11 @@ function createCanvasGroupFromSelection(event) {
 
 function mergeGroupedImageConnections(groupNode, memberNodes) {
   if (!groupNode || !memberNodes?.length) return;
-  const memberIds = new Set(memberNodes.map((node) => String(node.dataset.id)));
+  return mergeGroupedImageConnectionsByIds(groupNode, memberNodes.map(node => String(node.dataset.id)));
+}
+
+function mergeGroupedImageConnectionsByIds(groupNode, ids) {
+  const memberIds = new Set(ids);
   const outgoing = canvasState.connections.filter((item) => memberIds.has(String(item.from)));
   if (!outgoing.length) return;
 
@@ -12780,7 +15981,7 @@ function mergeGroupedImageConnections(groupNode, memberNodes) {
   const replacementTargets = [];
   targetGroups.forEach((items) => {
     const connectedMemberIds = new Set(items.map((item) => String(item.from)));
-    const allMembersConnected = memberNodes.every((node) => connectedMemberIds.has(String(node.dataset.id)));
+    const allMembersConnected = ids.every(id => connectedMemberIds.has(id));
     if (allMembersConnected) {
       replacementTargets.push({
         to: items[0].to,
@@ -12879,12 +16080,19 @@ function reorderCanvasGroupImage(node, fromIndex, toIndex) {
 }
 
 function getCanvasGroupImages(node) {
+  const fallback = getCanvasGroupFallbackImages(node);
   const memberImages = getCanvasGroupMemberIds(node)
-    .map((id) => getCanvasNode(id))
-    .map(getCanvasNodeOutput)
+    .map((id, index) => {
+      const mounted = getCanvasNode(id);
+      if (mounted) return getCanvasNodeOutput(mounted);
+      const model = canvasVirtualStore.get(id);
+      const url = model?.resultSrc || model?.imageSrc || fallback[index]?.url;
+      return url && !canvasPagedStore.deletedNodeIds.has(id)
+        ? { type: "image", name: model?.imageName || fallback[index]?.name, url } : null;
+    })
     .filter((item) => item?.type === "image");
   if (memberImages.length) return memberImages.map((item) => ({ name: item.name || "参考图", url: item.url }));
-  return getCanvasGroupFallbackImages(node);
+  return getCanvasGroupMemberIds(node).length ? [] : fallback;
 }
 
 function getCanvasGroupFallbackImages(node) {
@@ -12909,10 +16117,24 @@ function setCanvasGroupImages(node, images) {
 function addCanvasText(point, options = {}) {
   const node = createCanvasNode("text");
   if (point) setCanvasNodePoint(node, point);
-  renderCanvasTextNode(node, options.text || "写下一个想法");
+  node.dataset.textName = String(options.name || "文字").replace(/\s+/g, " ").trim().slice(0, 80) || "文字";
+  renderCanvasTextNode(node, options.text || "");
   placeCanvasNode(node);
   scheduleCanvasSave();
   const text = node.querySelector(".canvas-text");
+  if (text && options.focus !== false) {
+    focusCanvasText(text);
+  }
+  return node;
+}
+
+function addCanvasNote(point, options = {}) {
+  const node = createCanvasNode("note");
+  if (point) setCanvasNodePoint(node, point);
+  renderCanvasNoteNode(node, { text: options.text || "", color: options.color });
+  placeCanvasNode(node);
+  scheduleCanvasSave();
+  const text = node.querySelector(".canvas-note-text");
   if (text && options.focus !== false) {
     text.focus();
     const range = document.createRange();
@@ -12938,30 +16160,21 @@ function getAgentCanvasNodeSize(node) {
   };
 }
 
-function getAgentCanvasOpenRowPoints(sizes, gap = 90, excludedNodes = []) {
+function getAgentCanvasOccupiedRects(excludedNodes = []) {
   const excluded = new Set(excludedNodes);
-  const center = getCanvasViewportCenterPoint();
-  const offsets = [
-    { x: 0, y: 0 },
-    { x: 0, y: 120 },
-    { x: 0, y: -120 },
-    { x: 140, y: 0 },
-    { x: -140, y: 0 },
-    { x: 0, y: 240 },
-  ];
-  const occupied = Array.from(document.querySelectorAll("#canvasPlane .canvas-node"))
+  return Array.from(document.querySelectorAll("#canvasPlane .canvas-node"))
     .filter((node) => !excluded.has(node))
     .map((node) => ({
       x: Number(node.dataset.x || 0),
       y: Number(node.dataset.y || 0),
       ...getAgentCanvasNodeSize(node),
     }));
-  for (const offset of offsets) {
-    const points = window.CanvasAgentCore.planCenteredRowLayout(
-      { x: center.x + offset.x, y: center.y + offset.y },
-      sizes,
-      gap,
-    );
+}
+
+function findAgentCanvasOpenRowPoints(centers, sizes, gap = 90, excludedNodes = []) {
+  const occupied = getAgentCanvasOccupiedRects(excludedNodes);
+  for (const center of centers) {
+    const points = window.CanvasAgentCore.planCenteredRowLayout(center, sizes, gap);
     const blocked = points.some((point, index) => occupied.some((rect) => {
       const size = sizes[index];
       const padding = 28;
@@ -12972,7 +16185,89 @@ function getAgentCanvasOpenRowPoints(sizes, gap = 90, excludedNodes = []) {
     }));
     if (!blocked) return points;
   }
+  return null;
+}
+
+function getAgentCanvasOpenRowPoints(sizes, gap = 90, excludedNodes = []) {
+  const center = getCanvasViewportCenterPoint();
+  const width = Math.max(1, ...sizes.map((size) => Number(size?.width) || 320));
+  const height = Math.max(1, ...sizes.map((size) => Number(size?.height) || 260));
+  const stepX = width + gap;
+  const stepY = height + gap;
+  // New Agent nodes belong in empty canvas space: sweep outward from the
+  // viewport centre in whole node steps so the first free slot wins.
+  const offsets = [];
+  for (let dx = -2; dx <= 2; dx += 1) {
+    for (let dy = -2; dy <= 2; dy += 1) offsets.push({ dx, dy, distance: dx * dx * 1.5 + dy * dy });
+  }
+  offsets.sort((left, right) => left.distance - right.distance);
+  const centers = offsets.map(({ dx, dy }) => ({
+    x: center.x + dx * stepX,
+    y: center.y + dy * stepY,
+  }));
+  const open = findAgentCanvasOpenRowPoints(centers, sizes, gap, excludedNodes);
+  if (open) return open;
+  const occupied = getAgentCanvasOccupiedRects(excludedNodes);
+  if (occupied.length) {
+    const bottom = occupied.reduce((value, rect) => Math.max(value, rect.y + rect.height), center.y);
+    const left = occupied.reduce((value, rect) => Math.min(value, rect.x), center.x);
+    const below = findAgentCanvasOpenRowPoints(
+      [{ x: left, y: bottom + gap + height }],
+      sizes,
+      gap,
+      excludedNodes,
+    );
+    if (below) return below;
+  }
   return window.CanvasAgentCore.planCenteredRowLayout(center, sizes, gap);
+}
+
+function getAgentCanvasDownstreamRowPoints(referenceNodes, sizes, gap = 90, excludedNodes = []) {
+  const references = (Array.isArray(referenceNodes) ? referenceNodes : []).filter(Boolean);
+  if (!references.length) return getAgentCanvasOpenRowPoints(sizes, gap, excludedNodes);
+  const bounds = references.reduce((result, node) => {
+    const size = getAgentCanvasNodeSize(node);
+    const x = Number(node.dataset.x || 0);
+    const y = Number(node.dataset.y || 0);
+    return {
+      left: Math.min(result.left, x),
+      right: Math.max(result.right, x + size.width),
+      top: Math.min(result.top, y),
+      bottom: Math.max(result.bottom, y + size.height),
+    };
+  }, { left: Infinity, right: -Infinity, top: Infinity, bottom: -Infinity });
+  const totalWidth = (Array.isArray(sizes) ? sizes : []).reduce((sum, size) => sum + Math.max(1, Number(size?.width) || 320), 0)
+    + Math.max(0, Number(gap) || 0) * Math.max(0, sizes.length - 1);
+  const centers = [];
+  for (let column = 0; column < 24; column += 1) {
+    const x = bounds.right + gap + totalWidth / 2 + column * (totalWidth + gap + 120);
+    for (const yOffset of [0, 280, -280, 560, -560, 840, -840]) {
+      centers.push({ x, y: (bounds.top + bounds.bottom) / 2 + yOffset });
+    }
+  }
+  return findAgentCanvasOpenRowPoints(centers, sizes, gap, excludedNodes)
+    || getAgentCanvasOpenRowPoints(sizes, gap, excludedNodes);
+}
+
+function placeAgentCanvasNodesAfterReferences(nodes, referenceNodes = [], gap = 90) {
+  const targets = (Array.isArray(nodes) ? nodes : []).filter(Boolean);
+  if (!targets.length) return;
+  const references = (Array.isArray(referenceNodes) ? referenceNodes : []).filter(Boolean);
+  if (!references.length) {
+    centerAgentCanvasNodesInViewport(targets, gap);
+    return;
+  }
+  const points = getAgentCanvasDownstreamRowPoints(
+    references,
+    targets.map(getAgentCanvasNodeSize),
+    gap,
+    targets,
+  );
+  targets.forEach((node, index) => {
+    setCanvasNodePoint(node, points[index]);
+    updateCanvasNodePosition(node);
+  });
+  scheduleCanvasConnectionRender();
 }
 
 function centerAgentCanvasNodesInViewport(nodes, gap = 90) {
@@ -12986,46 +16281,324 @@ function centerAgentCanvasNodesInViewport(nodes, gap = 90) {
   scheduleCanvasConnectionRender();
 }
 
-function focusAgentCanvasNodesInViewport(nodes) {
-  const targets = (Array.isArray(nodes) ? nodes : []).filter(Boolean);
+function computeAgentCanvasFocusTransform(targets) {
   const bounds = getCanvasNodesBounds(targets);
   const viewport = document.querySelector("#infiniteCanvas");
-  if (!bounds || !viewport) return false;
+  const rules = window.CanvasAgentFocusRules;
+  if (!bounds || !viewport || !rules?.calculateFocusTransform) return null;
   const rect = viewport.getBoundingClientRect();
-  const centerX = (bounds.left + bounds.right) / 2;
-  const centerY = (bounds.top + bounds.bottom) / 2;
-  canvasState.x = rect.width / 2 - centerX * canvasState.scale;
-  canvasState.y = rect.height / 2 - centerY * canvasState.scale;
-  clearCanvasSelection();
-  targets.forEach((node) => {
-    addCanvasNodeToSelection(node);
-    node.classList.add("is-agent-focus");
+  const panel = document.querySelector("#canvasAgentPanel");
+  const panelRect = panel?.getBoundingClientRect?.();
+  const panelVisible = Boolean(document.querySelector(".canvas-workspace")?.classList.contains("canvas-agent-open"))
+    && CanvasGeometryRules.rectsIntersect(panelRect, rect);
+  const availableWidth = panelVisible
+    ? Math.max(1, Math.min(rect.width, panelRect.left - rect.left))
+    : Math.max(1, rect.width);
+  return rules.calculateFocusTransform({
+    bounds,
+    viewport: { width: availableWidth, height: Math.max(1, rect.height) },
+    currentScale: canvasState.scale,
+    targetCount: targets.length,
   });
+}
+
+function applyAgentCanvasFocusTransform(transform) {
+  canvasState.x = transform.x;
+  canvasState.y = transform.y;
+  canvasState.scale = transform.scale;
   scheduleCanvasTransform();
   scheduleCanvasViewportSave();
+}
+
+function highlightAgentCanvasFocus(targets) {
+  clearTimeout(canvasAgentFocusTimer);
+  targets.forEach((node) => node.classList.add("is-agent-focus"));
+  canvasAgentFocusTimer = setTimeout(() => {
+    targets.forEach((node) => node.classList.remove("is-agent-focus"));
+    canvasAgentFocusTimer = 0;
+  }, 1400);
+}
+
+function focusAgentCanvasNodesInViewport(nodes) {
+  const targets = (Array.isArray(nodes) ? nodes : []).filter(Boolean);
+  const transform = computeAgentCanvasFocusTransform(targets);
+  if (!transform) return false;
+  const targetCoordinates = targets.map((node) => ({
+    node,
+    x: node.dataset.x,
+    y: node.dataset.y,
+  }));
+  clearCanvasSelection();
+  targets.forEach((node) => addCanvasNodeToSelection(node));
+  highlightAgentCanvasFocus(targets);
+  if (targetCoordinates.some(({ node, x, y }) => node.dataset.x !== x || node.dataset.y !== y)) {
+    console.warn("Agent focus must not move canvas nodes.");
+  }
+  applyAgentCanvasFocusTransform(transform);
   return true;
 }
 
-function renderCanvasTextNode(node, content = "写下一个想法") {
-  node.innerHTML = "";
-  const inputPort = createCanvasPort("input");
-  const outputPort = createCanvasPort("output");
-  const text = document.createElement("div");
-  text.className = "canvas-text";
-  text.contentEditable = "true";
-  text.textContent = content || "写下一个想法";
-  text.addEventListener("pointerdown", (event) => {
-    event.stopPropagation();
+let canvasAgentAutoFocusTimer = 0;
+let canvasAgentAutoFocusNodes = [];
+
+// A node the Agent just created is only useful once it is on screen, so the
+// viewport follows it. The focus is viewport-only (no selection side effects)
+// and coalesced, because one turn may create several nodes in a row.
+function scheduleAgentCanvasAutoFocus(nodes) {
+  const targets = (Array.isArray(nodes) ? nodes : []).filter(Boolean);
+  if (!targets.length) return;
+  targets.forEach((node) => {
+    if (!canvasAgentAutoFocusNodes.includes(node)) canvasAgentAutoFocusNodes.push(node);
   });
-  text.addEventListener("wheel", stopCanvasTextWheel);
-  text.addEventListener("blur", scheduleCanvasSave);
-  node.append(inputPort, outputPort, createCanvasNodeBar("文字"), text, createCanvasResizeHandle());
-  syncCanvasTextFromLlmInputs(node);
-  scheduleCanvasConnectionRender();
+  if (canvasAgentAutoFocusTimer) return;
+  canvasAgentAutoFocusTimer = setTimeout(() => {
+    canvasAgentAutoFocusTimer = 0;
+    const pending = canvasAgentAutoFocusNodes.filter((node) => node.isConnected);
+    canvasAgentAutoFocusNodes = [];
+    if (!pending.length) return;
+    const transform = computeAgentCanvasFocusTransform(pending);
+    if (!transform) return;
+    highlightAgentCanvasFocus(pending);
+    applyAgentCanvasFocusTransform(transform);
+  }, 220);
+}
+
+function getCanvasNodePluginContext() {
+  return {
+    document,
+    GridSlicingRules,
+    CANVAS_GENERATION_FAMILIES,
+    CANVAS_MIDJOURNEY_OPERATIONS,
+    CANVAS_MIDJOURNEY_SPEEDS,
+    MIDJOURNEY_DEFAULT_OPTIONS,
+    MIDJOURNEY_IMAGE_RATIOS,
+    MIDJOURNEY_STANDARD_VERSIONS,
+    MINIMAX_H3_ASPECT_RATIOS,
+    canvasImageModelPickers,
+    canvasState,
+    cardWidth: CANVAS_DIRECTOR3D_CARD_WIDTH,
+    appendCanvasGridEditorBands,
+    canvasGridEditorWheelTimers,
+    clearCanvasGridEditor,
+    closeCanvasH3MentionMenu,
+    createId,
+    createCanvasCustomSizeField,
+    createCanvasMidjourneyOptions,
+    createCanvasModelParameterOptions,
+    createCanvasNodeBar,
+    createCanvasPort,
+    createCanvasResizeHandle,
+    createCanvasResultDownload,
+    createCanvasComfyOutpaintArea,
+    createCanvasComfyQwenAngleFields,
+    createCanvasGridEditorTrackTemplate,
+    createCanvasH3Number,
+    createCanvasH3Select,
+    createDeferredThumbnail,
+    enhanceCanvasImageModelSelect,
+    fillCanvasNodeModelSelect,
+    fillCanvasNodeResolutionSelect,
+    fillCanvasNodeSizeSelect,
+    getImageModelPlatform,
+    imageModelInput,
+    imageResolutionInput,
+    imageSizeInput,
+    isCanvasComfyResolutionMode,
+    scheduleCanvasConnectionRender,
+    scheduleCanvasSave,
+    stopCanvasTextWheel,
+    syncCanvasNodeModel,
+    deleteCanvasNodes,
+    applyCanvasNodeSize,
+    hasCanvasNodeIncomingConnection: (node) =>
+      canvasState.connections.some((item) => item.to === node?.dataset?.id),
+    registerCanvasDetailImage,
+    selectCanvasNode,
+    uniqueCanvasImageName,
+    ensureCanvasNodeChrome,
+    fillCanvasAssetCollectionFromFile,
+    fillCanvasApiVideoModelSelect,
+    fillCanvasMidjourneyModelSelect,
+    getCanvasGridEditorRegions,
+    getCanvasGridEditorState,
+    canvasDirector3dCore,
+    canvasDirector3dSceneName,
+    bindCanvasGalleryContainerMemberDrag,
+    collectCanvasGalleryReusableImages,
+    createCanvasLlmPresetBar,
+    defaultModel: chatModelInput?.value || CANVAS_LLM_MODELS[0],
+    fillCanvasLlmModelSelect,
+    getCanvasGalleryContainer,
+    getCanvasGalleryContainerRenderState,
+    getCanvasGalleryImageSyncLabel,
+    getCanvasImageIntrinsicDimensions,
+    getCanvasLlmImages,
+    getCanvasVideoHistory,
+    getCanvasVideoLegacyItem,
+    handleCanvasH3MentionKeydown,
+    isCanvasGalleryImageReady,
+    normalizeCanvasGridEditorState,
+    normalizeCanvasGalleryContainer,
+    normalizeCanvasComfyPadding,
+    normalizeCanvasComfyQwenAngle,
+    normalizeCanvasComfyResolution,
+    openPreview,
+    openCanvasDirector3dWorkbench,
+    outputCanvasGridEditorGallery,
+    reconcilePersistedCanvasGalleryContainerSyncStates,
+    recoverCanvasGalleryContainerMember,
+    removeCanvasAssetCollectionMember,
+    renderCanvasLlmImages,
+    renderCanvasMinimaxH3References,
+    renderCanvasNodeIcons,
+    readCanvasDirector3dProject,
+    readCanvasMidjourneyOperation,
+    readCanvasModelParameters,
+    rememberConcreteImageResolution,
+    runCanvasLlmNode,
+    runCanvasApiVideoNode,
+    runCanvasComfyNode,
+    runCanvasImageEdit,
+    runCanvasMidjourneyNode,
+    runCanvasMinimaxH3Node,
+    setCanvasAssetCollectionStatus,
+    setCanvasGridEditorBandGap,
+    setCanvasGridEditorCellZoom,
+    setCanvasGridEditorCollapsed,
+    setCanvasGridEditorState,
+    setCanvasGridEditorUniformGap,
+    setCanvasComfyPadding,
+    setCanvasComfyQwenAngle,
+    setCanvasComfyResolutionFieldVisible,
+    setCanvasStatus,
+    setCanvasNodeStatus,
+    setCanvasVideoHistoryOpen,
+    setCanvasVideoHistoryState,
+    syncCanvasGalleryMemberIntrinsicSize,
+    syncCanvasComfyResolutionOptions,
+    syncCanvasApiVideoControls,
+    syncCanvasApiVideoPrompt,
+    syncCanvasApiVideoRunButton,
+    syncCanvasMinimaxH3Prompt,
+    syncCanvasMidjourneyControls,
+    syncCanvasMidjourneyOptions,
+    syncCanvasModelParameterOptions,
+    syncCanvasNodeResolutionState,
+    syncCanvasCustomSizeField,
+    takeCanvasGalleryReusableImage,
+    startCanvasGridEditorBandDrag,
+    startCanvasGridEditorCellPan,
+    toggleCanvasGridEditorPopover,
+    updateCanvasVideoHistoryDuration,
+    writeCanvasDirector3dProject,
+    updateCanvasNodeRefs,
+    updateCanvasNodeResolutionAvailability,
+    updateCanvasComfyHint,
+    updateCanvasComfyOutpaintPreview,
+    updateCanvasLoopHint,
+    updateCanvasH3MentionFromTextarea,
+    updateCanvasH3ResolutionHint,
+    updateCanvasRunButtonLabel,
+    watchCanvasApiVideoTask,
+    syncCanvasLlmPromptState,
+    syncCanvasTextFromLlmInputs,
+  };
+}
+
+function renderCanvasTextNode(node, content = "写下一个想法") {
+  node.dataset.textName = String(node.dataset.textName || "文字").replace(/\s+/g, " ").trim().slice(0, 80) || "文字";
+  const plugin = window.AiOsCanvasNodePlugins?.get?.("text");
+  if (plugin?.render) {
+    plugin.render(node, content, getCanvasNodePluginContext());
+    return;
+  }
+  const renderer = window.CanvasTextNodeRenderer;
+  if (!renderer?.render) throw new Error("Canvas text node renderer is unavailable.");
+  renderer.render(node, content, getCanvasNodePluginContext());
 }
 
 function stopCanvasTextWheel(event) {
   event.stopPropagation();
+}
+
+const CANVAS_NOTE_COLORS = ["yellow", "pink", "orange", "green", "blue", "purple"];
+const CANVAS_NOTE_COLOR_LABELS = {
+  yellow: "黄色",
+  pink: "粉色",
+  orange: "橙色",
+  green: "绿色",
+  blue: "蓝色",
+  purple: "紫色",
+};
+const CANVAS_NOTE_PLACEHOLDER = "写点什么…";
+
+function normalizeCanvasNoteColor(value) {
+  const plugin = window.AiOsCanvasNodePlugins?.get?.("note");
+  if (plugin?.api?.normalizeColor) return plugin.api.normalizeColor(value);
+  const renderer = window.CanvasNoteNodeRenderer;
+  if (renderer?.normalizeColor) return renderer.normalizeColor(value);
+  const color = String(value || "").trim().toLowerCase();
+  return CANVAS_NOTE_COLORS.includes(color) ? color : "yellow";
+}
+
+function syncCanvasNoteText(node) {
+  const plugin = window.AiOsCanvasNodePlugins?.get?.("note");
+  if (plugin?.api?.syncText) return plugin.api.syncText(node);
+  const renderer = window.CanvasNoteNodeRenderer;
+  if (renderer?.syncText) return renderer.syncText(node);
+  const text = node?.querySelector(".canvas-note-text");
+  if (!text) return "";
+  const value = String(text.textContent || "");
+  node.dataset.noteText = value;
+  text.dataset.empty = value.trim() ? "false" : "true";
+  return value;
+}
+
+function markCanvasNoteColor(node) {
+  const plugin = window.AiOsCanvasNodePlugins?.get?.("note");
+  if (plugin?.api?.markColor) {
+    plugin.api.markColor(node);
+    return;
+  }
+  const renderer = window.CanvasNoteNodeRenderer;
+  if (renderer?.markColor) {
+    renderer.markColor(node);
+    return;
+  }
+  const color = normalizeCanvasNoteColor(node?.dataset.noteColor);
+  node.dataset.noteColor = color;
+  node.querySelectorAll("[data-note-swatch]").forEach((swatch) => {
+    swatch.classList.toggle("is-active", swatch.dataset.noteSwatch === color);
+  });
+}
+
+function setCanvasNoteColor(node, color) {
+  if (!node?.classList?.contains("canvas-node-note")) return;
+  const plugin = window.AiOsCanvasNodePlugins?.get?.("note");
+  if (plugin?.api?.setColor) {
+    plugin.api.setColor(node, color, getCanvasNodePluginContext());
+    return;
+  }
+  const renderer = window.CanvasNoteNodeRenderer;
+  if (renderer?.setColor) {
+    renderer.setColor(node, color, getCanvasNodePluginContext());
+    return;
+  }
+  node.dataset.noteColor = normalizeCanvasNoteColor(color);
+  markCanvasNoteColor(node);
+  syncCanvasNodeModel(node);
+  scheduleCanvasSave();
+}
+
+function renderCanvasNoteNode(node, options = {}) {
+  const plugin = window.AiOsCanvasNodePlugins?.get?.("note");
+  if (plugin?.render) {
+    plugin.render(node, options, getCanvasNodePluginContext());
+    return;
+  }
+  const renderer = window.CanvasNoteNodeRenderer;
+  if (!renderer?.render) throw new Error("Canvas note node renderer is unavailable.");
+  renderer.render(node, options, getCanvasNodePluginContext());
 }
 
 function createCanvasResizeHandle() {
@@ -13043,7 +16616,8 @@ function createCanvasNode(kind) {
   node.dataset.boardId = String(canvasState.activeBoardId || "");
   node.dataset.x = String(-canvasState.x / canvasState.scale + 120 + canvasState.nextNode * 18);
   node.dataset.y = String(-canvasState.y / canvasState.scale + 110 + canvasState.nextNode * 18);
-  node.dataset.id = String(canvasState.nextNode);
+  node.dataset.id = createId();
+  node.dataset.zOrder = String(nextCanvasNodeZOrder());
   canvasState.nextNode += 1;
   canvasNodeResizeObserver?.observe(node);
   return node;
@@ -13054,7 +16628,240 @@ function setCanvasNodePoint(node, point) {
   node.dataset.y = String(point.y);
 }
 
-function createCanvasNodeBar(label) {
+function getCanvasImageNames(excludeNode = null) {
+  const names = [];
+  canvasVirtualStore?.values?.().forEach((model) => {
+    if (!model || !["image", "upload"].includes(String(model.kind || ""))) return;
+    if (excludeNode && String(model.id) === String(excludeNode.dataset.id)) return;
+    if (model.imageName) names.push(model.imageName);
+  });
+  document.querySelectorAll("#canvasPlane .canvas-node.canvas-node-image, #canvasPlane .canvas-node-gallery-container").forEach((node) => {
+    if (node === excludeNode) return;
+    if (node.dataset.imageName) names.push(node.dataset.imageName);
+    if (node.classList.contains("canvas-node-gallery-container")) {
+      getCanvasGalleryContainerMembers(node).forEach((item) => { if (item.name) names.push(item.name); });
+    }
+  });
+  return names;
+}
+
+function uniqueCanvasImageName(node, requested) {
+  const rules = window.CanvasImageName;
+  const base = rules?.normalize ? rules.normalize(requested, "图片") : String(requested || "").trim() || "图片";
+  return rules?.ensureUnique
+    ? rules.ensureUnique(base, getCanvasImageNames(node))
+    : base;
+}
+
+function renameCanvasImage(image, requested) {
+  const node = image?.closest?.(".canvas-node-image, .canvas-node-gallery-container");
+  if (!node) return String(requested || "").trim() || "图片";
+  const member = image.closest(".canvas-gallery-member");
+  if (member && node.classList.contains("canvas-node-gallery-container")) {
+    const memberId = String(member.dataset.galleryMemberId || "");
+    const current = getCanvasGalleryContainer(node);
+    const names = current.members
+      .filter((item) => String(item.id) !== memberId)
+      .map((item) => item.name);
+    const nextName = window.CanvasImageName?.ensureUnique?.(requested, names) || String(requested || "").trim() || "图片";
+    const nextMembers = current.members.map((item) => String(item.id) === memberId ? { ...item, name: nextName } : item);
+    setCanvasGalleryContainer(node, { ...current, members: nextMembers }, { render: true });
+    scheduleCanvasSave();
+    return nextName;
+  }
+  const nextName = uniqueCanvasImageName(node, requested);
+  node.dataset.imageName = nextName;
+  node.querySelectorAll("img[data-canvas-original-src]").forEach((candidate) => { candidate.alt = nextName; });
+  syncCanvasNodeModel(node);
+  scheduleCanvasSave();
+  canvasImageInfo?.refresh({ immediate: true });
+  return nextName;
+}
+
+/* --------------------------------------------------------------------------
+   Node identity, title band and status band.
+
+   Every framed node resolves exactly one entry in CANVAS_NODE_KIND_META, so
+   the title band always renders the same 32px identity badge, the same
+   one-line purpose text and the same 32px status band on the node floor. The
+   badge tone follows the canvas language the reference board uses: nodes that
+   produce or edit content carry the accent badge, nodes that only hold
+   material stay neutral. The chrome is applied once per mounted node, which
+   covers freshly created nodes, boards restored from disk and virtualised
+   remounts (they all funnel through placeCanvasNode).
+   -------------------------------------------------------------------------- */
+
+const CanvasNodeRegistry = window.AiOsCanvasNodeRegistry || null;
+
+const CANVAS_NODE_KIND_META = CanvasNodeRegistry?.getMetaMap?.() || {
+  text: { icon: "type", subtitle: "写下提示词与文案", tone: "accent" },
+  upload: { icon: "image-plus", subtitle: "上传 / 承接", tone: "neutral" },
+  video: { icon: "video", subtitle: "上传 / 承接", tone: "neutral" },
+  audio: { icon: "audio-lines", subtitle: "上传 / 承接", tone: "neutral" },
+  generator: { icon: "sparkles", subtitle: "文生图与图生图", tone: "accent" },
+  midjourney: { icon: "wand-sparkles", subtitle: "Imagine / Edit / Blend", tone: "accent" },
+  comfy: { icon: "workflow", subtitle: "ComfyUI 工作流生成", tone: "accent" },
+  llm: { icon: "bot", subtitle: "文本与视觉问答", tone: "accent" },
+  "minimax-h3": { icon: "clapperboard", subtitle: "文生视频与参考生成", tone: "accent" },
+  "video-api": { icon: "film", subtitle: "API 视频生成", tone: "accent" },
+  "director-3d": { icon: "box", subtitle: "搭建三维场景与机位", tone: "accent" },
+  loop: { icon: "repeat-2", subtitle: "批量提交同一工作流", tone: "accent" },
+  gallery: { icon: "images", subtitle: "生成结果收纳", tone: "neutral" },
+  "asset-video": { icon: "video", subtitle: "上传 / 承接", tone: "neutral" },
+  "asset-audio": { icon: "audio-lines", subtitle: "上传 / 承接", tone: "neutral" },
+  "asset-collection": { icon: "layers-3", subtitle: "图片、视频与音频素材", tone: "neutral" },
+  "video-output": { icon: "play-square", subtitle: "播放与导出视频", tone: "neutral" },
+  "grid-editor": { icon: "layout-grid", subtitle: "宫格排版与导出", tone: "accent" },
+};
+
+const CANVAS_NODE_DEFAULT_STATUS = CanvasNodeRegistry?.getDefaultStatusMap?.() || {
+  text: "待完成",
+  upload: "上传或连接媒体",
+  video: "等待上传",
+  audio: "等待上传",
+  generator: "待完成",
+  midjourney: "待完成",
+  comfy: "待完成",
+  llm: "待完成",
+  "minimax-h3": "待完成",
+  "video-api": "待完成",
+  "director-3d": "待完成",
+  loop: "待完成",
+  "video-output": "等待视频",
+  "asset-video": "上传或连接媒体",
+  "asset-audio": "上传或连接媒体",
+  "asset-collection": "等待素材",
+  "grid-editor": "待完成",
+};
+
+function resolveCanvasNodeKind(node) {
+  const list = node?.classList;
+  // Sticky notes are free-form surfaces and groups are selection frames: both
+  // are registered exceptions to the node skeleton, so they keep no chrome.
+  if (!list || list.contains("canvas-node-note") || list.contains("canvas-node-group")) return "";
+  // A dropped or pasted picture hides its title band and shows only pixels.
+  if (list.contains("canvas-node-frameless")) return "";
+  const registeredKind = CanvasNodeRegistry?.resolveKind?.(node);
+  if (registeredKind !== undefined) return registeredKind;
+  if (list.contains("canvas-node-grid-editor")) return "grid-editor";
+  if (list.contains("canvas-node-director3d")) return "director-3d";
+  if (list.contains("canvas-node-minimax-h3")) return "minimax-h3";
+  if (list.contains("canvas-node-video-api")) return "video-api";
+  if (list.contains("canvas-node-gallery-container")) return "gallery";
+  if (list.contains("canvas-node-asset-single-video")) return "asset-video";
+  if (list.contains("canvas-node-asset-single-audio")) return "asset-audio";
+  if (list.contains("canvas-node-asset-collection")) return "asset-collection";
+  if (list.contains("canvas-node-midjourney")) return "midjourney";
+  if (list.contains("canvas-node-video-output")) return "video-output";
+  if (list.contains("canvas-node-comfy")) return "comfy";
+  if (list.contains("canvas-node-llm")) return "llm";
+  if (list.contains("canvas-node-loop")) return "loop";
+  if (list.contains("canvas-node-video")) return "video";
+  if (list.contains("canvas-node-audio")) return "audio";
+  if (list.contains("canvas-node-text")) return "text";
+  if (list.contains("canvas-node-image")) return list.contains("canvas-node-generator") ? "generator" : "upload";
+  return "";
+}
+
+function canvasNodeStatusState(text) {
+  const value = String(text || "");
+  if (/失败|错误|不可用/.test(value)) return "failed";
+  if (/正在|生成中|处理中|提交|排队|编辑中|上传中/.test(value)) return "running";
+  // "待完成" and "等待上传" are to-do states, not results: the broad success
+  // words 完成 / 上传 must not paint them with the success dot.
+  if (/^待|^等待/.test(value)) return "idle";
+  if (/完成|已就绪|已生成|已连接|成功/.test(value)) return "done";
+  return "idle";
+}
+
+function canvasNodeStatusHasContent(status) {
+  const text = String(status?.textContent || "").trim();
+  return Boolean(text)
+    && !/^(?:待完成|等待上传|等待视频|等待素材|上传或连接媒体|还没有收纳图片|选择操作即可生成|输入描述即可生成(?:，参考素材可选)?)$/.test(text);
+}
+
+function syncCanvasNodeFooterVisibility(node) {
+  if (!node?.querySelector) return false;
+  const footer = node.querySelector(
+    ":scope > .canvas-node-footer, :scope > .canvas-gallery-container-footer, :scope > .canvas-h3-footer",
+  );
+  if (!footer) return false;
+  const status = footer.querySelector(".canvas-node-status, .canvas-h3-status");
+  const meta = footer.querySelector(".canvas-node-meta");
+  const hasMeta = Boolean(String(meta?.textContent || "").trim());
+  const visible = canvasNodeStatusHasContent(status) || hasMeta;
+  footer.hidden = !visible;
+  return visible;
+}
+
+function getCanvasNodeStatusElement(node) {
+  return node?.querySelector?.(":scope > .canvas-node-footer > .canvas-node-status")
+    || node?.querySelector?.(".canvas-h3-status")
+    || node?.querySelector?.(".canvas-node-bar-status")
+    || node?.querySelector?.(".canvas-node-status")
+    || null;
+}
+
+function ensureCanvasNodeChrome(node) {
+  if (!node?.querySelector) return node;
+  const kind = resolveCanvasNodeKind(node);
+  const meta = CANVAS_NODE_KIND_META[kind] || null;
+  const bar = node.querySelector(":scope > .canvas-node-bar");
+  const title = bar?.querySelector(".canvas-node-title") || null;
+  if (meta && bar && title) {
+    if (!bar.querySelector(".canvas-node-icon")) {
+      const badge = document.createElement("span");
+      badge.className = "canvas-node-icon";
+      badge.dataset.tone = meta.tone === "accent" ? "accent" : "neutral";
+      badge.setAttribute("aria-hidden", "true");
+      const glyph = document.createElement("i");
+      glyph.setAttribute("data-lucide", meta.icon);
+      badge.append(glyph);
+      bar.prepend(badge);
+    }
+    if (!bar.querySelector(".canvas-node-heading")) {
+      const heading = document.createElement("span");
+      heading.className = "canvas-node-heading";
+      const subtitle = document.createElement("span");
+      subtitle.className = "canvas-node-subtitle";
+      subtitle.textContent = meta.subtitle;
+      title.replaceWith(heading);
+      heading.append(title, subtitle);
+    }
+  }
+  if (!kind) return node;
+  const footerExists = Boolean(node.querySelector(
+    ":scope > .canvas-node-footer, :scope > .canvas-gallery-container-footer, :scope > .canvas-h3-footer",
+  ));
+  if (!footerExists) {
+    const footer = document.createElement("div");
+    footer.className = "canvas-node-footer";
+    const existing = node.querySelector(":scope > .canvas-node-status");
+    const status = existing || document.createElement("span");
+    if (!existing) {
+      status.className = "canvas-node-status";
+      status.textContent = CANVAS_NODE_DEFAULT_STATUS[kind] || "待完成";
+    }
+    footer.append(status);
+    const handle = node.querySelector(":scope > .canvas-resize-handle");
+    if (handle) handle.before(footer);
+    else node.append(footer);
+  }
+  const status = getCanvasNodeStatusElement(node);
+  if (status && !status.dataset.state) status.dataset.state = canvasNodeStatusState(status.textContent);
+  syncCanvasNodeFooterVisibility(node);
+  // The title band is built while the node is still detached, and the bundled
+  // createIcons only scans the document — so the badge used to stay an empty
+  // <i> until some unrelated render ran a global pass. Convert this node's own
+  // placeholders instead, and keep the global pass as a fallback.
+  renderCanvasNodeIcons(node);
+  if (!node.querySelector(".canvas-node-icon svg")) {
+    window.lucide?.createIcons({ attrs: { "aria-hidden": "true", "stroke-width": 1.8 } });
+  }
+  return node;
+}
+
+function createCanvasNodeBar(label, { editable = false, editableKind = "image" } = {}) {
   const bar = document.createElement("div");
   bar.className = "canvas-node-bar";
   const title = document.createElement("span");
@@ -13068,14 +16875,101 @@ function createCanvasNodeBar(label) {
     event.stopPropagation();
     const node = bar.closest(".canvas-node");
     if (!node) return;
-    if (node.classList.contains("canvas-node-gallery")) requestCanvasGalleryNodeDelete(node);
+    if (node.classList.contains("canvas-node-gallery-container")) requestCanvasGalleryNodeDelete(node);
     else deleteCanvasNodes([node]);
   });
+  let nameInput = null;
+  let statusText = null;
+  if (editable) {
+    const input = document.createElement("input");
+    input.type = "text";
+    input.className = "canvas-node-title-input canvas-node-title";
+    input.value = label;
+    input.setAttribute("aria-label", editableKind === "text" ? "文字节点名称" : "图片名称");
+    input.autocomplete = "off";
+    input.spellcheck = false;
+    input.hidden = true;
+    input.addEventListener("pointerdown", (event) => event.stopPropagation());
+    input.addEventListener("click", (event) => event.stopPropagation());
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        input.blur();
+      } else if (event.key === "Escape") {
+        event.preventDefault();
+        input.value = input.dataset.previousValue || label;
+        input.blur();
+      } else if (event.key === "Tab") {
+        input.blur();
+      }
+    });
+    input.addEventListener("focus", () => { input.dataset.previousValue = input.value; input.select(); });
+    input.addEventListener("blur", () => {
+      const node = input.closest(".canvas-node");
+      const image = node?.querySelector("img[data-canvas-original-src]");
+      if (image) {
+        input.value = renameCanvasImage(image, input.value);
+      } else if (node) {
+        const isTextNode = node.classList.contains("canvas-node-text") || editableKind === "text";
+        const fallback = isTextNode ? "文字" : label;
+        const next = String(input.value || "").replace(/\s+/g, " ").trim().slice(0, 80) || fallback;
+        node.dataset[isTextNode ? "textName" : "imageName"] = next;
+        input.value = next;
+        syncCanvasNodeModel(node);
+        scheduleCanvasSave();
+      }
+      title.textContent = input.value;
+      closeCanvasNodeTitleEditor(input, title);
+    });
+    let titlePointerStart = null;
+    title.addEventListener("pointerdown", (event) => {
+      titlePointerStart = { x: event.clientX, y: event.clientY };
+    });
+    title.addEventListener("click", (event) => {
+      if (!titlePointerStart
+        || Math.abs(event.clientX - titlePointerStart.x) > 4
+        || Math.abs(event.clientY - titlePointerStart.y) > 4) return;
+      openCanvasNodeTitleEditor(input, title, label, event);
+    });
+    title.classList.add("is-editable");
+    title.title = "点击修改名称";
+    nameInput = input;
+    statusText = document.createElement("span");
+    statusText.className = "canvas-node-bar-status";
+    statusText.hidden = true;
+  }
   bar.append(title, remove);
+  if (nameInput) bar.insertBefore(nameInput, remove);
+  if (statusText) bar.insertBefore(statusText, remove);
   return bar;
 }
 
+function openCanvasNodeTitleEditor(input, title, fallback, event) {
+  if (!input || !title || !input.hidden) return;
+  event?.stopPropagation?.();
+  const current = title.textContent || fallback || "";
+  input.dataset.previousValue = current;
+  input.value = current;
+  title.hidden = true;
+  title.closest(".canvas-node-heading")?.classList.add("is-editing");
+  input.hidden = false;
+  input.focus();
+}
+
+function closeCanvasNodeTitleEditor(input, title) {
+  if (input) input.hidden = true;
+  if (title) {
+    title.hidden = false;
+    title.closest(".canvas-node-heading")?.classList.remove("is-editing");
+  }
+}
+
 function deleteSelectedCanvasNodes(event) {
+  if (hasCanvasSceneSelection()) {
+    event?.preventDefault();
+    deleteCanvasSceneSelection().catch(error => setCanvasStatus(error.message));
+    return;
+  }
   const selected = getSelectedCanvasNodes();
   const targets = selected.length ? selected : canvasState.activeNode ? [canvasState.activeNode] : [];
   if (!targets.length) return;
@@ -13086,14 +16980,18 @@ function deleteSelectedCanvasNodes(event) {
 function deleteCanvasNodes(nodes) {
   const targets = Array.from(new Set((nodes || []).filter(Boolean)));
   if (!targets.length) return;
-  if (canvasGridMenuState?.sourceNode && targets.includes(canvasGridMenuState.sourceNode)) {
-    closeCanvasGridMenu({ restoreFocus: false });
+  if (canvasCropWorkbenchState?.sourceNode && targets.includes(canvasCropWorkbenchState.sourceNode)) {
+    closeCanvasCropWorkbench();
   }
-  const ids = new Set(targets.map((node) => node.dataset.id).filter(Boolean));
   const deletedModels = targets.map((node) => (
     toCanvasOperationNode(syncCanvasNodeModel(node) || serializeCanvasNode(node))
   ));
-  const deletedConnections = canvasState.connections
+  return deleteCanvasModels(deletedModels, targets);
+}
+
+function deleteCanvasModels(deletedModels, targets = [], connections = canvasState.connections) {
+  const ids = new Set(deletedModels.map(model => String(model.id)));
+  const deletedConnections = connections
     .filter((item) => ids.has(String(item.from)) || ids.has(String(item.to)))
     .map(normalizeVisibleCanvasConnection);
   const forward = [
@@ -13124,7 +17022,7 @@ function deleteCanvasNodes(nodes) {
       after: cloneCanvasOperationValue(item),
     })),
   ];
-  recordCanvasUndo({ label: "删除节点", forward, inverse });
+  const command = recordCanvasUndo({ label: "删除节点", forward, inverse });
   const affectedTargets = new Set();
   canvasState.connections.forEach((item) => {
     if (ids.has(item.from) || ids.has(item.to)) affectedTargets.add(item.to);
@@ -13139,7 +17037,12 @@ function deleteCanvasNodes(nodes) {
     canvasState.selectedIds.delete(node.dataset.id);
     if (canvasState.activeNode === node) canvasState.activeNode = null;
   });
+  ids.forEach(id => {
+    canvasState.selectedIds.delete(id);
+    canvasState.selectedSceneItems.delete(id);
+  });
   removeCanvasNodeModels(ids);
+  renderCanvasSceneLayer();
   canvasState.activeNode = getSelectedCanvasNodes()[0] || null;
   affectedTargets.forEach((id) => updateCanvasNodeRefs(getCanvasNode(id)));
   updateCanvasGroupCounts();
@@ -13148,6 +17051,8 @@ function deleteCanvasNodes(nodes) {
   updateCanvasGroupAction();
   updateCanvasSelectionFrame();
   updateCanvasOrigin();
+  dispatchCanvasSelectionChange();
+  return { command, deletedModels, deletedConnections };
 }
 
 function createCanvasOperationGuard(context) {
@@ -13193,12 +17098,18 @@ function findAgentOwnedCanvasNode(id, context) {
 }
 
 function getAgentCanvasNodeResult(node) {
-  return {
+  const result = {
     node_id: String(node?.dataset?.id || ""),
     kind: node ? getCanvasNodeKind(node) : "unknown",
     x: Number(node?.dataset?.x || 0),
     y: Number(node?.dataset?.y || 0),
   };
+  if (node?.classList?.contains("canvas-node-image")) {
+    result.engine = node.dataset.canvasEngine || "api";
+    result.model = node.querySelector(".canvas-node-model")?.value || node.dataset.canvasModel || "";
+    result.platform = getImageModelPlatform(result.model) || node.dataset.canvasPlatform || "";
+  }
+  return result;
 }
 
 function hasCanvasAgentNumber(value) {
@@ -13228,14 +17139,23 @@ function connectAgentReferenceNodes(referenceIds, targetId, context) {
 async function createAgentCanvasNode(kind, args = {}, context) {
   assertCanvasAgentContext(context);
   const normalizedKind = String(kind || "");
+  const effectiveKind = normalizedKind === "image"
+    && !args.source_node_id
+    && String(args.engine || "").toLowerCase() === "comfyui"
+    ? "comfy"
+    : normalizedKind;
   const anchorId = args.source_node_id || args.reference_node_ids?.[0] || "";
   const anchor = anchorId ? findAgentOwnedCanvasNode(anchorId, context) : null;
   const point = getAgentCanvasPoint(args, anchor);
   let node;
   let promptNode = null;
-  if (normalizedKind === "text") {
-    node = addCanvasText(point, { text: String(args.content || ""), focus: false });
-  } else if (normalizedKind === "image") {
+  if (effectiveKind === "text") {
+    node = addCanvasText(point, {
+      text: String(args.content || ""),
+      name: String(args.title || "文字"),
+      focus: false,
+    });
+  } else if (effectiveKind === "image") {
     if (args.source_node_id) {
       const sourceNode = findAgentOwnedCanvasNode(args.source_node_id, context);
       const output = getCanvasNodeOutput(sourceNode);
@@ -13247,18 +17167,22 @@ async function createAgentCanvasNode(kind, args = {}, context) {
       applyAgentCanvasNodeChanges(node, {
         prompt: args.prompt,
         model: args.model,
+        engine: args.engine,
+        platform: args.platform,
+        comfy_workflow: args.comfy_workflow,
         size: args.size,
         resolution: args.resolution,
       });
     }
-  } else if (normalizedKind === "llm") {
+  } else if (effectiveKind === "llm") {
     node = addCanvasLlmNode(point, { prompt: String(args.prompt || ""), model: String(args.model || "") });
-  } else if (normalizedKind === "comfy") {
-    if (String(args.prompt || "").trim() && String(args.mode || "") !== "flux2-klein-edit") {
+  } else if (effectiveKind === "comfy") {
+    const comfyMode = String(args.mode || args.comfy_workflow || "");
+    if (String(args.prompt || "").trim() && comfyMode !== "flux2-klein-edit") {
       throw new Error("ComfyUI 提示词仅用于 Flux2 Klein 图片编辑工作流。");
     }
     node = addCanvasComfyNode(point, {
-      mode: String(args.mode || ""),
+      mode: comfyMode,
       resolution: String(args.resolution || ""),
       padding: args.padding || null,
       qwenAngle: args.qwen_angle || null,
@@ -13268,18 +17192,18 @@ async function createAgentCanvasNode(kind, args = {}, context) {
       promptNode.dataset.boardId = String(context.scope.boardId);
       connectCanvasNodes(promptNode.dataset.id, node.dataset.id, "input");
     }
-  } else if (normalizedKind === "minimax-h3") {
+  } else if (effectiveKind === "minimax-h3") {
     node = addCanvasMinimaxH3Node(point, {
       prompt: String(args.prompt || ""),
       aspectRatio: String(args.aspect_ratio || "16:9"),
       duration: Number(args.duration || 8),
     });
-  } else if (normalizedKind === "gallery") {
+  } else if (effectiveKind === "gallery" || effectiveKind === "gallery-container") {
     node = addCanvasGallery(point);
-    renderCanvasGalleryNode(node, { images: [], title: String(args.title || "生成图集") });
-  } else if (normalizedKind === "loop") {
+    setCanvasGalleryContainer(node, { title: String(args.title || "生成图集"), members: [] });
+  } else if (effectiveKind === "loop") {
     node = addCanvasLoopNode(point);
-  } else if (normalizedKind === "grid-editor") {
+  } else if (effectiveKind === "grid-editor") {
     const sourceNode = findAgentOwnedCanvasNode(args.source_node_id, context);
     const rows = Number(args.rows || 2);
     const columns = Number(args.columns || 2);
@@ -13294,23 +17218,27 @@ async function createAgentCanvasNode(kind, args = {}, context) {
       setCanvasNodePoint(node, point);
       updateCanvasNodePosition(node);
     }
-  } else if (["video", "audio"].includes(normalizedKind)) {
+  } else if (effectiveKind === "director3d" || effectiveKind === "director-3d") {
+    node = addCanvasDirector3dNode(point);
+  } else if (["video", "audio"].includes(effectiveKind)) {
     const sourceNode = findAgentOwnedCanvasNode(args.source_node_id, context);
     const output = getCanvasNodeOutput(sourceNode);
     if (!output?.url) throw new Error("来源节点没有可用媒体结果。");
     const options = { src: output.url, name: String(args.name || output.name || `${normalizedKind}素材`) };
-    node = normalizedKind === "video" ? addCanvasVideoNode(point, options) : addCanvasAudioNode(point, options);
+    node = effectiveKind === "video" ? addCanvasVideoNode(point, options) : addCanvasAudioNode(point, options);
   } else {
     throw new Error(`不支持创建 ${normalizedKind || "unknown"} 节点。`);
   }
   assertCanvasAgentContext(context);
   node.dataset.boardId = String(context.scope.boardId);
   if (node && args.reference_node_ids) connectAgentReferenceNodes(args.reference_node_ids, node.dataset.id, context);
-  if (!hasCanvasAgentNumber(args.x) && !hasCanvasAgentNumber(args.y) && !anchor) {
-    centerAgentCanvasNodesInViewport(promptNode ? [promptNode, node] : [node]);
+  if (!hasCanvasAgentNumber(args.x) && !hasCanvasAgentNumber(args.y)) {
+    if (anchor) placeAgentCanvasNodesAfterReferences([node], [anchor]);
+    else centerAgentCanvasNodesInViewport(promptNode ? [promptNode, node] : [node]);
   }
   scheduleCanvasConnectionRender();
   scheduleCanvasSave();
+  scheduleAgentCanvasAutoFocus(promptNode ? [promptNode, node] : [node]);
   return {
     ...getAgentCanvasNodeResult(node),
     ...(promptNode ? { prompt_node_id: promptNode.dataset.id } : {}),
@@ -13319,20 +17247,27 @@ async function createAgentCanvasNode(kind, args = {}, context) {
 
 function applyAgentCanvasNodeChanges(node, changes = {}) {
   if (!node) return;
+  if (changes.platform) node.dataset.canvasPlatform = String(changes.platform);
   if (changes.content !== null && changes.content !== undefined && node.classList.contains("canvas-node-text")) {
-    const text = node.querySelector(".canvas-text");
+    setCanvasTextValue(node, String(changes.content));
+  }
+  if (changes.content !== null && changes.content !== undefined && node.classList.contains("canvas-node-note")) {
+    const text = node.querySelector(".canvas-note-text");
     if (text) text.textContent = String(changes.content);
+    syncCanvasNoteText(node);
+  }
+  if (changes.color !== null && changes.color !== undefined && node.classList.contains("canvas-node-note")) {
+    setCanvasNoteColor(node, changes.color);
   }
   const prompt = node.querySelector(".canvas-node-prompt, .canvas-llm-prompt, .canvas-h3-prompt");
   if (changes.prompt !== null && changes.prompt !== undefined && prompt) {
     prompt.value = String(changes.prompt);
     prompt.dispatchEvent(new Event("input", { bubbles: true }));
   }
-  if (changes.title !== null && changes.title !== undefined && node.classList.contains("canvas-node-gallery")) {
-    renderCanvasGalleryNode(node, {
-      images: getCanvasGalleryImages(node),
+  if (changes.title !== null && changes.title !== undefined && node.classList.contains("canvas-node-gallery-container")) {
+    setCanvasGalleryContainer(node, {
+      ...getCanvasGalleryContainer(node),
       title: String(changes.title || "生成图集"),
-      activeImageId: node.dataset.galleryActiveImageId || "",
     });
   }
   const model = node.querySelector(".canvas-node-model, .canvas-llm-model");
@@ -13340,6 +17275,10 @@ function applyAgentCanvasNodeChanges(node, changes = {}) {
     if (node.classList.contains("canvas-node-image")) fillCanvasNodeModelSelect(model, String(changes.model));
     model.value = String(changes.model);
     model.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+  if (changes.model_parameters && typeof changes.model_parameters === "object" && node.classList.contains("canvas-node-image")) {
+    node.dataset.canvasModelParameters = JSON.stringify(changes.model_parameters);
+    syncCanvasModelParameterOptions(node, model?.value || node.dataset.canvasModel || "");
   }
   const size = node.querySelector(".canvas-node-size");
   if (changes.size && size) {
@@ -13407,7 +17346,7 @@ async function duplicateAgentCanvasNodes(args = {}, context) {
   await context.forEachBatched(nodes, async (source) => {
     assertCanvasAgentContext(context);
     const item = serializeCanvasNode(source);
-    const nextId = String(canvasState.nextNode);
+    const nextId = createId();
     idMap.set(String(item.id), nextId);
     item.id = nextId;
     item.x += Number(args.offset_x || 48);
@@ -13423,7 +17362,8 @@ async function duplicateAgentCanvasNodes(args = {}, context) {
   });
   canvasState.connections
     .filter((item) => idMap.has(String(item.from)) && idMap.has(String(item.to)))
-    .map((item) => ({ from: idMap.get(String(item.from)), to: idMap.get(String(item.to)), toPort: item.toPort || "input" }))
+    .map((item) => cloneCanvasConnectionWithMappedNodes(item, idMap))
+    .filter(Boolean)
     .forEach((item) => canvasState.connections.push(item));
   scheduleCanvasConnectionRender();
   scheduleCanvasSave();
@@ -13581,7 +17521,8 @@ async function cropAgentCanvasImage(args = {}, context) {
   const source = getAgentCanvasCropSource(sourceNode);
   if (!source) throw new Error("这个图片节点还没有可裁切的图片结果。");
   if (args.aspect_ratio === null || args.aspect_ratio === undefined || !String(args.aspect_ratio).trim()) {
-    startCanvasImageCrop(sourceNode);
+    const opened = await openCanvasCropWorkbench(sourceNode);
+    if (!opened) throw new Error("裁切工作台打开失败，请稍后重试。");
     return { node_id: sourceNode.dataset.id, editor_open: true, focused: true };
   }
 
@@ -13630,6 +17571,58 @@ async function cropAgentCanvasImage(args = {}, context) {
     created_copy: targetNode !== sourceNode,
     focused: true,
   };
+}
+
+// Agent 抠图：交互模式打开工作台；否则直接跑本地模型并把结果落成新节点。
+async function removeAgentCanvasImageBackground(args = {}, context) {
+  const sourceNode = findAgentOwnedCanvasNode(args.node_id, context);
+  if (!sourceNode.classList.contains("canvas-node-image")) throw new Error("目标不是可抠图的图片节点。");
+  focusAgentCanvasNodesInViewport([sourceNode]);
+  const source = getAgentCanvasCropSource(sourceNode);
+  if (!source) throw new Error("这个图片节点还没有可抠图的图片结果。");
+  const mode = String(args.mode || "subject");
+  if (mode === "interactive") {
+    const opened = await openCanvasCutoutWorkbench(sourceNode);
+    assertCanvasAgentContext(context);
+    if (!opened) throw new Error("抠图工作台打开失败，请稍后重试。");
+    return { node_id: sourceNode.dataset.id, editor_open: true, focused: true };
+  }
+
+  const prepared = await requestCanvasBackgroundRemoval("/api/background-removal/prepare", {
+    image: source,
+    name: sourceNode.dataset.imageName || "image.png",
+    model: "ben2-base",
+  });
+  assertCanvasAgentContext(context);
+  const applied = await requestCanvasBackgroundRemoval("/api/background-removal/apply", {
+    token: prepared.token,
+    mode,
+    name: appendNameSuffix(sourceNode.dataset.imageName || "image.png", "抠图"),
+  });
+  assertCanvasAgentContext(context);
+  const targetNode = placeCanvasCutoutResult(sourceNode, applied);
+  assertCanvasAgentContext(context);
+  return {
+    node_id: targetNode.dataset.id,
+    source_node_id: sourceNode.dataset.id,
+    mode,
+    width: applied.width,
+    height: applied.height,
+    coverage: applied.coverage,
+    created_copy: true,
+    focused: true,
+  };
+}
+
+async function requestCanvasBackgroundRemoval(url, body) {
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || data.message || `抠图请求失败：${response.status}`);
+  return data;
 }
 
 async function openAgentCanvasMaskEditor(id, context) {
@@ -13711,8 +17704,8 @@ function ungroupAgentCanvasNodes(args = {}, context) {
 
 function updateAgentCanvasGallery(args = {}, context) {
   const node = findAgentOwnedCanvasNode(args.node_id, context);
-  if (!node.classList.contains("canvas-node-gallery")) throw new Error("目标不是图集节点。");
-  let images = getCanvasGalleryImages(node);
+  if (!node.classList.contains("canvas-node-gallery-container")) throw new Error("目标不是图集节点。");
+  let images = getCanvasGalleryContainerMembers(node);
   const remove = new Set((args.remove_image_ids || []).map(String));
   if (remove.size) images = images.filter((image) => !remove.has(String(image.id)));
   if (Array.isArray(args.image_ids) && args.image_ids.length) {
@@ -13728,7 +17721,7 @@ function updateAgentCanvasGallery(args = {}, context) {
       && canvasState.connections.some((item) => item.from === sourceNode.dataset.id && item.to === node.dataset.id);
     if (isConnectedGenerator && images.length) {
       alreadyPresent = true;
-      const active = images.find((image) => String(image.id) === String(node.dataset.galleryActiveImageId || "")) || images.at(-1);
+      const active = images.find((image) => String(image.id) === String(getCanvasGalleryContainer(node).activeMemberId || "")) || images.at(-1);
       if (active) addedBySourceId.set(String(sourceNode.dataset.id), active);
       return;
     }
@@ -13753,26 +17746,28 @@ function updateAgentCanvasGallery(args = {}, context) {
     images.push(image);
     addedBySourceId.set(String(sourceNode.dataset.id), image);
   });
-  let activeImageId = node.dataset.galleryActiveImageId || "";
+  let activeImageId = getCanvasGalleryContainer(node).activeMemberId || "";
   if (args.active_image_id !== null && args.active_image_id !== undefined) {
     const requested = String(args.active_image_id);
     const active = images.find((image) => String(image.id) === requested) || addedBySourceId.get(requested);
     if (!active) throw new Error(`图集中找不到图片 ${requested}。`);
     activeImageId = active.id;
   }
-  renderCanvasGalleryNode(node, {
-    images,
-    title: args.title === null || args.title === undefined ? node.dataset.galleryTitle || "生成图集" : String(args.title),
-    activeImageId,
-    columns: args.columns,
-    gap: args.gap,
+  const current = getCanvasGalleryContainer(node);
+  setCanvasGalleryContainer(node, {
+    ...current,
+    members: images,
+    title: args.title === null || args.title === undefined ? current.title || "生成图集" : String(args.title),
+    activeMemberId: activeImageId,
+    ...(args.columns === null || args.columns === undefined ? {} : { columns: args.columns }),
+    ...(args.gap === null || args.gap === undefined ? {} : { gap: args.gap }),
   });
   scheduleCanvasSave();
   return {
     node_id: node.dataset.id,
     image_count: images.length,
-    active_image_id: node.dataset.galleryActiveImageId || "",
-    image_ids: getCanvasGalleryImages(node).map((image) => image.id),
+    active_image_id: getCanvasGalleryContainer(node).activeMemberId || "",
+    image_ids: getCanvasGalleryContainerMembers(node).map((image) => image.id),
     ...(alreadyPresent ? { already_present: true } : {}),
   };
 }
@@ -13839,9 +17834,12 @@ async function generateAgentCanvasImageToGallery(args = {}, context) {
           : "当前没有可用的 image2 生图模型，已停止执行；请先在设置中启用一个。",
     };
   }
+  const normalizedRequest = normalizeCanvasAgentImageRequest(candidate, {
+    size: args.size,
+    resolution: args.resolution,
+  });
 
-  const [generatorPoint] = getAgentCanvasOpenRowPoints([
-    { width: 320, height: 380 },
+  const [generatorPoint] = getAgentCanvasDownstreamRowPoints(referenceNodes, [
     { width: 320, height: 380 },
   ], 90);
   const node = addCanvasImagePlaceholder(generatorPoint);
@@ -13849,8 +17847,8 @@ async function generateAgentCanvasImageToGallery(args = {}, context) {
   applyAgentCanvasNodeChanges(node, {
     prompt,
     model: candidate.id,
-    size: args.size,
-    resolution: args.resolution,
+    size: normalizedRequest.size,
+    resolution: normalizedRequest.resolution,
   });
   connectAgentReferenceNodes(referenceIds, node.dataset.id, context);
   scheduleCanvasConnectionRender();
@@ -13889,9 +17887,10 @@ async function generateAgentCanvasImageToGallery(args = {}, context) {
   if (!connected || !images.length) {
     return { ok: false, code: "gallery_empty", error: "图片已返回，但没有成功加入图集。", node_id: node.dataset.id };
   }
-  centerAgentCanvasNodesInViewport([node, gallery]);
+  placeAgentCanvasNodesAfterReferences([node, gallery], referenceNodes);
   scheduleCanvasConnectionRender();
   scheduleCanvasSave();
+  scheduleAgentCanvasAutoFocus([node, gallery]);
   return {
     node_id: node.dataset.id,
     gallery_node_id: gallery.dataset.id,
@@ -13924,7 +17923,134 @@ function requestAgentImageNodeChoice(args = {}, context) {
     model: String(node.querySelector(".canvas-node-model")?.value || node.dataset.canvasModel || ""),
     has_result: Boolean(node.dataset.resultSrc || images.length),
     gallery_node_id: gallery?.dataset.id || null,
-    options: ["rerun", "update", "new"],
+    options: ["update", "new"],
+  };
+}
+
+function requestAgentDesignBrief(args = {}, context) {
+  assertCanvasAgentContext(context);
+  const workflow = String(args.workflow || "").trim();
+  if (workflow !== "poster") throw new Error("当前只支持海报设计需求确认。");
+  const posterTypes = new Set(["product", "brand", "promotion", "festival", "event", "other"]);
+  const posterType = String(args.poster_type || "").trim();
+  if (posterType && !posterTypes.has(posterType)) throw new Error("海报类型不在支持范围内。");
+  const posterTypeLabels = {
+    product: "产品海报",
+    brand: "品牌海报",
+    promotion: "促销活动",
+    festival: "节日祝福",
+    event: "活动通知",
+    other: "其他用途",
+  };
+  const seenIds = new Set();
+  const questions = (Array.isArray(args.questions) ? args.questions : []).slice(0, 5).map((item, index) => {
+    const id = String(item?.id || "").trim();
+    const label = String(item?.label || "").trim().slice(0, 200);
+    const kind = String(item?.kind || "").trim();
+    const options = Array.from(new Set(
+      (Array.isArray(item?.options) ? item.options : [])
+        .map((option) => String(option || "").trim().slice(0, 120))
+        .filter(Boolean),
+    )).slice(0, 8);
+    const recommended = String(item?.recommended || "").trim().slice(0, 200);
+    if (!/^[a-zA-Z0-9_-]{1,64}$/.test(id)) throw new Error(`第 ${index + 1} 个需求问题缺少有效标识。`);
+    if (seenIds.has(id)) throw new Error(`需求问题标识重复：${id}`);
+    if (!label) throw new Error(`第 ${index + 1} 个需求问题缺少标题。`);
+    if (!["single", "text"].includes(kind)) throw new Error(`第 ${index + 1} 个需求问题类型无效。`);
+    if (kind === "single" && options.length < 2) {
+      throw new Error(`第 ${index + 1} 个单选问题至少需要两个选项。`);
+    }
+    seenIds.add(id);
+    return {
+      id,
+      label,
+      kind,
+      options,
+      required: item?.required !== false,
+      recommended,
+    };
+  });
+  return {
+    ok: true,
+    decision_required: true,
+    kind: "design_brief",
+    workflow,
+    skill_id: "poster-design",
+    poster_type: posterType || null,
+    poster_type_label: posterType ? posterTypeLabels[posterType] : "",
+    known_context: String(args.known_context || "").trim().slice(0, 4000),
+    summary: String(args.summary || "").trim().slice(0, 4000),
+    questions,
+    options: ["submit", "recommended", "cancel"],
+  };
+}
+
+function getCanvasAgentResolutionNoticeLabel(value) {
+  const parsed = ImageResolutionRules.parseResolutionChoice(value || "auto");
+  if (parsed.type === "exact" && parsed.exactSize) {
+    return `最大兼容尺寸 ${parsed.exactSize.replace("x", "×")}`;
+  }
+  if (parsed.type === "auto") return "自动分辨率";
+  return formatImageResolutionLabel(parsed.level || parsed.value);
+}
+
+async function prepareAgentCanvasImageParameters(node, context) {
+  assertCanvasAgentContext(context);
+  if (!node?.classList.contains("canvas-node-image") || node.dataset.uploadOnly === "true") return null;
+
+  const modelSelect = node.querySelector(".canvas-node-model");
+  const sizeSelect = node.querySelector(".canvas-node-size");
+  const resolutionSelect = node.querySelector(".canvas-node-resolution");
+  const model = String(modelSelect?.value || node.dataset.canvasModel || "").trim();
+  const requestedSize = String(sizeSelect?.value || node.dataset.canvasSize || "auto").trim() || "auto";
+  const requestedResolutionChoice = ImageResolutionRules.parseResolutionChoice(
+    resolutionSelect?.value || node.dataset.canvasResolution || "auto",
+  );
+  const requestedResolution = requestedResolutionChoice.value || "auto";
+
+  let candidate = canvasImageModelCandidates.find((item) => String(item?.id || "") === model) || null;
+  if (!candidate && model) {
+    candidate = await ensureCanvasAgentImageModelCandidate({ requestedModel: model }).catch(() => null);
+    assertCanvasAgentContext(context);
+  }
+  if (!candidate || String(candidate.id || "") !== model) {
+    candidate = {
+      id: model,
+      platform: getImageModelPlatform(model),
+      family: getImageModelFamily(model),
+      resolutions: getAllowedImageResolutionLevels(model),
+    };
+  }
+
+  const applied = normalizeCanvasAgentImageRequest(candidate, {
+    size: requestedSize,
+    resolution: requestedResolution,
+  });
+  const appliedResolution = ImageResolutionRules.parseResolutionChoice(applied.resolution).value || "auto";
+  const changed = applied.size !== requestedSize || appliedResolution !== requestedResolution;
+  if (changed) {
+    applyAgentCanvasNodeChanges(node, {
+      ...(applied.size !== requestedSize ? { size: applied.size } : {}),
+      ...(appliedResolution !== requestedResolution ? { resolution: appliedResolution } : {}),
+    });
+  }
+
+  const compatibility = syncCanvasNodeResolutionState(node);
+  if (!compatibility.supported) {
+    const error = new Error(compatibility.reason || "当前模型不支持所选图片尺寸和分辨率。");
+    error.code = "unsupported_resolution";
+    throw error;
+  }
+  scheduleCanvasSave();
+  if (!changed) return null;
+
+  const requestedLabel = getCanvasAgentResolutionNoticeLabel(requestedResolution);
+  const appliedLabel = getCanvasAgentResolutionNoticeLabel(appliedResolution);
+  const appliedSizeLabel = appliedResolution.startsWith("exact:") ? "" : `${applied.size} `;
+  return {
+    requested: { size: requestedSize, resolution: requestedResolution },
+    applied: { size: applied.size, resolution: appliedResolution },
+    message: `当前模型的 ${requestedSize} ${requestedLabel} 不兼容，已自动调整为 ${appliedSizeLabel}${appliedLabel}，并继续生成。`,
   };
 }
 
@@ -13932,10 +18058,15 @@ async function runAgentCanvasNodeWithGuard(id, context) {
   const node = findAgentOwnedCanvasNode(id, context);
   const guard = createCanvasOperationGuard(context);
   let generated = null;
-  if (node.classList.contains("canvas-node-image")) generated = await runCanvasImageEdit(node, { guard, autoFailover: true });
+  let parameterAdjustment = null;
+  if (node.classList.contains("canvas-node-image")) {
+    parameterAdjustment = await prepareAgentCanvasImageParameters(node, context);
+    generated = await runCanvasImageEdit(node, { guard, autoFailover: true });
+  }
   else if (node.classList.contains("canvas-node-llm")) await runCanvasLlmNode(node, { guard });
   else if (node.classList.contains("canvas-node-comfy")) await runCanvasComfyNode(node, { guard });
   else if (node.classList.contains("canvas-node-minimax-h3")) await runCanvasMinimaxH3Node(node, { guard });
+  else if (node.classList.contains("canvas-node-midjourney")) generated = await runCanvasMidjourneyNode(node, { guard });
   else throw new Error("这个节点不能执行生成。");
   assertCanvasAgentContext(context);
   if (node.classList.contains("canvas-node-image")) {
@@ -13945,6 +18076,7 @@ async function runAgentCanvasNodeWithGuard(id, context) {
         node_id: node.dataset.id,
         code: generated?.code || "generation_failed",
         error: generated?.error || "图片生成失败。",
+        ...(parameterAdjustment ? { parameter_adjustment: parameterAdjustment } : {}),
       };
     }
     const gallery = generated.gallery || findConnectedCanvasGallery(node);
@@ -13955,6 +18087,7 @@ async function runAgentCanvasNodeWithGuard(id, context) {
         node_id: node.dataset.id,
         code: "gallery_empty",
         error: "图片已返回，但没有成功加入图集。",
+        ...(parameterAdjustment ? { parameter_adjustment: parameterAdjustment } : {}),
       };
     }
     gallery.dataset.boardId = String(context.scope.boardId);
@@ -13967,6 +18100,7 @@ async function runAgentCanvasNodeWithGuard(id, context) {
       output: generated.image || null,
       model: generated.model || String(node.querySelector(".canvas-node-model")?.value || ""),
       ...(generated.fallback ? { fallback: generated.fallback } : {}),
+      ...(parameterAdjustment ? { parameter_adjustment: parameterAdjustment } : {}),
     };
   }
   const status = String(node.querySelector(".canvas-h3-status, .canvas-node-status")?.textContent || "").trim();
@@ -13981,10 +18115,46 @@ function deleteAgentCanvasNodes(ids, context) {
   return { node_ids: nodeIds, deleted_count: nodeIds.length };
 }
 
+const MAX_SKILL_REFERENCE_CACHE_ENTRIES = 24;
+const canvasAgentSkillReferenceCache = new Map();
+
+function getCanvasAgentSkillReferenceCacheKey(args = {}, context) {
+  const boardId = String(context?.scope?.boardId || "").trim();
+  const skillId = String(args.skill_id || "").trim();
+  const referencePath = String(args.path || "").trim();
+  if (!boardId || !skillId || !referencePath) return "";
+  return `${boardId}\n${skillId}\n${referencePath}`;
+}
+
+function readCachedAgentSkillReference(args = {}, context) {
+  const key = getCanvasAgentSkillReferenceCacheKey(args, context);
+  return key ? canvasAgentSkillReferenceCache.get(key) || null : null;
+}
+
+function cacheAgentSkillReference(args = {}, context, output) {
+  const key = getCanvasAgentSkillReferenceCacheKey(args, context);
+  if (!key || !output?.ok) return;
+  if (canvasAgentSkillReferenceCache.has(key)) canvasAgentSkillReferenceCache.delete(key);
+  canvasAgentSkillReferenceCache.set(key, output);
+  while (canvasAgentSkillReferenceCache.size > MAX_SKILL_REFERENCE_CACHE_ENTRIES) {
+    canvasAgentSkillReferenceCache.delete(canvasAgentSkillReferenceCache.keys().next().value);
+  }
+}
+
 const CanvasAgentCanvasApi = Object.freeze({
   getBoardId: () => String(canvasState.activeBoardId || ""),
   getNode: (id, context) => findAgentOwnedCanvasNode(id, context),
   getNodes: (ids, context) => (ids || []).map((id) => findAgentOwnedCanvasNode(id, context)),
+  getCanvasImageGeneratorNodeIds: (ids) => (Array.isArray(ids) ? ids : [])
+    .map((id) => String(id || "").trim())
+    .filter((id) => {
+      if (!id) return false;
+      const node = ensureCanvasNodeMounted(id);
+      if (!node?.classList?.contains("canvas-node-image")) return false;
+      if (node.dataset.uploadOnly === "true") return false;
+      if ((node.dataset.canvasEngine || "api") !== "api") return false;
+      return !String(node.dataset.imageSrc || "");
+    }),
   createNode: createAgentCanvasNode,
   updateNode: updateAgentCanvasNodeFields,
   duplicateNodes: duplicateAgentCanvasNodes,
@@ -14001,11 +18171,40 @@ const CanvasAgentCanvasApi = Object.freeze({
   focusNodes: focusAgentCanvasNodes,
   organizeNodes: organizeAgentCanvasNodes,
   cropImage: cropAgentCanvasImage,
+  removeBackground: removeAgentCanvasImageBackground,
   openMaskEditor: openAgentCanvasMaskEditor,
   runNode: runAgentCanvasNodeWithGuard,
   generateImageToGallery: generateAgentCanvasImageToGallery,
   requestImageNodeChoice: requestAgentImageNodeChoice,
+  requestDesignBrief: requestAgentDesignBrief,
   deleteNodes: deleteAgentCanvasNodes,
+  director3dApplyAnimation: applyAgentCanvasDirector3d,
+  hasCachedSkillReference: (args, context) => Boolean(readCachedAgentSkillReference(args, context)),
+  /**
+   * 读取功能 Skill 自带的参考文档。文档正文由服务端按目录清单校验后返回，
+   * 画布这边只负责取回原文，避免把几十 KB 的规范塞进每一轮提示词。
+   */
+  readSkillReference: async (args = {}, context) => {
+    const skillId = String(args.skill_id || "").trim();
+    const referencePath = String(args.path || "").trim();
+    if (!skillId || !referencePath) throw new Error("读取参考文档需要 Skill 标识和文档路径。");
+    const cached = readCachedAgentSkillReference(args, context);
+    if (cached) return { ...cached, cached: true, already_read: true };
+    const response = await fetch(
+      `/api/skills/reference?skill_id=${encodeURIComponent(skillId)}&path=${encodeURIComponent(referencePath)}`,
+    );
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || `参考文档读取失败：${response.status}`);
+    const output = {
+      ok: true,
+      skill_id: String(data.skill_id || skillId),
+      path: String(data.path || referencePath),
+      bytes: Number(data.bytes || 0),
+      content: String(data.content || ""),
+    };
+    cacheAgentSkillReference(args, context, output);
+    return output;
+  },
   scheduleCheckpoint: (context) => {
     assertCanvasAgentContext(context);
     scheduleCanvasConnectionRender();
@@ -14015,6 +18214,14 @@ const CanvasAgentCanvasApi = Object.freeze({
 window.CanvasAgentCanvasApi = CanvasAgentCanvasApi;
 
 function placeCanvasNode(node) {
+  // The node skeleton (identity badge, purpose line, status band) is applied
+  // here because every mount path — new node, board restore, virtualised
+  // remount — funnels through this function.
+  ensureCanvasNodeChrome(node);
+  // A generation card always offers its engine choice, whichever engine it
+  // currently mounts, so the two cards stay the single place to manage image or
+  // video generation.
+  insertCanvasGenerationEngineSwitch(node);
   document.querySelector("#canvasPlane")?.append(node);
   canvasVirtualStore.setMounted(node.dataset.id, node, node.dataset.virtualLevel || "full");
   if (node.dataset.virtualManaged !== "true") {
@@ -14022,35 +18229,67 @@ function placeCanvasNode(node) {
     node.dataset.virtualManaged = "true";
   }
   updateCanvasNodePosition(node);
+  if (node.dataset.virtualMounting !== "true") syncCanvasNodeStacking();
   updateCanvasOrigin();
 }
 
 function beginCanvasPan(event) {
   if (event.button !== 0 && event.button !== 1) return;
+  const pointerId = event.pointerId;
+  const buttonMask = event.button === 1 ? 4 : 1;
+  const target = event.currentTarget;
   const start = { x: event.clientX, y: event.clientY, offsetX: canvasState.x, offsetY: canvasState.y };
   event.preventDefault();
-  const move = (moveEvent) => {
-    canvasState.x = start.offsetX + moveEvent.clientX - start.x;
-    canvasState.y = start.offsetY + moveEvent.clientY - start.y;
-    scheduleCanvasTransform();
-  };
-  const up = () => {
+  target?.setPointerCapture?.(pointerId);
+  let active = true;
+  const stop = () => {
+    if (!active) return;
+    active = false;
+    target?.releasePointerCapture?.(pointerId);
     window.removeEventListener("pointermove", move);
     window.removeEventListener("pointerup", up);
     window.removeEventListener("pointercancel", up);
+    target?.removeEventListener?.("lostpointercapture", up);
     scheduleCanvasViewportSave();
   };
-  window.addEventListener("pointermove", move);
+  const move = (moveEvent) => {
+    if (!active || moveEvent.pointerId !== pointerId) return;
+    if (!(Number(moveEvent.buttons) & buttonMask)) {
+      stop();
+      return;
+    }
+    const next = CanvasViewRules.panViewport(
+      { x: start.offsetX, y: start.offsetY, scale: canvasState.scale },
+      {
+        x: toSystemDelta(moveEvent.clientX - start.x),
+        y: toSystemDelta(moveEvent.clientY - start.y),
+      },
+    );
+    canvasState.x = next.x;
+    canvasState.y = next.y;
+    scheduleCanvasTransform();
+  };
+  const up = (upEvent) => {
+    if (upEvent?.pointerId !== pointerId) return;
+    stop();
+  };
+  window.addEventListener("pointermove", move, { passive: true });
   window.addEventListener("pointerup", up, { once: true });
   window.addEventListener("pointercancel", up, { once: true });
+  target?.addEventListener?.("lostpointercapture", up, { once: true });
 }
 
-function beginCanvasNodeDrag(event, node) {
+function beginCanvasNodeDrag(event, node, { initialMove = null, initialEnd = null } = {}) {
   if (event.target.closest("button, textarea, select, input, .canvas-text, .canvas-resize-handle, .canvas-group-thumb")) return;
   if (event.button !== 0) return;
   event.preventDefault();
   event.stopPropagation();
   if (!node.classList.contains("is-selected")) selectCanvasNode(node);
+  if (getSelectedCanvasNodes().some(item => item.classList.contains("canvas-node-group")
+    && getCanvasGroupMemberIds(item).some(id => !canvasVirtualStore.getMounted(id)))) {
+    beginCanvasSceneSelectionDrag(event, { initialMove, initialEnd });
+    return;
+  }
   const selectedNodes = getCanvasDragNodes(getSelectedCanvasNodes());
   const start = {
     x: event.clientX,
@@ -14062,20 +18301,45 @@ function beginCanvasNodeDrag(event, node) {
       before: toCanvasOperationNode(syncCanvasNodeModel(item) || serializeCanvasNode(item)),
     })),
   };
+  const dragIds = start.nodes.map((item) => item.node.dataset.id);
+  const startBounds = CanvasGeometryRules.unionRects(start.nodes.map((item) => getCanvasNodeBox(item.node)));
+  const alignmentCandidates = getCanvasAlignmentCandidateRects(dragIds, startBounds);
   const move = (moveEvent) => {
-    const deltaX = (moveEvent.clientX - start.x) / canvasState.scale;
-    const deltaY = (moveEvent.clientY - start.y) / canvasState.scale;
+    const rawDeltaX = toSystemDelta(moveEvent.clientX - start.x) / canvasState.scale;
+    const rawDeltaY = toSystemDelta(moveEvent.clientY - start.y) / canvasState.scale;
+    const alignment = startBounds ? CanvasAlignmentRules.alignRect({
+      movingRect: {
+        left: startBounds.left + rawDeltaX,
+        top: startBounds.top + rawDeltaY,
+        right: startBounds.right + rawDeltaX,
+        bottom: startBounds.bottom + rawDeltaY,
+      },
+      candidateRects: alignmentCandidates,
+      threshold: getCanvasAlignmentThreshold(),
+    }) : null;
+    const deltaX = rawDeltaX + Number(alignment?.deltaX || 0);
+    const deltaY = rawDeltaY + Number(alignment?.deltaY || 0);
     start.nodes.forEach((item) => {
       item.node.dataset.x = String(item.x + deltaX);
       item.node.dataset.y = String(item.y + deltaY);
       updateCanvasNodePosition(item.node);
     });
+    showCanvasAlignmentGuides(alignment);
   };
-  const up = () => {
+  const up = (endEvent) => {
     window.removeEventListener("pointermove", move);
     window.removeEventListener("pointerup", up);
     window.removeEventListener("pointercancel", up);
-    updateCanvasGroupMembership(start.nodes.map((item) => item.node));
+    hideCanvasAlignmentGuides();
+    const dropTarget = start.nodes.length === 1
+      ? findCanvasNodeAtClient(endEvent.clientX, endEvent.clientY, node)
+      : null;
+    const targetGallery = dropTarget?.classList?.contains("canvas-node-gallery-container") ? dropTarget : null;
+    const movedIntoGallery = targetGallery && targetGallery !== node
+      ? transferCanvasImageNodeToGallery(node, targetGallery)
+      : false;
+    if (movedIntoGallery) return;
+    if (!movedIntoGallery) updateCanvasGroupMembership(start.nodes.map((item) => item.node));
     const forward = start.nodes.map((item) => {
       const after = toCanvasOperationNode(syncCanvasNodeModel(item.node) || serializeCanvasNode(item.node));
       return {
@@ -14100,9 +18364,11 @@ function beginCanvasNodeDrag(event, node) {
     }
     scheduleCanvasSave();
   };
-  window.addEventListener("pointermove", move);
+  window.addEventListener("pointermove", move, { passive: true });
   window.addEventListener("pointerup", up, { once: true });
   window.addEventListener("pointercancel", up, { once: true });
+  if (initialMove) move(initialMove);
+  if (initialEnd) up(initialEnd);
 }
 
 function getCanvasDragNodes(nodes) {
@@ -14183,33 +18449,125 @@ function findContainingCanvasGroup(node) {
     .filter((group) => group.dataset.id !== node.dataset.id)
     .find((group) => {
       const box = getCanvasNodeBox(group);
-      return center.x >= box.left && center.x <= box.right && center.y >= box.top && center.y <= box.bottom;
+      return CanvasGeometryRules.pointInRect(center, box);
     }) || null;
 }
 
 function isCanvasNodeInsideGroup(node, group) {
   const center = getCanvasNodeCenter(node);
   const box = getCanvasNodeBox(group);
-  return center.x >= box.left && center.x <= box.right && center.y >= box.top && center.y <= box.bottom;
+  return CanvasGeometryRules.pointInRect(center, box);
 }
 
 function getCanvasNodeCenter(node) {
-  const box = getCanvasNodeBox(node);
-  return {
-    x: (box.left + box.right) / 2,
-    y: (box.top + box.bottom) / 2,
-  };
+  return CanvasGeometryRules.rectCenter(getCanvasNodeBox(node));
 }
 
 function getCanvasNodeBox(node) {
   const x = Number(node.dataset.x || 0);
   const y = Number(node.dataset.y || 0);
-  return {
-    left: x,
-    top: y,
-    right: x + (node.offsetWidth || Number(node.dataset.width || 292)),
-    bottom: y + (node.offsetHeight || Number(node.dataset.height || 180)),
+  if (node.classList.contains("canvas-node-frameless") && node.dataset.imageSrc) {
+    return getCanvasImageContentRect({ ...node.dataset, kind: "image", x, y });
+  }
+  return CanvasGeometryRules.rectFromPointSize(
+    { x, y },
+    node.offsetWidth || node.dataset.width,
+    node.offsetHeight || node.dataset.height,
+    { fallbackWidth: 292, fallbackHeight: 180 },
+  );
+}
+
+function getCanvasModelAlignmentRect(model) {
+  if (!model) return null;
+  const envelope = window.CanvasVirtualizationRules.getNodeRect(model);
+  return getCanvasImageContentRect(model, envelope);
+}
+
+function getCanvasAlignmentThreshold() {
+  const scale = Math.max(0.01, Number(canvasState.scale) || 1);
+  return Math.max(2, Math.min(80, CanvasAlignmentRules.DEFAULT_THRESHOLD / scale));
+}
+
+function getCanvasAlignmentCandidateRects(excludeIds = [], referenceRect = null, maxCandidates = 240) {
+  const viewport = document.querySelector("#infiniteCanvas");
+  if (!viewport) return [];
+  const excluded = new Set(Array.from(excludeIds || [], (id) => String(id || "")));
+  const viewportRect = window.CanvasVirtualizationRules.getViewportCanvasRect(
+    { width: viewport.clientWidth, height: viewport.clientHeight },
+    canvasState,
+    180,
+  );
+  const candidates = [];
+  const seen = new Set();
+  const add = (id, rect) => {
+    const key = String(id || "");
+    if (!key || excluded.has(key) || seen.has(key)) return;
+    const normalized = CanvasGeometryRules.normalizeRect(rect);
+    if (!normalized || !CanvasGeometryRules.rectsIntersect(normalized, viewportRect, { inclusive: true })) return;
+    seen.add(key);
+    candidates.push(normalized);
   };
+
+  document.querySelectorAll("#canvasPlane .canvas-node").forEach((node) => {
+    add(node.dataset.id, getCanvasNodeBox(node));
+  });
+  canvasPagedStore.query(viewportRect).forEach((id) => {
+    add(id, canvasPagedStore.getRect(id));
+  });
+  const page = canvasPagedStore.scenePage;
+  if (page?.mode === "scene") {
+    getCanvasSceneVisualNodes(page).forEach((model) => {
+      add(model.id, getCanvasModelAlignmentRect(model));
+    });
+  }
+  const reference = CanvasGeometryRules.normalizeRect(referenceRect);
+  if (!reference || candidates.length <= maxCandidates) return candidates;
+  const referenceCenter = CanvasGeometryRules.rectCenter(reference);
+  return candidates
+    .map((rect, index) => {
+      const center = CanvasGeometryRules.rectCenter(rect);
+      return {
+        rect,
+        index,
+        distance: Math.hypot(center.x - referenceCenter.x, center.y - referenceCenter.y),
+      };
+    })
+    .sort((left, right) => left.distance - right.distance || left.index - right.index)
+    .slice(0, maxCandidates)
+    .map((item) => item.rect);
+}
+
+function hideCanvasAlignmentGuides() {
+  const guides = document.querySelector("#canvasAlignmentGuides");
+  if (!guides) return;
+  guides.hidden = true;
+  guides.querySelectorAll("[data-alignment-axis]").forEach((guide) => {
+    guide.hidden = true;
+  });
+}
+
+function showCanvasAlignmentGuides(alignment) {
+  const guides = document.querySelector("#canvasAlignmentGuides");
+  if (!guides) return;
+  const vertical = guides.querySelector('[data-alignment-axis="x"]');
+  const horizontal = guides.querySelector('[data-alignment-axis="y"]');
+  if (!alignment?.x && !alignment?.y) {
+    hideCanvasAlignmentGuides();
+    return;
+  }
+  guides.hidden = false;
+  if (vertical) {
+    vertical.hidden = !alignment?.x;
+    if (alignment?.x) {
+      vertical.style.left = `${toSystemDelta(canvasState.x + alignment.x.position * canvasState.scale)}px`;
+    }
+  }
+  if (horizontal) {
+    horizontal.hidden = !alignment?.y;
+    if (alignment?.y) {
+      horizontal.style.top = `${toSystemDelta(canvasState.y + alignment.y.position * canvasState.scale)}px`;
+    }
+  }
 }
 
 function sortCanvasGroupMemberIds(ids) {
@@ -14219,6 +18577,11 @@ function sortCanvasGroupMemberIds(ids) {
 
 function getCanvasNodeMinWidth(node) {
   if (node.classList.contains("canvas-node-group")) return 180;
+  if (node.classList.contains("canvas-node-gallery-container")) {
+    const container = getCanvasGalleryContainer(node);
+    const layout = getCanvasGalleryContainerSizeForRequest(node, node.offsetWidth || Number(node.dataset.width || 0), 0).layout;
+    return getCanvasGalleryMinimumWidthForColumns(layout.columns, container.gap ?? 16);
+  }
   if (node.classList.contains("canvas-node-grid-editor")) return 420;
   if (node.classList.contains("canvas-node-generator")) return 320;
   return 220;
@@ -14238,34 +18601,92 @@ function beginCanvasNodeResize(event) {
     width: node.offsetWidth,
     height: Number(node.dataset.height || getCanvasNodeBodyHeight(node)),
   };
+  const imageBounds = node.classList.contains("canvas-node-frameless") && node.dataset.imageSrc
+    ? getCanvasNodeBox(node) : null;
+  if (imageBounds) {
+    start.width = imageBounds.right - imageBounds.left;
+    start.height = imageBounds.bottom - imageBounds.top;
+  }
+  let galleryResizeAxis = "";
+  let galleryManualColumns = node.classList.contains("canvas-node-gallery-container")
+    ? getCanvasGalleryContainerSizeForRequest(node, start.width, start.height).layout.columns
+    : null;
   const move = (moveEvent) => {
-    const deltaX = (moveEvent.clientX - start.x) / canvasState.scale;
-    const deltaY = (moveEvent.clientY - start.y) / canvasState.scale;
-    const minWidth = getCanvasNodeMinWidth(node);
+    const deltaX = toSystemDelta(moveEvent.clientX - start.x) / canvasState.scale;
+    const deltaY = toSystemDelta(moveEvent.clientY - start.y) / canvasState.scale;
+    if (imageBounds) {
+      const ratio = start.width / start.height;
+      const byWidth = Math.abs(deltaX) >= Math.abs(deltaY * ratio);
+      const factor = byWidth ? (start.width + deltaX) / start.width : (start.height + deltaY) / start.height;
+      const nextHeight = Math.max(32 / Math.min(1, ratio), Math.min(2400 / Math.max(1, ratio), start.height * factor));
+      node.dataset.x = String(imageBounds.left);
+      node.dataset.y = String(imageBounds.top);
+      node.dataset.width = String(nextHeight * ratio);
+      node.dataset.height = String(nextHeight);
+      applyCanvasNodeSize(node);
+      updateCanvasNodePosition(node);
+      return;
+    }
+    const isGallery = node.classList.contains("canvas-node-gallery-container");
+    const galleryGap = isGallery ? getCanvasGalleryContainer(node).gap ?? 16 : 0;
+    const minWidth = isGallery
+      ? getCanvasGalleryMinimumWidthForColumns(galleryManualColumns, galleryGap)
+      : getCanvasNodeMinWidth(node);
     const minHeight = node.classList.contains("canvas-node-group") ? 120 : 120;
+    const isText = node.classList.contains("canvas-node-text");
     const wideNode = node.classList.contains("canvas-node-group")
-      || node.classList.contains("canvas-node-gallery")
-      || node.classList.contains("canvas-node-grid-editor");
+      || node.classList.contains("canvas-node-gallery-container")
+      || node.classList.contains("canvas-node-grid-editor")
+      || isText;
     const maxWidth = wideNode ? 1600 : 820;
     const maxHeight = node.classList.contains("canvas-node-group") || node.classList.contains("canvas-node-grid-editor")
       ? 1600
-      : node.classList.contains("canvas-node-gallery") ? 1200 : 760;
+      : isGallery || isText ? 2400 : 760;
     const width = Math.max(minWidth, Math.min(maxWidth, start.width + deltaX));
     const height = Math.max(minHeight, Math.min(maxHeight, start.height + deltaY));
-    node.dataset.width = String(Math.round(width));
-    if (node.classList.contains("canvas-node-gallery") || node.classList.contains("canvas-node-grid-editor")) {
+    if (isGallery) {
+      const container = getCanvasGalleryContainer(node);
+      if (!galleryResizeAxis) {
+        if (Math.max(Math.abs(deltaX), Math.abs(deltaY)) < 8) return;
+        galleryResizeAxis = Math.abs(deltaY) > Math.abs(deltaX) ? "height" : "width";
+      }
+      const resizeAxis = galleryResizeAxis;
+      const next = getCanvasGalleryContainerSizeForRequest(node, width, height, {
+        layoutMode: "manual",
+        manualColumns: galleryManualColumns,
+        resizeAxis,
+      });
+      galleryManualColumns = next.layout.columns;
+      node.dataset.galleryContainer = JSON.stringify({
+        ...container,
+        layoutMode: "manual",
+        manualColumns: next.layout.columns,
+      });
+      node.dataset.width = String(next.width);
+      node.dataset.height = String(next.height);
+      node.style.setProperty("--canvas-gallery-container-width", `${next.width}px`);
+      node.style.setProperty("--canvas-gallery-container-height", `${next.height}px`);
+      node.style.setProperty("--canvas-gallery-container-min-height", `${next.layout.minHeight}px`);
+      node.style.setProperty("--canvas-gallery-container-cell-width", `${next.layout.cellWidth}px`);
+      node.style.setProperty("--canvas-gallery-container-cell-height", `${next.layout.cellHeight}px`);
+      const members = node.querySelector(".canvas-gallery-container-members");
+      if (members) {
+        members.style.setProperty("--canvas-gallery-container-columns", String(next.layout.columns));
+        members.style.setProperty("--canvas-gallery-container-gap", `${next.layout.gap}px`);
+        members.style.setProperty("--canvas-gallery-container-cell-width", `${next.layout.cellWidth}px`);
+        members.style.setProperty("--canvas-gallery-container-cell-height", `${next.layout.cellHeight}px`);
+      }
+    } else {
+      node.dataset.width = String(Math.round(width));
+    }
+    if (node.classList.contains("canvas-node-grid-editor")) {
       delete node.dataset.height;
       node.style.removeProperty("--canvas-node-media-height");
-    } else {
+    } else if (!isGallery) {
       node.dataset.height = String(Math.round(height));
     }
     applyCanvasNodeSize(node);
-    if (node.classList.contains("canvas-node-gallery")) {
-      void node.offsetWidth;
-      updateCanvasGalleryLayout(node);
-    } else {
-      scheduleCanvasConnectionRender({ trailing: false });
-    }
+    scheduleCanvasConnectionRender({ trailing: false });
     if (node.classList.contains("canvas-node-group")) refreshCanvasGroupMembership(node);
   };
   const up = () => {
@@ -14295,18 +18716,51 @@ function releaseCanvasGroupFocus() {
   requestAnimationFrame(release);
 }
 
+function getCanvasImageContentRect(model, envelope = null) {
+  if (!model) return envelope;
+  const rect = envelope || window.CanvasVirtualizationRules.getNodeRect(model);
+  if (!["image", "upload"].includes(model.kind)) return rect;
+  const source = String(model.imageSrc || model.previewSource || "");
+  const dimensions = canvasImageDimensions.get(source) || canvasSceneTextureCache.get(source);
+  return window.CanvasVirtualizationRules.getImageContentRect(rect, dimensions);
+}
+
 function applyCanvasNodeSize(node) {
+  if (node.classList.contains("canvas-node-frameless") && node.dataset.imageSrc) {
+    const img = node.querySelector(".canvas-image-upload img:not(.canvas-image-mask-preview)");
+    const width = Number(img?.dataset.originalWidth || img?.naturalWidth);
+    const height = Number(img?.dataset.originalHeight || img?.naturalHeight);
+    if (width > 0 && height > 0) canvasImageDimensions.set(node.dataset.imageSrc, { width, height });
+    const rect = getCanvasImageContentRect({ ...node.dataset, kind: "image", x: 0, y: 0 });
+    // Keep the saved anchor, but make the actual DOM box match the painted
+    // image. Ports, resize handles and pointer events now share its edges.
+    node.style.left = `${rect.left}px`;
+    node.style.top = `${rect.top}px`;
+    node.style.width = `${rect.right - rect.left}px`;
+    node.style.height = `${rect.bottom - rect.top}px`;
+    return;
+  }
+  node.style.left = "";
+  node.style.top = "";
+  if (node.classList.contains("canvas-node-image")) node.style.height = "";
   const width = Number(node.dataset.width || 0);
   const height = Number(node.dataset.height || 0);
   if (width > 0) {
     node.style.width = `${width}px`;
-    if (node.classList.contains("canvas-node-grid-editor")) {
+    if (node.classList.contains("canvas-node-gallery-container")) {
+      node.style.setProperty("--canvas-gallery-container-width", `${width}px`);
+    } else if (node.classList.contains("canvas-node-grid-editor")) {
       node.style.setProperty("--canvas-grid-editor-width", `${width}px`);
     }
   }
   if (height > 0) {
     if (node.classList.contains("canvas-node-group")) node.style.height = `${height}px`;
+    else if (node.classList.contains("canvas-node-gallery-container")) {
+      node.style.height = `${height}px`;
+      node.style.setProperty("--canvas-gallery-container-height", `${height}px`);
+    }
     else if (node.classList.contains("canvas-node-text")) node.style.setProperty("--canvas-node-text-height", `${height}px`);
+    else if (node.classList.contains("canvas-node-note")) node.style.setProperty("--canvas-note-height", `${height}px`);
     else if (node.classList.contains("canvas-node-grid-editor")) node.style.setProperty("--canvas-grid-editor-body-height", `${height}px`);
     else if ((node.classList.contains("canvas-node-image") && !node.dataset.imageSrc && !node.dataset.uploadOnly)
       || node.classList.contains("canvas-node-llm")) {
@@ -14317,7 +18771,7 @@ function applyCanvasNodeSize(node) {
 }
 
 function getCanvasNodeBodyHeight(node) {
-  const sized = node.querySelector(".canvas-grid-editor-shell, .canvas-node-result:not([hidden]), .canvas-image-upload:not([hidden]), .canvas-node-prompt, .canvas-text");
+  const sized = node.querySelector(".canvas-grid-editor-shell, .canvas-node-result:not([hidden]), .canvas-image-upload:not([hidden]), .canvas-assets-body, .canvas-media-shell, .canvas-node-prompt, .canvas-text");
   return sized?.offsetHeight || 180;
 }
 
@@ -14328,13 +18782,64 @@ function dispatchCanvasSelectionChange() {
     canvasSelectionChangeQueued = false;
     window.dispatchEvent(new CustomEvent("canvas:selectionchange", {
       detail: {
-        selectedIds: getSelectedCanvasNodes().map((node) => String(node.dataset.id || "")).filter(Boolean),
+        selectedIds: Array.from(canvasState.selectedIds),
       },
     }));
   });
 }
 
+function nextCanvasNodeZOrder() {
+  // A timestamp keeps a newly activated node above unloaded legacy nodes too.
+  canvasNodeStackClock = Math.max(Date.now(), canvasNodeStackClock + 1);
+  return canvasNodeStackClock;
+}
+
+function syncCanvasNodeStacking() {
+  const nodes = canvasVirtualStore.mountedElements().filter(node => node?.isConnected);
+  nodes.sort((a, b) => (Number(a.dataset.zOrder) || 0) - (Number(b.dataset.zOrder) || 0));
+  nodes.forEach((node, index) => {
+    // CSS z-index is a 32-bit integer; use compact display ranks rather than
+    // the durable order. Changing a style leaves decoded images in place.
+    const level = String(index + 2);
+    if (node.style.zIndex !== level) node.style.zIndex = level;
+    node.style.setProperty("--canvas-stack-level", level);
+  });
+}
+
+function bringCanvasNodeToFront(node) {
+  if (!node?.isConnected || !node.dataset.id) return;
+  const model = syncCanvasNodeModel(node);
+  const after = bringCanvasModelToFront(model);
+  node.dataset.zOrder = String(after.zOrder || 0);
+  syncCanvasNodeStacking();
+}
+
+function bringCanvasModelToFront(model) {
+  const id = String(model.id);
+  const order = Number(model.zOrder) || 0;
+  let highest = 0;
+  for (const other of canvasVirtualStore.values()) {
+    if (String(other.id) !== id) highest = Math.max(highest, Number(other.zOrder) || 0);
+  }
+  for (const item of canvasPagedStore.scenePage?.visualNodes || []) {
+    if (String(Array.isArray(item) ? item[0] : item.id) !== id) {
+      highest = Math.max(highest, Number(Array.isArray(item) ? item[6] : item.zOrder) || 0);
+    }
+  }
+  if (order > highest) return model;
+  canvasNodeStackClock = Math.max(canvasNodeStackClock, highest);
+  const before = toCanvasOperationNode(model);
+  const after = { ...before, zOrder: nextCanvasNodeZOrder() };
+  // Selection isn't an extra undo step. Persist the order using the normal
+  // node operation, including any pending edits on this node.
+  stageCanvasOperation({ type: "node.upsert", entityId: id, before, after });
+  if (canvasState.selectedSceneItems.has(id)) canvasState.selectedSceneItems.set(id, after);
+  scheduleCanvasSceneRender();
+  return after;
+}
+
 function selectCanvasNode(node) {
+  bringCanvasNodeToFront(node);
   canvasState.selectionFrameVisible = false;
   clearCanvasSelection();
   addCanvasNodeToSelection(node);
@@ -14343,6 +18848,8 @@ function selectCanvasNode(node) {
 }
 
 function clearCanvasSelection() {
+  canvasState.selectionRevision += 1;
+  canvasState.selectedSceneItems.clear();
   const selectedIds = Array.from(canvasState.selectedIds);
   document.querySelectorAll(".canvas-node.is-selected, .canvas-node.is-agent-focus")
     .forEach((item) => item.classList.remove("is-selected", "is-agent-focus"));
@@ -14353,6 +18860,7 @@ function clearCanvasSelection() {
   updateCanvasGroupAction();
   updateCanvasSelectionFrame();
   dispatchCanvasSelectionChange();
+  scheduleCanvasSceneRender();
 }
 
 function addCanvasNodeToSelection(node) {
@@ -14368,10 +18876,12 @@ function addCanvasNodeToSelection(node) {
 
 function toggleCanvasNodeSelection(node) {
   if (!node) return;
+  canvasState.selectionRevision += 1;
   canvasState.selectionFrameVisible = false;
   if (node.classList.contains("is-selected")) {
     node.classList.remove("is-selected");
     canvasState.selectedIds.delete(node.dataset.id);
+    canvasState.selectedSceneItems.delete(node.dataset.id);
     unpinCanvasNode(node.dataset.id);
     canvasState.activeNode = getSelectedCanvasNodes().at(-1) || null;
   } else {
@@ -14386,10 +18896,255 @@ function getSelectedCanvasNodes() {
   return Array.from(document.querySelectorAll("#canvasPlane .canvas-node.is-selected"));
 }
 
+function hasCanvasSceneSelection() {
+  return [...canvasState.selectedIds].some(id => !canvasVirtualStore.getMounted(id));
+}
+
+async function loadCanvasSelectedModels(ids = [...canvasState.selectedIds]) {
+  const boardId = String(canvasState.activeBoardId);
+  const revision = canvasState.selectionRevision;
+  const assertCurrent = () => {
+    if (boardId !== String(canvasState.activeBoardId) || revision !== canvasState.selectionRevision) {
+      throw new Error("选择已改变，本次操作已取消。");
+    }
+  };
+  const models = new Map();
+  const connections = new Map();
+  const persisted = ids.filter(id => !canvasPagedStore.getPendingOperations().some(op =>
+    op.type === "node.upsert" && op.entityId === id && !op.before));
+  // Only load selected nodes, in bounded requests; never mount them merely to operate.
+  for (let offset = 0; offset < persisted.length; offset += 100) {
+    const query = new URLSearchParams();
+    persisted.slice(offset, offset + 100).forEach(id => query.append("nodeId", id));
+    const response = await fetch(`${CANVAS_BOARDS_API_URL}/${encodeURIComponent(boardId)}/nodes?${query}`);
+    const data = await response.json();
+    assertCurrent();
+    if (!response.ok || !Array.isArray(data.nodes)) throw new Error(data.error || "选中节点加载失败，请重试。");
+    data.nodes.forEach(model => models.set(String(model.id), model));
+    (data.connections || []).forEach(item => connections.set(String(item.id), item));
+  }
+  assertCurrent();
+  canvasState.connections.forEach(item => connections.set(getCanvasConnectionId(item), normalizeVisibleCanvasConnection(item)));
+  canvasPagedStore.getPendingOperations().forEach(op => {
+    if (op.type === "connection.delete") connections.delete(op.entityId);
+    if (op.type === "connection.upsert") connections.set(op.entityId, op.after);
+  });
+  const nodes = ids.map(id => {
+    const mounted = canvasVirtualStore.getMounted(id);
+    const pending = canvasPagedStore.getPendingOperations().find(op => op.type === "node.upsert" && op.entityId === id);
+    const model = mounted ? syncCanvasNodeModel(mounted) : pending?.after || models.get(id) || canvasVirtualStore.get(id);
+    if (!model || canvasPagedStore.deletedNodeIds.has(id)) throw new Error("部分选中节点已被删除，请重新框选。");
+    return toCanvasOperationNode(model);
+  });
+  return { nodes, connections: [...connections.values()], assertCurrent };
+}
+
+async function copyCanvasSceneSelection() {
+  const selected = await loadCanvasSelectedModels();
+  selected.assertCurrent();
+  const ids = new Set(selected.nodes.map(node => String(node.id)));
+  canvasState.clipboard = {
+    selectedId: canvasState.activeNode?.dataset.id || selected.nodes.at(-1)?.id,
+    nodes: selected.nodes,
+    pasteCount: 0,
+    connections: selected.connections.filter(item => ids.has(String(item.from)) && ids.has(String(item.to))),
+    externalConnections: selected.connections
+      .filter(item => ids.has(String(item.from)) !== ids.has(String(item.to)))
+      .map(item => ({ ...item, selectedSide: ids.has(String(item.from)) ? "from" : "to" })),
+  };
+  setCanvasStatus(`已复制 ${selected.nodes.length} 个节点。`);
+}
+
+async function deleteCanvasSceneSelection() {
+  const selected = await loadCanvasSelectedModels();
+  selected.assertCurrent();
+  deleteCanvasModels(selected.nodes, getSelectedCanvasNodes(), selected.connections);
+  setCanvasStatus(`已删除 ${selected.nodes.length} 个节点，可撤销。`);
+}
+
+function pasteCanvasModelClipboard() {
+  const clipboard = canvasState.clipboard;
+  const offset = nextCanvasPasteOffset(clipboard);
+  const idMap = new Map(clipboard.nodes.map(model => [String(model.id), createId()]));
+  const nodes = clipboard.nodes.map(source => {
+    const model = cloneCanvasOperationValue(source);
+    model.id = idMap.get(String(source.id));
+    model.x = Number(source.x || 0) + offset;
+    model.y = Number(source.y || 0) + offset;
+    if (model.groupMembers) model.groupMembers = model.groupMembers.map(id => idMap.get(String(id)) || String(id));
+    if (model.gridEditorState) model.gridEditorState = {
+      ...model.gridEditorState, editing: false,
+      sourceNodeId: idMap.get(String(model.gridEditorState.sourceNodeId)) || model.gridEditorState.sourceNodeId,
+    };
+    for (const field of ["minimaxH3ImageOrder", "minimaxH3VideoOrder", "minimaxH3AudioOrder"]) {
+      if (model[field]) model[field] = remapCanvasH3ReferenceOrder(model[field], idMap);
+    }
+    return model;
+  });
+  const edges = clipboard.connections.map(item => cloneCanvasConnectionWithMappedNodes(item, idMap)).filter(Boolean);
+  (clipboard.externalConnections || []).forEach(item => {
+    edges.push({ ...item, id: undefined, from: idMap.get(String(item.from)) || item.from,
+      to: idMap.get(String(item.to)) || item.to });
+  });
+  const forward = [
+    ...nodes.map(after => ({ type: "node.upsert", entityId: after.id, before: null, after })),
+    ...edges.map(edge => {
+      const after = normalizeVisibleCanvasConnection(edge);
+      return { type: "connection.upsert", entityId: after.id, before: null, after };
+    }),
+  ];
+  recordCanvasUndo({ label: "粘贴节点", forward, inverse: [...forward].reverse().map(op => ({
+    type: op.type.replace(".upsert", ".delete"), entityId: op.entityId, before: op.after, after: null,
+  })) });
+  clearCanvasSelection();
+  forward.forEach(op => stageCanvasOperation(op, { applyLocal: true }));
+  canvasState.selectedIds = new Set(nodes.map(node => node.id));
+  canvasState.selectedSceneItems = new Map(nodes.map(node => [node.id, node]));
+  canvasState.selectionFrameVisible = true;
+  canvasViewportDataSource.lastFulfilled = null;
+  canvasVirtualizer.schedule();
+  updateCanvasGroupAction();
+  dispatchCanvasSelectionChange();
+  scheduleCanvasSceneRender();
+  scheduleCanvasSave();
+  setCanvasStatus(`已粘贴 ${nodes.length} 个节点。`);
+}
+
+async function createCanvasSceneGroup() {
+  const selected = await loadCanvasSelectedModels();
+  const images = selected.nodes.filter(node => ["image", "upload"].includes(node.kind) && (node.resultSrc || node.imageSrc));
+  if (!images.length) { setCanvasStatus("请选择至少一个有图片内容的节点再打组。"); return; }
+  images.sort((a, b) => Math.abs(a.y - b.y) > 24 ? a.y - b.y : a.x - b.x);
+  const bounds = CanvasGeometryRules.unionRects(images.map(model => getCanvasImageContentRect(model)));
+  if (!bounds) { setCanvasStatus("所选节点没有可用的图片范围。"); return; }
+  selected.assertCurrent();
+  const group = createCanvasNode("group");
+  setCanvasNodePoint(group, { x: bounds.left - 36, y: bounds.top - 58 });
+  group.dataset.width = String(Math.max(280, Math.round(bounds.right - bounds.left + 72)));
+  group.dataset.height = String(Math.max(180, Math.round(bounds.bottom - bounds.top + 92)));
+  renderCanvasGroupNode(group, { title: "GROUP", memberIds: images.map(model => String(model.id)),
+    images: images.map(model => ({ name: model.imageName || "参考图", url: model.resultSrc || model.imageSrc })) });
+  applyCanvasNodeSize(group);
+  placeCanvasNode(group);
+  canvasState.connections = selected.connections;
+  mergeGroupedImageConnectionsByIds(group, images.map(model => String(model.id)));
+  scheduleCanvasSave();
+  setCanvasStatus(`已将 ${images.length} 张图片打组。`);
+  return group;
+}
+
+async function beginCanvasSceneSelectionDrag(event, { initialMove = null, initialEnd = null } = {}) {
+  if (event.button !== 0 || event.target.closest("button, textarea, select, input, .canvas-resize-handle")) return;
+  event.preventDefault();
+  event.stopPropagation();
+  let latest = initialMove, ended = initialEnd, frame = 0, selected = null;
+  const start = { x: event.clientX, y: event.clientY };
+  let deltaX = 0, deltaY = 0;
+  let alignmentCandidates = [];
+  const paint = () => {
+    frame = 0;
+    if (!selected || !latest) return;
+    try { selected.assertCurrent(); } catch { cleanup(); canvasState.selectionDragging = false; return; }
+    const rawDeltaX = toSystemDelta(latest.clientX - start.x) / canvasState.scale;
+    const rawDeltaY = toSystemDelta(latest.clientY - start.y) / canvasState.scale;
+    const movingBounds = CanvasGeometryRules.unionRects(selected.nodes.map(getCanvasModelAlignmentRect));
+    const alignment = movingBounds ? CanvasAlignmentRules.alignRect({
+      movingRect: {
+        left: movingBounds.left + rawDeltaX,
+        top: movingBounds.top + rawDeltaY,
+        right: movingBounds.right + rawDeltaX,
+        bottom: movingBounds.bottom + rawDeltaY,
+      },
+      candidateRects: alignmentCandidates,
+      threshold: getCanvasAlignmentThreshold(),
+    }) : null;
+    deltaX = rawDeltaX + Number(alignment?.deltaX || 0);
+    deltaY = rawDeltaY + Number(alignment?.deltaY || 0);
+    selected.nodes.forEach(before => {
+      const x = before.x + deltaX, y = before.y + deltaY;
+      canvasState.selectedSceneItems.set(String(before.id), {
+        ...canvasState.selectedSceneItems.get(String(before.id)), ...before, x, y,
+      });
+      const node = canvasVirtualStore.getMounted(before.id);
+      if (node) { node.dataset.x = String(x); node.dataset.y = String(y); updateCanvasNodePosition(node); }
+    });
+    renderCanvasSceneLayer();
+    updateCanvasSelectionFrame();
+    scheduleCanvasConnectionRender();
+    showCanvasAlignmentGuides(alignment);
+  };
+  const move = next => {
+    latest = next;
+    if (selected && !frame) frame = requestAnimationFrame(paint);
+  };
+  const cleanup = () => {
+    window.removeEventListener("pointermove", move);
+    window.removeEventListener("pointerup", finish);
+    window.removeEventListener("pointercancel", finish);
+    if (frame) cancelAnimationFrame(frame);
+    frame = 0;
+    hideCanvasAlignmentGuides();
+  };
+  const finish = next => {
+    ended = next;
+    if (!selected) return;
+    cleanup();
+    try {
+      selected.assertCurrent();
+      if (next.type !== "pointercancel") {
+        latest = next;
+        paint();
+      }
+      if (next.type !== "pointercancel" && (Math.abs(deltaX) > 0.01 || Math.abs(deltaY) > 0.01)) {
+        const forward = selected.nodes.map(before => ({
+          type: "node.upsert", entityId: String(before.id), before,
+          after: { ...before, x: before.x + deltaX, y: before.y + deltaY },
+        }));
+        recordCanvasUndo({ label: "移动节点", forward, inverse: forward.map(op => ({
+          ...op, before: op.after, after: op.before,
+        })) });
+        forward.forEach(op => stageCanvasOperation(op, { applyLocal: true }));
+        scheduleCanvasSave();
+      } else {
+        selected.nodes.forEach(before => {
+          canvasState.selectedSceneItems.set(String(before.id), before);
+          const node = canvasVirtualStore.getMounted(before.id);
+          if (node) { node.dataset.x = String(before.x); node.dataset.y = String(before.y); updateCanvasNodePosition(node); }
+        });
+      }
+    } catch (error) { setCanvasStatus(error.message); }
+    canvasState.selectionDragging = false;
+    hideCanvasAlignmentGuides();
+    scheduleCanvasSceneRender();
+  };
+  window.addEventListener("pointermove", move);
+  window.addEventListener("pointerup", finish);
+  window.addEventListener("pointercancel", finish);
+  try {
+    selected = await loadCanvasSelectedModels();
+    const dragIds = new Set(selected.nodes.map(model => String(model.id)));
+    const members = selected.nodes.filter(model => model.kind === "group").flatMap(model => model.groupMembers || []);
+    members.forEach(id => dragIds.add(String(id)));
+    if (dragIds.size > selected.nodes.length) selected = await loadCanvasSelectedModels([...dragIds]);
+    selected.assertCurrent();
+    alignmentCandidates = getCanvasAlignmentCandidateRects(
+      dragIds,
+      CanvasGeometryRules.unionRects(selected.nodes.map(getCanvasModelAlignmentRect)),
+    );
+    canvasState.selectionDragging = true;
+    if (ended) finish(ended);
+    else if (latest) paint();
+  } catch (error) {
+    cleanup();
+    canvasState.selectionDragging = false;
+    setCanvasStatus(error.message);
+  }
+}
+
 function updateCanvasGroupAction() {
   const button = document.querySelector("#canvasGroup");
   if (!button) return;
-  const canGroup = getSelectedCanvasNodes().some((node) => {
+  const canGroup = Array.from(canvasState.selectedSceneItems.values()).some(item => ["image", "upload", "group"].includes(item.kind)) || getSelectedCanvasNodes().some((node) => {
     const output = getCanvasNodeOutput(node);
     return output?.type === "image" || output?.type === "group";
   });
@@ -14401,16 +19156,29 @@ function updateCanvasSelectionFrame() {
   const viewport = document.querySelector("#infiniteCanvas");
   if (!box || !viewport || box.classList.contains("is-marquee")) return;
   const selected = getSelectedCanvasNodes();
-  if (!canvasState.selectionFrameVisible || selected.length < 2) {
+  if (!canvasState.selectionFrameVisible || canvasState.selectedIds.size < 2) {
     box.hidden = true;
     return;
   }
   const rects = selected.map((node) => node.getBoundingClientRect());
   const viewportRect = viewport.getBoundingClientRect();
-  const left = Math.min(...rects.map((rect) => rect.left)) - viewportRect.left - 8;
-  const top = Math.min(...rects.map((rect) => rect.top)) - viewportRect.top - 8;
-  const right = Math.max(...rects.map((rect) => rect.right)) - viewportRect.left + 8;
-  const bottom = Math.max(...rects.map((rect) => rect.bottom)) - viewportRect.top + 8;
+  const unit = viewportRect.width / Math.max(1, viewport.clientWidth);
+  canvasState.selectedSceneItems.forEach((item, id) => {
+    if (!canvasState.selectedIds.has(id) || canvasVirtualStore.getMounted(id)) return;
+    const bounds = getCanvasImageContentRect(canvasState.selectionDragging ? item : canvasVirtualStore.get(id) || item);
+    rects.push({
+      left: viewportRect.left + (canvasState.x + bounds.left * canvasState.scale) * unit,
+      top: viewportRect.top + (canvasState.y + bounds.top * canvasState.scale) * unit,
+      right: viewportRect.left + (canvasState.x + bounds.right * canvasState.scale) * unit,
+      bottom: viewportRect.top + (canvasState.y + bounds.bottom * canvasState.scale) * unit,
+    });
+  });
+  const selectionBounds = CanvasGeometryRules.unionRects(rects);
+  if (!selectionBounds) { box.hidden = true; return; }
+  const left = toSystemDelta(selectionBounds.left - viewportRect.left) - 8;
+  const top = toSystemDelta(selectionBounds.top - viewportRect.top) - 8;
+  const right = toSystemDelta(selectionBounds.right - viewportRect.left) + 8;
+  const bottom = toSystemDelta(selectionBounds.bottom - viewportRect.top) + 8;
   box.hidden = false;
   box.style.left = `${left}px`;
   box.style.top = `${top}px`;
@@ -14421,18 +19189,7 @@ function updateCanvasSelectionFrame() {
 function getCanvasNodesBounds(nodes) {
   const list = Array.from(nodes || []).filter(Boolean);
   if (!list.length) return null;
-  return list.reduce((bounds, node) => {
-    const x = Number(node.dataset.x || 0);
-    const y = Number(node.dataset.y || 0);
-    const width = node.offsetWidth || Number(node.dataset.width || 292);
-    const height = node.offsetHeight || Number(node.dataset.height || 180);
-    return {
-      left: Math.min(bounds.left, x),
-      top: Math.min(bounds.top, y),
-      right: Math.max(bounds.right, x + width),
-      bottom: Math.max(bounds.bottom, y + height),
-    };
-  }, { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity });
+  return CanvasGeometryRules.unionRects(list.map(getCanvasNodeBox));
 }
 
 function beginCanvasMarquee(event) {
@@ -14443,8 +19200,8 @@ function beginCanvasMarquee(event) {
   canvasState.selectionFrameVisible = true;
   const rect = viewport.getBoundingClientRect();
   const start = {
-    x: event.clientX - rect.left,
-    y: event.clientY - rect.top,
+    x: toSystemDelta(event.clientX - rect.left),
+    y: toSystemDelta(event.clientY - rect.top),
   };
   event.preventDefault();
   box.hidden = false;
@@ -14455,22 +19212,14 @@ function beginCanvasMarquee(event) {
   box.style.height = "0px";
 
   const move = (moveEvent) => {
-    const currentX = moveEvent.clientX - rect.left;
-    const currentY = moveEvent.clientY - rect.top;
-    const left = Math.min(start.x, currentX);
-    const top = Math.min(start.y, currentY);
-    const width = Math.abs(currentX - start.x);
-    const height = Math.abs(currentY - start.y);
-    box.style.left = `${left}px`;
-    box.style.top = `${top}px`;
-    box.style.width = `${width}px`;
-    box.style.height = `${height}px`;
-    selectCanvasNodesInScreenRect({
-      left: rect.left + left,
-      top: rect.top + top,
-      right: rect.left + left + width,
-      bottom: rect.top + top + height,
-    });
+    const currentX = toSystemDelta(moveEvent.clientX - rect.left);
+    const currentY = toSystemDelta(moveEvent.clientY - rect.top);
+    const marquee = CanvasGeometryRules.rectFromPoints(start, { x: currentX, y: currentY });
+    box.style.left = `${marquee.left}px`;
+    box.style.top = `${marquee.top}px`;
+    box.style.width = `${marquee.right - marquee.left}px`;
+    box.style.height = `${marquee.bottom - marquee.top}px`;
+    selectCanvasNodesInScreenRect(box.getBoundingClientRect());
   };
 
   const up = () => {
@@ -14487,27 +19236,70 @@ function beginCanvasMarquee(event) {
 }
 
 function selectCanvasNodesInScreenRect(rect) {
-  document.querySelectorAll(".canvas-node.is-selected").forEach((item) => item.classList.remove("is-selected"));
-  canvasState.selectedIds.clear();
+  const previousIds = canvasState.selectedIds;
+  const selectedIds = new Set();
+  const selectedSceneItems = new Map();
+  canvasState.selectionRevision += 1;
   canvasState.activeNode = null;
+  const viewport = document.querySelector("#infiniteCanvas");
+  const viewportRect = viewport?.getBoundingClientRect?.();
+  if (viewportRect && canvasSceneLayer?.getItemsInRect) {
+    const sceneRect = {
+      left: toSystemDelta(rect.left - viewportRect.left),
+      top: toSystemDelta(rect.top - viewportRect.top),
+      right: toSystemDelta(rect.right - viewportRect.left),
+      bottom: toSystemDelta(rect.bottom - viewportRect.top),
+    };
+    canvasSceneLayer.getItemsInRect(sceneRect).forEach((hit) => {
+      const id = String(hit.id);
+      if (canvasPagedStore.deletedNodeIds.has(id)) return;
+      selectedIds.add(id);
+      selectedSceneItems.set(id, hit.item);
+    });
+  }
   document.querySelectorAll("#canvasPlane .canvas-node").forEach((node) => {
     const nodeRect = node.getBoundingClientRect();
-    const hit = nodeRect.left < rect.right
-      && nodeRect.right > rect.left
-      && nodeRect.top < rect.bottom
-      && nodeRect.bottom > rect.top;
-    if (hit) addCanvasNodeToSelection(node);
+    const hit = CanvasGeometryRules.rectsIntersect(nodeRect, rect);
+    node.classList.toggle("is-selected", hit);
+    if (hit) {
+      selectedIds.add(node.dataset.id);
+      pinCanvasNode(node.dataset.id);
+      canvasState.activeNode = node;
+    }
   });
+  previousIds.forEach(id => { if (!selectedIds.has(id)) unpinCanvasNode(id); });
+  canvasState.selectedIds = selectedIds;
+  canvasState.selectedSceneItems = selectedSceneItems;
+  if (selectedIds.size) setCanvasStatus(`已框选 ${selectedIds.size} 个节点。`);
   updateCanvasGroupAction();
   dispatchCanvasSelectionChange();
+  scheduleCanvasSceneRender();
 }
 
 function blurActiveCanvasText() {
-  if (document.activeElement?.classList?.contains("canvas-text")) document.activeElement.blur();
+  const active = document.activeElement;
+  if (!active?.blur) return;
+  // Sticky notes edit in place too: leaving their editor focused would keep the
+  // floating colour palette visible after the user clicks the blank canvas.
+  const isNodeEditor = active.classList?.contains("canvas-text")
+    || active.classList?.contains("canvas-note-text")
+    || active.classList?.contains("canvas-node-title-input");
+  if (!isNodeEditor || !active.closest?.("#canvasPlane")) return;
+  active.blur();
 }
 
 function registerCanvasDetailImage(img, source) {
   if (!img || !source) return img;
+  img.addEventListener("load", () => {
+    const node = img.closest(".canvas-node-frameless");
+    if (node) {
+      applyCanvasNodeSize(node);
+      scheduleCanvasConnectionRender();
+      scheduleCanvasSceneRender();
+      canvasImageToolbar?.refresh();
+    }
+    requestAnimationFrame(() => requestAnimationFrame(scheduleCanvasImageQualityUpdate));
+  });
   img.draggable = false;
   img.decoding = "async";
   if (window.imageResources) window.imageResources.registerCanvasImage(img, source);
@@ -14536,7 +19328,8 @@ function scheduleCanvasMediaImage(img, quality, priority = 0) {
     previousKey
     && img.dataset.canvasScheduledQuality === quality
     && (
-      img.dataset.requestedQuality === quality
+      canvasMediaScheduler.isPending(previousKey)
+      || img.dataset.requestedQuality === quality
       || img.dataset.imageQuality === quality
       || (quality === "thumbnail" && img.dataset.imageQuality === "original")
     )
@@ -14584,16 +19377,12 @@ function scheduleCanvasImageQualityUpdate() {
 
 function updateCanvasImageQualities() {
   canvasImageQualityFrame = 0;
+  canvasImageToolbar?.refresh();
+  canvasImageInfo?.refresh();
   const viewport = document.querySelector("#infiniteCanvas");
   const rules = window.ImageLoadingRules;
   const resources = window.imageResources;
   if (!viewport || !rules || !resources || document.body.classList.contains("canvas-overlay-open")) return;
-  if (canvasPagedStore.scenePage) {
-    canvasVirtualStore.mountedElements().forEach((node) => {
-      node.querySelectorAll("img[data-canvas-original-src]").forEach(cancelCanvasMediaImage);
-    });
-    return;
-  }
   const visibleRect = rules.getCanvasVisibleRect(
     { width: viewport.clientWidth, height: viewport.clientHeight },
     canvasState,
@@ -14606,18 +19395,27 @@ function updateCanvasImageQualities() {
     const y = Number(node.dataset.y || 0);
     const width = Number(node.dataset.renderedWidth || node.dataset.width || 320);
     const height = Number(node.dataset.renderedHeight || node.dataset.height || 320);
-    const visible = rules.rectsIntersect(visibleRect, {
+    const visible = rules.rectsIntersect(visibleRect, node.classList.contains("canvas-node-frameless") ? getCanvasNodeBox(node) : {
       left: x,
       top: y,
       right: x + width,
       bottom: y + height,
     });
+    // Use the on-screen size of each image; gallery bounds include many small images.
+    const imageRect = img.getBoundingClientRect();
+    const imageVisible = visible && rules.rectsIntersect(imageRect, viewport.getBoundingClientRect());
+    const sourceWidth = Number(img.dataset.originalWidth || img.naturalWidth);
+    const sourceHeight = Number(img.dataset.originalHeight || img.naturalHeight);
+    const fit = sourceWidth && sourceHeight
+      ? Math.min(imageRect.width / sourceWidth, imageRect.height / sourceHeight) : 1;
+    const displayedMaxSide = sourceWidth && sourceHeight
+      ? Math.max(sourceWidth, sourceHeight) * fit : Math.max(imageRect.width, imageRect.height);
     const quality = rules.chooseCanvasImageQuality({
-      visible,
+      visible: imageVisible,
       scale: canvasState.scale,
       detailReady: canvasDetailReady,
-      currentQuality: img.dataset.imageQuality,
-      displayedMaxSide: Math.max(width, height) * canvasState.scale,
+      currentQuality: img.complete && img.naturalWidth > 0 ? img.dataset.imageQuality : "loading",
+      displayedMaxSide: displayedMaxSide * (window.devicePixelRatio || 1),
     });
     if (img.dataset.canvasForceOriginal === "true" || quality === "original") {
       scheduleCanvasMediaImage(img, "original", visible ? 100 : 10);
@@ -14627,32 +19425,162 @@ function updateCanvasImageQualities() {
   }));
 }
 
+function clearCanvasImageRecoveryAction(node) {
+  node?.querySelector?.(".canvas-image-job-recover")?.remove();
+}
+
+function renderCanvasImageRecoveryAction(node, jobId, { disabled = false } = {}) {
+  const bar = node?.querySelector?.(".canvas-node-bar");
+  if (!bar || !jobId) return null;
+  let button = bar.querySelector(".canvas-image-job-recover");
+  if (!button) {
+    button = document.createElement("button");
+    button.type = "button";
+    button.className = "canvas-image-job-recover";
+    button.addEventListener("pointerdown", (event) => event.stopPropagation());
+    button.addEventListener("click", async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const pendingTask = node.dataset.imageJobState === "task_pending";
+      await recoverCanvasImageJob(button.dataset.jobId, node).catch((error) => {
+        node.dataset.imageJobState = error.imageJobState || (pendingTask ? "task_pending" : "sync_failed");
+        setCanvasImageNodeGenerationState(node, false);
+        syncCanvasNodeResolutionState(node);
+        setCanvasNodeStatus(node, `${pendingTask ? "查询暂不可用" : "原图同步失败"}：${error.message}`);
+        button.disabled = false;
+        button.textContent = pendingTask ? "继续查询结果" : "恢复原图";
+        scheduleCanvasSave();
+      });
+    });
+    bar.querySelector(".canvas-node-delete")?.before(button);
+  }
+  button.dataset.jobId = String(jobId);
+  button.disabled = disabled;
+  const pendingTask = node.dataset.imageJobState === "task_pending";
+  button.textContent = pendingTask ? (disabled ? "查询中…" : "继续查询结果") : (disabled ? "同步中…" : "恢复原图");
+  return button;
+}
+
+async function recoverCanvasImageJob(jobId, node) {
+  if (!jobId || !node) throw new Error("图片任务编号无效。");
+  renderCanvasImageRecoveryAction(node, jobId, { disabled: true });
+  setCanvasImageNodeGenerationState(node, true);
+  setCanvasNodeStatus(node, node.dataset.imageJobState === "task_pending" ? "正在查询已提交的图片任务…" : "图片已生成，正在同步原图到本机…");
+  const response = await fetch(`${IMAGE_JOBS_API_URL}/${encodeURIComponent(jobId)}/recover`, { method: "POST" });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok && response.status !== 202) throw new Error(data.error || "恢复原图失败。");
+  if (!data.job) throw new Error("服务端没有返回图片任务状态。");
+  assertCanvasImageJobScope(data.job, node, null);
+  syncCanvasImageJobProgress(node, data.job);
+  if (data.job.state === "completed") {
+    return commitCanvasImageJobResult(
+      node,
+      data.job,
+      node.querySelector(".canvas-node-prompt")?.value || "",
+      null,
+      null,
+    );
+  }
+  return data.job;
+}
+
+function cancelCanvasRasterRefresh() {
+  if (canvasRasterRefreshFrame) cancelAnimationFrame(canvasRasterRefreshFrame);
+  canvasRasterRefreshFrame = 0;
+  canvasRasterRefreshReason = "";
+}
+
+function beginCanvasRasterInteraction() {
+  cancelCanvasRasterRefresh();
+  const plane = document.querySelector("#canvasPlane");
+  if (!plane) return;
+  if (plane.dataset.rasterState !== "interaction") {
+    plane.style.willChange = "transform";
+    plane.dataset.rasterState = "interaction";
+  }
+}
+
+function scheduleCanvasRasterRefresh(reason = "idle") {
+  const plane = document.querySelector("#canvasPlane");
+  if (
+    !plane
+    || !canvasDetailReady
+    || document.body.classList.contains("canvas-overlay-open")
+  ) return;
+  canvasRasterRefreshReason = reason || canvasRasterRefreshReason || "idle";
+  if (canvasRasterRefreshFrame) return;
+  plane.dataset.rasterState = "pending";
+  canvasRasterRefreshFrame = requestAnimationFrame(() => {
+    canvasRasterRefreshFrame = 0;
+    if (!canvasDetailReady || document.body.classList.contains("canvas-overlay-open") || !plane.isConnected) return;
+    // Release the cached raster for one painted frame so Chromium redraws at
+    // the current zoom. The plane uses translateZ(0) to keep its compositor layer
+    // alive during this refresh, avoiding a blank frame or layer demotion.
+    plane.style.willChange = "auto";
+    plane.dataset.rasterState = "refreshing";
+    canvasRasterRefreshFrame = requestAnimationFrame(() => {
+      canvasRasterRefreshFrame = 0;
+      if (!canvasDetailReady || document.body.classList.contains("canvas-overlay-open") || !plane.isConnected) return;
+      plane.style.willChange = "transform";
+      plane.dataset.rasterRefreshEpoch = String(Number(plane.dataset.rasterRefreshEpoch || 0) + 1);
+      plane.dataset.rasterRefreshReason = canvasRasterRefreshReason || "idle";
+      plane.dataset.rasterState = "ready";
+      canvasRasterRefreshReason = "";
+      plane.querySelectorAll(
+        'img[data-image-paint-quality="pending"][data-image-quality="original"]',
+      ).forEach((img) => {
+        img.dataset.imagePaintQuality = "original";
+      });
+    });
+  });
+}
+
+document.addEventListener("canvas-image-original-ready", (event) => {
+  if (!event.target?.closest?.("#canvasPlane")) return;
+  scheduleCanvasRasterRefresh("image-original-ready");
+});
+
 function markCanvasViewportInteraction() {
   const rules = window.ImageLoadingRules;
+  beginCanvasRasterInteraction();
   canvasDetailReady = false;
   canvasMediaScheduler.setInteractionActive(true);
   clearTimeout(canvasDetailTimer);
   canvasDetailTimer = 0;
-  // Thumbnails are cheap and keep nodes identifiable during every zoom gesture.
-  // The scheduler still pauses original-resolution work until interaction ends.
-  scheduleCanvasImageQualityUpdate();
+  // Viewport maintenance is throttled separately from the compositor update.
+  // Thumbnails continue loading; originals remain paused until idle.
   if (!rules) return;
   canvasDetailTimer = window.setTimeout(() => {
     canvasDetailTimer = 0;
     canvasMediaScheduler.setInteractionActive(false);
     if (document.body.classList.contains("canvas-overlay-open")) return;
     canvasDetailReady = true;
+    scheduleCanvasSceneRender();
+    canvasVirtualizer.schedule();
+    scheduleCanvasConnectionRender({ trailing: false });
     scheduleCanvasImageQualityUpdate();
+    scheduleCanvasRasterRefresh("interaction-idle");
   }, rules.DETAIL_IDLE_MS);
 }
 
 function suspendCanvasImageLoading() {
+  cancelCanvasRasterRefresh();
+  const plane = document.querySelector("#canvasPlane");
+  if (plane) {
+    // Tool overlays are translucent and may be dismissed in the same gesture.
+    // Keep both the compositor layer and the last decoded pixels alive so the
+    // canvas is immediately ready when the overlay closes.
+    plane.style.willChange = "transform";
+    plane.dataset.rasterState = "suspended";
+  }
   clearTimeout(canvasDetailTimer);
   canvasDetailTimer = 0;
   canvasDetailReady = false;
   canvasMediaScheduler.setInteractionActive(true);
   canvasVirtualStore.mountedElements().forEach((node) => {
-    node.querySelectorAll("img[data-canvas-original-src]").forEach(cancelCanvasMediaImage);
+    node.querySelectorAll("img[data-canvas-original-src]").forEach((img) => {
+      cancelCanvasMediaImage(img, { unload: false });
+    });
   });
 }
 
@@ -14662,8 +19590,8 @@ function updateCanvasNodePosition(node) {
     canvasVirtualStore.setGeometry(node.dataset.id, {
       x: Number(node.dataset.x || 0),
       y: Number(node.dataset.y || 0),
-      width: Number(node.dataset.width || node.dataset.renderedWidth || 0),
-      height: Number(node.dataset.height || node.dataset.renderedHeight || 0),
+      width: Number(node.dataset.width || (node.classList.contains("canvas-node-frameless") ? 0 : node.dataset.renderedWidth) || 0),
+      height: Number(node.dataset.height || (node.classList.contains("canvas-node-frameless") ? 0 : node.dataset.renderedHeight) || 0),
     });
   }
   scheduleCanvasConnectionRender({ trailing: false });
@@ -14676,42 +19604,51 @@ function applyCanvasTransformNow() {
   const plane = document.querySelector("#canvasPlane");
   const viewport = document.querySelector("#infiniteCanvas");
   if (!plane) return;
-  plane.style.transform = `translate(${canvasState.x}px, ${canvasState.y}px) scale(${canvasState.scale})`;
+  plane.style.transform = `translate(${canvasState.x}px, ${canvasState.y}px) scale(${canvasState.scale}) translateZ(0)`;
+  // Remote cursors live in world space so they follow pan and zoom for free;
+  // the counter-scale keeps the pointer and its name label a constant size
+  // instead of growing with the board.
+  plane.style.setProperty("--collab-inverse-scale", String(1 / canvasState.scale));
+  // Re-anchor screen-space overlays immediately after the parent transform.
+  // Waiting for the deferred image-quality pass makes them visibly drift
+  // during zoom/pan because the image has already moved while the overlay
+  // still uses its previous client rect.
+  canvasImageToolbar?.refresh();
+  canvasImageInfo?.refresh({ immediate: true });
   if (viewport) {
     viewport.classList.toggle("is-overview-lod", canvasState.scale < 0.15);
-    let gridSize = 34 * canvasState.scale;
-    while (gridSize < 16) gridSize *= 5;
+    const gridSize = CanvasViewRules.gridBackgroundSize(canvasState.scale);
     viewport.style.backgroundSize = `${gridSize}px ${gridSize}px`;
     viewport.style.backgroundPosition = `${canvasState.x}px ${canvasState.y}px`;
   }
   const zoom = document.querySelector("#canvasZoom");
-  if (zoom) zoom.textContent = `${Math.round(canvasState.scale * 100)}%`;
+  const zoomLabel = CanvasViewRules.scaleLabel(canvasState.scale);
+  if (zoom && zoom.textContent !== zoomLabel) zoom.textContent = zoomLabel;
   reprojectCanvasSceneLayer();
   updateCanvasSelectionFrame();
 }
 
-function scheduleCanvasTransform() {
+function scheduleCanvasTransform({ saveViewport = false } = {}) {
+  canvasTransformSavePending ||= saveViewport;
   markCanvasViewportInteraction();
   if (canvasTransformFrame) return;
   canvasTransformFrame = requestAnimationFrame(() => {
     canvasTransformFrame = 0;
     applyCanvasTransformNow();
-    if (canvasState.scale >= 0.15) {
-      document.querySelector("#infiniteCanvas")?.classList.remove("is-low-zoom-panning");
-      clearTimeout(canvasVirtualRefreshTimer);
-      canvasVirtualRefreshTimer = 0;
-      canvasVirtualizer.schedule();
-      scheduleCanvasImageQualityUpdate();
-    } else {
-      document.querySelector("#infiniteCanvas")?.classList.add("is-low-zoom-panning");
-      clearTimeout(canvasVirtualRefreshTimer);
+    if (canvasTransformSavePending) {
+      canvasTransformSavePending = false;
+      scheduleCanvasViewportSave();
+    }
+    // DX OS separates live parent transforms from committed viewport work.
+    // Also service long drags periodically so newly exposed nodes keep loading.
+    if (!canvasVirtualRefreshTimer) {
       canvasVirtualRefreshTimer = window.setTimeout(() => {
         canvasVirtualRefreshTimer = 0;
-        document.querySelector("#infiniteCanvas")?.classList.remove("is-low-zoom-panning");
         canvasVirtualizer.schedule();
         scheduleCanvasImageQualityUpdate();
-        scheduleCanvasConnectionRender({ trailing: false });
-      }, 120);
+        // Existing paths move with their parent. Mount/resize/edit hooks update
+        // geometry; idle refresh adjusts viewport culling after a pan or zoom.
+      }, 100);
     }
   });
 }
@@ -14721,22 +19658,251 @@ function applyCanvasTransform() {
 }
 
 function resetCanvasView() {
-  canvasState.scale = 1;
-  canvasState.x = 80;
-  canvasState.y = 60;
+  Object.assign(canvasState, CanvasViewRules.DEFAULT_VIEW);
   applyCanvasTransform();
 }
 
-function screenToCanvas(x, y) {
+// «整理» keeps the connection flow readable: sources land on the left, each
+// following column is one step further right, and the whole board moves in a
+// single undo step the same way a drag does.
+function getCanvasArrangeScope() {
+  const selectedNodes = getSelectedCanvasNodes();
+  if (canvasState.selectedIds.size >= 2 && selectedNodes.length) {
+    return {
+      scope: "selection",
+      ids: getCanvasDragNodes(selectedNodes).map((node) => String(node.dataset.id || "")),
+    };
+  }
   return {
-    x: (x - canvasState.x) / canvasState.scale,
-    y: (y - canvasState.y) / canvasState.scale,
+    scope: "board",
+    ids: canvasVirtualStore.values().map((model) => String(model.id || "")),
   };
+}
+
+function focusCanvasArrangeResult(bounds) {
+  if (!bounds) return false;
+  const viewport = document.querySelector("#infiniteCanvas");
+  const focusRules = window.CanvasAgentFocusRules;
+  if (!viewport || !focusRules?.calculateFocusTransform) return false;
+  const rect = viewport.getBoundingClientRect();
+  const transform = focusRules.calculateFocusTransform({
+    bounds,
+    viewport: {
+      width: Math.max(1, rect.width),
+      height: Math.max(1, rect.height),
+    },
+    currentScale: canvasState.scale,
+    targetCount: 0,
+  });
+  if (!transform) return false;
+  canvasState.x = transform.x;
+  canvasState.y = transform.y;
+  canvasState.scale = normalizeCanvasScale(transform.scale, canvasState.scale);
+  scheduleCanvasTransform();
+  scheduleCanvasViewportSave();
+  return true;
+}
+
+function collectCanvasArrangeModels(ids) {
+  const models = new Map();
+  Array.from(ids || []).forEach((rawId) => {
+    const id = String(rawId || "");
+    if (!id || models.has(id)) return;
+    const mounted = canvasVirtualStore.getMounted(id);
+    const model = mounted ? syncCanvasNodeModel(mounted) : canvasVirtualStore.get(id);
+    if (model) models.set(id, model);
+  });
+  return models;
+}
+
+async function fetchCanvasBoardExportPages(entity) {
+  const boardId = String(canvasState.activeBoardId || "");
+  if (!boardId) return [];
+  const items = [];
+  let cursor = "";
+  for (let pageIndex = 0; pageIndex < 40; pageIndex += 1) {
+    const query = new URLSearchParams({ entity, limit: "1000" });
+    if (cursor) query.set("cursor", cursor);
+    const response = await fetch(
+      `${CANVAS_BOARDS_API_URL}/${encodeURIComponent(boardId)}/export-page?${query.toString()}`,
+      { headers: { Accept: "application/json" } },
+    );
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "画布数据读取失败");
+    items.push(...(Array.isArray(data.items) ? data.items : []));
+    cursor = String(data.nextCursor || "");
+    if (!cursor) break;
+  }
+  return items;
+}
+
+/**
+ * 画布按视口分页加载，屏幕上没出现过的节点并不在本地——只整理已加载的节点会让
+ * 屏幕外的便签留在原处。所以整理整张画布前先把本地改动存盘，再取一份服务端
+ * 完整快照（节点 + 连线），保证每个节点都被排进去。
+ */
+async function loadCanvasArrangeBoardData() {
+  const models = new Map();
+  canvasVirtualStore.values().forEach((model) => {
+    const id = String(model?.id || "");
+    if (id) models.set(id, model);
+  });
+  let links = canvasState.connections.map((connection) => ({
+    from: String(connection.from || ""),
+    to: String(connection.to || ""),
+  }));
+  if (!canvasState.activeBoardId || !canvasState.activeBoardPersisted) {
+    return { models, links };
+  }
+  // Flush the on-screen edits so the snapshot below is the truthful board,
+  // but do not let that flush push extra entries onto the undo stack.
+  await saveCanvasBoardNow({ recordUndo: false });
+  const boardId = String(canvasState.activeBoardId || "");
+  const [snapshotNodes, snapshotConnections] = await Promise.all([
+    fetchCanvasBoardExportPages("nodes"),
+    fetchCanvasBoardExportPages("connections"),
+  ]);
+  if (boardId !== String(canvasState.activeBoardId || "")) {
+    throw new Error("画布已切换，本次整理已取消");
+  }
+  snapshotNodes.forEach((node) => {
+    const id = String(node?.id || "");
+    if (!id) return;
+    // Nodes that are on screen keep the local model so an unsaved edit wins.
+    if (canvasVirtualStore.getMounted(id)) return;
+    models.set(id, node);
+  });
+  links = snapshotConnections.map((connection) => ({
+    from: String(connection.from || ""),
+    to: String(connection.to || ""),
+  }));
+  return { models, links };
+}
+
+async function arrangeCanvasNodes() {
+  try {
+    const layoutRules = window.CanvasLayoutRules;
+    if (!layoutRules?.planCanvasLayout) {
+      setCanvasStatus("画布整理组件未加载，请重开应用后再试。");
+      return false;
+    }
+    if (canvasState.boardOpening || canvasState.isRestoring) {
+      setCanvasStatus("画布还在加载，稍后再整理。");
+      return false;
+    }
+
+    const scope = getCanvasArrangeScope();
+    setCanvasStatus("正在整理画布…");
+    let models;
+    let links;
+    if (scope.scope === "selection") {
+      models = collectCanvasArrangeModels(scope.ids);
+      const selected = new Set(models.keys());
+      links = canvasState.connections
+        .map((connection) => ({ from: String(connection.from || ""), to: String(connection.to || "") }))
+        .filter((link) => selected.has(link.from) && selected.has(link.to));
+    } else {
+      const snapshot = await loadCanvasArrangeBoardData();
+      models = snapshot.models;
+      links = snapshot.links;
+    }
+    if (!models.size) {
+      setCanvasStatus("画布是空的，先添加节点再整理。");
+      return false;
+    }
+    if (models.size < 2) {
+      setCanvasStatus("至少需要两个节点才能整理。");
+      return false;
+    }
+
+    const sizeRules = window.CanvasVirtualizationRules;
+    const blocks = Array.from(models.entries()).map(([id, model]) => {
+      const rect = sizeRules.getNodeRect(model);
+      return {
+        id,
+        x: rect.left,
+        y: rect.top,
+        width: Math.max(1, rect.right - rect.left),
+        height: Math.max(1, rect.bottom - rect.top),
+      };
+    });
+    const known = new Set(blocks.map((item) => item.id));
+    const planLinks = links.filter((link) => known.has(link.from) && known.has(link.to));
+    const origin = blocks.reduce((anchor, item) => ({
+      x: Math.min(anchor.x, item.x),
+      y: Math.min(anchor.y, item.y),
+    }), { x: Infinity, y: Infinity });
+
+    const plan = layoutRules.planCanvasLayout({ blocks, links: planLinks, origin });
+    if (!plan?.positions) {
+      setCanvasStatus("整理失败，请稍后重试。");
+      return false;
+    }
+
+    const operations = [];
+    blocks.forEach((item) => {
+      const point = plan.positions[item.id];
+      const model = models.get(item.id);
+      if (!point || !model) return;
+      const x = Math.round(point.x);
+      const y = Math.round(point.y);
+      if (Number(model.x) === x && Number(model.y) === y) return;
+      const before = toCanvasOperationNode(model);
+      operations.push({
+        type: "node.upsert",
+        entityId: item.id,
+        before,
+        after: { ...before, x, y },
+      });
+    });
+
+    if (!operations.length) {
+      setCanvasStatus("画布已经很整齐了。");
+      focusCanvasArrangeResult(plan.bounds);
+      return true;
+    }
+
+    operations.forEach((operation) => {
+      const mounted = canvasVirtualStore.getMounted(operation.entityId);
+      if (mounted) {
+        mounted.dataset.x = String(operation.after.x);
+        mounted.dataset.y = String(operation.after.y);
+        updateCanvasNodePosition(mounted);
+      }
+      stageCanvasOperation(operation);
+    });
+    recordCanvasUndo({
+      label: "整理画布",
+      forward: operations,
+      inverse: operations.map((operation) => ({
+        type: "node.upsert",
+        entityId: operation.entityId,
+        before: operation.after,
+        after: operation.before,
+      })),
+    });
+    scheduleCanvasSave();
+    canvasVirtualizer.schedule();
+    scheduleCanvasConnectionRender({ trailing: false });
+    updateCanvasSelectionFrame();
+    focusCanvasArrangeResult(plan.bounds);
+    setCanvasStatus(scope.scope === "selection"
+      ? `已整理选中的 ${operations.length} 个节点。`
+      : `已整理全部 ${operations.length} 个节点。`);
+    return true;
+  } catch (error) {
+    setCanvasStatus(`整理失败：${String(error?.message || error)}`);
+    return false;
+  }
+}
+
+function screenToCanvas(x, y) {
+  return CanvasViewRules.screenToCanvas({ x, y }, canvasState);
 }
 
 function getCanvasPointFromClient(clientX, clientY) {
   const rect = document.querySelector("#infiniteCanvas").getBoundingClientRect();
-  return screenToCanvas(clientX - rect.left, clientY - rect.top);
+  return screenToCanvas(toSystemDelta(clientX - rect.left), toSystemDelta(clientY - rect.top));
 }
 
 function getCanvasPointFromEvent(event) {
@@ -14748,24 +19914,35 @@ function showCanvasNodeMenu(event) {
   const viewport = document.querySelector("#infiniteCanvas");
   if (!menu || !viewport) return;
   const rect = viewport.getBoundingClientRect();
-  const localX = event.clientX - rect.left;
-  const localY = event.clientY - rect.top;
+  const localX = toSystemDelta(event.clientX - rect.left);
+  const localY = toSystemDelta(event.clientY - rect.top);
+  placeCanvasNodeMenuAt(localX, localY);
+}
+
+function placeCanvasNodeMenuAt(localX, localY) {
+  const menu = document.querySelector("#canvasNodeMenu");
+  const viewport = document.querySelector("#infiniteCanvas");
+  if (!menu || !viewport) return;
+  const rect = viewport.getBoundingClientRect();
   canvasState.menuPoint = screenToCanvas(localX, localY);
   menu.style.left = `${localX}px`;
   menu.style.top = `${localY}px`;
   menu.hidden = false;
+
   const edgePadding = 12;
   const menuOffset = 10;
   const menuWidth = menu.offsetWidth;
   const menuHeight = menu.offsetHeight;
-  const openAbove = localY + menuOffset + menuHeight > rect.height - edgePadding;
+  const viewportWidth = toSystemDelta(rect.width);
+  const viewportHeight = toSystemDelta(rect.height);
+  const openAbove = localY + menuOffset + menuHeight > viewportHeight - edgePadding;
   const minLeft = edgePadding - menuOffset;
-  const maxLeft = Math.max(minLeft, rect.width - menuWidth - edgePadding - menuOffset);
+  const maxLeft = Math.max(minLeft, viewportWidth - menuWidth - edgePadding - menuOffset);
   const nextLeft = Math.max(minLeft, Math.min(localX, maxLeft));
   const verticalOffset = openAbove ? -menuOffset : menuOffset;
   const preferredTop = openAbove ? localY - menuHeight : localY;
   const minTop = edgePadding - verticalOffset;
-  const maxTop = Math.max(minTop, rect.height - menuHeight - edgePadding - verticalOffset);
+  const maxTop = Math.max(minTop, viewportHeight - menuHeight - edgePadding - verticalOffset);
   const nextTop = Math.max(minTop, Math.min(preferredTop, maxTop));
   menu.style.left = `${nextLeft}px`;
   menu.style.top = `${nextTop}px`;
@@ -14777,14 +19954,96 @@ function hideCanvasNodeMenu() {
   if (menu) menu.hidden = true;
 }
 
-function showCanvasImageMenu(event, node) {
+function renderCanvasContextMenuState() {
+  const menu = document.querySelector("#canvasContextMenu");
+  if (!menu) return;
+  const canUndo = Boolean(canvasState.undoStack?.length);
+  const canRedo = Boolean(canvasState.redoStack?.length);
+  const canPaste = Boolean(canvasState.clipboard?.nodes?.length);
+  const canCopy = Boolean(document.querySelector("#canvasPlane .canvas-node"));
+  [
+    ["undo", canUndo],
+    ["redo", canRedo],
+    ["copy-all", canCopy],
+    ["paste", canPaste],
+  ].forEach(([action, enabled]) => {
+    const button = menu.querySelector(`[data-canvas-action="${action}"]`);
+    if (!button) return;
+    button.disabled = !enabled;
+    button.setAttribute("aria-disabled", String(!enabled));
+  });
+}
+
+function showCanvasContextMenu(event) {
+  const menu = document.querySelector("#canvasContextMenu");
+  const viewport = document.querySelector("#infiniteCanvas");
+  if (!menu || !viewport) return;
+  const rect = viewport.getBoundingClientRect();
+  const localX = toSystemDelta(event.clientX - rect.left);
+  const localY = toSystemDelta(event.clientY - rect.top);
+  canvasState.contextMenuLocal = { x: localX, y: localY };
+  canvasState.menuPoint = screenToCanvas(localX, localY);
+  menu.hidden = false;
+  renderCanvasContextMenuState();
+  const edgePadding = 12;
+  const menuWidth = menu.offsetWidth;
+  const menuHeight = menu.offsetHeight;
+  const viewportWidth = toSystemDelta(rect.width);
+  const viewportHeight = toSystemDelta(rect.height);
+  const maxLeft = Math.max(edgePadding, viewportWidth - menuWidth - edgePadding);
+  const maxTop = Math.max(edgePadding, viewportHeight - menuHeight - edgePadding);
+  menu.style.left = `${Math.max(edgePadding, Math.min(localX, maxLeft))}px`;
+  menu.style.top = `${Math.max(edgePadding, Math.min(localY, maxTop))}px`;
+}
+
+function hideCanvasContextMenu() {
+  const menu = document.querySelector("#canvasContextMenu");
+  if (menu) menu.hidden = true;
+}
+
+function redoCanvasChange() {
+  if (!document.querySelector("#canvasView.active") || isCanvasTypingTarget(document.activeElement)) return;
+  if (!redoCanvasCommand()) {
+    setCanvasStatus("没有可以重做的操作。");
+    return;
+  }
+  setCanvasStatus("已重做上一步操作。");
+}
+
+function copyAllCanvasNodes() {
+  const nodes = Array.from(document.querySelectorAll("#canvasPlane .canvas-node"));
+  if (!nodes.length) {
+    setCanvasStatus("画布上还没有可以复制的节点。");
+    return false;
+  }
+  const ids = new Set(nodes.map((node) => node.dataset.id));
+  const models = nodes.map(serializeCanvasNode);
+  const activeSource = canvasState.activeNode?.isConnected ? canvasState.activeNode : nodes.at(-1);
+  canvasState.clipboard = {
+    selectedId: activeSource.dataset.id,
+    nodes: models,
+    connections: canvasState.connections
+      .filter((item) => ids.has(String(item.from)) && ids.has(String(item.to))),
+    externalConnections: [],
+    pasteCount: 0,
+  };
+  setCanvasStatus(`已复制 ${models.length} 个节点。`);
+  return true;
+}
+
+function showCanvasImageMenu(event, node, memberId = "") {
   const menu = document.querySelector("#canvasImageMenu");
   const viewport = document.querySelector("#infiniteCanvas");
   if (!menu || !viewport) return;
   const rect = viewport.getBoundingClientRect();
-  menu.style.left = `${event.clientX - rect.left}px`;
-  menu.style.top = `${event.clientY - rect.top}px`;
+  menu.style.left = `${toSystemDelta(event.clientX - rect.left)}px`;
+  menu.style.top = `${toSystemDelta(event.clientY - rect.top)}px`;
   canvasState.imageContextNode = node;
+  canvasState.imageContextMemberId = String(memberId || "");
+  const isGalleryMember = node.classList.contains("canvas-node-gallery-container") && Boolean(memberId);
+  menu.querySelectorAll("[data-image-menu-action]").forEach((button) => {
+    button.hidden = isGalleryMember && !["crop", "cutout"].includes(button.dataset.imageMenuAction);
+  });
   menu.hidden = false;
 }
 
@@ -14792,6 +20051,7 @@ function hideCanvasImageMenu() {
   const menu = document.querySelector("#canvasImageMenu");
   if (menu) menu.hidden = true;
   canvasState.imageContextNode = null;
+  canvasState.imageContextMemberId = "";
 }
 
 function startCanvasImageCrop(node) {
@@ -14871,8 +20131,8 @@ function handleCanvasCropPointerDown(event, media, box) {
   box.setPointerCapture?.(event.pointerId);
 
   const move = (moveEvent) => {
-    const dx = (moveEvent.clientX - startX) / canvasState.scale;
-    const dy = (moveEvent.clientY - startY) / canvasState.scale;
+    const dx = toSystemDelta(moveEvent.clientX - startX) / canvasState.scale;
+    const dy = toSystemDelta(moveEvent.clientY - startY) / canvasState.scale;
     let next = { ...start };
     if (handle === "move") {
       next.x = clamp(start.x + dx, 0, bounds.width - start.width);
@@ -14955,13 +20215,17 @@ function clamp(value, min, max) {
 
 function updateCanvasOrigin() {
   const origin = document.querySelector(".canvas-origin");
-  const hasNodes = canvasVirtualStore.size > 0;
+  const hasNodes = canvasVirtualStore.size > 0 || Number(canvasPagedStore.scenePage?.candidateCount || 0) > 0;
   if (origin) origin.hidden = !canvasState.activeBoardId || hasNodes;
 }
 
 function setCanvasStatus(message) {
   const status = document.querySelector(".canvas-status span:last-child");
   if (status) status.textContent = message;
+  const libraryStatus = document.querySelector("#canvasLibraryStatus");
+  if (libraryStatus && canvasState.appScreen === "library") {
+    libraryStatus.textContent = message === "空白画布" ? "" : (message || "");
+  }
 }
 
 function initializeChatLayoutCopy() {
@@ -15076,51 +20340,23 @@ function updateCanvasRunButtonLabel(button, model) {
 }
 
 function extractImages(data) {
-  return (data.data || [])
-    .map((item, index) => {
-      const saved = data.saved_images?.[index] || {};
-      return {
-        src: item.local_url || saved.url || item.url || (item.b64_json ? `data:image/png;base64,${item.b64_json}` : ""),
-        savedUrl: item.local_url || saved.url || item.url || "",
-        width: Number(item.width || saved.width || 0),
-        height: Number(item.height || saved.height || 0),
-      };
-    })
-    .filter((item) => item.src);
+  return ImageOutputRules.extractImages(data);
 }
 
 function getImagesDimensionText(images) {
-  const sizes = (Array.isArray(images) ? images : [])
-    .map((image) => Number(image?.width) && Number(image?.height) ? `${Number(image.width)}\u00d7${Number(image.height)}` : "")
-    .filter(Boolean);
-  return [...new Set(sizes)].join("\u3001");
+  return ImageOutputRules.getImagesDimensionText(images);
 }
 
 function getImageSizeNote(requestedSize, images) {
-  const actualText = getImagesDimensionText(images);
-  if (!actualText) return "";
-  const requested = parseOutputPixelSize(requestedSize);
-  if (!requested) return `\u5b9e\u9645\u5c3a\u5bf8\uff1a${actualText}`;
-  const requestedText = `${requested.width}\u00d7${requested.height}`;
-  return actualText === requestedText
-    ? `\u5b9e\u9645\u5c3a\u5bf8\uff1a${actualText}`
-    : `\u8bf7\u6c42\u5c3a\u5bf8\uff1a${requestedText}\uff0c\u5b9e\u9645\u8fd4\u56de\uff1a${actualText}`;
+  return ImageOutputRules.getImageSizeNote(requestedSize, images);
 }
 
 function hasImageSizeMismatch(requestedSize, images) {
-  const requested = parseOutputPixelSize(requestedSize);
-  if (!requested) return false;
-  return (Array.isArray(images) ? images : []).some((image) => {
-    const width = Number(image?.width);
-    const height = Number(image?.height);
-    return width && height && (width !== requested.width || height !== requested.height);
-  });
+  return ImageOutputRules.hasImageSizeMismatch(requestedSize, images);
 }
 
 function parseOutputPixelSize(value) {
-  const match = String(value || "").trim().toLowerCase().match(/^(\d{2,5})x(\d{2,5})$/);
-  if (!match) return null;
-  return { width: Number(match[1]), height: Number(match[2]) };
+  return ImageOutputRules.parseOutputPixelSize(value);
 }
 
 function renderImages(images, prompt) {
@@ -15309,7 +20545,7 @@ async function openCanvasMaskEditor(node) {
     "<footer class=\"canvas-mask-toolbar\"><label class=\"canvas-mask-brush-control\">画笔 <input class=\"canvas-mask-size\" type=\"range\" min=\"1\" max=\"220\" step=\"1\" value=\"56\"></label><div class=\"canvas-mask-zoom-controls\" aria-label=\"图片缩放\"><button type=\"button\" class=\"canvas-mask-zoom-out\" aria-label=\"缩小\">−</button><input class=\"canvas-mask-zoom\" type=\"range\" min=\"100\" max=\"500\" step=\"10\" value=\"100\" aria-label=\"图片缩放\"><button type=\"button\" class=\"canvas-mask-zoom-in\" aria-label=\"放大\">＋</button><button type=\"button\" class=\"canvas-mask-zoom-reset\">100%</button></div><button type=\"button\" class=\"canvas-mask-paint is-active\">画遮罩</button><button type=\"button\" class=\"canvas-mask-erase\">擦除</button><button type=\"button\" class=\"canvas-mask-pan\">移动</button><button type=\"button\" class=\"canvas-mask-clear\">清空</button><span class=\"canvas-mask-hint\">滚轮缩放，移动模式拖动画面</span><button type=\"button\" class=\"canvas-mask-save\">保存遮罩</button></footer>",
     "</div>",
   ].join("");
-  document.body.append(modal);
+  (document.querySelector("#aiOsDesktop") || document.body).append(modal);
 
   const stage = modal.querySelector(".canvas-mask-stage");
   const img = modal.querySelector(".canvas-mask-image");
@@ -15372,7 +20608,7 @@ async function openCanvasMaskEditor(node) {
     const currentZoom = view.zoom || 1;
     const targetZoom = clamp(Number(nextZoom) || 1, 1, 5);
     const rect = stage.getBoundingClientRect();
-    const point = focus || { x: rect.width / 2, y: rect.height / 2 };
+    const point = focus || { x: toSystemDelta(rect.width) / 2, y: toSystemDelta(rect.height) / 2 };
     const imageX = (point.x - view.x) / currentZoom;
     const imageY = (point.y - view.y) / currentZoom;
     view.zoom = targetZoom;
@@ -15394,7 +20630,7 @@ async function openCanvasMaskEditor(node) {
       return;
     }
     const rect = canvas.getBoundingClientRect();
-    const displayScale = Math.min(rect.width / Math.max(1, width), rect.height / Math.max(1, height)) || 1;
+    const displayScale = Math.min(toSystemDelta(rect.width) / Math.max(1, width), toSystemDelta(rect.height) / Math.max(1, height)) || 1;
     const brush = Number(sizeInput.value || 56);
     const displaySize = Math.max(4, Math.round(brush * displayScale));
     brushCursor.style.width = displaySize + "px";
@@ -15409,8 +20645,8 @@ async function openCanvasMaskEditor(node) {
     }
     const rect = stage.getBoundingClientRect();
     brushCursor.hidden = false;
-    brushCursor.style.left = (event.clientX - rect.left) + "px";
-    brushCursor.style.top = (event.clientY - rect.top) + "px";
+    brushCursor.style.left = toSystemDelta(event.clientX - rect.left) + "px";
+    brushCursor.style.top = toSystemDelta(event.clientY - rect.top) + "px";
     updateBrushCursor();
   };
   const hideBrushCursor = () => {
@@ -15460,8 +20696,8 @@ async function openCanvasMaskEditor(node) {
   canvas.addEventListener("pointermove", (event) => {
     if (panning && panStart) {
       event.preventDefault();
-      view.x = panStart.viewX + event.clientX - panStart.x;
-      view.y = panStart.viewY + event.clientY - panStart.y;
+      view.x = panStart.viewX + toSystemDelta(event.clientX - panStart.x);
+      view.y = panStart.viewY + toSystemDelta(event.clientY - panStart.y);
       applyMaskView();
       return;
     }
@@ -15489,8 +20725,8 @@ async function openCanvasMaskEditor(node) {
     const rect = stage.getBoundingClientRect();
     const zoomFactor = event.deltaY < 0 ? 1.12 : 1 / 1.12;
     setZoom(view.zoom * zoomFactor, {
-      x: event.clientX - rect.left,
-      y: event.clientY - rect.top,
+      x: toSystemDelta(event.clientX - rect.left),
+      y: toSystemDelta(event.clientY - rect.top),
     });
   }, { passive: false });
 
@@ -16028,8 +21264,8 @@ function handleOutpaintHandlePointerDown(event) {
   handle.setPointerCapture?.(event.pointerId);
 
   const move = (moveEvent) => {
-    const dx = (moveEvent.clientX - startX) / scale;
-    const dy = (moveEvent.clientY - startY) / scale;
+    const dx = toSystemDelta(moveEvent.clientX - startX) / scale;
+    const dy = toSystemDelta(moveEvent.clientY - startY) / scale;
     const next = { ...start };
     if (side.includes("left")) next.left = clampOutpaintPadding(start.left - dx);
     if (side.includes("right")) next.right = clampOutpaintPadding(start.right + dx);
@@ -16093,8 +21329,8 @@ function handleOutpaint2HandlePointerDown(event) {
   handle.setPointerCapture?.(event.pointerId);
 
   const move = (moveEvent) => {
-    const dx = (moveEvent.clientX - startX) / scale;
-    const dy = (moveEvent.clientY - startY) / scale;
+    const dx = toSystemDelta(moveEvent.clientX - startX) / scale;
+    const dy = toSystemDelta(moveEvent.clientY - startY) / scale;
     const next = { ...start };
     if (side.includes("left")) next.left = clampOutpaintPadding(start.left - dx);
     if (side.includes("right")) next.right = clampOutpaintPadding(start.right + dx);
@@ -16409,12 +21645,24 @@ function openPreview(src, downloadUrl, options = {}) {
   }
   resetPreviewTransform();
   lightbox.querySelector(".lightbox-compare")?.remove();
+  lightboxImage.alt = String(options.alt || "图片预览");
   lightboxImage.hidden = false;
   lightboxImage.src = src;
   lightboxDownload.href = downloadUrl || src;
   updatePreviewGalleryControls();
   lightbox.hidden = false;
 }
+
+window.AiOsMediaPreview = {
+  openImage({ url, title } = {}) {
+    const source = String(url || "").trim();
+    if (!source) return false;
+    openPreview(source, source, {
+      alt: title ? `${title} - 图片预览` : "图片预览",
+    });
+    return true;
+  },
+};
 
 function openComparePreview(beforeSrc, afterSrc, downloadUrl, prompt = "", compareOptions = {}) {
   previewState.compare = { beforeSrc, afterSrc, prompt };
@@ -16561,8 +21809,8 @@ function handlePreviewWheel(event) {
 
   const target = lightbox.querySelector(".lightbox-compare") || lightboxImage;
   const rect = target.getBoundingClientRect();
-  const pointerX = event.clientX - (rect.left + rect.width / 2);
-  const pointerY = event.clientY - (rect.top + rect.height / 2);
+  const pointerX = toSystemDelta(event.clientX - (rect.left + rect.width / 2));
+  const pointerY = toSystemDelta(event.clientY - (rect.top + rect.height / 2));
   const ratio = nextScale / previousScale;
   previewState.x = pointerX - (pointerX - previewState.x) * ratio;
   previewState.y = pointerY - (pointerY - previewState.y) * ratio;
@@ -16592,8 +21840,8 @@ function startPreviewPan(event) {
 
   const move = (moveEvent) => {
     if (!previewState.dragging) return;
-    previewState.x = previewState.originX + moveEvent.clientX - previewState.startX;
-    previewState.y = previewState.originY + moveEvent.clientY - previewState.startY;
+    previewState.x = previewState.originX + toSystemDelta(moveEvent.clientX - previewState.startX);
+    previewState.y = previewState.originY + toSystemDelta(moveEvent.clientY - previewState.startY);
     applyPreviewTransform();
   };
   const stop = (stopEvent) => {
@@ -16626,7 +21874,7 @@ function createDeferredThumbnail(source, alt = "", options = {}) {
   } else if (source) {
     img.loading = "lazy";
     img.decoding = "async";
-    img.src = source;
+    if (options.allowOriginalFallback !== false) img.src = source;
   }
   return img;
 }
@@ -17598,7 +22846,7 @@ function saveImageSettings() {
   localStorage.setItem(
     IMAGE_STORAGE_KEY,
     JSON.stringify({
-      model: imageModelInput.value,
+      model: imageModelInput.dataset.modelSelection === "auto" ? "__auto__" : imageModelInput.value,
       size: getOutputSize(),
       resolution: imageResolutionInput.value,
       count: imageCountInput.value,
@@ -17644,6 +22892,7 @@ function refreshImageSizeOptions(preferred = imageSizeInput.value) {
 
 function getImageSizePresets(model) {
   if (isMidjourneyModel(model)) return MIDJOURNEY_IMAGE_RATIOS;
+  if (getImageModelPlatform(model) === "jimeng") return JIMENG_IMAGE_RATIOS;
   if (isGptImage2LikeModel(model)) return GPT_IMAGE2_IMAGE_RATIOS;
   if (getImageModelPlatform(model) !== "google") {
     const allowed = getAllowedImageResolutionLevels(model);
@@ -17856,7 +23105,7 @@ function isValidOpenAIImageSize(width, height, model = imageModelInput.value) {
 function normalizeImagePlatform(value, model = "") {
   if (isMidjourneyModel(model)) return "midjourney";
   const platform = String(value || "").toLowerCase();
-  if (["openai", "google"].includes(platform)) return platform;
+  if (["openai", "google", "jimeng", "comfyui"].includes(platform)) return platform;
   return inferImagePlatform(model);
 }
 
@@ -17954,7 +23203,8 @@ function isGptImage2LikeModel(model) {
   return value.includes("gpt-image-2") || label.includes("gpt-image-2") || family.includes("gpt-image-2");
 }
 function supportsSeparateImageResolution(model) {
-  return getImageModelPlatform(model) === "google" || isGptImage2LikeModel(model);
+  const platform = getImageModelPlatform(model);
+  return platform === "google" || platform === "jimeng" || isGptImage2LikeModel(model);
 }
 function normalizeImageSizeChoiceForModel(value, model = imageModelInput.value) {
   const text = String(value || "").trim().toLowerCase();
@@ -17994,6 +23244,10 @@ function getImageModelPlatform(model) {
 
 function normalizeImageModelFamily(value, model = "") {
   if (isMidjourneyModel(model)) return "midjourney";
+  // A CLI model owns its own ladder, and its published id can carry a version
+  // that also matches a Gemini name ("jimeng-3.1"), so it is decided before any
+  // name heuristic below.
+  if (isJimengImageModelId(model) || isJimengImageModelId(value) || isJimengImageFamily(value)) return normalizeJimengImageFamily(value, model);
   const raw = String(value || model || "").toLowerCase();
   if (raw.includes("gpt-image-2")) return "gpt-image-2";
   if (raw.includes("3.1-flash-lite") || raw.includes("flash-lite-image")) return "gemini-3.1-flash-lite-image";
@@ -18001,6 +23255,39 @@ function normalizeImageModelFamily(value, model = "") {
   if (raw.includes("3-pro") || raw.includes("3 pro") || raw.includes("nano-banana-pro")) return "gemini-3-pro-image";
   if (raw.includes("2.5") || raw === "nano-banana") return "gemini-2.5-flash-image";
   return getImageModelPlatform(model) === "google" ? "gemini-3.1-flash-image" : "openai-image";
+}
+
+// Dreamina versions the picture model by name and publishes it as "jimeng-4.7":
+// 3.x is the old 1K/2K ladder, 4.x and 5.0 run 2K/4K, and 5.0 Pro starts at
+// 1.5K. A bare version is still recognised for a catalog saved before the
+// prefix existed.
+function isJimengImageModelId(model = "") {
+  return /^(?:jimeng[-_ ]?)?\d+(?:\.\d+)+(?:pro)?$/i.test(String(model || "").trim());
+}
+
+function isJimengImageFamily(value) {
+  return ["jimeng-3", "jimeng-5", "jimeng-5-pro"].includes(String(value || "").trim().toLowerCase());
+}
+
+function normalizeJimengImageFamily(value, model = "") {
+  // The catalog family is already canonical, so it wins over the raw model id;
+  // reading "jimeng-3" as a version would silently promote it to the 5.x ladder.
+  const stored = String(value || "").trim().toLowerCase();
+  if (isJimengImageFamily(stored)) return stored;
+  const raw = String(value || model || "").trim().toLowerCase();
+  if (raw.includes("pro")) return "jimeng-5-pro";
+  const match = raw.match(/(\d+)\s*\.\s*(\d+)/);
+  const major = match ? Number(match[1]) : 5;
+  return major <= 3 ? "jimeng-3" : "jimeng-5";
+}
+
+function jimengImageLevelsFor(model = "") {
+  return JIMENG_IMAGE_LEVELS[normalizeJimengImageFamily("", model)] || JIMENG_IMAGE_LEVELS["jimeng-5"];
+}
+
+function jimengImageLevelLabel(level, model = "") {
+  if (level === "1" && normalizeJimengImageFamily("", model) === "jimeng-5-pro") return "1.5K";
+  return level === "512" ? "512" : `${level}K`;
 }
 
 function getImageModelFamily(model) {
@@ -18152,6 +23439,13 @@ function getAllowedImageResolutionLevels(model, modelConfig = null) {
   return getSupportedImageResolutionLevels(model, modelConfig);
 }
 
+function getJimengResolutionLevels(model, modelConfig = null) {
+  const family = modelConfig?.family
+    ? normalizeJimengImageFamily(modelConfig.family, model)
+    : normalizeJimengImageFamily("", model);
+  return JIMENG_IMAGE_LEVELS[family] || JIMENG_IMAGE_LEVELS["jimeng-5"];
+}
+
 function getAllowedImageResolutionLevelsForSize(model, size = "auto", modelConfig = null) {
   return getAllowedImageResolutionLevels(model, modelConfig);
 }
@@ -18160,6 +23454,7 @@ function getSupportedImageResolutionLevels(model, modelConfig = null) {
   if (isMidjourneyModel(model)) return [];
   const key = String(model || "").toLowerCase();
   const platform = modelConfig?.platform ? normalizeImagePlatform(modelConfig.platform, model) : getImageModelPlatform(model);
+  if (platform === "jimeng") return getJimengResolutionLevels(model, modelConfig);
   if (platform === "google") {
     const family = modelConfig?.family ? normalizeImageModelFamily(modelConfig.family, model) : getImageModelFamily(model);
     if (family === "gemini-3.1-flash-image") return ["512", "1", "2", "4"];

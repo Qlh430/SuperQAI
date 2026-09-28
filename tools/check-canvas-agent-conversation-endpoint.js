@@ -68,8 +68,11 @@ async function waitForServer(port, child, diagnostics) {
     cwd: ROOT,
     env: {
       ...process.env,
+      AI_OS_SKIP_ENV_FILE: "1",
       PORT: String(port),
       HOST: "127.0.0.1",
+      AI_OS_AUTH_DISABLED: "1",
+      AI_OS_DATA_DIR: tempDirectory,
       CANVAS_AGENT_CONVERSATIONS_FILE: path.join(tempDirectory, "conversations.json"),
       CANVAS_AGENT_USE_SETTINGS_PROVIDERS: "false",
       CANVAS_AGENT_ROUTE_HISTORY_ENABLED: "false",
@@ -85,6 +88,11 @@ async function waitForServer(port, child, diagnostics) {
     assert.equal(emptyA.status, 200);
     assert.equal(emptyA.data.boardId, "board-a");
     assert.deepEqual(emptyA.data.items, []);
+
+    // A conversation preload does not create a canvas or claim its ownership.
+    assert.equal((await requestJson(port, "/api/canvas/boards", {
+      method: "POST", body: { id: "board-a", title: "Conversation canvas" },
+    })).status, 201);
 
     const created = await requestJson(port, "/api/canvas-agent/conversation", {
       method: "POST",

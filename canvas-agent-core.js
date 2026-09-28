@@ -10,6 +10,31 @@
   const MAX_STEPS = 12;
   const MAX_CANVAS_NODES = 80;
   const MAX_TEXT_LENGTH = 2000;
+  const COMPACT_TEXT_LENGTH = 320;
+  const CANVAS_AGENT_RECOVERY_DELAYS_MS = Object.freeze([1000, 3000, 8000]);
+  const CANVAS_AGENT_RECOVERABLE_CATEGORIES = new Set([
+    "network",
+    "timeout",
+    "rate-limit",
+    "server",
+    "protocol",
+    "busy",
+    "unavailable",
+  ]);
+  const TERMINAL_TOOL_NAMES = new Set([
+    "generate_image_to_gallery",
+    "run_canvas_node",
+    "organize_canvas_nodes",
+    "focus_canvas_nodes",
+    "connect_nodes",
+    "disconnect_nodes",
+    "canvas_director3d_apply_animation",
+  ]);
+  const DISCUSSION_IMAGE_TOOL_NAMES = new Set([
+    "generate_image_to_gallery",
+    "request_image_node_choice",
+    "run_canvas_node",
+  ]);
 
   const TOOL_DEFINITIONS = Object.freeze(CanvasAgentCapabilities.CAPABILITY_REGISTRY.map((item) => item.tool));
 
@@ -50,25 +75,69 @@
     };
   }
 
-  function getDirectImageGenerationAllowance(prompt) {
+  function classifyImageGenerationIntent(prompt) {
     const text = String(prompt || "").trim();
-    if (!text || /不要生成|别生成|先不生成|暂不生成|不要出图|只讨论|先聊|只建节点|自己再调/.test(text)) return 0;
-    if (/怎么|如何|为什么|能不能|是否|可以吗|可不可以|[?？]\s*$/.test(text)) return 0;
-    if (/几张|多张|一批|批量|若干|套图|组图|系列/.test(text)) return 0;
-    if (/(?:[2-9]|[二两三四五六七八九十])\s*张/.test(text)) return 0;
-    const directImage = /(生成|画|绘制|出|做)(?:一张|1\s*张|一个)?[^。！？]{0,24}(图|图片|海报|主视觉|插画)/.test(text);
-    const contextualExecute = /(?:就|直接|现在|开始|请)?按[^。！？]{0,24}(方案|方向|刚才|上面)[^。！？]{0,16}(生成|出图|做)/.test(text);
-    return directImage || contextualExecute ? 1 : 0;
+    if (!text) return "neutral";
+    if (/不要生成|别生成|先不生成|暂不生成|不要出图|先别出图|只讨论|先讨论|先聊|先给我提示词|先看参数|先优化提示词|等我确认|先确认|只建节点|自己再调/.test(text)) {
+      return "discussion";
+    }
+    if (/怎么|如何|为什么|能不能|是否|可以吗|可不可以|[?？]\s*$/.test(text)) return "neutral";
+    const explicitExecute = /(?:我)?(?:想要|要)(?:一张|1\s*张)|(?:直接|现在|开始)(?:生成|出图|画)|(?:生成|出图|画一张)\s*[。！!]*$/.test(text);
+    const directImage = /(想要|要|生成|画|绘制|出图|做)(?:一张|1\s*张|一个)?[^。！？]{0,28}(图|图片|海报|主视觉|插画)/.test(text);
+    const contextualExecute = /(?:就|直接|现在|开始|请)?按[^。！？]{0,24}(方案|方向|刚才|上面|这个)[^。！？]{0,16}(生成|出图|做)/.test(text);
+    return explicitExecute || directImage || contextualExecute ? "execute" : "neutral";
   }
 
-  function parseDirectImageFallbackIntent(prompt, canvas = {}) {
+  function shouldBlockCanvasToolForDiscussion(intent, toolName) {
+    return intent === "discussion" && DISCUSSION_IMAGE_TOOL_NAMES.has(String(toolName || ""));
+  }
+
+  function getCanvasAgentRecoveryDelay(attempt) {
+    const index = Math.trunc(Number(attempt)) - 1;
+    return index >= 0 && index < CANVAS_AGENT_RECOVERY_DELAYS_MS.length
+      ? CANVAS_AGENT_RECOVERY_DELAYS_MS[index]
+      : null;
+  }
+
+  function shouldAutoRecoverCanvasAgent(input = {}) {
+    const category = String(input.category || "").trim().toLowerCase();
+    const attempt = Math.max(0, Math.trunc(Number(input.attempt || 0)));
+    return input.boardMatches === true
+      && input.tokenMatches === true
+      && attempt < CANVAS_AGENT_RECOVERY_DELAYS_MS.length
+      && CANVAS_AGENT_RECOVERABLE_CATEGORIES.has(category);
+  }
+
+  function getCanvasAgentRecoveryPaidAllowances(allowances = {}, paidAttempted = false) {
+    if (paidAttempted) return { generate_image_to_gallery: 0, run_canvas_node: 0 };
+    return {
+      generate_image_to_gallery: Math.max(0, Math.min(1, Number(allowances.generate_image_to_gallery || 0))),
+      run_canvas_node: Math.max(0, Math.min(1, Number(allowances.run_canvas_node || 0))),
+    };
+  }
+
+  function getDirectImageGenerationAllowance(prompt) {
+    const text = String(prompt || "").trim();
+    if (classifyImageGenerationIntent(text) !== "execute") return 0;
+    if (/几张|多张|一批|批量|若干|套图|组图|系列/.test(text)) return 0;
+    if (/(?:[2-9]|[二两三四五六七八九十])\s*张/.test(text)) return 0;
+    return 1;
+  }
+
+  function getSelectedImageEditGenerationAllowance(prompt, hasSelectedImage = false) {
+    if (!hasSelectedImage || classifyImageGenerationIntent(prompt) === "discussion") return 0;
+    const text = String(prompt || "").trim();
+    if (!text) return 0;
+    return /(编辑|修改|替换|改成|变成|换成|放在|放到|放进|置入|移到|添加|加上|去掉|删除|移除|扩图|裁切|重绘|修复|美化|增强)/.test(text) ? 1 : 0;
+  }
+
+  function parseDirectImageFallbackIntent(prompt, canvas = {}, options = {}) {
     const text = trimText(prompt, 12000).trim();
     if (!text || !getDirectImageGenerationAllowance(text)) return null;
-    if (/(讨论|聊聊|头脑风暴|分析|建议|方案|思路|怎么设计|如何设计|适合什么|[?？]\s*$)/.test(text)) return null;
     const hasReusableGenerator = (Array.isArray(canvas?.nodes) ? canvas.nodes : []).some((node) => (
       String(node?.kind || "") === "image" && node?.is_upload_only !== true
     ));
-    if (hasReusableGenerator) return null;
+    if (hasReusableGenerator && options.allowNewWithReusableGenerator !== true) return null;
     return { prompt: text };
   }
 
@@ -95,12 +164,26 @@
   }
 
   function summarizeCanvasBoard(board = {}, selectedIds = []) {
-    const nodes = (Array.isArray(board.nodes) ? board.nodes : [])
-      .slice(0, MAX_CANVAS_NODES)
-      .map(summarizeCanvasNode);
+    const sourceNodes = Array.isArray(board.nodes) ? board.nodes : [];
+    const sourceById = new Map(sourceNodes.map((node) => [String(node?.id || ""), node]));
+    const requestedSelected = Array.from(new Set((Array.isArray(selectedIds) ? selectedIds : []).map(String)))
+      .filter((id) => sourceById.has(id));
+    const selectedSet = new Set(requestedSelected);
+    const connectedIds = [];
+    (Array.isArray(board.connections) ? board.connections : []).forEach((item) => {
+      const from = String(item?.from || "");
+      const to = String(item?.to || "");
+      if (selectedSet.has(from) && sourceById.has(to)) connectedIds.push(to);
+      if (selectedSet.has(to) && sourceById.has(from)) connectedIds.push(from);
+    });
+    const orderedIds = [...new Set([
+      ...requestedSelected,
+      ...connectedIds,
+      ...sourceNodes.map((node) => String(node?.id || "")),
+    ])].filter((id) => sourceById.has(id)).slice(0, MAX_CANVAS_NODES);
+    const nodes = orderedIds.map((id) => summarizeCanvasNode(sourceById.get(id), selectedSet.has(id)));
     const nodeIds = new Set(nodes.map((node) => node.id));
-    const selected = Array.from(new Set((Array.isArray(selectedIds) ? selectedIds : []).map(String)))
-      .filter((id) => nodeIds.has(id));
+    const selected = requestedSelected.filter((id) => nodeIds.has(id));
     const connections = (Array.isArray(board.connections) ? board.connections : [])
       .filter((item) => nodeIds.has(String(item?.from)) && nodeIds.has(String(item?.to)))
       .slice(0, 160)
@@ -118,7 +201,8 @@
     };
   }
 
-  function summarizeCanvasNode(node = {}) {
+  function summarizeCanvasNode(node = {}, detailed = false) {
+    const textLimit = detailed ? MAX_TEXT_LENGTH : COMPACT_TEXT_LENGTH;
     const kind = String(node.kind || "unknown");
     const summary = {
       id: String(node.id || ""),
@@ -126,12 +210,13 @@
       x: finiteNumber(node.x),
       y: finiteNumber(node.y),
     };
-    if (kind === "text") summary.text = trimText(node.text, MAX_TEXT_LENGTH);
+    if (kind === "text") summary.text = trimText(node.text, textLimit);
+    if (kind === "note") summary.text = trimText(node.text, textLimit);
     if (kind === "image") {
       summary.image_name = trimText(node.imageName || "图片", 240);
       summary.image_url = safeAssetUrl(node.resultSrc || node.imageSrc);
       summary.original_image_url = safeAssetUrl(node.originalSrc || node.imageSrc);
-      summary.prompt = trimText(node.prompt, MAX_TEXT_LENGTH);
+      summary.prompt = trimText(node.prompt, textLimit);
       summary.model = trimText(node.model, 240);
       summary.size = trimText(node.size, 80);
       summary.resolution = trimText(node.resolution, 80);
@@ -142,14 +227,22 @@
       summary.image_count = Array.isArray(node.galleryImages) ? node.galleryImages.length : 0;
     }
     if (kind === "llm") {
-      summary.prompt = trimText(node.llmPrompt, MAX_TEXT_LENGTH);
-      summary.output = trimText(node.llmOutput, MAX_TEXT_LENGTH);
+      summary.prompt = trimText(node.llmPrompt, textLimit);
+      summary.output = trimText(node.llmOutput, textLimit);
       summary.model = trimText(node.llmModel, 240);
     }
     if (kind === "minimax-h3") {
-      summary.prompt = trimText(node.minimaxH3Prompt, MAX_TEXT_LENGTH);
+      summary.prompt = trimText(node.minimaxH3Prompt, textLimit);
       summary.aspect_ratio = trimText(node.minimaxH3AspectRatio, 32);
       summary.duration = finiteNumber(node.minimaxH3Duration);
+    }
+    if (kind === "midjourney") {
+      summary.prompt = trimText(node.midjourneyPrompt, textLimit);
+      summary.operation = trimText(node.midjourneyOperation || "imagine", 32);
+      summary.model = trimText(node.midjourneyModel, 240);
+      summary.size = trimText(node.midjourneySize, 32);
+      summary.version = trimText(node.midjourneyVersion, 32);
+      summary.speed = trimText(node.midjourneySpeed, 32);
     }
     if (kind === "comfy") summary.mode = trimText(node.comfyMode, 120);
     return summary;
@@ -172,6 +265,12 @@
 
   function isFiniteCoordinate(value) {
     return value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value));
+  }
+
+  function shouldUseTerminalToolRun(prompt, calls = []) {
+    const list = Array.isArray(calls) ? calls : [];
+    if (list.length !== 1 || !String(prompt || "").trim()) return false;
+    return TERMINAL_TOOL_NAMES.has(String(list[0]?.name || ""));
   }
 
   function normalizeAgentReferences(candidates, limit = 15) {
@@ -349,13 +448,23 @@
 
   function createRunState(input = {}) {
     const prompt = trimText(input.prompt, 12000);
+    const imageGenerationIntent = classifyImageGenerationIntent(prompt);
+    const maxSteps = Number.isSafeInteger(input.maxSteps) && input.maxSteps > 0
+      ? Math.min(24, input.maxSteps)
+      : MAX_STEPS;
+    const maxToolCalls = Number.isSafeInteger(input.maxToolCalls) && input.maxToolCalls > 0
+      ? Math.min(64, input.maxToolCalls)
+      : null;
     return {
       id: String(input.id || `agent_${Date.now()}`),
       prompt,
       skillId: String(input.skillId || ""),
+      imageGenerationIntent,
       status: "running",
       step: 0,
-      maxSteps: MAX_STEPS,
+      maxSteps,
+      maxToolCalls,
+      toolCallsUsed: 0,
       approvedPaidTools: false,
       paidAllowances: input.paidAllowances && typeof input.paidAllowances === "object"
         ? {
@@ -378,12 +487,20 @@
       throw new Error(`Agent reached the ${maxSteps} step limit.`);
     }
     const toolCalls = Array.isArray(turn.toolCalls) ? turn.toolCalls : [];
+    const toolCallsUsed = Math.max(0, Number(current.toolCallsUsed || 0));
+    const maxToolCalls = Number.isSafeInteger(current.maxToolCalls) && current.maxToolCalls > 0
+      ? current.maxToolCalls
+      : null;
+    if (maxToolCalls && toolCallsUsed + toolCalls.length > maxToolCalls) {
+      throw new Error(`Agent reached the ${maxToolCalls} tool-call limit.`);
+    }
     const events = Array.isArray(current.events) ? [...current.events] : [];
     if (turn.message) events.push({ type: "assistant", text: String(turn.message), at: Date.now() });
     if (toolCalls.length) events.push({ type: "tool_calls", calls: toolCalls, at: Date.now() });
     return {
       ...current,
       step: Number(current.step || 0) + 1,
+      toolCallsUsed: toolCallsUsed + toolCalls.length,
       status: toolCalls.length ? "running" : "completed",
       previousResponseId: String(turn.responseId || turn.response_id || current.previousResponseId || ""),
       pendingToolCalls: toolCalls,
@@ -399,11 +516,18 @@
   return {
     MAX_STEPS,
     MAX_CANVAS_NODES,
+    CANVAS_AGENT_RECOVERY_DELAYS_MS,
     TOOL_DEFINITIONS,
     TOOL_NAME_SET,
     requiresApproval,
     buildApprovalPlan,
+    classifyImageGenerationIntent,
+    shouldBlockCanvasToolForDiscussion,
+    getCanvasAgentRecoveryDelay,
+    shouldAutoRecoverCanvasAgent,
+    getCanvasAgentRecoveryPaidAllowances,
     getDirectImageGenerationAllowance,
+    getSelectedImageEditGenerationAllowance,
     parseDirectImageFallbackIntent,
     consumePaidAllowances,
     isFiniteCoordinate,
@@ -412,6 +536,7 @@
     planWorkflowArrangement,
     planCenteredRowLayout,
     summarizeCanvasBoard,
+    shouldUseTerminalToolRun,
     createRunState,
     advanceRunState,
     getToolDefinition,

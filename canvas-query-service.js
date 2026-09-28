@@ -39,8 +39,8 @@ function createCanvasQueryService({ repository, migrator } = {}) {
     return migrator?.listLegacySummaries?.() || [];
   }
 
-  async function listBoards() {
-    const stored = await repository.listBoards();
+  async function listBoards({ projectId } = {}) {
+    const stored = await repository.listBoards({ projectId: String(projectId || "").trim() || undefined });
     const known = new Set(stored.map((board) => String(board.id)));
     const legacy = legacySummaries()
       .filter((board) => !known.has(String(board.id)))
@@ -56,7 +56,7 @@ function createCanvasQueryService({ repository, migrator } = {}) {
     };
   }
 
-  function startMigration(boardId) {
+  function startMigration(boardId, projectId = "") {
     let job = migrationJobs.get(boardId);
     if (job) return job;
     job = {
@@ -69,7 +69,7 @@ function createCanvasQueryService({ repository, migrator } = {}) {
     job.promise = Promise.resolve()
       .then(() => migrator.ensureMigrated(boardId, (progress) => {
         job.progress = progress;
-      }))
+      }, { projectId }))
       .then((metadata) => {
         job.state = "complete";
         job.metadata = metadata;
@@ -83,7 +83,7 @@ function createCanvasQueryService({ repository, migrator } = {}) {
     return job;
   }
 
-  async function ensureReady(boardId) {
+  async function ensureReady(boardId, projectId = "") {
     const id = String(boardId || "").trim();
     if (!id) throw serviceError("canvas_board_not_found", "Canvas board was not found.", 404);
     try {
@@ -97,7 +97,7 @@ function createCanvasQueryService({ repository, migrator } = {}) {
     if (!migrator || !legacySummaries().some((board) => String(board.id) === id)) {
       throw serviceError("canvas_board_not_found", "Canvas board was not found.", 404);
     }
-    const job = startMigration(id);
+    const job = startMigration(id, projectId);
     if (job.state === "failed") {
       const error = job.error || serviceError(
         "canvas_migration_failed",
@@ -116,14 +116,14 @@ function createCanvasQueryService({ repository, migrator } = {}) {
     };
   }
 
-  async function getMeta(boardId) {
-    const ready = await ensureReady(boardId);
+  async function getMeta(boardId, projectId = "") {
+    const ready = await ensureReady(boardId, projectId);
     if (ready.migrating) return ready.migrating;
     return repository.getBoardMeta(String(boardId));
   }
 
-  async function queryViewport(boardId, query) {
-    const ready = await ensureReady(boardId);
+  async function queryViewport(boardId, query, projectId = "") {
+    const ready = await ensureReady(boardId, projectId);
     if (ready.migrating) return ready.migrating;
     const normalized = normalizeViewportQuery(query);
     try {
@@ -134,8 +134,8 @@ function createCanvasQueryService({ repository, migrator } = {}) {
     }
   }
 
-  async function exportPage(boardId, query = {}) {
-    const ready = await ensureReady(boardId);
+  async function exportPage(boardId, query = {}, projectId = "") {
+    const ready = await ensureReady(boardId, projectId);
     if (ready.migrating) return ready.migrating;
     const entity = query.entity === "connections" ? "connections" : "nodes";
     const limit = Math.max(1, Math.min(1000, Math.trunc(finite(query.limit, 200))));
@@ -155,7 +155,26 @@ function createCanvasQueryService({ repository, migrator } = {}) {
     listBoards,
     getMeta,
     queryViewport,
+    async getNode(boardId, nodeId, projectId = "") {
+      const ready = await ensureReady(boardId, projectId);
+      if (ready.migrating) return ready.migrating;
+      try { return await repository.getNode({ boardId: String(boardId), nodeId: String(nodeId || "") }); }
+      catch (error) {
+        if (error.code === "node_not_found") throw serviceError("canvas_node_not_found", error.message, 404);
+        throw mapQueryError(error);
+      }
+    },
     exportPage,
+    async getNodes(boardId, nodeIds, projectId = "") {
+      const ids = [...new Set((nodeIds || []).map(String))];
+      if (!ids.length || ids.length > 100 || ids.some(id => !id.trim())) {
+        throw serviceError("invalid_node_ids", "每批需要 1 至 100 个节点编号。", 400);
+      }
+      const ready = await ensureReady(boardId, projectId);
+      if (ready.migrating) return ready.migrating;
+      try { return await repository.getNodes({ boardId: String(boardId), nodeIds: ids }); }
+      catch (error) { throw mapQueryError(error); }
+    },
   };
 }
 

@@ -16,6 +16,8 @@ const {
 const { extractNodePreviewSources, extractNodeSceneTitle } = require("./canvas-node-preview-rules");
 const { ENGINE_VERSION } = require("./canvas-engine-contract");
 const { selectVisibleSprites } = require("./canvas-scene-rules");
+const { getNodeRect, MAX_FULL_NODE_CANDIDATES } = require("./canvas-virtualization-rules");
+const { mediaReferenceKey, collectMediaReferences } = require("./canvas-media-references");
 
 if (!parentPort) throw new Error("Canvas database worker requires a parent port.");
 
@@ -41,6 +43,34 @@ configureDatabase(database);
 initializeSchema(database);
 
 const statementCache = new Map();
+const viewportPageCache = new Map();
+let viewportPageCacheBytes = 0;
+const VIEWPORT_CACHE_MAX_BYTES = 16 * 1024 * 1024;
+
+function cacheViewportPage(key, page) {
+  const bytes = Buffer.byteLength(JSON.stringify(page));
+  if (bytes > VIEWPORT_CACHE_MAX_BYTES) return;
+  while (viewportPageCache.size && (viewportPageCache.size >= 8 || viewportPageCacheBytes + bytes > VIEWPORT_CACHE_MAX_BYTES)) {
+    const oldest = viewportPageCache.keys().next().value;
+    viewportPageCacheBytes -= viewportPageCache.get(oldest).bytes;
+    viewportPageCache.delete(oldest);
+  }
+  viewportPageCache.set(key, { page, bytes });
+  viewportPageCacheBytes += bytes;
+}
+
+function clearViewportPageCache() {
+  viewportPageCache.clear();
+  viewportPageCacheBytes = 0;
+}
+
+function invalidateBoardViewportCache(boardPk) {
+  for (const [key, entry] of viewportPageCache) {
+    if (JSON.parse(key)[0] !== boardPk) continue;
+    viewportPageCacheBytes -= entry.bytes;
+    viewportPageCache.delete(key);
+  }
+}
 
 function triggerTestFault(stage) {
   if (testFaultStage === stage) process.exit(86);
@@ -91,7 +121,7 @@ function finiteNumber(value, fallback, label) {
 function boardRow(boardId) {
   const id = requiredId(boardId, "Board");
   const row = prepare(`
-    SELECT pk, external_id, title, viewport_json, revision, schema_version,
+    SELECT pk, external_id, project_id, title, viewport_json, revision, schema_version,
            migration_state, validation_hash, created_at, updated_at, deleted_at
       FROM boards
      WHERE external_id = ?
@@ -104,6 +134,7 @@ function toBoardMeta(row) {
   const previewImages = parseJson(row.preview_images_json, []);
   return {
     id: row.external_id,
+    projectId: row.project_id || "",
     title: row.title,
     viewport: parseJson(row.viewport_json, { x: 0, y: 0, scale: 1 }),
     revision: Number(row.revision),
@@ -140,6 +171,32 @@ function syncNodePreview(boardPk, nodeId, zOrder, payload, updatedAt) {
     Math.trunc(Number(zOrder) || 0),
     String(updatedAt || nowIso()),
   );
+  syncNodeMediaReferences(boardPk, nodeId, payload);
+}
+
+function syncNodeMediaReferences(boardPk, nodeId, payload) {
+  prepare("DELETE FROM media_refs WHERE board_pk = ? AND node_id = ?").run(boardPk, String(nodeId));
+  const insert = prepare("INSERT INTO media_refs(board_pk, node_id, resource_id, original_url, status) VALUES (?, ?, ?, ?, 'referenced')");
+  for (const [key] of collectMediaReferences(payload)) insert.run(boardPk, String(nodeId), key, key);
+  prepare(`INSERT INTO node_media_index_state(node_pk, revision)
+    SELECT pk, revision FROM nodes WHERE board_pk = ? AND external_id = ?
+    ON CONFLICT(node_pk) DO UPDATE SET revision = excluded.revision`).run(boardPk, String(nodeId));
+}
+
+function backfillMediaReferences() {
+  let lastPk = 0;
+  while (true) {
+    const rows = prepare(`SELECT n.pk,n.board_pk,n.external_id,n.payload_json FROM nodes n
+      LEFT JOIN node_media_index_state s ON s.node_pk = n.pk
+      WHERE n.pk > ? AND (s.node_pk IS NULL OR s.revision != n.revision) ORDER BY n.pk LIMIT 500`).all(lastPk);
+    if (!rows.length) return;
+    database.exec("BEGIN IMMEDIATE");
+    try {
+      for (const row of rows) syncNodeMediaReferences(row.board_pk, row.external_id, parseJson(row.payload_json, {}));
+      database.exec("COMMIT");
+    } catch (error) { database.exec("ROLLBACK"); throw error; }
+    lastPk = Number(rows.at(-1).pk);
+  }
 }
 
 function backfillNodePreviews(batchSize = 500) {
@@ -302,12 +359,14 @@ function upsertNode(boardPk, operation, timestamp) {
   }
   const zOrder = Math.trunc(finiteNumber(
     after.zOrder ?? after.z,
-    existing?.z_order ?? 0,
+    existing?.z_order ?? (Number(prepare("SELECT MAX(z_order) AS value FROM nodes WHERE board_pk=?").get(boardPk)?.value ?? -1) + 1),
     "Node z-order",
   ));
   const kind = String(after.kind || existing?.kind || "text");
   const revision = Number(existing?.revision || 0) + 1;
   const payload = { ...parseJson(existing?.payload_json, {}), ...after, id, kind, x, y, width, height };
+  const bounds = getNodeRect(payload);
+  const indexedWidth = bounds.right - x, indexedHeight = bounds.bottom - y;
   let pk;
   if (existing) {
     prepare(`
@@ -315,7 +374,7 @@ function upsertNode(boardPk, operation, timestamp) {
          SET z_order = ?, kind = ?, x = ?, y = ?, width = ?, height = ?,
              revision = ?, payload_json = ?, updated_at = ?
        WHERE pk = ?
-    `).run(zOrder, kind, x, y, width, height, revision, JSON.stringify(payload), timestamp, existing.pk);
+    `).run(zOrder, kind, x, y, indexedWidth, indexedHeight, revision, JSON.stringify(payload), timestamp, existing.pk);
     pk = existing.pk;
   } else {
     const inserted = prepare(`
@@ -324,12 +383,12 @@ function upsertNode(boardPk, operation, timestamp) {
         revision, payload_json, created_at, updated_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
-      boardPk, id, zOrder, kind, x, y, width, height,
+      boardPk, id, zOrder, kind, x, y, indexedWidth, indexedHeight,
       revision, JSON.stringify(payload), timestamp, timestamp,
     );
     pk = Number(inserted.lastInsertRowid);
   }
-  writeSpatial("node_spatial", pk, { left: x, top: y, right: x + width, bottom: y + height });
+  writeSpatial("node_spatial", pk, bounds);
   syncNodePreview(boardPk, id, zOrder, payload, timestamp);
   refreshAttachedConnections(boardPk, id);
   return { entityId: id, entityRevision: revision };
@@ -350,6 +409,7 @@ function deleteNode(boardPk, operation) {
   `).all(boardPk, id, id);
   for (const connection of connections) deleteConnectionRow(connection);
   prepare("DELETE FROM node_previews WHERE board_pk = ? AND node_id = ?").run(boardPk, id);
+  prepare("DELETE FROM media_refs WHERE board_pk = ? AND node_id = ?").run(boardPk, id);
   prepare("DELETE FROM node_spatial WHERE pk = ?").run(existing.pk);
   prepare("DELETE FROM nodes WHERE pk = ?").run(existing.pk);
   return { entityId: id, entityRevision: Number(existing.revision) + 1 };
@@ -447,14 +507,15 @@ function exactNodeIntersects(row, bounds) {
 }
 
 function hydrateNode(row) {
+  const payload = parseJson(row.payload_json, {});
   return {
-    ...parseJson(row.payload_json, {}),
+    ...payload,
     id: row.external_id,
     kind: row.kind,
     x: Number(row.x),
     y: Number(row.y),
-    width: Number(row.width),
-    height: Number(row.height),
+    width: payload.width === 0 ? 0 : Number(row.width),
+    height: payload.height === 0 ? 0 : Number(row.height),
     revision: Number(row.revision),
   };
 }
@@ -488,12 +549,12 @@ function viewportNodeRows(boardPk, bounds, columns = "n.*") {
 }
 
 function viewportVisualRows(boardPk, bounds) {
-  return prepare(`
+  const statement = prepare(`
     SELECT n.external_id, n.z_order, n.kind, n.x, n.y, n.width, n.height,
            COALESCE(p.source, '') AS preview_source,
            COALESCE(p.title, n.kind) AS title
       FROM node_spatial s
-      CROSS JOIN nodes n ON n.pk = s.pk
+      CROSS JOIN nodes n INDEXED BY nodes_viewport_geometry_idx ON n.pk = s.pk
       LEFT JOIN node_previews p
         ON p.board_pk = n.board_pk AND p.node_id = n.external_id
      WHERE s.max_x >= ? AND s.min_x <= ?
@@ -501,32 +562,57 @@ function viewportVisualRows(boardPk, bounds) {
        AND n.board_pk = ?
        AND n.x + n.width >= ? AND n.x <= ?
        AND n.y + n.height >= ? AND n.y <= ?
-  `).all(
+  `);
+  statement.setReturnArrays(true);
+  return statement.all(
     bounds.left, bounds.right, bounds.top, bounds.bottom,
     boardPk,
     bounds.left, bounds.right, bounds.top, bounds.bottom,
-  );
+  ).map(([external_id, z_order, kind, x, y, width, height, preview_source, title]) => (
+    { external_id, z_order, kind, x, y, width, height, preview_source, title }
+  ));
 }
 
-function viewportVisualConnectionRows(boardPk, bounds) {
-  const rows = prepare(`
-    SELECT geometry.from_x, geometry.from_y, geometry.to_x, geometry.to_y
+function viewportVisualConnectionRows(boardPk, bounds, maxConnections = 1200) {
+  const limit = Math.max(1, Math.min(10_000, Math.trunc(Number(maxConnections) || 1200)));
+  const total = Number(prepare(`
+    SELECT COUNT(*) AS connection_count
       FROM connection_spatial s
-      CROSS JOIN connections c ON c.pk = s.pk
+      CROSS JOIN connections c INDEXED BY connections_viewport_idx ON c.pk = s.pk
+     WHERE s.max_x >= ? AND s.min_x <= ?
+       AND s.max_y >= ? AND s.min_y <= ?
+       AND c.board_pk = ?
+  `).get(bounds.left, bounds.right, bounds.top, bounds.bottom, boardPk)?.connection_count || 0);
+  const statement = prepare(`
+    SELECT geometry.from_x, geometry.from_y, geometry.to_x, geometry.to_y,
+           c.from_id, c.to_id,
+           COALESCE(json_extract(c.payload_json, '$.fromPort'), 'output'),
+           COALESCE(json_extract(c.payload_json, '$.toPort'), 'input')
+      FROM connection_spatial s
+      CROSS JOIN connections c INDEXED BY connections_viewport_idx ON c.pk = s.pk
       CROSS JOIN connection_geometry geometry ON geometry.connection_pk = c.pk
      WHERE s.max_x >= ? AND s.min_x <= ?
        AND s.max_y >= ? AND s.min_y <= ?
        AND c.board_pk = ?
-  `).all(bounds.left, bounds.right, bounds.top, bounds.bottom, boardPk);
+     LIMIT ?
+  `);
+  statement.setReturnArrays(true);
+  const rows = statement.all(bounds.left, bounds.right, bounds.top, bounds.bottom, boardPk, limit);
   const segments = new Array(rows.length * 4);
   rows.forEach((row, index) => {
     const offset = index * 4;
-    segments[offset] = Number(row.from_x);
-    segments[offset + 1] = Number(row.from_y);
-    segments[offset + 2] = Number(row.to_x);
-    segments[offset + 3] = Number(row.to_y);
+    segments[offset] = Number(row[0]);
+    segments[offset + 1] = Number(row[1]);
+    segments[offset + 2] = Number(row[2]);
+    segments[offset + 3] = Number(row[3]);
   });
-  return { count: rows.length, segments };
+  return {
+    count: rows.length,
+    totalCount: total,
+    truncated: total > rows.length,
+    segments,
+    endpoints: rows.map(row => row.slice(4)),
+  };
 }
 
 function packVisualNodes(nodes) {
@@ -544,6 +630,7 @@ function packVisualNodes(nodes) {
 }
 
 function removeBoardStorage(boardPk) {
+  clearViewportPageCache();
   prepare(`DELETE FROM node_spatial WHERE pk IN (SELECT pk FROM nodes WHERE board_pk = ?)`)
     .run(boardPk);
   prepare(`DELETE FROM connection_spatial WHERE pk IN (SELECT pk FROM connections WHERE board_pk = ?)`)
@@ -572,6 +659,7 @@ function importLegacyNode(boardPk, item, zOrder, timestamp) {
     throw codedError("invalid_node_geometry", "Legacy node width and height cannot be negative.");
   }
   const kind = String(item?.kind || "unknown");
+  const bounds = getNodeRect({ kind, x, y, width, height });
   const inserted = prepare(`
     INSERT INTO nodes(
       board_pk, external_id, z_order, kind, x, y, width, height,
@@ -584,14 +672,14 @@ function importLegacyNode(boardPk, item, zOrder, timestamp) {
     kind,
     x,
     y,
-    width,
-    height,
+    bounds.right - x,
+    bounds.bottom - y,
     JSON.stringify(item),
     timestamp,
     timestamp,
   );
   const pk = Number(inserted.lastInsertRowid);
-  writeSpatial("node_spatial", pk, { left: x, top: y, right: x + width, bottom: y + height });
+  writeSpatial("node_spatial", pk, bounds);
   syncNodePreview(boardPk, id, Math.trunc(finiteNumber(item?.zOrder ?? item?.z, zOrder, "Legacy node z-order")), item, timestamp);
 }
 
@@ -641,17 +729,19 @@ const handlers = {
   },
 
   createBoard(params = {}) {
+    clearViewportPageCache();
     const id = requiredId(params.id, "Board");
     const timestamp = String(params.createdAt || nowIso());
     const title = String(params.title || "Untitled canvas");
+    const projectId = String(params.projectId || "").trim() || null;
     const viewport = params.viewport || { x: 0, y: 0, scale: 1 };
     try {
       prepare(`
         INSERT INTO boards(
-          external_id, title, viewport_json, revision, schema_version,
+          external_id, project_id, title, viewport_json, revision, schema_version,
           migration_state, created_at, updated_at
-        ) VALUES (?, ?, ?, 0, ?, 'active', ?, ?)
-      `).run(id, title, JSON.stringify(viewport), readSchemaVersion(database), timestamp, timestamp);
+        ) VALUES (?, ?, ?, ?, 0, ?, 'active', ?, ?)
+      `).run(id, projectId, title, JSON.stringify(viewport), readSchemaVersion(database), timestamp, timestamp);
     } catch (error) {
       if (String(error?.message || "").includes("UNIQUE")) {
         throw codedError("board_already_exists", `Canvas board already exists: ${id}`);
@@ -661,7 +751,8 @@ const handlers = {
     return toBoardMeta(boardRow(id));
   },
 
-  listBoards() {
+  listBoards(params = {}) {
+    const projectId = String(params.projectId || "").trim();
     const rows = prepare(`
       SELECT b.*,
              (SELECT COUNT(*) FROM nodes n WHERE n.board_pk = b.pk) AS node_count,
@@ -678,8 +769,9 @@ const handlers = {
              ), '[]') AS preview_images_json
         FROM boards b
        WHERE b.migration_state = 'active'
+         AND (? = '' OR b.project_id = ?)
        ORDER BY b.updated_at DESC, b.pk DESC
-    `).all();
+    `).all(projectId, projectId);
     return rows.map(toBoardMeta);
   },
 
@@ -692,8 +784,24 @@ const handlers = {
     return toBoardMeta({ ...board, ...counts });
   },
 
+  boardsReferencingMedia({ source } = {}) {
+    return prepare(`SELECT DISTINCT b.external_id AS id FROM media_refs m
+      JOIN boards b ON b.pk = m.board_pk
+      WHERE m.original_url = ? AND b.deleted_at IS NULL AND b.migration_state = 'active'`)
+      .all(mediaReferenceKey(source));
+  },
+
   getBoardState({ boardId } = {}) {
     return toBoardMeta(boardRow(boardId));
+  },
+
+  setBoardProject({ boardId, projectId } = {}) {
+    const board = boardRow(boardId);
+    const nextProjectId = String(projectId || "").trim() || null;
+    const timestamp = nowIso();
+    prepare("UPDATE boards SET project_id = ?, updated_at = ? WHERE pk = ?")
+      .run(nextProjectId, timestamp, board.pk);
+    return toBoardMeta({ ...board, project_id: nextProjectId, updated_at: timestamp });
   },
 
   applyOperations({ boardId, baseRevision, operations } = {}) {
@@ -780,6 +888,7 @@ const handlers = {
       }
       triggerTestFault("after_sql_before_commit");
       database.exec("COMMIT");
+      invalidateBoardViewportCache(board.pk);
       return { boardRevision: nextRevision, results };
     } catch (error) {
       try { database.exec("ROLLBACK"); } catch {}
@@ -787,13 +896,47 @@ const handlers = {
     }
   },
 
+  getNode({ boardId, nodeId } = {}) {
+    const board = boardRow(boardId);
+    const row = readNode(board.pk, requiredId(nodeId, "Node"));
+    if (!row) throw codedError("node_not_found", "Canvas node was not found.");
+    return { node: hydrateNode(row), boardRevision: Number(board.revision) };
+  },
+
+  getNodes({ boardId, nodeIds } = {}) {
+    const board = boardRow(boardId);
+    const ids = [...new Set((nodeIds || []).map(id => requiredId(id, "Node")))];
+    if (!ids.length || ids.length > 100) throw codedError("invalid_node_ids", "Select between 1 and 100 node IDs per batch.");
+    const rows = ids.map(id => readNode(board.pk, id)).filter(Boolean);
+    const placeholders = ids.map(() => "?").join(",");
+    const connections = prepare(`SELECT * FROM connections WHERE board_pk = ?
+      AND (from_id IN (${placeholders}) OR to_id IN (${placeholders}))`)
+      .all(board.pk, ...ids, ...ids).map(hydrateConnection);
+    return { nodes: rows.map(hydrateNode), connections, boardRevision: Number(board.revision) };
+  },
+
   queryViewport(params = {}) {
     const board = boardRow(params.boardId);
     const bounds = normalizeBounds(params);
+    // Cache viewport pages after board validation. The revision changes
+    // with every edit; the HTTP layer still authorizes each request separately.
+    const nodeLimit = Math.max(1, Math.min(5000, Math.trunc(Number(params.nodeLimit) || 800)));
+    const connectionLimit = Math.max(1, Math.min(10000, Math.trunc(Number(params.connectionLimit) || 1200)));
+    const pageKey = JSON.stringify([board.pk, board.external_id, board.revision,
+      bounds.left, bounds.top, bounds.right, bounds.bottom, Number(params.scale) || 1, nodeLimit, connectionLimit]);
+    // Import batches keep revision 0 until activation, so they cannot be
+    // cached under the normal edit-revision key.
+    const cacheable = board.migration_state === "active";
+    const cached = cacheable ? viewportPageCache.get(pageKey) : null;
+    if (cached) {
+      viewportPageCache.delete(pageKey);
+      viewportPageCache.set(pageKey, cached);
+      return cached.page;
+    }
     const countRow = prepare(`
       SELECT COUNT(*) AS candidate_count
         FROM node_spatial s
-        CROSS JOIN nodes n ON n.pk = s.pk
+        CROSS JOIN nodes n INDEXED BY nodes_viewport_geometry_idx ON n.pk = s.pk
        WHERE s.max_x >= ? AND s.min_x <= ?
          AND s.max_y >= ? AND s.min_y <= ?
          AND n.board_pk = ?
@@ -805,14 +948,15 @@ const handlers = {
       bounds.left, bounds.right, bounds.top, bounds.bottom,
     );
     const candidateCount = Number(countRow?.candidate_count || 0);
-    if (candidateCount > 800) {
+    if (candidateCount > MAX_FULL_NODE_CANDIDATES) {
       const scene = selectVisibleSprites(viewportVisualRows(board.pk, bounds), {
         bounds,
         scale: params.scale,
-        maxTexturedSprites: 5000,
+        maxTexturedSprites: 512,
       });
-      const visualConnections = viewportVisualConnectionRows(board.pk, bounds);
-      return {
+      const sceneConnectionLimit = Math.max(1200, Math.min(2400, connectionLimit));
+      const visualConnections = viewportVisualConnectionRows(board.pk, bounds, sceneConnectionLimit);
+      const page = {
         mode: "scene",
         engineVersion: ENGINE_VERSION,
         boardRevision: Number(board.revision),
@@ -820,17 +964,21 @@ const handlers = {
         visualNodes: packVisualNodes(scene.visualNodes),
         visualNodeCount: scene.visualNodes.length,
         visualNodeEncoding: "tuple-v1",
+        occludedStacks: scene.occludedStacks.map(stack => [packVisualNodes([stack.node])[0], stack.members]),
         texturedNodeIds: scene.texturedNodeIds,
         visualConnections: visualConnections.segments,
+        visualConnectionNodes: visualConnections.endpoints,
         visualConnectionCount: visualConnections.count,
+        visualConnectionTotalCount: visualConnections.totalCount,
+        visualConnectionTruncated: visualConnections.truncated,
         nodes: [],
         connections: [],
         truncated: false,
       };
+      if (cacheable) cacheViewportPage(pageKey, page);
+      return page;
     }
 
-    const nodeLimit = Math.max(1, Math.min(5000, Math.trunc(Number(params.nodeLimit) || 800)));
-    const connectionLimit = Math.max(1, Math.min(10000, Math.trunc(Number(params.connectionLimit) || 1200)));
     const nodeRows = viewportNodeRows(
       board.pk,
       bounds,
@@ -851,7 +999,7 @@ const handlers = {
       connectionLimit + 1,
     );
     const truncated = visibleNodes.length > nodeLimit || connectionRows.length > connectionLimit;
-    return {
+    const page = {
       mode: "detail",
       engineVersion: ENGINE_VERSION,
       boardRevision: Number(board.revision),
@@ -861,6 +1009,8 @@ const handlers = {
       connections: connectionRows.slice(0, connectionLimit).map(hydrateConnection),
       truncated,
     };
+    if (cacheable) cacheViewportPage(pageKey, page);
+    return page;
   },
 
   exportBoardPage({ boardId, entity, cursor, limit } = {}) {
@@ -902,7 +1052,7 @@ const handlers = {
     });
   },
 
-  beginLegacyImport({ board, backupFile } = {}) {
+  beginLegacyImport({ board, backupFile, projectId } = {}) {
     const id = requiredId(board?.id, "Legacy board");
     const timestamp = nowIso();
     database.exec("BEGIN IMMEDIATE");
@@ -916,11 +1066,12 @@ const handlers = {
       if (existing) removeBoardStorage(existing.pk);
       prepare(`
         INSERT INTO boards(
-          external_id, title, viewport_json, revision, schema_version,
+          external_id, project_id, title, viewport_json, revision, schema_version,
           migration_state, validation_hash, created_at, updated_at, deleted_at
-        ) VALUES (?, ?, ?, 0, ?, 'migrating', ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, 0, ?, 'migrating', ?, ?, ?, ?)
       `).run(
         id,
+        String(projectId || board?.projectId || "").trim() || null,
         String(board?.title || "Untitled canvas"),
         JSON.stringify(board?.viewport || { x: 0, y: 0, scale: 1 }),
         readSchemaVersion(database),
@@ -1087,7 +1238,25 @@ const handlers = {
   },
 };
 
+// Old automatic-size payloads must remain automatic on export/restore, but
+// spatial queries need their rendered fallback extent rather than a point.
+function backfillAutomaticNodeBounds() {
+  const rows = prepare("SELECT pk, board_pk, external_id, kind, x, y, width, height FROM nodes WHERE width <= 0 OR height <= 0").all();
+  if (!rows.length) return;
+  database.exec("BEGIN IMMEDIATE");
+  try {
+    for (const row of rows) {
+      const bounds = getNodeRect(row);
+      prepare("UPDATE nodes SET width=?, height=? WHERE pk=?").run(bounds.right - row.x, bounds.bottom - row.y, row.pk);
+      writeSpatial("node_spatial", row.pk, bounds);
+      refreshAttachedConnections(row.board_pk, row.external_id);
+    }
+    database.exec("COMMIT");
+  } catch (error) { database.exec("ROLLBACK"); throw error; }
+}
+backfillAutomaticNodeBounds();
 backfillNodePreviews();
+backfillMediaReferences();
 backfillConnectionGeometry();
 
 parentPort.on("message", (message = {}) => {

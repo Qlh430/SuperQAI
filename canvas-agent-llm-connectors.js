@@ -81,14 +81,20 @@ function getOpenAiHeaders(candidate = {}) {
 }
 
 function buildResponsesToolProbe({ model, prompt, tool }) {
+  const functionTool = {
+    type: "function",
+    ...tool,
+  };
   return {
     model: String(model || ""),
     input: [{
       role: "user",
       content: [{ type: "input_text", text: String(prompt || "") }],
     }],
-    tools: [tool],
-    tool_choice: { type: "function", name: String(tool?.name || "") },
+    // OpenAI-compatible Responses gateways require this discriminator too.
+    // Without it, some return: "Unsupported tool type: None".
+    tools: [functionTool],
+    tool_choice: { type: "function", name: String(functionTool.name || "") },
     max_output_tokens: 128,
     reasoning: { effort: "low" },
   };

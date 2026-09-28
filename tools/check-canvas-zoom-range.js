@@ -29,29 +29,22 @@ function extractBlock(startText, endText) {
   return script.slice(start, end + endText.length);
 }
 
-assert.match(script, /const CANVAS_SCALE_MIN = 0\.05;/);
-assert.match(script, /const CANVAS_SCALE_MAX = 5;/);
-
-const normalizeSource = extractFunction("normalizeCanvasScale");
-const scaleContext = {};
-vm.runInNewContext(`
-  const CANVAS_SCALE_MIN = 0.05;
-  const CANVAS_SCALE_MAX = 5;
-  ${normalizeSource}
-  this.normalizeCanvasScale = normalizeCanvasScale;
-`, scaleContext);
-
-assert.strictEqual(scaleContext.normalizeCanvasScale(0.01), 0.05);
-assert.strictEqual(scaleContext.normalizeCanvasScale(0.05), 0.05);
-assert.strictEqual(scaleContext.normalizeCanvasScale(2.5), 2.5);
-assert.strictEqual(scaleContext.normalizeCanvasScale(4), 4);
-assert.strictEqual(scaleContext.normalizeCanvasScale(5), 5);
-assert.strictEqual(scaleContext.normalizeCanvasScale(6), 5);
-assert.strictEqual(scaleContext.normalizeCanvasScale(undefined), 1);
-assert.strictEqual(scaleContext.normalizeCanvasScale("invalid"), 1);
+const viewRules = require("../canvas-view-rules");
+assert.strictEqual(viewRules.normalizeScale(0.01), 0.05);
+assert.strictEqual(viewRules.normalizeScale(0.05), 0.05);
+assert.strictEqual(viewRules.normalizeScale(2.5), 2.5);
+assert.strictEqual(viewRules.normalizeScale(4), 4);
+assert.strictEqual(viewRules.normalizeScale(5), 5);
+assert.strictEqual(viewRules.normalizeScale(6), 5);
+assert.strictEqual(viewRules.normalizeScale(undefined), 1);
+assert.strictEqual(viewRules.normalizeScale("invalid"), 1);
+assert.match(script, /const CanvasViewRules = window\.CanvasViewRules/);
+assert.match(extractFunction("normalizeCanvasScale"), /CanvasViewRules\.normalizeScale/);
 
 const wheelBlock = extractBlock('viewport.addEventListener("wheel"', '}, { passive: false });');
-assert.match(wheelBlock, /normalizeCanvasScale\(canvasState\.scale \* factor\)/);
+assert.match(wheelBlock, /CanvasViewRules\.wheelDelta\(/);
+assert.match(wheelBlock, /CanvasViewRules\.zoomViewportAt\(/);
+assert.match(wheelBlock, /CanvasViewRules\.wheelZoomFactor\(/);
 assert.doesNotMatch(wheelBlock, /Math\.max\(0\.25/);
 
 const middlePanBlock = extractBlock(
@@ -64,9 +57,52 @@ assert.match(script, /viewport\.addEventListener\("auxclick", \(event\) => \{\s*
 assert.match(extractFunction("beginCanvasPan"), /event\.button !== 0 && event\.button !== 1/);
 assert.match(script, /中键拖动画布/);
 
+const panListeners = new Map();
+let panTransformCalls = 0;
+let panSaveCalls = 0;
+const panContext = {
+  canvasState: { x: 40, y: 60 },
+  window: {
+    addEventListener(type, handler) { panListeners.set(type, handler); },
+    removeEventListener(type, handler) {
+      if (panListeners.get(type) === handler) panListeners.delete(type);
+    },
+  },
+  scheduleCanvasTransform() { panTransformCalls += 1; },
+  scheduleCanvasViewportSave() { panSaveCalls += 1; },
+};
+vm.runInNewContext(`${extractFunction("beginCanvasPan")}; this.beginCanvasPan = beginCanvasPan;`, panContext);
+const panTarget = {
+  captured: null,
+  released: null,
+  setPointerCapture(pointerId) { this.captured = pointerId; },
+  releasePointerCapture(pointerId) { this.released = pointerId; },
+};
+panContext.beginCanvasPan({
+  button: 1,
+  buttons: 4,
+  pointerId: 17,
+  clientX: 200,
+  clientY: 160,
+  currentTarget: panTarget,
+  preventDefault() {},
+});
+assert.strictEqual(panTarget.captured, 17, "middle-button canvas pan must capture its pointer");
+panListeners.get("pointermove")({ pointerId: 18, buttons: 4, clientX: 300, clientY: 260 });
+assert.strictEqual(panTransformCalls, 0, "an unrelated pointer must not move the canvas");
+panListeners.get("pointermove")({ pointerId: 17, buttons: 0, clientX: 300, clientY: 260 });
+assert.strictEqual(panTransformCalls, 0, "a released middle button must stop the pan instead of following later mouse movement");
+assert.strictEqual(panSaveCalls, 1, "losing the middle-button state must finalize the pan once");
+assert.strictEqual(panTarget.released, 17, "finalizing a pan must release the captured pointer");
+assert.strictEqual(panListeners.has("pointermove"), false, "a finalized pan must remove its move listener");
+
 assert.match(extractFunction("restoreCanvasBoard"), /restoreCanvasBoardVirtually\(board\)/);
 assert.match(extractFunction("restoreCanvasBoardVirtually"), /prepareCanvasBoardRestoreFinalState\(board, context\)/);
-assert.match(extractFunction("prepareCanvasBoardRestoreFinalState"), /canvasState\.scale = normalizeCanvasScale\(board\.viewport\?\.scale, 1\);/);
-assert.match(extractFunction("resetCanvasView"), /canvasState\.scale = 1;/);
+assert.match(
+  extractFunction("prepareCanvasBoardRestoreFinalState"),
+  /CanvasViewRules\.normalizeViewport\(board\.viewport\)/,
+);
+assert.match(extractFunction("resetCanvasView"), /CanvasViewRules\.DEFAULT_VIEW/);
+assert.match(extractFunction("screenToCanvas"), /CanvasViewRules\.screenToCanvas/);
 
 console.log("Canvas zoom range checks passed.");

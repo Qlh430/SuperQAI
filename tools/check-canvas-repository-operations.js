@@ -263,36 +263,39 @@ const { createCanvasRepository } = require("../canvas-repository");
       items: denseNodes,
       offset: 0,
     });
-    const denseConnections = Array.from({ length: 800 }, (_, index) => ({
+    const denseConnections = Array.from({ length: 1_400 }, (_, index) => ({
       id: `dense-edge-${index + 1}`,
-      from: `dense-${index + 1}`,
-      to: `dense-${index + 2}`,
+      from: `dense-${(index % 800) + 1}`,
+      to: `dense-${((index + 1) % 800) + 1}`,
     }));
-    await repository.importLegacyBatch({
-      boardId: "dense-board",
-      entity: "connections",
-      items: denseConnections,
-      offset: 0,
-    });
+    for (let offset = 0; offset < denseConnections.length; offset += 700) {
+      await repository.importLegacyBatch({
+        boardId: "dense-board",
+        entity: "connections",
+        items: denseConnections.slice(offset, offset + 700),
+        offset,
+      });
+    }
     await repository.activateImportedBoard({
       boardId: "dense-board",
       validation: { hash: "dense-board-test" },
     });
-    const exactly800 = await repository.queryViewport({
+    const maxFullCandidates = require("../canvas-virtualization-rules").MAX_FULL_NODE_CANDIDATES;
+    const maxFullPage = await repository.queryViewport({
       boardId: "dense-board",
       left: -1,
       top: -1,
-      right: 159_920,
+      right: (maxFullCandidates - 1) * 200 + 120,
       bottom: 200,
       scale: 0.09,
       nodeLimit: 800,
       connectionLimit: 1,
     });
-    assert.equal(exactly800.candidateCount, 800);
-    assert.equal(exactly800.mode, "detail");
-    assert.equal(exactly800.engineVersion, "canvas-visual-fidelity-v2");
-    assert.equal(exactly800.nodes.length, 800);
-    const exactly801 = await repository.queryViewport({
+    assert.equal(maxFullPage.candidateCount, maxFullCandidates);
+    assert.equal(maxFullPage.mode, "detail");
+    assert.equal(maxFullPage.engineVersion, "canvas-visual-fidelity-v2");
+    assert.equal(maxFullPage.nodes.length, maxFullCandidates);
+    const firstScenePage = await repository.queryViewport({
       boardId: "dense-board",
       left: -1,
       top: -1,
@@ -302,17 +305,19 @@ const { createCanvasRepository } = require("../canvas-repository");
       nodeLimit: 800,
       connectionLimit: 1,
     });
-    assert.equal(exactly801.candidateCount, 801);
-    assert.equal(exactly801.engineVersion, "canvas-visual-fidelity-v2");
-    assert.equal(exactly801.mode, "scene");
-    assert.equal(exactly801.visualNodes.length, 801);
-    assert.equal(exactly801.visualConnectionCount, 800);
-    assert.equal(exactly801.visualConnections.length, 3_200);
-    assert.equal(Object.hasOwn(exactly801, "lodNodes"), false);
-    assert.ok(exactly801.visualNodes.every((node) => (
+    assert.equal(firstScenePage.candidateCount, 801);
+    assert.equal(firstScenePage.engineVersion, "canvas-visual-fidelity-v2");
+    assert.equal(firstScenePage.mode, "scene");
+    assert.equal(firstScenePage.visualNodes.length, 801);
+    assert.equal(firstScenePage.visualConnectionCount, 1_200);
+    assert.equal(firstScenePage.visualConnectionTotalCount, 1_400);
+    assert.equal(firstScenePage.visualConnectionTruncated, true);
+    assert.equal(firstScenePage.visualConnections.length, 4_800);
+    assert.equal(Object.hasOwn(firstScenePage, "lodNodes"), false);
+    assert.ok(firstScenePage.visualNodes.every((node) => (
       node[0] && node[4] > 0 && node[5] > 0 && node[8]
     )));
-    assert.equal(exactly801.visualNodeEncoding, "tuple-v1");
+    assert.equal(firstScenePage.visualNodeEncoding, "tuple-v1");
     const inspection = new DatabaseSync(databaseFile, { readOnly: true });
     try {
       assert.equal(

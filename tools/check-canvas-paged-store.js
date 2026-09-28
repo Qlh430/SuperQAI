@@ -56,6 +56,122 @@ assert.equal(store.getPendingOperations().length, 0);
 assert.equal(store.get("b").revision, 2);
 assert.equal(store.boardRevision, 2);
 
+const deleteStore = new CanvasPagedStore({ rules });
+deleteStore.applyViewportPage({
+  generation: "1",
+  mode: "detail",
+  nodes: [node("delete-me", 0)],
+  connections: [],
+});
+deleteStore.stageOperation({
+  operationId: "delete-pending-node",
+  type: "node.delete",
+  entityId: "delete-me",
+  before: deleteStore.get("delete-me"),
+  after: null,
+});
+deleteStore.applyViewportPage({
+  generation: "2",
+  mode: "detail",
+  nodes: [node("delete-me", 0)],
+  connections: [],
+});
+assert.equal(deleteStore.has("delete-me"), false, "a stale viewport response must not recreate a node that is pending deletion");
+
+deleteStore.ackOperations({
+  boardRevision: 2,
+  results: [{ operationId: "delete-pending-node", status: "applied" }],
+});
+const staleDeletedNodePage = deleteStore.applyViewportPage({
+  generation: "3",
+  boardRevision: 2,
+  mode: "detail",
+  nodes: [node("delete-me", 0)],
+  connections: [],
+});
+assert.equal(staleDeletedNodePage, true, "a current-version viewport response can still be processed");
+assert.equal(deleteStore.has("delete-me"), false, "an acknowledged deletion must survive later canvas movement and a late viewport response");
+const delayedDetachedSync = deleteStore.mergeSerialized("delete-me", node("delete-me", 0));
+assert.equal(delayedDetachedSync, null, "a delayed focusout sync must not write a tombstoned node back into the store");
+assert.equal(deleteStore.has("delete-me"), false, "a detached deleted node must remain absent after its delayed sync runs");
+deleteStore.stageOperation({
+  operationId: "undo-delete-pending-node",
+  type: "node.upsert",
+  entityId: "delete-me",
+  before: null,
+  after: node("delete-me", 0),
+});
+assert.equal(deleteStore.has("delete-me"), true, "undo must explicitly restore a deleted node");
+
+const sceneDeleteStore = new CanvasPagedStore({ rules });
+sceneDeleteStore.applyViewportPage({
+  generation: "1",
+  boardRevision: 1,
+  mode: "scene",
+  visualNodes: [
+    ["scene-delete-me", "image", 0, 0, 160, 160, 0, "/delete.png"],
+    ["scene-keep", "image", 200, 0, 160, 160, 0, "/keep.png"],
+  ],
+  texturedNodeIds: ["scene-delete-me", "scene-keep"],
+  visualConnections: [],
+});
+sceneDeleteStore.stageOperation({
+  operationId: "delete-scene-node",
+  type: "node.delete",
+  entityId: "scene-delete-me",
+  before: node("scene-delete-me", 0),
+  after: null,
+});
+assert.deepEqual(
+  sceneDeleteStore.scenePage.visualNodes.map((item) => item[0]),
+  ["scene-keep"],
+  "deleting a node must immediately remove its scene-layer sprite",
+);
+assert.deepEqual(
+  sceneDeleteStore.scenePage.texturedNodeIds,
+  ["scene-keep"],
+  "deleting a node must immediately remove its scene-layer texture reference",
+);
+sceneDeleteStore.applyViewportPage({
+  generation: "2",
+  boardRevision: 2,
+  mode: "scene",
+  visualNodes: [
+    ["scene-delete-me", "image", 0, 0, 160, 160, 0, "/delete.png"],
+    ["scene-keep", "image", 200, 0, 160, 160, 0, "/keep.png"],
+  ],
+  texturedNodeIds: ["scene-delete-me", "scene-keep"],
+  visualConnections: [],
+});
+assert.deepEqual(
+  sceneDeleteStore.scenePage.visualNodes.map((item) => item[0]),
+  ["scene-keep"],
+  "late scene pages must not redraw a deleted node while panning",
+);
+sceneDeleteStore.stageOperation({
+  operationId: "undo-delete-scene-node",
+  type: "node.upsert",
+  entityId: "scene-delete-me",
+  before: null,
+  after: node("scene-delete-me", 0),
+});
+sceneDeleteStore.applyViewportPage({
+  generation: "3",
+  boardRevision: 3,
+  mode: "scene",
+  visualNodes: [
+    ["scene-delete-me", "image", 0, 0, 160, 160, 0, "/delete.png"],
+    ["scene-keep", "image", 200, 0, 160, 160, 0, "/keep.png"],
+  ],
+  texturedNodeIds: ["scene-delete-me", "scene-keep"],
+  visualConnections: [],
+});
+assert.deepEqual(
+  sceneDeleteStore.scenePage.visualNodes.map((item) => item[0]),
+  ["scene-delete-me", "scene-keep"],
+  "undo must allow the restored node to render in the scene layer again",
+);
+
 const staleApplied = store.applyViewportPage({
   generation: "1",
   mode: "detail",

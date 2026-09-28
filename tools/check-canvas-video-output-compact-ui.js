@@ -1,6 +1,16 @@
 const assert = require("node:assert/strict");
 const path = require("node:path");
-const { chromium } = require("playwright");
+
+let playwright;
+try {
+  playwright = require(process.env.AI_OS_TEST_PLAYWRIGHT_MODULE || "playwright");
+} catch {
+  playwright = require(path.join(
+    process.env.USERPROFILE || "",
+    ".cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright",
+  ));
+}
+const { chromium } = playwright;
 
 const baseUrl = process.env.VIDEO_OUTPUT_UI_BASE_URL || "http://127.0.0.1:3107";
 const root = path.join(__dirname, "..");
@@ -16,16 +26,19 @@ const root = path.join(__dirname, "..");
 
   try {
     await page.goto(baseUrl, { waitUntil: "domcontentloaded", timeout: 30000 });
-    await page.locator("#infiniteCanvas").waitFor({ state: "visible" });
+    const canvasApp = page.locator('[data-ai-app="canvas"]').first();
+    if (await canvasApp.count()) await canvasApp.click();
+    await page.locator("#infiniteCanvas").waitFor({ state: "attached" });
     await page.evaluate(() => {
     setActiveTool("canvas");
+    ensureCanvasBoardIdentity();
+    showCanvasEditor();
     canvasState.isRestoring = true;
     clearCanvasPlane();
     canvasState.x = 32;
     canvasState.y = 24;
     canvasState.scale = 1;
     applyCanvasTransform();
-    document.querySelector(".canvas-start-gate")?.classList.add("is-dismissed");
     addCanvasVideoOutputNode({ x: 320, y: 130 }, {
       videoHistory: [
         {

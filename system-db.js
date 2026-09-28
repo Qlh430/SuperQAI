@@ -5,7 +5,7 @@ const path = require("node:path");
 const crypto = require("node:crypto");
 const { DatabaseSync } = require("node:sqlite");
 
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 4;
 const USER_ROLES = new Set(["superadmin", "user"]);
 const USER_STATUSES = new Set(["active", "disabled"]);
 const SHARE_VISIBILITIES = new Set(["private", "all", "users", "password"]);
@@ -25,6 +25,12 @@ function optionalText(value) {
   if (value === undefined || value === null) return null;
   const text = String(value).trim();
   return text || null;
+}
+
+function normalizeCanvasProjectName(value) {
+  const text = String(value ?? "").replace(/\s+/g, " ").trim().slice(0, 80);
+  if (!text) throw codedError("invalid_canvas_project", "Canvas project name is required.");
+  return text;
 }
 
 function parseJson(value, fallback) {
@@ -164,6 +170,17 @@ function createSystemDb({ dbPath, clock = () => new Date() } = {}) {
         ON resources(ref_type, ref_id)
         WHERE ref_type IS NOT NULL AND ref_id IS NOT NULL;
 
+      CREATE TABLE IF NOT EXISTS canvas_projects (
+        id TEXT PRIMARY KEY,
+        owner_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        UNIQUE(owner_user_id, name)
+      );
+      CREATE INDEX IF NOT EXISTS canvas_projects_owner_idx
+        ON canvas_projects(owner_user_id, updated_at DESC, id);
+
       CREATE TABLE IF NOT EXISTS shares (
         id TEXT PRIMARY KEY,
         resource_id TEXT NOT NULL UNIQUE REFERENCES resources(id) ON DELETE CASCADE,
@@ -183,6 +200,35 @@ function createSystemDb({ dbPath, clock = () => new Date() } = {}) {
         PRIMARY KEY (share_id, user_id)
       );
       CREATE INDEX IF NOT EXISTS share_members_user_idx ON share_members(user_id);
+
+      CREATE TABLE IF NOT EXISTS asset_project_links (
+        resource_id TEXT NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
+        project_id TEXT NOT NULL REFERENCES canvas_projects(id) ON DELETE CASCADE,
+        board_id TEXT NOT NULL DEFAULT '',
+        last_used_at TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        PRIMARY KEY (resource_id, project_id, board_id)
+      );
+      CREATE INDEX IF NOT EXISTS asset_project_links_project_idx
+        ON asset_project_links(project_id, last_used_at DESC, resource_id);
+
+      CREATE TABLE IF NOT EXISTS asset_likes (
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        resource_id TEXT NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
+        created_at TEXT NOT NULL,
+        PRIMARY KEY (user_id, resource_id)
+      );
+      CREATE INDEX IF NOT EXISTS asset_likes_resource_idx
+        ON asset_likes(resource_id, created_at DESC, user_id);
+
+      CREATE TABLE IF NOT EXISTS asset_favorites (
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        resource_id TEXT NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
+        created_at TEXT NOT NULL,
+        PRIMARY KEY (user_id, resource_id)
+      );
+      CREATE INDEX IF NOT EXISTS asset_favorites_user_idx
+        ON asset_favorites(user_id, created_at DESC, resource_id);
 
       CREATE TABLE IF NOT EXISTS audit_events (
         id TEXT PRIMARY KEY,
@@ -300,6 +346,70 @@ function createSystemDb({ dbPath, clock = () => new Date() } = {}) {
   function listUsers() {
     assertOpen();
     return database.prepare("SELECT * FROM users ORDER BY CASE role WHEN 'superadmin' THEN 0 ELSE 1 END, username COLLATE NOCASE").all().map(mapUser);
+  }
+
+  function mapCanvasProject(row) {
+    if (!row) return null;
+    return {
+      id: row.id,
+      ownerUserId: row.owner_user_id,
+      name: row.name,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  }
+
+  function getCanvasProject(id) {
+    assertOpen();
+    return mapCanvasProject(database.prepare("SELECT * FROM canvas_projects WHERE id = ?").get(String(id || "")));
+  }
+
+  function listCanvasProjects(ownerUserId) {
+    assertOpen();
+    const ownerId = requiredText(ownerUserId, "ownerUserId");
+    return database.prepare(`
+      SELECT * FROM canvas_projects
+      WHERE owner_user_id = ?
+      ORDER BY updated_at DESC, id
+    `).all(ownerId).map(mapCanvasProject);
+  }
+
+  function createCanvasProject(input = {}) {
+    assertOpen();
+    const ownerUserId = requiredText(input.ownerUserId, "ownerUserId");
+    const owner = getUserById(ownerUserId);
+    if (!owner || owner.status !== "active") throw codedError("canvas_project_owner_not_found", "Canvas project owner is not active.");
+    const id = optionalText(input.id) || crypto.randomUUID();
+    const name = normalizeCanvasProjectName(input.name);
+    const timestamp = nowIso();
+    try {
+      database.prepare(`
+        INSERT INTO canvas_projects(id, owner_user_id, name, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?)
+      `).run(id, ownerUserId, name, timestamp, timestamp);
+    } catch (error) {
+      if (/canvas_projects\.owner_user_id|UNIQUE constraint failed: canvas_projects\.owner_user_id, canvas_projects\.name/i.test(error.message)) {
+        throw codedError("canvas_project_already_exists", "Canvas project name is already in use.");
+      }
+      throw error;
+    }
+    return getCanvasProject(id);
+  }
+
+  function renameCanvasProject(id, name) {
+    assertOpen();
+    const projectId = requiredText(id, "id");
+    if (!getCanvasProject(projectId)) throw codedError("canvas_project_not_found", "Canvas project not found.");
+    const normalizedName = normalizeCanvasProjectName(name);
+    try {
+      database.prepare("UPDATE canvas_projects SET name = ?, updated_at = ? WHERE id = ?").run(normalizedName, nowIso(), projectId);
+    } catch (error) {
+      if (/canvas_projects\.owner_user_id|UNIQUE constraint failed: canvas_projects\.owner_user_id, canvas_projects\.name/i.test(error.message)) {
+        throw codedError("canvas_project_already_exists", "Canvas project name is already in use.");
+      }
+      throw error;
+    }
+    return getCanvasProject(projectId);
   }
 
   function insertUser(input = {}) {
@@ -591,6 +701,107 @@ function createSystemDb({ dbPath, clock = () => new Date() } = {}) {
     `).all(...parameters).map(mapResource);
   }
 
+  function mapAssetProjectLink(row) {
+    if (!row) return null;
+    return {
+      resourceId: row.resource_id,
+      projectId: row.project_id,
+      boardId: row.board_id,
+      lastUsedAt: row.last_used_at,
+      createdAt: row.created_at,
+    };
+  }
+
+  function linkAssetProject(input = {}) {
+    assertOpen();
+    const resourceId = requiredText(input.resourceId, "resourceId");
+    const projectId = requiredText(input.projectId, "projectId");
+    const boardId = String(input.boardId || "").trim();
+    const resource = getResource(resourceId);
+    if (!resource || resource.deletedAt) throw codedError("asset_resource_not_found", "Asset resource was not found.");
+    if (!getCanvasProject(projectId)) throw codedError("canvas_project_not_found", "Canvas project was not found.");
+    const timestamp = nowIso();
+    database.prepare(`
+      INSERT INTO asset_project_links(resource_id, project_id, board_id, last_used_at, created_at)
+      VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT(resource_id, project_id, board_id) DO UPDATE SET
+        last_used_at = excluded.last_used_at
+    `).run(resourceId, projectId, boardId, timestamp, timestamp);
+    return mapAssetProjectLink(database.prepare(`
+      SELECT * FROM asset_project_links
+      WHERE resource_id = ? AND project_id = ? AND board_id = ?
+    `).get(resourceId, projectId, boardId));
+  }
+
+  function listAssetProjectLinks(resourceId) {
+    assertOpen();
+    return database.prepare(`
+      SELECT * FROM asset_project_links
+      WHERE resource_id = ?
+      ORDER BY last_used_at DESC, project_id, board_id
+    `).all(String(resourceId || "")).map(mapAssetProjectLink);
+  }
+
+  function getAssetEngagement(resourceId, userId) {
+    assertOpen();
+    const resourceKey = requiredText(resourceId, "resourceId");
+    const userKey = requiredText(userId, "userId");
+    const row = database.prepare(`
+      SELECT
+        (SELECT COUNT(*) FROM asset_likes WHERE resource_id = ?) AS like_count,
+        EXISTS(SELECT 1 FROM asset_likes WHERE resource_id = ? AND user_id = ?) AS liked,
+        EXISTS(SELECT 1 FROM asset_favorites WHERE resource_id = ? AND user_id = ?) AS favorited
+    `).get(resourceKey, resourceKey, userKey, resourceKey, userKey);
+    return {
+      likeCount: Number(row?.like_count || 0),
+      liked: Boolean(row?.liked),
+      favorited: Boolean(row?.favorited),
+    };
+  }
+
+  function setAssetLike(userId, resourceId, liked) {
+    assertOpen();
+    const userKey = requiredText(userId, "userId");
+    const resourceKey = requiredText(resourceId, "resourceId");
+    if (liked) {
+      database.prepare(`
+        INSERT INTO asset_likes(user_id, resource_id, created_at)
+        VALUES (?, ?, ?)
+        ON CONFLICT(user_id, resource_id) DO NOTHING
+      `).run(userKey, resourceKey, nowIso());
+    } else {
+      database.prepare("DELETE FROM asset_likes WHERE user_id = ? AND resource_id = ?").run(userKey, resourceKey);
+    }
+    return getAssetEngagement(resourceKey, userKey);
+  }
+
+  function setAssetFavorite(userId, resourceId, favorited) {
+    assertOpen();
+    const userKey = requiredText(userId, "userId");
+    const resourceKey = requiredText(resourceId, "resourceId");
+    if (favorited) {
+      database.prepare(`
+        INSERT INTO asset_favorites(user_id, resource_id, created_at)
+        VALUES (?, ?, ?)
+        ON CONFLICT(user_id, resource_id) DO NOTHING
+      `).run(userKey, resourceKey, nowIso());
+    } else {
+      database.prepare("DELETE FROM asset_favorites WHERE user_id = ? AND resource_id = ?").run(userKey, resourceKey);
+    }
+    return getAssetEngagement(resourceKey, userKey);
+  }
+
+  function listFavoriteResourceIds(userId) {
+    assertOpen();
+    return database.prepare(`
+      SELECT f.resource_id
+      FROM asset_favorites f
+      JOIN resources r ON r.id = f.resource_id AND r.deleted_at IS NULL
+      WHERE f.user_id = ?
+      ORDER BY f.created_at DESC, f.resource_id
+    `).all(String(userId || "")).map((row) => row.resource_id);
+  }
+
   function normalizeShareInput(input, existing = {}) {
     const visibility = input.visibility === undefined ? existing.visibility : String(input.visibility);
     const permission = input.permission === undefined ? existing.permission : String(input.permission);
@@ -807,12 +1018,14 @@ function createSystemDb({ dbPath, clock = () => new Date() } = {}) {
     const timestamp = nowIso();
     const models = input.models === undefined ? existing?.models || [] : jsonArray(input.models);
     const providerProtocol = requiredText(input.providerProtocol ?? existing?.providerProtocol, "provider protocol");
+    const source = requiredText(input.source ?? existing?.source ?? "api", "provider source");
+    const baseUrlInput = input.baseUrl ?? existing?.baseUrl;
     const normalized = {
       id,
       name: requiredText(input.name ?? existing?.name, "provider name"),
-      baseUrl: requiredText(input.baseUrl ?? existing?.baseUrl, "provider baseUrl"),
+      baseUrl: source === "cli" ? String(baseUrlInput ?? "").trim() : requiredText(baseUrlInput, "provider baseUrl"),
       providerProtocol,
-      source: requiredText(input.source ?? existing?.source ?? "api", "provider source"),
+      source,
       cliTool: input.cliTool === undefined ? existing?.cliTool || null : optionalText(input.cliTool),
       encryptedApiKey: String(input.encryptedApiKey ?? existing?.encryptedApiKey ?? ""),
       encryptedWalletKey: String(input.encryptedWalletKey ?? existing?.encryptedWalletKey ?? ""),
@@ -987,6 +1200,13 @@ function createSystemDb({ dbPath, clock = () => new Date() } = {}) {
     assertOpen();
     const id = requiredText(userId, "userId");
     const next = mergeJsonObjects(getUserPreferences(id), patch);
+    return replaceUserPreferences(id, next);
+  }
+
+  function replaceUserPreferences(userId, value = {}) {
+    assertOpen();
+    const id = requiredText(userId, "userId");
+    const next = jsonObject(value);
     database.prepare(`
       INSERT INTO user_preferences(user_id, value_json, updated_at) VALUES (?, ?, ?)
       ON CONFLICT(user_id) DO UPDATE SET
@@ -1010,6 +1230,10 @@ function createSystemDb({ dbPath, clock = () => new Date() } = {}) {
     getUserById,
     getUserByUsername,
     listUsers,
+    getCanvasProject,
+    listCanvasProjects,
+    createCanvasProject,
+    renameCanvasProject,
     insertUser,
     updateUser,
     createSession,
@@ -1022,6 +1246,12 @@ function createSystemDb({ dbPath, clock = () => new Date() } = {}) {
     updateResource,
     deleteResource,
     listVisibleResources,
+    linkAssetProject,
+    listAssetProjectLinks,
+    getAssetEngagement,
+    setAssetLike,
+    setAssetFavorite,
+    listFavoriteResourceIds,
     createShare,
     getShare,
     getShareForResource,
@@ -1042,6 +1272,7 @@ function createSystemDb({ dbPath, clock = () => new Date() } = {}) {
     hasEncryptedProviderSecrets,
     getUserPreferences,
     setUserPreferences,
+    replaceUserPreferences,
     runInTransaction: transaction,
     close,
   };
@@ -1053,5 +1284,6 @@ module.exports = {
   USER_STATUSES,
   SHARE_VISIBILITIES,
   SHARE_PERMISSIONS,
+  normalizeCanvasProjectName,
   createSystemDb,
 };

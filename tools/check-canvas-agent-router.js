@@ -66,6 +66,11 @@ async function main() {
   assert.equal(Router.normalizeAgentRouting({
     candidateOrder: Array.from({ length: 300 }, (_, index) => `route-${index}`),
   }).candidateOrder.length, 256);
+  assert.equal(
+    Router.classifyAgentRouteError(new Error("Unsupported tool type: None")),
+    "protocol",
+    "A provider that rejects the function-tool schema must be isolated as protocol-incompatible, not retried as a generic network error.",
+  );
 
   const builtCandidates = Router.buildAgentCandidates({
     providers: [{
@@ -73,6 +78,7 @@ async function main() {
       name: "Configured",
       baseUrl: "https://configured.test/v1",
       apiKey: "configured-key",
+      networkMode: "direct",
       enabled: true,
       models: [{ id: "gpt-5.6-terra", capabilities: [] }],
     }, {
@@ -125,6 +131,7 @@ async function main() {
     "qwen-fast",
   ]);
   assert.equal(builtCandidates[0].protocol, "chat");
+  assert.equal(builtCandidates[0].networkMode, "direct", "Agent candidates must retain the provider route preference.");
   assert.equal(builtCandidates[1].protocol, "responses");
   assert.equal(builtCandidates[2].protocol, "chat");
   assert.equal(builtCandidates[3].protocol, "responses");
@@ -188,7 +195,16 @@ async function main() {
   assert.equal(Router.rankAgentCandidates(policyCandidates, policyHistory, {
     routing: { primaryCandidateId: policyCandidates[0].selectionId },
     now,
-  })[0].id, "fast-but-flaky");
+  })[0].id, "slower-stable", "an unhealthy primary should be a soft preference, not a hard pin");
+  assert.equal(Router.isAgentRouteDegraded(policyHistory["fast-but-flaky"], now), true);
+  assert.equal(Router.isAgentRouteDegraded(policyHistory["slower-stable"], now), false);
+  assert.equal(Router.rankAgentCandidates(policyCandidates, {
+    "fast-but-flaky": { successes: 12, failures: 1, ewmaFirstEventMs: 400, consecutiveFailures: 0 },
+    "slower-stable": policyHistory["slower-stable"],
+  }, {
+    routing: { primaryCandidateId: policyCandidates[0].selectionId },
+    now,
+  })[0].id, "fast-but-flaky", "a healthy primary should keep the user's preference");
   assert.equal(Router.rankAgentCandidates(policyCandidates, {
     ...policyHistory,
     "fast-but-flaky": { ...policyHistory["fast-but-flaky"], circuitOpenUntil: now + 10_000 },
@@ -212,8 +228,8 @@ async function main() {
       routing: { primaryCandidateId: candidates[0].selectionId, candidateOrder: savedOrder },
       now,
     }).map((item) => item.selectionId),
-    savedOrder,
-    "saved Agent routes should keep their configured order even when health scores change",
+    [candidates[1].selectionId, candidates[2].selectionId, candidates[0].selectionId],
+    "configured order should remain soft when its first route is degraded",
   );
   assert.deepEqual(
     Router.rankAgentCandidates(candidates, {
@@ -268,15 +284,28 @@ async function main() {
   assert.equal(recovered.circuitOpenUntil, 0);
   assert.equal(recovered.ewmaFirstEventMs, 500);
 
+  const protocolFailure = Router.updateAgentRouteHealth(
+    {},
+    { success: false, category: "protocol", at: now, latencyMs: 1200 },
+    { failureThreshold: 2, longCircuitMs: 15 * 60 * 1000 },
+  );
+  assert.equal(protocolFailure.consecutiveFailures, 1);
+  assert.equal(protocolFailure.circuitOpenUntil, now + 15 * 60 * 1000);
+
   assert.equal(Router.classifyAgentRouteError({ httpStatus: 429, message: "rate limit" }), "rate-limit");
   assert.equal(Router.classifyAgentRouteError({ httpStatus: 401, message: "bad key" }), "auth");
   assert.equal(Router.classifyAgentRouteError({ httpStatus: 503, message: "down" }), "server");
   assert.equal(Router.classifyAgentRouteError({ code: "FIRST_EVENT_TIMEOUT" }), "timeout");
+  assert.equal(Router.DEFAULT_POLICY.firstEventTimeoutMs, 30000);
   assert.equal(Router.classifyAgentRouteError({ code: "INVALID_AGENT_RESPONSE" }), "protocol");
   assert.equal(Router.classifyAgentRouteError({ code: "INVALID_AGENT_ADAPTER" }), "protocol");
   assert.equal(Router.classifyAgentRouteError({
     httpStatus: 400,
     message: "No tool call found for function call output with call_id call_123",
+  }), "protocol");
+  assert.equal(Router.classifyAgentRouteError({
+    httpStatus: 400,
+    message: "The reasoning_content in the thinking mode must be passed back to the API.",
   }), "protocol");
   assert.equal(Router.classifyAgentRouteError({ category: "task" }), "task");
   assert.equal(

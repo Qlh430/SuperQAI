@@ -2,7 +2,7 @@ const crypto = require("node:crypto");
 
 const DEFAULT_POLICY = Object.freeze({
   connectTimeoutMs: 4000,
-  firstEventTimeoutMs: 10000,
+  firstEventTimeoutMs: 30000,
   attemptTimeoutMs: 45000,
   totalTimeoutMs: 90000,
   failureThreshold: 2,
@@ -17,7 +17,9 @@ const FAILOVER_CATEGORIES = new Set(["network", "timeout", "rate-limit", "server
 function getProviderTaskRequirements(input = {}) {
   return {
     intent: "llm.tools",
-    mustAll: input.needsVision ? ["llm.chat.vision", "llm.tools"] : ["llm.tools"],
+    mustAll: input.needsVision
+      ? ["llm.chat", "llm.chat.vision", "llm.tools"]
+      : ["llm.chat", "llm.tools"],
   };
 }
 
@@ -58,6 +60,7 @@ function normalizeAgentCandidate(input = {}) {
     baseUrl,
     protocol,
     adapterId,
+    networkMode: String(input.networkMode || "auto").trim().toLowerCase(),
     selectionId,
     capabilities,
     responsesUrl: `${baseUrl}/responses`,
@@ -134,6 +137,7 @@ function buildAgentCandidates(options = {}) {
           model: modelId,
           baseUrl: provider.baseUrl,
           apiKey: provider.apiKey,
+          networkMode: provider.networkMode,
           protocol,
           capabilities: [...capabilities],
           source: provider.source || "settings",
@@ -182,6 +186,7 @@ function rankAgentCandidates(candidates, history = {}, options = {}) {
     .map((candidate, index) => ({
       candidate,
       index,
+      healthTier: isAgentRouteDegraded(history[candidate.id], now) ? 1 : 0,
       preferred: routing.primaryCandidateId
         && (candidate.selectionId === routing.primaryCandidateId || candidate.id === routing.primaryCandidateId) ? 0 : 1,
       configuredRank: configuredOrder.has(candidate.selectionId)
@@ -189,7 +194,8 @@ function rankAgentCandidates(candidates, history = {}, options = {}) {
         : Number.MAX_SAFE_INTEGER,
       score: getCandidateScore(history[candidate.id], now),
     }))
-    .sort((left, right) => left.preferred - right.preferred
+    .sort((left, right) => left.healthTier - right.healthTier
+      || left.preferred - right.preferred
       || left.configuredRank - right.configuredRank
       || left.score - right.score
       || left.index - right.index)
@@ -243,6 +249,16 @@ function getCandidateScore(health = {}, now = Date.now()) {
     + Math.min(5_000, latency * 0.1);
 }
 
+function isAgentRouteDegraded(health = {}, now = Date.now()) {
+  const circuitOpenUntil = Math.max(0, Number(health.circuitOpenUntil || 0));
+  if (circuitOpenUntil > Number(now)) return true;
+  if (Math.max(0, Number(health.consecutiveFailures || 0)) > 0) return true;
+  const successes = Math.max(0, Number(health.successes || 0));
+  const failures = Math.max(0, Number(health.failures || 0));
+  const total = successes + failures;
+  return total >= 5 && failures / total >= 0.25;
+}
+
 function positiveNumber(value) {
   const number = Number(value);
   return Number.isFinite(number) && number > 0 ? number : 0;
@@ -274,7 +290,9 @@ function classifyAgentRouteError(error = {}) {
   if (status >= 500) return "server";
   if (/timeout|timed out|超时/.test(message)) return "timeout";
   if (!status && /network|fetch failed|connect|socket|dns|tls|econn|enotfound/.test(message)) return "network";
+  if (/reasoning_content|thinking mode/.test(message)) return "protocol";
   if (/no tool call found|function call output|previous_response_id|unknown response|response[^\n]*not found/.test(message)) return "protocol";
+  if (/unsupported[^\n]*(?:tool|function)|(?:tool|function)[^\n]*unsupported|tool\s*type/.test(message)) return "protocol";
   if (/invalid[^\n]*(?:json|response|stream)|non-json|empty response|malformed/.test(message)) return "protocol";
   return "request";
 }
@@ -330,9 +348,9 @@ function updateAgentRouteHealth(previous = {}, event = {}, options = {}) {
   next.lastFailureAt = at;
   next.lastErrorCategory = category;
   next.ewmaLatencyMs = updateEwma(next.ewmaLatencyMs, event.latencyMs);
-  const configurationFailure = category === "auth" || category === "balance";
-  if (configurationFailure || next.consecutiveFailures >= policy.failureThreshold) {
-    next.circuitOpenUntil = at + (configurationFailure ? policy.longCircuitMs : policy.shortCircuitMs);
+  const longIsolationFailure = category === "auth" || category === "balance" || category === "protocol";
+  if (longIsolationFailure || next.consecutiveFailures >= policy.failureThreshold) {
+    next.circuitOpenUntil = at + (longIsolationFailure ? policy.longCircuitMs : policy.shortCircuitMs);
   }
   return next;
 }
@@ -407,6 +425,7 @@ module.exports = {
   rankAgentCandidates,
   orderAgentCandidatesByEndpointDiversity,
   getAdaptiveAgentAttemptPolicy,
+  isAgentRouteDegraded,
   isAgentRouteHalfOpen,
   classifyAgentRouteError,
   formatAgentVerificationError,

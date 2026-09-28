@@ -7,12 +7,18 @@
   const MOUNT_OVERSCAN_PX = 640;
   const RETAIN_OVERSCAN_PX = 960;
   const FRAME_BUDGET_MS = 8;
+  const MAX_MOUNTS_PER_FRAME = 12;
+  // Rich DOM nodes become layout-bound well before the old 800-node detail cap.
+  const MAX_FULL_NODE_CANDIDATES = 80;
 
   const DEFAULT_NODE_SIZES = Object.freeze({
     group: { width: 360, height: 260 },
     "grid-editor": { width: 640, height: 480 },
+    "director-3d": { width: 350, height: 350 },
     llm: { width: 360, height: 320 },
     "minimax-h3": { width: 420, height: 420 },
+    midjourney: { width: 340, height: 430 },
+    "video-api": { width: 292, height: 460 },
     "video-output": { width: 360, height: 320 },
     video: { width: 360, height: 280 },
     audio: { width: 360, height: 220 },
@@ -20,6 +26,7 @@
     loop: { width: 360, height: 300 },
     gallery: { width: 420, height: 360 },
     text: { width: 292, height: 180 },
+    note: { width: 300, height: 220 },
     image: { width: 320, height: 240 },
     upload: { width: 320, height: 240 },
   });
@@ -62,6 +69,19 @@
     return { left: x, top: y, right: x + width, bottom: y + height };
   }
 
+  // The spatial index keeps the saved envelope (a conservative broad phase).
+  // Paint, ports and pointer hits use this tighter rectangle, without moving
+  // legacy boards or rewriting their automatic-size payloads on selection.
+  function getImageContentRect(rect, media = {}) {
+    const width = Number(media.width), height = Number(media.height);
+    if (!(width > 0 && height > 0)) return { ...rect };
+    const scale = Math.min((rect.right - rect.left) / width, (rect.bottom - rect.top) / height);
+    const w = width * scale, h = height * scale;
+    const left = rect.left + (rect.right - rect.left - w) / 2;
+    const top = rect.top + (rect.bottom - rect.top - h) / 2;
+    return { left, top, right: left + w, bottom: top + h };
+  }
+
   function getViewportCanvasRect(viewport, transform, overscanPx = 0) {
     const scale = Math.max(0.01, finiteNumber(transform?.scale, 1));
     const overscan = Math.max(0, finiteNumber(overscanPx));
@@ -93,7 +113,7 @@
   function chooseNodeLevel({ candidateCount, visibleCount, pinned } = {}) {
     if (pinned) return "full";
     const count = finiteNumber(candidateCount, finiteNumber(visibleCount));
-    return count <= 800 ? "full" : "scene";
+    return count <= MAX_FULL_NODE_CANDIDATES ? "full" : "scene";
   }
 
   class GridSpatialIndex {
@@ -177,6 +197,8 @@
     MOUNT_OVERSCAN_PX,
     RETAIN_OVERSCAN_PX,
     FRAME_BUDGET_MS,
+    MAX_MOUNTS_PER_FRAME,
+    MAX_FULL_NODE_CANDIDATES,
     DEFAULT_NODE_SIZES,
     GridSpatialIndex,
     finiteNumber,
@@ -184,6 +206,7 @@
     rectsIntersect,
     getDefaultNodeSize,
     getNodeRect,
+    getImageContentRect,
     getViewportCanvasRect,
     getConnectionBounds,
     chooseNodeLevel,

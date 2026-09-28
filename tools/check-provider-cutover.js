@@ -28,11 +28,14 @@ function sliceFunction(source, start, end) {
 }
 
 function staticCutoverChecks() {
-  const server = read("server.js");
+  const server = require("./server-source").readServerSource();
   const browser = read("script.js");
   const providerApi = read("provider-http-api.js");
-  const agentTurn = sliceFunction(server, "async function handleCanvasAgentTurn", "async function handleCanvasAgentCancel");
-  const imageTurn = sliceFunction(server, "async function executeImageGenerationPayload", "function compactImageJobResponse");
+  const providerCatalogService = read("provider-catalog-service.js");
+  const canvasAgentApi = read("canvas-agent-http-api.js");
+  const imageGenerationService = read("image-generation-service.js");
+  const agentTurn = sliceFunction(canvasAgentApi, "async function handleTurn", "async function handleCancel");
+  const imageTurn = sliceFunction(imageGenerationService, "async function execute(payload = {}, options = {})", "return Object.freeze({");
 
   assert.doesNotMatch(server, /providerMonitoringStartupTimer\s*=\s*setTimeout/, "provider monitoring must not start with the host");
   assert.doesNotMatch(browser, /\binitializeSettingsCenter\(\);/, "retired API/Agent/monitoring settings must not initialize in the browser");
@@ -44,8 +47,21 @@ function staticCutoverChecks() {
   assert.doesNotMatch(agentTurn, /runCanvasAgentCandidate|acquireCanvasAgentHalfOpenLease|ewma|circuit/i);
   assert.match(imageTurn, /mediaProviderBridge\.(?:editImage|generateImage)/);
   assert.doesNotMatch(imageTurn, /readSettingsFile|getSystemProviders|process\.env/);
-  assert.doesNotMatch(sliceFunction(server, "function validateImageOutputRequest", "function getDefaultImageResolutionsForModel"), /readSettingsFile|getSystemProviders|resolveCustomModel|getImageModelPlatform|getImageModelFamily/);
-  assert.match(sliceFunction(server, "function getPublicProviderModelCatalog", "function sendProviderModelCatalog"), /providerStore\.publicModelsForCapability/);
+  assert.match(server, /const getImageGenerationService = createLazyValue\(\(\) => createImageGenerationService\(\{/);
+  assert.match(
+    server,
+    /executeImageGenerationPayload:\s*\(\.\.\.args\)\s*=>\s*getImageGenerationService\(\)\.execute\(\.\.\.args\)/,
+  );
+  assert.doesNotMatch(server, /function validateImageOutputRequest\(/, "the image size rules must leave the server entrypoint");
+  assert.match(server, /validateImageOutputRequest,/);
+  assert.doesNotMatch(
+    sliceFunction(read("image-model-catalog.js"), "function validateImageOutputRequest", "function getDefaultImageResolutionsForModel"),
+    /readSettingsFile|getSystemProviders|resolveCustomModel|getImageModelPlatform|getImageModelFamily/,
+    "image size validation must stay a pure rule that cannot read settings",
+  );
+  assert.doesNotMatch(server, /function getPublicProviderModelCatalog\(/, "the catalog implementation must leave the server entrypoint");
+  assert.match(server, /createProviderCatalogService\(\{/);
+  assert.match(providerCatalogService, /providerStore\.publicModelsForCapability\(capability\)/);
 }
 
 function listen(server) {

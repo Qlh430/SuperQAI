@@ -84,6 +84,7 @@
   function shouldReplaceCandidate(current, best) {
     if (!best?.id || String(best.id) === String(current?.id || "")) return false;
     if (!current?.id || !isConfiguredCandidate(current, { requiresEdit: false })) return true;
+    if (BLOCKED_STATES.has(String(current.state || "")) || String(current.state || "") === "degraded") return true;
     return false;
   }
 
@@ -100,8 +101,9 @@
     const excluded = new Set((Array.isArray(options.excludeIds) ? options.excludeIds : [])
       .map((value) => String(value || ""))
       .filter(Boolean));
-    return rankCandidates(candidates, options)
-      .find((candidate) => !excluded.has(String(candidate.id || ""))) || null;
+    const available = rankCandidates(candidates, options)
+      .filter((candidate) => !excluded.has(String(candidate.id || "")));
+    return available.find((candidate) => isHealthyCandidate(candidate, options)) || available[0] || null;
   }
 
   function buildCandidateRecords(providers, _monitoring = {}, options = {}) {

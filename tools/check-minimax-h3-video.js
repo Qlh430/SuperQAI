@@ -3,9 +3,25 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const ROOT = path.join(__dirname, "..");
-const server = fs.readFileSync(path.join(ROOT, "server.js"), "utf8");
+const server = require("./server-source").readServerSource();
+const providerCatalogService = fs.readFileSync(path.join(ROOT, "provider-catalog-service.js"), "utf8");
+const providerCatalogHttpApi = fs.readFileSync(path.join(ROOT, "provider-catalog-http-api.js"), "utf8");
+const minimaxH3TaskService = fs.readFileSync(path.join(ROOT, "minimax-h3-task-service.js"), "utf8");
+const comfyClient = fs.readFileSync(path.join(ROOT, "comfyui-client.js"), "utf8");
+const apiVideoTaskService = fs.readFileSync(path.join(ROOT, "api-video-task-service.js"), "utf8");
+const apiVideoHttpService = fs.readFileSync(path.join(ROOT, "api-video-http-service.js"), "utf8");
+const mediaHttpApi = fs.readFileSync(path.join(ROOT, "media-http-api.js"), "utf8");
+const mediaGenerationHttpApi = fs.readFileSync(path.join(ROOT, "media-generation-http-api.js"), "utf8");
+const mediaFileService = fs.readFileSync(path.join(ROOT, "media-file-service.js"), "utf8");
 const script = fs.readFileSync(path.join(ROOT, "script.js"), "utf8");
+const h3NodeRenderer = fs.readFileSync(path.join(ROOT, "canvas-h3-node-renderer.js"), "utf8");
+// Canvas node markup lives in the node's own renderer component, while
+// script.js keeps only the compatibility wrappers and shared plumbing. DOM
+// contracts therefore have to read both surfaces.
+const canvasSurface = `${script}\n${h3NodeRenderer}`;
 const styles = fs.readFileSync(path.join(ROOT, "styles.css"), "utf8");
+const bendo = fs.readFileSync(path.join(ROOT, "canvas-bendo.css"), "utf8");
+const scriptRule = fs.readFileSync(path.join(ROOT, "image-resolution-rules.js"), "utf8");
 const envExample = fs.readFileSync(path.join(ROOT, ".env.example"), "utf8");
 const workflowPath = path.join(ROOT, "workflows", "minimax-h3-video.json");
 const workflowModulePath = path.join(ROOT, "minimax-h3-workflow.js");
@@ -237,39 +253,52 @@ assert.deepEqual(collectComfyVideoOutputs({ outputs: { 230: { images: [{ filenam
 ]);
 assert.deepEqual(collectComfyVideoOutputs({ outputs: { 229: { images: [{ filename: "unrelated.mp4", type: "output" }] } } }, ["230"]), []);
 
-assert.match(server, /POST[\s\S]*\/api\/minimax-h3-video/);
-assert.match(server, /runMinimaxH3VideoTask/);
-assert.match(server, /saveComfyHistoryVideos/);
-assert.match(server, /inspectComfyHistory/);
-assert.match(server, /const inspection = inspectComfyHistory\(history\)/);
-assert.match(server, /if \(inspection\.state === "error"\) throw new Error\(inspection\.message\)/);
-assert.match(server, /if \(inspection\.state === "success"\) return history/);
-assert.match(server, /videos:\s*\[\]/);
-assert.match(server, /"\.mp4":\s*"video\/mp4"/);
-assert.match(server, /"\.wav":\s*"audio\/wav"/);
-assert.match(server, /audio\/mp4[\s\S]{0,120}return "m4a"/);
+assert.match(mediaGenerationHttpApi, /"\/api\/minimax-h3-video"/);
+assert.match(server, /createMinimaxH3TaskService\(/);
+assert.match(server, /getMinimaxH3TaskService\(\)\.executeComfyVideoProvider/);
+assert.match(server, /getMinimaxH3TaskService\(\)\.handleVideoRequest/);
+assert.doesNotMatch(server, /async function runMinimaxH3VideoTask/);
+assert.doesNotMatch(server, /async function uploadMediaReferenceToComfy/);
+assert.match(minimaxH3TaskService, /async function runTask/);
+assert.match(minimaxH3TaskService, /async function executeComfyVideoProvider/);
+assert.match(minimaxH3TaskService, /async function uploadMediaReferenceToComfy/);
+assert.match(minimaxH3TaskService, /comfyClient\.uploadFile/);
+assert.match(minimaxH3TaskService, /comfyClient\.saveHistoryVideos/);
+assert.match(server, /inspectHistory: inspectComfyHistory/);
+assert.match(comfyClient, /const inspection = inspectHistory\(history\)/);
+assert.match(comfyClient, /if \(inspection\.state === "error"\) throw new Error\(inspection\.message\)/);
+assert.match(comfyClient, /if \(inspection\.state === "success"\) return history/);
+assert.match(apiVideoHttpService, /videos:\s*\[\]/);
+assert.match(mediaFileService, /"\.mp4":\s*"video\/mp4"/);
+assert.match(mediaFileService, /"\.wav":\s*"audio\/wav"/);
+assert.match(mediaFileService, /audio\/mp4[\s\S]{0,120}return "m4a"/);
+assert.match(server, /require\("\.\/media-file-service"\)/);
 assert.doesNotMatch(server, /runMinimaxH3VideoTask\(taskId, \{[^}]*payload\.comfy_url/);
-assert.match(server, /runMinimaxH3VideoTask\(taskId, \{ \.\.\.normalized, comfyUrl: COMFYUI_URL \}\)/);
-assert.match(server, /Reference \$\{kind\} must be a data URL or \/output URL\./);
+assert.match(apiVideoHttpService, /mediaProviderBridge\.generateVideo\(/);
+assert.match(minimaxH3TaskService, /runTask\(taskId, \{ \.\.\.normalized, comfyUrl: provider\.baseUrl \}\)/);
+assert.match(mediaFileService, /Reference \$\{kind\} must be a data URL or \/output URL\./);
 assert.match(server, /MAX_UPLOAD_CHUNKS/);
-assert.match(server, /getUploadChunkState/);
-assert.match(server, /cleanupAbandonedUploads/);
-assert.match(server, /total > MAX_UPLOAD_CHUNKS/);
-assert.match(server, /state\.totalBytes > MAX_REQUEST_BYTES/);
+assert.match(mediaHttpApi, /getUploadChunkState/);
+assert.match(mediaHttpApi, /cleanupAbandonedUploads/);
+assert.match(mediaHttpApi, /total > chunkLimit/);
+assert.match(mediaHttpApi, /state\.totalBytes > requestLimit/);
 assert.match(server, /const MAX_MEDIA_UPLOAD_BYTES/);
-assert.match(server, /async function handleMediaChunkUpload[\s\S]{0,2200}state\.totalBytes > MAX_MEDIA_UPLOAD_BYTES/);
+assert.match(mediaHttpApi, /async function handleMediaChunkUpload[\s\S]{0,2200}state\.totalBytes > mediaLimit/);
 assert.match(envExample, /^MAX_MEDIA_UPLOAD_MB=800$/m);
-assert.match(server, /fetchJsonResponseWithTimeout\(`\$\{comfyUrl\}\/upload\/image`[\s\S]{0,180}COMFY_UPLOAD_TIMEOUT_MS/);
-assert.match(server, /fetchJsonResponseWithTimeout\(`\$\{comfyUrl\}\/prompt`[\s\S]{0,240}COMFY_PROMPT_TIMEOUT_MS/);
-assert.match(server, /fetchBufferResponseWithTimeout\(`\$\{comfyUrl\}\/view\?\$\{params\.toString\(\)\}`[\s\S]{0,180}COMFY_DOWNLOAD_TIMEOUT_MS/);
-assert.match(server, /async function fetchJsonResponseWithTimeout/);
-assert.match(server, /async function fetchBufferResponseWithTimeout/);
+assert.match(comfyClient, /fetchJsonWithTimeout\([\s\S]{0,120}\/upload\/image[\s\S]{0,180}uploadTimeoutMs/);
+assert.match(comfyClient, /fetchJsonWithTimeout\([\s\S]{0,160}\/prompt[\s\S]{0,240}promptTimeoutMs/);
+assert.match(comfyClient, /fetchBufferWithTimeout\(viewUrl\(comfyUrl, video\), \{\}, downloadTimeoutMs\)/);
+assert.match(comfyClient, /async function fetchJsonWithTimeout/);
+assert.match(mediaFileService, /async function fetchBufferResponseWithTimeout/);
 
 [
-  'data-canvas-node="video"',
-  'data-canvas-node="audio"',
-  'data-canvas-node="minimax-h3"',
-  'data-canvas-node="video-output"',
+  // The three separate import entries collapsed into one material node, and the
+  // video output card into the material collection. The legacy nodes stay
+  // restorable, only their create-menu entries are gone.
+  'data-canvas-node="asset"',
+  'data-canvas-node="image-generator"',
+  'data-canvas-node="video-generator"',
+  'data-canvas-node="asset-collection"',
   "function renderCanvasVideoNode",
   "function renderCanvasAudioNode",
   "function renderCanvasMinimaxH3Node",
@@ -286,7 +315,18 @@ assert.match(server, /async function fetchBufferResponseWithTimeout/);
   "minimaxH3Seed",
   "videoSrc",
   "audioSrc",
-].forEach((needle) => assert.ok(script.includes(needle), `Missing canvas contract: ${needle}`));
+].forEach((needle) => assert.ok(canvasSurface.includes(needle), `Missing canvas contract: ${needle}`));
+
+[
+  'data-canvas-node="video"',
+  'data-canvas-node="audio"',
+  'data-canvas-node="video-output"',
+  'data-canvas-node="gallery"',
+  'data-canvas-node="generator"',
+  'data-canvas-node="comfy"',
+  'data-canvas-node="minimax-h3"',
+  'data-canvas-node="video-api"',
+].forEach((needle) => assert.ok(!script.includes(needle), `Retired canvas menu entry still reachable: ${needle}`));
 
 [
   '["1:1", "1:1 方形"]',
@@ -297,37 +337,37 @@ assert.match(server, /async function fetchBufferResponseWithTimeout/);
   '["9:16", "9:16 竖屏"]',
   '["16:9", "16:9 横屏"]',
   '["21:9", "21:9 超宽屏"]',
-  "快速 · 标准分辨率",
-  "高清 · 高分辨率",
+  "标准",
+  "高清",
   "快速 · 4 步",
   "高质量 · 8 步",
   "function calculateCanvasH3Resolution",
   "canvas-h3-resolution-hint",
-].forEach((needle) => assert.ok(script.includes(needle), `Missing H3 quality control: ${needle}`));
-assert.match(script, /steps:\s*Number\(node\.dataset\.minimaxH3Steps/);
+].forEach((needle) => assert.ok(canvasSurface.includes(needle), `Missing H3 quality control: ${needle}`));
+assert.match(canvasSurface, /steps:\s*Number\(node\.dataset\.minimaxH3Steps/);
 
-assert.match(script, /accept=\"video\/\*\"/);
-assert.match(script, /accept=\"audio\/\*\"/);
-assert.ok(script.includes("function getCanvasH3ConnectionCapacity"));
-assert.ok(script.includes("function remapCanvasH3ReferenceOrder"));
-assert.match(script, /minimaxH3ImageOrder = JSON\.stringify\(remapCanvasH3ReferenceOrder/);
-assert.match(script, /refs\.images\.length > 9/);
-assert.match(script, /refs\.videos\.length > 3/);
-assert.match(script, /refs\.audios\.length > 3/);
-assert.doesNotMatch(script, /refs\.images\.slice\(0,\s*9\)/);
-assert.doesNotMatch(script, /refs\.videos\.slice\(0,\s*3\)/);
-assert.doesNotMatch(script, /refs\.audios\.slice\(0,\s*3\)/);
-assert.match(script, /fetch\(MINIMAX_H3_VIDEO_API_URL/);
-assert.match(script, /task\.videos/);
-assert.doesNotMatch(script, /setCanvasH3Status\(node, "至少连接一项参考素材"/);
-assert.match(script, /输入描述即可生成，参考素材可选/);
+assert.match(canvasSurface, /accept=\"video\/\*\"/);
+assert.match(canvasSurface, /accept=\"audio\/\*\"/);
+assert.ok(canvasSurface.includes("function getCanvasH3ConnectionCapacity"));
+assert.ok(canvasSurface.includes("function remapCanvasH3ReferenceOrder"));
+assert.match(canvasSurface, /minimaxH3ImageOrder = JSON\.stringify\(remapCanvasH3ReferenceOrder/);
+assert.match(canvasSurface, /refs\.images\.length > 9/);
+assert.match(canvasSurface, /refs\.videos\.length > 3/);
+assert.match(canvasSurface, /refs\.audios\.length > 3/);
+assert.doesNotMatch(canvasSurface, /refs\.images\.slice\(0,\s*9\)/);
+assert.doesNotMatch(canvasSurface, /refs\.videos\.slice\(0,\s*3\)/);
+assert.doesNotMatch(canvasSurface, /refs\.audios\.slice\(0,\s*3\)/);
+assert.match(canvasSurface, /fetch\(MINIMAX_H3_VIDEO_API_URL/);
+assert.match(canvasSurface, /task\.videos/);
+assert.doesNotMatch(canvasSurface, /setCanvasH3Status\(node, "至少连接一项参考素材"/);
+assert.match(canvasSurface, /输入描述即可生成，参考素材可选/);
 [
   "function getCanvasH3MentionItems",
   "function getCanvasH3MentionTrigger",
   "function validateCanvasH3PromptReferences",
   "function openCanvasH3MentionMenu",
   "function closeCanvasH3MentionMenu",
-].forEach((needle) => assert.ok(script.includes(needle), `Missing H3 mention contract: ${needle}`));
+].forEach((needle) => assert.ok(canvasSurface.includes(needle), `Missing H3 mention contract: ${needle}`));
 assert.match(styles, /\.canvas-node-minimax-h3/);
 assert.match(styles, /\.canvas-h3-reference-collection/);
 assert.match(styles, /\.canvas-h3-mention-menu/);
@@ -335,5 +375,73 @@ assert.match(styles, /\.canvas-h3-mention-option\.is-active/);
 assert.match(styles, /\.canvas-h3-mention-option\[aria-disabled="true"\]/);
 assert.match(styles, /\.canvas-h3-resolution-hint/);
 assert.match(styles, /\.canvas-node-video-output/);
+
+// The API video node reuses the H3 canvas plumbing but talks to the provider
+// bridge instead of ComfyUI, so both the catalog and the generate route have to
+// stay reachable from the canvas.
+assert.match(providerCatalogHttpApi, /GET[\s\S]*\/api\/video-models/);
+assert.match(mediaGenerationHttpApi, /"\/api\/videos"/);
+assert.match(providerCatalogHttpApi, /function sendProviderVideoModelCatalog/);
+assert.match(providerCatalogService, /catalogVideoPresentation/);
+// The catalog entry has to carry the transport identity, otherwise a CLI model
+// is not recognised as 即梦 and loses its ratio/resolution/duration ladder.
+assert.match(providerCatalogService, /capability === "video\.generate" \? \{[\s\S]{0,240}?providerProtocol: model\.providerProtocol[\s\S]{0,240}?modelProtocol: model\.modelProtocol/);
+assert.match(providerCatalogService, /capability === "video\.generate" \? catalogVideoPresentation\(model, imageResolutionRules\)/);
+// Durations come from the CLI ladder: 2.5 reaches 30s, the earlier build stops at 15s.
+assert.match(providerCatalogService, /imageResolutionRules\.videoDurationRangeFor\(modelId\)/);
+// The canvas re-reads the ladder with the reference flag so a connected first
+// frame narrows the window for the models that need it.
+assert.match(script, /function getCanvasApiVideoDurationRange[\s\S]{0,1000}?hasReference: true/);
+assert.match(script, /function getCanvasApiVideoDurationRange[\s\S]{0,1000}?getApiVideoModelPlatform\(modelId\) === "jimeng"/);
+assert.match(scriptRule, /JIMENG_VIDEO_REFERENCE_DURATIONS/);
+assert.match(mediaFileService, /function isVideoMediaUrl/);
+assert.match(mediaFileService, /async function saveRemoteVideo/);
+assert.match(apiVideoTaskService, /async function runTask/);
+assert.match(apiVideoHttpService, /async function handleSubmit/);
+assert.match(apiVideoTaskService, /registerVideoOutput\(context\.userId, url\)/);
+assert.match(server, /assetLibrary\.registerMedia\(userId,[\s\S]{0,120}"video\/mp4"/);
+// Videos arrive through the same media walker as images, so the poll loop has to
+// filter by extension or a poster frame would be saved as the clip.
+assert.match(apiVideoHttpService, /filter\(isVideoMediaUrl\)/);
+assert.match(apiVideoHttpService, /type: "api-video"/);
+// The resumable poll must not re-submit the prompt on every attempt.
+assert.match(apiVideoTaskService, /resumeTask: context\.resumeTask/);
+
+[
+  'data-canvas-node="video-generator"',
+  "function addCanvasApiVideoNode",
+  "function renderCanvasApiVideoNode",
+  "function runCanvasApiVideoNode",
+  "function waitForCanvasApiVideoTask",
+  "function getCanvasApiVideoConnectionCapacity",
+  "function loadVideoModels",
+  "function refreshCanvasApiVideoModelSelects",
+  "apiVideoPrompt",
+  "apiVideoModel",
+  "apiVideoRatio",
+  "apiVideoResolution",
+  "apiVideoDuration",
+  "canvas-api-video-run",
+  "canvas-node-video-api",
+].forEach((needle) => assert.ok(script.includes(needle), `Missing API video canvas contract: ${needle}`));
+
+// The node picker shows the platform beside the model, and the model id itself
+// stays exactly as the provider listed it.
+assert.match(script, /VIDEO_MODELS_API_URL = "\/api\/video-models"/);
+assert.match(script, /API_VIDEO_API_URL = "\/api\/videos"/);
+assert.match(script, /output\.type === "video-generator"[\s\S]{0,200}canvas-node-video-output/);
+assert.match(script, /function getCanvasNodeOutput[\s\S]*canvas-node-video-api[\s\S]{0,120}type: "video-generator"/);
+// A single first frame keeps the reference contract honest instead of silently
+// dropping the extras.
+assert.match(script, /首帧参考最多 1 张/);
+
+// The node renders in both stylesheets: the shared canvas sheet owns layout and
+// the BENDO sheet owns the node's control grid.
+assert.match(styles, /\.canvas-node-video-api/);
+assert.match(styles, /\.canvas-api-video-prompt/);
+assert.match(bendo, /\.canvas-node-video-api/);
+assert.match(bendo, /\.canvas-api-video-controls/);
+assert.match(bendo, /\.canvas-api-video-prompt/);
+assert.match(bendo, /\.canvas-api-video-reference/);
 
 console.log("MiniMax H3 canvas video checks passed");

@@ -5,12 +5,13 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 
+const { createAgentModelSettingsService } = require("../agent-model-settings");
 const { createCapabilityResolver } = require("../provider-capability-resolver");
 const { createProviderSecretVault } = require("../provider-secret-vault");
 const { createProviderStore } = require("../provider-store");
 const { createSystemDb } = require("../system-db");
 
-function provider(id, sortOrder, modelIds, metadata = {}) {
+function provider(id, sortOrder, modelIds, metadata = {}, capabilities = ["llm.chat", "llm.chat.vision", "llm.tools"]) {
   return {
     id,
     name: id,
@@ -24,7 +25,7 @@ function provider(id, sortOrder, modelIds, metadata = {}) {
       id: modelId,
       displayName: modelId,
       protocol: "openai",
-      capabilities: ["llm.chat", "llm.tools"],
+      capabilities,
     })),
   };
 }
@@ -39,21 +40,35 @@ function provider(id, sortOrder, modelIds, metadata = {}) {
     store.save(provider("primary", 0, ["agent-a", "agent-b"], {
       monitoring: { state: "offline", ewmaLatencyMs: 999999, circuitOpen: true, halfOpen: true },
     }));
+    store.save(provider("text-only", 2, ["chat-only"], {}, ["llm.chat", "llm.tools"]));
 
     const resolver = createCapabilityResolver({ store });
-    const chatCatalog = store.publicModelsForCapability("llm.chat")
-      .map((item) => `${item.providerId}:${item.id}`);
-    const agentCatalog = resolver.listCandidates({ intent: "llm.tools" })
-      .map((item) => `${item.provider.id}:${item.model.id}`);
-    assert.deepEqual(agentCatalog, chatCatalog, "Agent and chat must follow the same Store order");
+    const agentSettings = createAgentModelSettingsService({ db, store });
+    const agentCatalog = agentSettings.listModels().map((item) => `${item.providerId}:${item.modelId}`);
     assert.deepEqual(agentCatalog, ["primary:agent-a", "primary:agent-b", "secondary:agent-c"]);
+    assert.equal(agentCatalog.includes("text-only:chat-only"), false, "Agent excludes models without vision");
+    assert.deepEqual(
+      resolver.listCandidates({ intent: "llm.tools", mustAll: ["llm.chat", "llm.chat.vision", "llm.tools"] })
+        .map(item => `${item.provider.id}:${item.model.id}`),
+      agentCatalog,
+      "Agent settings and runtime resolver must expose the same multimodal catalog",
+    );
 
-    const serverSource = fs.readFileSync(path.join(__dirname, "..", "server.js"), "utf8");
-    const handlerStart = serverSource.indexOf("async function handleCanvasAgentTurn");
-    const handlerEnd = serverSource.indexOf("async function handleCanvasAgentCancel", handlerStart);
+    const handlerSource = fs.readFileSync(path.join(__dirname, "..", "canvas-agent-http-api.js"), "utf8");
+    const handlerStart = handlerSource.indexOf("async function handleTurn");
+    const handlerEnd = handlerSource.indexOf("async function handleCancel", handlerStart);
     assert.ok(handlerStart >= 0 && handlerEnd > handlerStart, "Canvas Agent handler must exist");
-    const activeHandler = serverSource.slice(handlerStart, handlerEnd);
+    const activeHandler = handlerSource.slice(handlerStart, handlerEnd);
     assert.match(activeHandler, /canvasAgentProviderBridge\.runTurn/);
+    assert.match(activeHandler, /agentModelSettings\.getRoute\(\)/);
+    assert.match(
+      activeHandler,
+      /candidateOrder:\s*prioritizeSessionCandidateOrder\(agentRoute\.candidateOrder,\s*session\)/,
+    );
+    assert.match(handlerSource, /pinnedProviderId/);
+    assert.match(handlerSource, /pinnedModelId/);
+    assert.match(activeHandler, /forceFallback:\s*true/);
+    assert.doesNotMatch(activeHandler, /scopedPayload\.(?:providerId|modelId)/);
     assert.doesNotMatch(activeHandler, /getCanvasAgentCandidates|orderCanvasAgentCandidatesForSession/);
     assert.doesNotMatch(activeHandler, /readCanvasAgentRouteHistory|getAdaptiveAgentAttemptPolicy/);
     assert.doesNotMatch(activeHandler, /executeSequentialFailover|runCanvasAgentCandidate/);

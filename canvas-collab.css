@@ -1,0 +1,158 @@
+/* ==========================================================================
+   AI OS · Canvas collaboration layer
+   --------------------------------------------------------------------------
+   Presence and remote cursors for shared canvases. Scoped to the canvas editor
+   so the board library, the project manager and the AI OS shell are untouched.
+
+   Two surfaces only:
+     .canvas-presence         the collaborator stack in the canvas HUD
+     .canvas-collab-cursors   remote pointers, inside the world plane
+
+   Everything reuses the canvas token layer, so all three palettes and the
+   five display scales are covered without a single raw colour.
+   ========================================================================== */
+
+#canvasEditorScreen {
+  /* Identity colours are per account and open ended, so they are derived at
+     runtime; this is the fallback when a marker has no hue yet. */
+  --collab-hue: 0;
+  --collab-avatar-size: 26px;
+  --collab-avatar-overlap: -8px;
+  --collab-cursor-size: 14px;
+  --collab-inverse-scale: 1;
+}
+
+/* --------------------------------------------------------------------------
+   Presence stack
+   -------------------------------------------------------------------------- */
+
+#canvasEditorScreen .canvas-presence {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--gap-icon-text);
+  height: var(--control-height-sm);
+  padding: 0 var(--space-2) 0 var(--space-1);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-raised);
+  color: var(--color-text-muted);
+  font-size: var(--type-sm);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+}
+
+#canvasEditorScreen .canvas-presence[hidden] {
+  display: none;
+}
+
+#canvasEditorScreen .canvas-presence-avatars {
+  display: inline-flex;
+  align-items: center;
+}
+
+#canvasEditorScreen .canvas-presence-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--collab-avatar-size);
+  height: var(--collab-avatar-size);
+  border-radius: 50%;
+  border: 2px solid var(--color-surface-raised);
+  background: hsl(var(--collab-hue) 52% 42%);
+  color: #ffffff;
+  font-size: var(--type-xs);
+  font-weight: var(--weight-semibold);
+  line-height: 1;
+  letter-spacing: 0;
+  user-select: none;
+}
+
+#canvasEditorScreen .canvas-presence-avatar + .canvas-presence-avatar {
+  margin-left: var(--collab-avatar-overlap);
+}
+
+#canvasEditorScreen .canvas-presence-more {
+  background: var(--color-surface-strong);
+  color: var(--color-text-muted);
+}
+
+#canvasEditorScreen .canvas-presence-label {
+  padding-left: var(--space-1);
+}
+
+/* A dropped socket is a state of the room, not an error: the canvas keeps
+   working offline and the label says so instead of blocking the editor. */
+#canvasEditorScreen.is-collab-offline .canvas-presence {
+  border-color: var(--color-warning);
+  color: var(--color-warning);
+}
+
+/* --------------------------------------------------------------------------
+   Remote cursors
+   -------------------------------------------------------------------------- */
+
+#canvasEditorScreen .canvas-collab-cursors {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  z-index: var(--z-collaboration-cursor);
+  pointer-events: none;
+}
+
+#canvasEditorScreen .canvas-collab-cursors.is-idle {
+  display: none;
+}
+
+#canvasEditorScreen .canvas-collab-cursor {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-1);
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+#canvasEditorScreen .canvas-collab-cursor-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--collab-cursor-size);
+  height: var(--collab-cursor-size);
+  color: hsl(var(--collab-hue) 62% 46%);
+  filter: drop-shadow(0 2px 4px rgb(0 0 0 / 0.35));
+}
+
+#canvasEditorScreen .canvas-collab-cursor-dot > i,
+#canvasEditorScreen .canvas-collab-cursor-dot > svg {
+  width: var(--collab-cursor-size);
+  height: var(--collab-cursor-size);
+}
+
+/* The label hangs off the pointer, offset so it never hides the pixel the
+   collaborator is actually pointing at. */
+#canvasEditorScreen .canvas-collab-cursor-name {
+  margin: 10px 0 0 2px;
+  padding: 2px var(--space-1);
+  border-radius: var(--radius-control);
+  background: hsl(var(--collab-hue) 52% 42%);
+  color: #ffffff;
+  font-size: var(--type-xs);
+  font-weight: var(--weight-medium);
+  line-height: 16px;
+  white-space: nowrap;
+  box-shadow: var(--color-shadow);
+}
+
+#canvasEditorScreen .canvas-collab-cursor.is-over-node .canvas-collab-cursor-name {
+  outline: 1px solid rgb(255 255 255 / 0.35);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #canvasEditorScreen .canvas-collab-cursor {
+    will-change: auto;
+  }
+}

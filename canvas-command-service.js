@@ -89,6 +89,7 @@ function createCanvasCommandService({ repository } = {}) {
     try {
       return await repository.createBoard({
         id,
+        projectId: String(input.projectId || "").trim() || undefined,
         title: title || "Untitled canvas",
         viewport: input.viewport || { x: 0, y: 0, scale: 1 },
         createdAt: input.createdAt,
@@ -132,6 +133,16 @@ function createCanvasCommandService({ repository } = {}) {
     }
   }
 
+  async function setProject(boardId, projectId) {
+    const id = requiredText(boardId, "boardId");
+    const nextProjectId = requiredText(projectId, "projectId");
+    try {
+      return await repository.setBoardProject({ boardId: id, projectId: nextProjectId });
+    } catch (error) {
+      throw mapCommandError(error);
+    }
+  }
+
   async function deletePermanently(boardId) {
     const id = requiredText(boardId, "boardId");
     try {
@@ -145,6 +156,7 @@ function createCanvasCommandService({ repository } = {}) {
   return {
     createBoard,
     apply,
+    setProject,
     trash: (boardId, operationId) => setTrashState(boardId, operationId, true),
     restore: (boardId, operationId) => setTrashState(boardId, operationId, false),
     deletePermanently,

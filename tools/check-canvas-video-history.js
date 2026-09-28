@@ -1,7 +1,6 @@
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
-const vm = require("node:vm");
 
 const {
   normalizeVideoHistory,
@@ -9,12 +8,18 @@ const {
   appendVideoHistory,
   removeVideoHistory,
 } = require("../video-history-rules");
+const CanvasVideoOutputState = require("../canvas-video-output-state");
 
 const ROOT = path.join(__dirname, "..");
 const INDEX_SOURCE = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
 const PACKAGE_SOURCE = fs.readFileSync(path.join(ROOT, "package.json"), "utf8");
 const SCRIPT_SOURCE = fs.readFileSync(path.join(ROOT, "script.js"), "utf8");
+const STATE_SOURCE = fs.readFileSync(path.join(ROOT, "canvas-video-output-state.js"), "utf8");
 const STYLE_SOURCE = fs.readFileSync(path.join(ROOT, "styles.css"), "utf8");
+const VIDEO_OUTPUT_RENDERER_SOURCE = fs.readFileSync(
+  path.join(ROOT, "canvas-video-output-node-renderer.js"),
+  "utf8",
+);
 
 function extractFunction(source, name) {
   const start = source.indexOf(`function ${name}(`);
@@ -181,11 +186,10 @@ const outputSource = extractFunction(SCRIPT_SOURCE, "getCanvasNodeOutput");
 const appendSource = extractFunction(SCRIPT_SOURCE, "appendCanvasVideoOutputHistory");
 const activeSource = extractFunction(SCRIPT_SOURCE, "setCanvasVideoActiveItem");
 const removeSource = extractFunction(SCRIPT_SOURCE, "removeCanvasVideoHistoryItem");
-const legacySource = extractFunction(SCRIPT_SOURCE, "getCanvasVideoLegacyItem");
-const mirrorSource = extractFunction(SCRIPT_SOURCE, "syncCanvasVideoLegacyFields");
 const serializeVideoSource = extractFunction(SCRIPT_SOURCE, "serializeCanvasVideoOutputState");
 const renderOptionsSource = extractFunction(SCRIPT_SOURCE, "getCanvasVideoOutputRenderOptions");
-const renderNodeSource = extractFunction(SCRIPT_SOURCE, "renderCanvasVideoOutputNode");
+const renderNodeWrapperSource = extractFunction(SCRIPT_SOURCE, "renderCanvasVideoOutputNode");
+const renderNodeSource = extractFunction(VIDEO_OUTPUT_RENDERER_SOURCE, "render");
 const renderHistorySource = extractFunction(SCRIPT_SOURCE, "renderCanvasVideoOutputHistory");
 const openHistorySource = extractFunction(SCRIPT_SOURCE, "setCanvasVideoHistoryOpen");
 const closeHistorySource = extractFunction(SCRIPT_SOURCE, "closeCanvasVideoHistoryPanels");
@@ -194,27 +198,34 @@ const deleteHistorySource = extractFunction(SCRIPT_SOURCE, "requestCanvasVideoHi
 assert(runH3Source.includes("appendCanvasVideoOutputHistory"), "Successful H3 generation should append to video history");
 assert(!runH3Source.includes("renderCanvasVideoOutputNode(output"), "Successful H3 generation should not overwrite the output node");
 assert(serializeSource.includes("serializeCanvasVideoOutputState"), "Video history should be serialized through the tested adapter");
-assert(serializeVideoSource.includes("videoHistory:"), "The serialized video state should include history");
-assert(serializeVideoSource.includes("videoActiveId:"), "The serialized video state should include the active ID");
-assert(serializeVideoSource.includes("videoSrc:"), "Legacy current-video fields should remain serialized for compatibility");
+assert(serializeVideoSource.includes("CanvasVideoOutputState.serialize"), "Serialization should delegate to the video state component");
+assert(STATE_SOURCE.includes("videoHistory:"), "The serialized video state should include history");
+assert(STATE_SOURCE.includes("videoActiveId:"), "The serialized video state should include the active ID");
+assert(STATE_SOURCE.includes("videoSrc:"), "Legacy current-video fields should remain serialized for compatibility");
 assert(restoreSource.includes("restoreCanvasBoardVirtually(board)"), "Restore should use the virtualized board adapter");
 assert(virtualMountSource.includes("restoreCanvasBoardNode(model, canvasVirtualBoard"), "Virtual mounts should use the shared node adapter");
 assert(restoreNodeSource.includes("getCanvasVideoOutputRenderOptions(item)"), "Shared node restore should use the tested history/legacy adapter");
-assert(renderOptionsSource.includes("videoHistory: Array.isArray(item.videoHistory)"), "Restore should load the saved video history array");
-assert(renderOptionsSource.includes("activeVideoId: item.videoActiveId"), "Restore should load the saved active video ID");
-assert(renderOptionsSource.includes("src: item.videoSrc || item.mediaSrc"), "Restore should still migrate legacy single-video nodes");
-assert(legacySource.includes("node.dataset.videoMimeType"), "Legacy migration should read videoMimeType");
-assert(legacySource.includes("node.dataset.videoDuration"), "Legacy migration should read videoDuration");
-assert(mirrorSource.includes("node.dataset.videoMimeType"), "Active video should mirror videoMimeType for older clients");
-assert(mirrorSource.includes("node.dataset.videoDuration"), "Active video should mirror videoDuration for older clients");
-assert(serializeVideoSource.includes("videoName:"), "Serialization should continue writing videoName");
-assert(serializeVideoSource.includes("videoMimeType:"), "Serialization should continue writing videoMimeType");
-assert(serializeVideoSource.includes("videoDuration:"), "Serialization should continue writing videoDuration");
+assert(renderOptionsSource.includes("CanvasVideoOutputState.renderOptions"), "Restore should delegate to the video state component");
+assert(STATE_SOURCE.includes("videoHistory: Array.isArray(item.videoHistory)"), "Restore should load the saved video history array");
+assert(STATE_SOURCE.includes("activeVideoId: item.videoActiveId"), "Restore should load the saved active video ID");
+assert(STATE_SOURCE.includes("src: item.videoSrc || item.mediaSrc"), "Restore should still migrate legacy single-video nodes");
+assert(STATE_SOURCE.includes("node.dataset.videoMimeType"), "Legacy migration should read videoMimeType");
+assert(STATE_SOURCE.includes("node.dataset.videoDuration"), "Legacy migration should read videoDuration");
+assert(STATE_SOURCE.includes("node.dataset.videoMimeType"), "Active video should mirror videoMimeType for older clients");
+assert(STATE_SOURCE.includes("node.dataset.videoDuration"), "Active video should mirror videoDuration for older clients");
+assert(STATE_SOURCE.includes("videoName:"), "Serialization should continue writing videoName");
+assert(STATE_SOURCE.includes("videoMimeType:"), "Serialization should continue writing videoMimeType");
+assert(STATE_SOURCE.includes("videoDuration:"), "Serialization should continue writing videoDuration");
 assert(outputSource.includes("getCanvasVideoActiveItem"), "Downstream references should resolve the active history item first");
 assert(appendSource.includes("VideoHistoryRules.appendVideoHistory"), "Canvas append should use the tested state rules");
 assert(activeSource.includes("refreshCanvasConnectedNodes"), "Switching videos should refresh downstream references");
 assert(removeSource.includes("VideoHistoryRules.removeVideoHistory"), "Video deletion should use the tested fallback rules");
 assert(removeSource.includes("refreshCanvasConnectedNodes"), "Deleting videos should refresh downstream references");
+assert(
+  renderNodeWrapperSource.includes("renderer.render(node, options, getCanvasNodePluginContext())")
+    && renderNodeWrapperSource.includes("plugin.render(node, options, getCanvasNodePluginContext())"),
+  "The compatibility wrapper should delegate to the video-output plugin or renderer",
+);
 assert(renderNodeSource.includes("canvas-video-history-toggle"), "Video outputs should render a history count control");
 assert(renderNodeSource.includes("canvas-video-history-panel"), "Video outputs should render a history panel");
 assert(renderNodeSource.includes("canvas-video-history-list"), "Video outputs should provide a history list");
@@ -249,7 +260,8 @@ assert(removeSource.includes('node.classList.remove("is-video-history-open")'), 
 assert(renderHistorySource.includes('data-lucide="play"'), "Each history item should expose a play/select action");
 assert(renderHistorySource.includes('data-lucide="download"'), "Each history item should expose a download action");
 assert(renderHistorySource.includes('data-lucide="trash-2"'), "Each history item should expose a delete action");
-assert(openHistorySource.includes("closeCanvasGalleryHistoryPanels"), "Opening video history should close image gallery history");
+assert(!openHistorySource.includes("closeCanvasGalleryHistoryPanels"), "Video history must not retain the removed image-gallery drawer dependency");
+assert(openHistorySource.includes("closeCanvasVideoHistoryPanels(node)"), "Opening video history should close other video history panels");
 assert(closeHistorySource.includes("is-video-history-open"), "Video history panels should be closed as a group");
 assert(deleteHistorySource.includes("requestCanvasDeleteConfirmation"), "Deleting a historical video should require confirmation");
 assert(deleteHistorySource.includes("removeCanvasVideoHistoryItem"), "Confirmed deletion should remove only the selected history entry");
@@ -295,15 +307,29 @@ assert.match(
 );
 
 const compatibilityContext = {
-  getCanvasVideoHistory: () => [{ id: "history-a", src: "/output/a.mp4" }],
-  getCanvasVideoActiveItem: () => ({ id: "history-a", src: "/output/a.mp4" }),
+  ...CanvasVideoOutputState,
+  serialize(node) {
+    return CanvasVideoOutputState.serialize(node, {
+      createId: () => "history-a",
+      rules: {
+        normalizeVideoHistory: (values, legacy) => (
+          values.length
+            ? values
+            : legacy
+              ? [{ ...legacy, id: "history-a" }]
+              : []
+        ),
+        resolveActiveVideo: (values) => values[0] || null,
+      },
+    });
+  },
+  history() {
+    return [{ id: "history-a", src: "/output/a.mp4" }];
+  },
+  activeItem() {
+    return { id: "history-a", src: "/output/a.mp4" };
+  },
 };
-vm.runInNewContext([
-  legacySource,
-  mirrorSource,
-  serializeVideoSource,
-  renderOptionsSource,
-].join("\n"), compatibilityContext);
 
 const legacyNode = {
   dataset: {
@@ -317,7 +343,7 @@ const legacyNode = {
   classList: { toggle() {} },
 };
 assert.deepEqual(
-  JSON.parse(JSON.stringify(compatibilityContext.getCanvasVideoLegacyItem(legacyNode))),
+  JSON.parse(JSON.stringify(compatibilityContext.legacyItem(legacyNode))),
   {
     src: "/output/legacy-only.mp4",
     name: "legacy-only.mp4",
@@ -329,7 +355,7 @@ assert.deepEqual(
   "Legacy-only canvas fields should migrate without losing media metadata",
 );
 
-compatibilityContext.syncCanvasVideoLegacyFields(legacyNode, {
+compatibilityContext.syncLegacyFields(legacyNode, {
   src: "/output/current.mp4",
   name: "current.mp4",
   mimeType: "video/mp4",
@@ -344,7 +370,7 @@ assert.equal(legacyNode.dataset.mediaName, "current.mp4");
 assert.equal(legacyNode.dataset.mediaMimeType, "video/mp4");
 assert.equal(legacyNode.dataset.mediaDuration, "9.75");
 
-const serializedVideo = JSON.parse(JSON.stringify(compatibilityContext.serializeCanvasVideoOutputState(legacyNode)));
+const serializedVideo = JSON.parse(JSON.stringify(compatibilityContext.serialize(legacyNode)));
 assert.equal(serializedVideo.videoActiveId, "history-a");
 assert.equal(serializedVideo.videoHistory.length, 1);
 assert.equal(serializedVideo.videoName, "current.mp4");
@@ -352,7 +378,7 @@ assert.equal(serializedVideo.videoMimeType, "video/mp4");
 assert.equal(serializedVideo.videoDuration, 9.75);
 
 assert.deepEqual(
-  JSON.parse(JSON.stringify(compatibilityContext.getCanvasVideoOutputRenderOptions({
+  JSON.parse(JSON.stringify(compatibilityContext.renderOptions({
     videoHistory: [{ id: "saved", src: "/output/saved.mp4" }],
     videoActiveId: "saved",
     videoSrc: "/output/legacy.mp4",

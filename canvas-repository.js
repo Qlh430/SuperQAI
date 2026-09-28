@@ -89,8 +89,8 @@ function createCanvasRepository({
     return invoke("createBoard", board);
   }
 
-  function listBoards() {
-    return invoke("listBoards");
+  function listBoards(params = {}) {
+    return invoke("listBoards", params);
   }
 
   function getBoardMeta(boardId) {
@@ -99,6 +99,10 @@ function createCanvasRepository({
 
   function getBoardState(boardId) {
     return invoke("getBoardState", { boardId });
+  }
+
+  function setBoardProject(input) {
+    return invoke("setBoardProject", input);
   }
 
   function applyOperations(input) {
@@ -169,8 +173,11 @@ function createCanvasRepository({
     listBoards,
     getBoardMeta,
     getBoardState,
+    setBoardProject,
     applyOperations,
     queryViewport,
+    getNode: (input) => invoke("getNode", input),
+    getNodes: (input) => invoke("getNodes", input),
     exportBoardPage,
     getOperationStatuses,
     beginLegacyImport,

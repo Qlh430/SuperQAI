@@ -74,6 +74,6 @@ const darkPillsRule = extractLastRule(':root[data-theme="dark"] #imageView .imag
 assert.match(darkPillsRule, /background:\s*color-mix\(in srgb, var\(--darkroom-panel\) 90%, transparent\)\s*;/);
 assert.match(darkPillsRule, /color:\s*var\(--darkroom-ink\)\s*;/);
 
-assert.match(html, /styles\.css\?v=20260827-atomic-image/);
+assert.match(html, /styles\.css\?v=20260906-canvas-paint-continuity/);
 
 console.log("Image preview presentation checks passed.");

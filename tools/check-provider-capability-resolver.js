@@ -107,5 +107,46 @@ function fixtureStore() {
   assert.equal(JSON.stringify(resolved.alternatives).includes("secret"), false);
   assert.equal(resolver.getAutoFallback(), true);
 
+  const healthResolver = createCapabilityResolver({
+    store,
+    candidateHealth: ({ provider, intent }) => intent === "llm.tools"
+      ? { rank: provider.id === "secondary" ? 0 : 5, state: provider.id === "secondary" ? "online" : "unstable" }
+      : null,
+  });
+  assert.deepEqual(
+    healthResolver.listCandidates({ intent: "llm.tools" }).map((item) => item.model.id),
+    ["secondary-tools", "primary-tools"],
+    "unpinned automatic selection should prefer the healthier provider",
+  );
+  assert.equal(healthResolver.resolve({ intent: "llm.tools" }).reason, "health-priority");
+  assert.equal(
+    healthResolver.resolve({ intent: "llm.tools", preferredProviderId: "primary" }).model.id,
+    "primary-tools",
+    "an explicit provider selection must remain pinned even when another provider is healthier",
+  );
+  assert.deepEqual(
+    healthResolver.listCandidates({
+      intent: "llm.tools",
+      mustAll: ["llm.chat", "llm.chat.vision", "llm.tools"],
+      candidateOrder: [
+        { providerId: "primary", modelId: "primary-tools" },
+        { providerId: "secondary", modelId: "secondary-tools" },
+      ],
+    }).map(item => `${item.provider.id}:${item.model.id}`),
+    ["secondary:secondary-tools"],
+    "configured Agent routes are restricted to ordered multimodal candidates",
+  );
+  assert.deepEqual(
+    healthResolver.listCandidates({
+      intent: "llm.tools",
+      candidateOrder: [
+        { providerId: "primary", modelId: "primary-tools" },
+        { providerId: "secondary", modelId: "secondary-tools" },
+      ],
+    }).map(item => `${item.provider.id}:${item.model.id}`),
+    ["primary:primary-tools", "secondary:secondary-tools"],
+    "saved Agent order takes precedence over live health ranking",
+  );
+
   console.log("Provider capability resolver checks passed.");
 })();

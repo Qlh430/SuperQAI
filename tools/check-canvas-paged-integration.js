@@ -1,11 +1,13 @@
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
+const { collectPortablePackageManifest } = require("./portable-package-manifest");
 
 const root = path.join(__dirname, "..");
 const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
 const script = fs.readFileSync(path.join(root, "script.js"), "utf8");
 const portable = fs.readFileSync(path.join(root, "build-portable.bat"), "utf8");
+const portableManifest = collectPortablePackageManifest(root);
 const packageJson = fs.readFileSync(path.join(root, "package.json"), "utf8");
 
 assert.match(
@@ -32,8 +34,9 @@ assert.doesNotMatch(
 );
 assert.match(script, /activeBoardRevision/);
 assert.match(script, /canvasViewportDataSource\.request/);
-assert.match(portable, /canvas-paged-store\.js/);
-assert.match(portable, /canvas-viewport-data-source\.js/);
+assert.ok(portableManifest.files.includes("canvas-paged-store.js"));
+assert.ok(portableManifest.files.includes("canvas-viewport-data-source.js"));
+assert.match(portable, /(?:copy-portable-runtime|build-electron-portable)\.js/i);
 assert.match(packageJson, /check-canvas-paged-integration\.js/);
 assert.match(packageJson, /canvas-paged-store\.js/);
 assert.match(packageJson, /canvas-viewport-data-source\.js/);

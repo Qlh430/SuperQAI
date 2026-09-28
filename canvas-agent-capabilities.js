@@ -4,6 +4,18 @@
   if (root) root.CanvasAgentCapabilities = api;
 })(typeof globalThis !== "undefined" ? globalThis : this, function createCanvasAgentCapabilities() {
   const MAX_BATCH_TARGETS = 40;
+  // Kept in sync with canvas-director3d.js; the director stage check asserts
+  // that these two catalogs never drift apart.
+  const DIRECTOR3D_SHOT_PRESETS = Object.freeze([
+    "current", "front-full", "front-medium", "front-close", "side-medium", "side-close", "back-medium",
+    "overhead-full", "overhead-45", "low-medium", "low-wide", "shoulder-left", "shoulder-right",
+    "bird-eye", "dutch",
+  ]);
+  const DIRECTOR3D_CAMERA_MOTIONS = Object.freeze([
+    "follow", "orbit-follow", "fps-orbit", "handheld-follow", "dolly-in", "dolly-out", "crane-up",
+    "hitchcock", "static",
+  ]);
+  const IMAGE_RESOLUTION_DESCRIPTION = "图片输出档位；必须传标准值 512/1/2/4/auto，用户要求 2K 时传“2”，未指定时传 null";
   const TOOL_TITLES = Object.freeze({
     create_text_node: "创建文字节点",
     create_image_node: "创建图片节点",
@@ -19,6 +31,7 @@
     focus_canvas_nodes: "定位画布节点",
     organize_canvas_nodes: "整理画布节点",
     crop_canvas_image: "裁切图片",
+    remove_canvas_image_background: "AI 抠图",
     open_canvas_mask_editor: "打开遮罩编辑器",
     update_node: "更新节点",
     update_nodes: "批量更新节点",
@@ -35,7 +48,10 @@
     extract_grid_to_gallery: "提取宫格到图集",
     run_canvas_node: "执行画布节点",
     delete_nodes: "删除节点",
+    request_design_brief: "确认设计需求",
     activate_canvas_skill: "启用专业 Skill",
+    read_skill_reference: "读取流程参考文档",
+    canvas_director3d_apply_animation: "编排 3D 导演台",
   });
   const MCP_TOOL_OUTPUT_SCHEMA = Object.freeze({
     type: "object",
@@ -52,6 +68,7 @@
   const CAPABILITY_REGISTRY = Object.freeze([
     defineCapability("node.text.create", "create_text_node", "在当前画布创建文字节点。", "safe", {
       content: stringSchema("文字内容"),
+      title: nullableStringSchema("文字节点名称；不指定时使用默认名称"),
       x: nullableNumberSchema("画布 X 坐标"),
       y: nullableNumberSchema("画布 Y 坐标"),
     }),
@@ -59,7 +76,7 @@
       prompt: stringSchema("完整图片提示词"),
       model: nullableStringSchema("图片模型；使用画布默认值时传 null"),
       size: nullableStringSchema("尺寸或比例；使用默认值时传 null"),
-      resolution: nullableStringSchema("清晰度；使用默认值时传 null"),
+      resolution: nullableStringSchema(IMAGE_RESOLUTION_DESCRIPTION),
       reference_node_ids: stringArraySchema("参考节点 ID"),
       x: nullableNumberSchema("画布 X 坐标"),
       y: nullableNumberSchema("画布 Y 坐标"),
@@ -68,13 +85,20 @@
       prompt: stringSchema("完整图片提示词"),
       model: nullableStringSchema("用户明确指定的图片模型；未指定时传 null，由执行层选择 image2"),
       size: nullableStringSchema("尺寸或比例；自动选择时传 null"),
-      resolution: nullableStringSchema("清晰度；自动选择时传 null"),
+      resolution: nullableStringSchema(IMAGE_RESOLUTION_DESCRIPTION),
       reference_node_ids: stringArraySchema("当前画布参考节点 ID"),
       title: nullableStringSchema("图集标题；使用默认值时传 null"),
     }),
-    defineCapability("image.existing-node-choice", "request_image_node_choice", "定位并高亮当前画布中的相关生图节点，让用户决定原样再生成、修改后生成或新建生成。", "safe", {
+    defineCapability("image.existing-node-choice", "request_image_node_choice", "定位并高亮当前画布中的相关生图节点，让用户决定修改后生成或新建生成。", "safe", {
       node_id: stringSchema("当前画布中相关图片生成节点 ID"),
       suggested_prompt: stringSchema("根据用户当前需求整理出的新提示词"),
+    }),
+    defineCapability("design.brief.request", "request_design_brief", "在创建设计节点前展示结构化需求确认卡；只收集必要信息，不创建节点，也不产生费用。", "safe", {
+      workflow: enumSchema("设计流程", ["poster"]),
+      poster_type: nullableEnumSchema("海报类型；信息不足时传 null", ["product", "brand", "promotion", "festival", "event", "other"]),
+      known_context: stringSchema("已从用户和当前画布确认的信息，使用简洁中文分点"),
+      questions: designBriefQuestionsSchema("只列真正影响结果且尚缺失的问题；信息已经完整时传空数组"),
+      summary: stringSchema("面向用户的设计方案摘要；没有额外建议时传空字符串"),
     }),
     defineCapability("node.llm.create", "create_llm_node", "创建 LLM 文本处理节点。", "safe", {
       prompt: stringSchema("LLM 任务提示词"),
@@ -93,11 +117,11 @@
       x: nullableNumberSchema("画布 X 坐标"),
       y: nullableNumberSchema("画布 Y 坐标"),
     }),
-    defineCapability("node.video.create", "create_video_node", "创建 MiniMax H3 视频生成节点。", "safe", {
-      prompt: stringSchema("视频动作、镜头和氛围提示词"),
+    defineCapability("node.video.create", "create_video_node", "创建 MiniMax H3 视频生成节点。此工具只创建 H3 节点，不代表整个项目必须使用 H3；仅当流程明确采用 H3 时使用。把上游文字或素材节点的 ID 写进 reference_node_ids，画布会自动连好线；节点建好却没有连线属于未完成。", "safe", {
+      prompt: stringSchema("视频动作、镜头和氛围提示词；若提示词放在文字节点里，这里传空字符串，由相连的文字节点提供"),
       aspect_ratio: enumSchema("视频比例", ["1:1", "2:3", "3:2", "3:4", "4:3", "9:16", "16:9", "21:9"]),
-      duration: numberSchema("视频时长", 5, 15),
-      reference_node_ids: stringArraySchema("参考节点 ID"),
+      duration: numberSchema("MiniMax-H3 单次生成片段时长，不是成片总时长或单个分镜镜头时长；只在流程已明确采用 H3 时使用。不得按此上限机械平均拆分项目总时长，应先确定分镜和各镜时长，再按连续镜头接口组合生成片段", 5, 15),
+      reference_node_ids: stringArraySchema("要连到该节点的输入节点 ID，包括参考图片/视频/音频节点和提供提示词的文字节点；传入后自动连线"),
       x: nullableNumberSchema("画布 X 坐标"),
       y: nullableNumberSchema("画布 Y 坐标"),
     }),
@@ -138,6 +162,10 @@
     }),
     defineCapability("image.mask.edit", "open_canvas_mask_editor", "定位当前画布图片并打开遮罩编辑器，供用户手绘需要编辑的区域。", "safe", {
       node_id: stringSchema("目标图片节点 ID"),
+    }),
+    defineCapability("image.remove-background", "remove_canvas_image_background", "给当前画布图片去掉背景并生成带透明通道的新图片，默认保留原图；需要用户手动调参时用交互模式。", "safe", {
+      node_id: stringSchema("目标图片节点 ID"),
+      mode: enumSchema("抠图方式", ["subject", "effect", "interactive"]),
     }),
     defineCapability("node.update", "update_node", "更新当前画布中的一个节点。", getUpdateRisk, {
       node_id: stringSchema("目标节点 ID"),
@@ -213,6 +241,17 @@
       skill_id: stringSchema("业务 Skill ID"),
       reason: stringSchema("激活原因"),
     }),
+    defineCapability("skill.reference.read", "read_skill_reference", "读取专业流程自带的参考文档。", "safe", {
+      skill_id: stringSchema("业务 Skill ID"),
+      path: stringSchema("参考文档路径，例如 references/base-en.txt"),
+    }),
+    defineCapability("director3d.animate", "canvas_director3d_apply_animation", "在当前画布的 3D 导演台上摆机位、编排相机运动并返回场景内容；画布上没有导演台时会自动创建一个。", "safe", {
+      node_id: nullableStringSchema("已有 3D 导演台节点 ID；不指定时使用当前打开的导演台"),
+      shot_preset: nullableEnumSchema("机位预设；不调整机位时传 null", DIRECTOR3D_SHOT_PRESETS),
+      camera_motion: nullableEnumSchema("相机动画预设；不添加运镜时传 null", DIRECTOR3D_CAMERA_MOTIONS),
+      x: nullableNumberSchema("画布 X 坐标"),
+      y: nullableNumberSchema("画布 Y 坐标"),
+    }),
   ]);
 
   const CAPABILITY_BY_ID = new Map(CAPABILITY_REGISTRY.map((item) => [item.id, item]));
@@ -273,12 +312,42 @@
     return { type: "string", enum: values, description };
   }
 
+  function nullableEnumSchema(description, values) {
+    return { type: ["string", "null"], enum: [...values, null], description };
+  }
+
   function booleanSchema(description) {
     return { type: "boolean", description };
   }
 
   function stringArraySchema(description, maxItems = MAX_BATCH_TARGETS) {
     return { type: "array", description, items: { type: "string" }, maxItems };
+  }
+
+  function designBriefQuestionsSchema(description) {
+    return {
+      type: "array",
+      description,
+      maxItems: 5,
+      items: {
+        type: "object",
+        properties: {
+          id: stringSchema("问题标识，使用简短英文，例如 poster_type、subject、channel"),
+          label: stringSchema("向用户展示的问题"),
+          kind: enumSchema("回答方式", ["single", "text"]),
+          options: {
+            type: "array",
+            description: "single 类型的候选答案；text 类型传空数组",
+            items: { type: "string" },
+            maxItems: 8,
+          },
+          required: booleanSchema("是否必须回答"),
+          recommended: stringSchema("按专业判断给出的推荐值；没有推荐时传空字符串"),
+        },
+        required: ["id", "label", "kind", "options", "required", "recommended"],
+        additionalProperties: false,
+      },
+    };
   }
 
   function pointProperties() {
@@ -302,7 +371,7 @@
         title: nullableStringSchema("标题"),
         model: nullableStringSchema("模型"),
         size: nullableStringSchema("尺寸或比例"),
-        resolution: nullableStringSchema("清晰度"),
+        resolution: nullableStringSchema(IMAGE_RESOLUTION_DESCRIPTION),
         aspect_ratio: nullableStringSchema("画面比例"),
         duration: nullableNumberSchema("时长", 1, 300),
         comfy_mode: nullableStringSchema("ComfyUI 工作流模式"),
@@ -399,6 +468,8 @@
 
   return Object.freeze({
     MAX_BATCH_TARGETS,
+    DIRECTOR3D_SHOT_PRESETS,
+    DIRECTOR3D_CAMERA_MOTIONS,
     CAPABILITY_REGISTRY,
     getCapability,
     getCapabilityByToolName,

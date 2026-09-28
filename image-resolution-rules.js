@@ -20,6 +20,31 @@
     default: ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"],
   };
   const RESOLUTION_ORDER = ["512", "1", "2", "4"];
+  // Dreamina takes a ratio plus a quality flag. Its own ratios and its
+  // per-model quality ladders are narrower than the generic OpenAI ladder, so
+  // they are modelled explicitly instead of being validated as pixel sizes.
+  const JIMENG_RATIOS = ["21:9", "16:9", "3:2", "4:3", "1:1", "3:4", "2:3", "9:16"];
+  // Dreamina is the video transport AI OS ships with today, and its CLI
+  // validates the quality flag and the duration range per model, so the ladders
+  // live beside the image ladder instead of being guessed by each caller.
+  const JIMENG_VIDEO_RATIOS = ["1:1", "3:4", "16:9", "4:3", "9:16", "21:9"];
+  const JIMENG_VIDEO_LADDERS = {
+    "seedance2.5": { resolutions: ["480p", "720p", "1080p"], minDuration: 4, maxDuration: 30 },
+    "seedance2.0_vip": { resolutions: ["720p", "1080p", "4k"], minDuration: 4, maxDuration: 15 },
+    "seedance2.0fast_vip": { resolutions: ["720p", "1080p", "4k"], minDuration: 4, maxDuration: 15 },
+  };
+  const JIMENG_VIDEO_DEFAULT_LADDER = { resolutions: ["720p"], minDuration: 4, maxDuration: 15 };
+  // image2video narrows the duration window for the two legacy models, so a
+  // first frame changes the allowed range for them and only for them.
+  const JIMENG_VIDEO_REFERENCE_DURATIONS = {
+    "seedance1.0fast": { minDuration: 5, maxDuration: 10 },
+    "seedance1.5pro": { minDuration: 5, maxDuration: 12 },
+  };
+  const JIMENG_LEVELS = {
+    "jimeng-3": ["1", "2"],
+    "jimeng-5": ["2", "4"],
+    "jimeng-5-pro": ["1", "2", "4"],
+  };
 
   function normalizeFamily(value) {
     const raw = String(value || "").trim().toLowerCase();
@@ -29,6 +54,97 @@
     if (raw.includes("2.5") || raw === "nano-banana") return "gemini-2.5-flash-image";
     if (raw.includes("3.1") || raw.includes("nano-banana-2")) return "gemini-3.1-flash-image";
     return raw;
+  }
+
+  function normalizeJimengFamily(value) {
+    const raw = String(value || "").trim().toLowerCase();
+    if (!raw) return "jimeng-5";
+    if (raw.includes("pro")) return "jimeng-5-pro";
+    const match = raw.match(/(\d+)\s*\.\s*(\d+)/);
+    const major = match ? Number(match[1]) : 5;
+    return major <= 3 ? "jimeng-3" : "jimeng-5";
+  }
+
+  function jimengLevelsFor(value) {
+    return JIMENG_LEVELS[normalizeJimengFamily(value)] || JIMENG_LEVELS["jimeng-5"];
+  }
+
+  function jimengLevelLabel(level, value) {
+    if (level === "1" && normalizeJimengFamily(value) === "jimeng-5-pro") return "1.5K";
+    return level === "512" ? "512" : `${level}K`;
+  }
+
+  function closestJimengRatio(value) {
+    const raw = String(value || "").trim().toLowerCase().replace(/\s+/g, "");
+    if (!raw || raw === "auto") return "16:9";
+    if (JIMENG_RATIOS.includes(raw)) return raw;
+    const dimensions = parseRatio(raw) || parsePixelSize(raw);
+    if (!dimensions) return "16:9";
+    const target = dimensions.width / dimensions.height;
+    return JIMENG_RATIOS.reduce((best, candidate) => {
+      const [width, height] = candidate.split(":").map(Number);
+      const [bestWidth, bestHeight] = best.split(":").map(Number);
+      return Math.abs(Math.log(target / (width / height))) < Math.abs(Math.log(target / (bestWidth / bestHeight)))
+        ? candidate
+        : best;
+    }, "16:9");
+  }
+
+  function jimengVideoLadder(modelId) {
+    return JIMENG_VIDEO_LADDERS[String(modelId || "").trim().toLowerCase()] || JIMENG_VIDEO_DEFAULT_LADDER;
+  }
+
+  function isJimengVideoModel(modelId) {
+    return /^seedance/i.test(String(modelId || "").trim());
+  }
+
+  // seedance2.5 refuses an explicit ratio once a reference frame is attached, so
+  // the ratio control has to disappear for that combination instead of sending a
+  // flag the CLI rejects.
+  function jimengOmitsRatio(modelId, hasReference) {
+    return Boolean(hasReference) && /^seedance2\.5$/i.test(String(modelId || "").trim());
+  }
+
+  function videoResolutionsFor(modelId, options = {}) {
+    if (String(options.platform || "jimeng").trim().toLowerCase() !== "jimeng") return [];
+    return [...jimengVideoLadder(modelId).resolutions];
+  }
+
+  function videoDurationRangeFor(modelId, options = {}) {
+    if (String(options.platform || "jimeng").trim().toLowerCase() !== "jimeng") return null;
+    if (options.hasReference) {
+      const narrowed = JIMENG_VIDEO_REFERENCE_DURATIONS[String(modelId || "").trim().toLowerCase()];
+      if (narrowed) return { min: narrowed.minDuration, max: narrowed.maxDuration };
+    }
+    const ladder = jimengVideoLadder(modelId);
+    return { min: ladder.minDuration, max: ladder.maxDuration };
+  }
+
+  function videoRatiosFor(modelId, options = {}) {
+    if (String(options.platform || "jimeng").trim().toLowerCase() !== "jimeng") return [];
+    if (jimengOmitsRatio(modelId, options.hasReference)) return [];
+    return [...JIMENG_VIDEO_RATIOS];
+  }
+
+  function getJimengCompatibility(input, choice, configured) {
+    const family = normalizeJimengFamily(input.family || input.modelId || "");
+    const levels = jimengLevelsFor(family);
+    const level = choice.level;
+    if (level !== "auto" && !levels.includes(level)) {
+      const scope = family === "jimeng-3" ? "即梦 3.x" : family === "jimeng-5-pro" ? "即梦 5.0 Pro" : "即梦 4.x / 5.0";
+      return unsupportedResult(level, `${scope} 只支持 ${levels.map((item) => jimengLevelLabel(item, family)).join(" / ")}`);
+    }
+    if (level !== "auto" && !configured.includes(level)) {
+      return unsupportedResult(level, `${jimengLevelLabel(level, family)} 未在此 API 接入中启用`);
+    }
+    return {
+      supported: true,
+      requestedSize: closestJimengRatio(input.ratio),
+      level,
+      reason: "",
+      alternative: null,
+      parameterMode: "ratio-resolution",
+    };
   }
 
   function normalizeResolutionLevel(value) {
@@ -146,6 +262,33 @@
     return { supported: false, requestedSize: null, level, reason, alternative };
   }
 
+  function usesRatioResolutionTransport(input = {}) {
+    const protocol = String(input.providerProtocol || "").trim().toLowerCase();
+    const host = String(input.providerHost || "").trim().toLowerCase();
+    // Dreamina is the third transport that takes a ratio plus a quality flag
+    // instead of pixel dimensions.
+    return ["apimart", "cli:jimeng"].includes(protocol) || ["api.apimart.ai", "apib.ai"].includes(host);
+  }
+
+  function getRatioResolutionCompatibility(input, choice, configured) {
+    const level = choice.level;
+    if (level !== "auto" && !configured.includes(level)) {
+      return unsupportedResult(level, `${formatResolutionLabel(level)} 未在此 API 接入中启用`);
+    }
+    const rawRatio = String(input.ratio || "auto").trim().toLowerCase();
+    if (rawRatio !== "auto" && !parseRatio(rawRatio) && !parsePixelSize(rawRatio) && choice.type !== "exact") {
+      return unsupportedResult(level, "无法识别当前图片比例");
+    }
+    return {
+      supported: true,
+      requestedSize: choice.exactSize || rawRatio || "auto",
+      level,
+      reason: "",
+      alternative: null,
+      parameterMode: "ratio-resolution",
+    };
+  }
+
   function getOpenAiCompatibility(input, choice, configured) {
     const level = choice.level;
     if (level !== "auto" && !configured.includes(level)) {
@@ -226,8 +369,12 @@
     const choice = parseResolutionChoice(input.resolution || "1");
     const configured = normalizeConfiguredResolutions(input.configuredResolutions);
     if (!choice.value) return unsupportedResult("", "无法识别当前分辨率");
+    if (platform === "openai" && usesRatioResolutionTransport(input)) {
+      return getRatioResolutionCompatibility(input, choice, configured);
+    }
     if (platform === "openai") return getOpenAiCompatibility(input, choice, configured);
     if (platform === "google") return getGoogleCompatibility(input, choice, configured);
+    if (platform === "jimeng") return getJimengCompatibility(input, choice, configured);
     if (choice.type !== "auto" && choice.type !== "exact" && !configured.includes(choice.level)) {
       return unsupportedResult(choice.level, `${formatResolutionLabel(choice.level)} 未在此 API 接入中启用`);
     }
@@ -277,11 +424,14 @@
         resolution: level,
         configuredResolutions: configured,
       });
+      const enabledLabel = platform === "jimeng" ? jimengLevelLabel(level, family) : formatResolutionLabel(level);
       choices.push({
         value: level,
         label: compatibility.supported
-          ? formatResolutionLabel(level)
-          : getDisabledChoiceLabel(platform, family, ratio, level, compatibility.reason),
+          ? enabledLabel
+          : platform === "jimeng"
+            ? `${enabledLabel}（不可用）`
+            : getDisabledChoiceLabel(platform, family, ratio, level, compatibility.reason),
         disabled: !compatibility.supported,
         reason: compatibility.reason,
         level,
@@ -301,10 +451,16 @@
   }
 
   return {
+    JIMENG_VIDEO_RATIOS,
     getCompatibility,
     getResolutionChoices,
     normalizeFamily,
     parseResolutionChoice,
     validateOpenAiDimensions,
+    videoResolutionsFor,
+    videoDurationRangeFor,
+    videoRatiosFor,
+    isJimengVideoModel,
+    jimengOmitsRatio,
   };
 });

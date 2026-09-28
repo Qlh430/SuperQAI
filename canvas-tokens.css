@@ -1,0 +1,380 @@
+/* ==========================================================================
+   AI OS · Canvas token layer
+   --------------------------------------------------------------------------
+   Scope: the canvas application only.
+
+   Everything here hangs off [data-canvas-theme] elements (the canvas editor
+   root #canvasEditorScreen and the canvas tool rail). Nothing is written to
+   :root, so the AI OS desktop shell, its settings pages, chat, the board
+   library and the project manager keep their own palette untouched.
+
+   Four layers, per the BENDO Infinite UI contract:
+     1. primitive  --palette-*   raw values, no meaning attached
+     2. theme      --theme-*     raw palette assigned to a role, per theme
+     3. semantic   --color-*     meaning, theme independent
+     4. bridge     --ink/--panel/--os-*  legacy + OS names mapped onto semantic
+   Components must consume --color-* / --os-* / scale tokens, never raw hex.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Layer 1 — primitives. Declared per theme so a theme is one self-contained
+   block; the semantic layer below never changes between themes.
+   -------------------------------------------------------------------------- */
+
+[data-canvas-theme="midnight"] {
+  --palette-canvas: #0c0c0b;
+  --palette-canvas-dot: #272922;
+  --palette-surface: #171817;
+  --palette-surface-raised: #20221e;
+  --palette-surface-soft: #242522;
+  --palette-surface-strong: #2b2d28;
+  --palette-border: #34382d;
+  --palette-border-strong: #464b3f;
+  --palette-text: #f0f2eb;
+  --palette-muted: #85887e;
+  --palette-faint: #6f7369;
+  --palette-accent: #d5ff40;
+  --palette-on-accent: #10110e;
+  --palette-action: #d5ff40;
+  --palette-on-action: #10110e;
+  --palette-image-well: #0f100e;
+  --palette-success: #5ee5ad;
+  --palette-warning: #e5c96e;
+  --palette-danger: #ff927e;
+  --palette-shadow: 0 18px 44px rgba(0, 0, 0, .55);
+  --palette-scheme: dark;
+}
+
+[data-canvas-theme="paper"] {
+  --palette-canvas: #f1eff5;
+  --palette-canvas-dot: #d2ced9;
+  --palette-surface: #ffffff;
+  --palette-surface-raised: #f7f5fa;
+  --palette-surface-soft: #ece9f1;
+  --palette-surface-strong: #e3dfea;
+  --palette-border: #d8d3df;
+  --palette-border-strong: #b9b2c6;
+  --palette-text: #24212b;
+  --palette-muted: #696471;
+  --palette-faint: #706a79;
+  --palette-accent: #6d50ce;
+  --palette-on-accent: #ffffff;
+  --palette-action: #c1e52d;
+  --palette-on-action: #20250c;
+  --palette-image-well: #17151c;
+  --palette-success: #187a58;
+  --palette-warning: #8a6300;
+  --palette-danger: #b53c32;
+  --palette-shadow: 0 16px 40px rgba(36, 33, 43, .14);
+  --palette-scheme: light;
+}
+
+[data-canvas-theme="warm"] {
+  --palette-canvas: #ece9e5;
+  --palette-canvas-dot: #d0cbc5;
+  --palette-surface: #f7f4f0;
+  --palette-surface-raised: #fffdf9;
+  --palette-surface-soft: #e9e5e0;
+  --palette-surface-strong: #ded9d3;
+  --palette-border: #d8d2cb;
+  --palette-border-strong: #bdb5ac;
+  --palette-text: #39332f;
+  --palette-muted: #736b65;
+  --palette-faint: #756d66;
+  --palette-accent: #8a5b00;
+  --palette-on-accent: #ffffff;
+  --palette-action: #f2bc35;
+  --palette-on-action: #33280f;
+  --palette-image-well: #1d1916;
+  --palette-success: #237356;
+  --palette-warning: #866000;
+  --palette-danger: #b54035;
+  --palette-shadow: 0 16px 40px rgba(57, 51, 47, .16);
+  --palette-scheme: light;
+}
+
+/* --------------------------------------------------------------------------
+   Layer 2 + 3 — theme roles and semantic colours.
+   Scales (space / type / radius / control height / z-index) live here too:
+   they are theme independent and are the only sizes components may use.
+   -------------------------------------------------------------------------- */
+
+[data-canvas-theme] {
+  /* keeps native scrollbars, carets and form controls in step with the theme */
+  color-scheme: var(--palette-scheme, inherit);
+
+  /* type scale — 7 steps, BENDO contract minus the 8px legibility floor */
+  --type-2xs: 10px;
+  --type-xs: 10px;
+  --type-sm: 12px;
+  --type-base: 14px;
+  --type-md: 16px;
+  --type-lg: 18px;
+  --type-xl: 20px;
+  --type-title: 20px;
+
+  /* weights — 4 steps only */
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  /* spacing — 4 base, 8 same level, 6 icon to text, 16 semantic group */
+  --space-1: 4px;
+  --space-2: 8px;
+  --gap-icon-text: 6px;
+  --space-3: 16px;
+  --space-4: 24px;
+  --space-5: 32px;
+
+  /* control heights — compact / work surface / touch */
+  --control-height-sm: 32px;
+  --control-height-md: 38px;
+  --control-height-lg: 44px;
+
+  /* radii */
+  --radius-control: 8px;
+  --radius-node-inner: 8px;
+  --radius-node-outer: 16px;
+  --radius-panel: 10px;
+
+  /* ---------------------------------------------------------------- *
+   * Node geometry. One skeleton for every framed node:
+   *
+   *   16px top inset + 32px title row + 8px gap          = 56px band
+   *   8px top gap    +  8px status row  +  8px bottom     = 24px band
+   *
+   * The status band is optional: it collapses completely while the node has
+   * no result, no progress and no meaningful metadata to report.
+   *
+   * Geometry is a BENDO baseline, not a universal value. AI OS uses 292px as
+   * --node-width-standard (BENDO ships 400px) because every board already on
+   * disk was laid out against the narrower shell; widening the default would
+   * let existing nodes overlap. The token stays the single source of truth, so
+   * raising it later is a one-line change.
+   * ---------------------------------------------------------------- */
+  --node-width-standard: 292px;
+  --node-width-wide: 420px;
+  --node-header-band-height: 56px;
+  --node-header-height: 32px;
+  --node-primary-zone-height: 192px;
+  --node-status-band-height: 24px;
+  --node-status-height: 8px;
+  --node-shell-padding-block: 16px;
+  --node-shell-padding-inline: 8px;
+  --node-grid-columns: 4;
+  --node-grid-gap: 8px;
+  --node-parameter-gap: 16px;
+  --node-icon: 32px;
+  /* Title band internals: a 32px identity badge, its glyph, the gap to the
+     title group and the title-to-subtitle spacing. */
+  --node-icon-glyph: 16px;
+  --node-icon-gap: 8px;
+  --node-subtitle-gap: 3px;
+  /* Identity badges read in two tones: nodes that produce or edit content
+     carry the accent, nodes that only hold material stay neutral. */
+  --node-badge-surface-accent: color-mix(in srgb, var(--color-accent) 16%, var(--color-surface));
+  --node-badge-border-accent: color-mix(in srgb, var(--color-accent) 34%, var(--color-border));
+  --node-badge-color-accent: var(--color-accent);
+  --node-badge-surface-neutral: var(--color-surface-strong);
+  --node-badge-border-neutral: var(--color-border);
+  --node-badge-color-neutral: var(--color-text-muted);
+  /* Status band internals: an 8px state dot, its gap and the right-hand meta
+     slot. */
+  --node-status-dot: 8px;
+  --node-status-gap: 8px;
+
+  /* z-index — the only numbers layers may use */
+  --z-world-background: 0;
+  --z-world-plane: 1;
+  /* Edge overlay must stay inside the node stack: connection lines are drawn
+     over node 0/1 but under the rest, matching the existing canvas behaviour. */
+  --z-world-edge: 3;
+  --z-world-node: 20;
+  --z-world-overview: 30;
+  --z-world-selection: 40;
+  --z-collaboration-cursor: 90;
+  --z-screen-hud: 100;
+  --z-screen-rail: 110;
+  --z-overlay-dock-panel: 210;
+  --z-overlay-menu: 300;
+  --z-overlay-notification: 400;
+  --z-overlay-modal-scrim: 500;
+  --z-overlay-modal: 510;
+  --z-overlay-tooltip: 600;
+}
+
+/* --------------------------------------------------------------------------
+   Layer 2 + 3 (continued) — theme roles and semantic colours. The classic
+   palette defines its own --color-* values further down, so this layer is
+   limited to the three BENDO palettes.
+   -------------------------------------------------------------------------- */
+
+[data-canvas-theme="midnight"],
+[data-canvas-theme="paper"],
+[data-canvas-theme="warm"] {
+  /* theme roles */
+  --theme-canvas: var(--palette-canvas);
+  --theme-canvas-dot: var(--palette-canvas-dot);
+  --theme-surface: var(--palette-surface);
+  --theme-surface-raised: var(--palette-surface-raised);
+  --theme-preview-surface: var(--palette-surface-raised);
+  --theme-surface-soft: var(--palette-surface-soft);
+  --theme-surface-strong: var(--palette-surface-strong);
+  --theme-border: var(--palette-border);
+  --theme-border-strong: var(--palette-border-strong);
+  --theme-text: var(--palette-text);
+  --theme-muted: var(--palette-muted);
+  --theme-faint: var(--palette-faint);
+  --theme-accent: var(--palette-accent);
+  --theme-on-accent: var(--palette-on-accent);
+  --theme-action: var(--palette-action);
+  --theme-on-action: var(--palette-on-action);
+  --theme-edge: var(--palette-accent);
+  --theme-image-well: var(--palette-image-well);
+  --theme-success: var(--palette-success);
+  --theme-warning: var(--palette-warning);
+  --theme-danger: var(--palette-danger);
+  --theme-success-soft: color-mix(in srgb, var(--palette-success) 16%, transparent);
+  --theme-warning-soft: color-mix(in srgb, var(--palette-warning) 16%, transparent);
+  --theme-danger-soft: color-mix(in srgb, var(--palette-danger) 16%, transparent);
+  --theme-shadow: var(--palette-shadow);
+  --theme-overlay: color-mix(in srgb, var(--palette-canvas) 72%, transparent);
+
+  /* semantic colours */
+  --color-canvas: var(--theme-canvas);
+  --color-canvas-dot: var(--theme-canvas-dot);
+  --color-surface: var(--theme-surface);
+  --color-surface-raised: var(--theme-surface-raised);
+  --color-surface-soft: var(--theme-surface-soft);
+  --color-surface-strong: var(--theme-surface-strong);
+  --color-border: var(--theme-border);
+  --color-border-strong: var(--theme-border-strong);
+  --color-text: var(--theme-text);
+  --color-text-muted: var(--theme-muted);
+  --color-text-faint: var(--theme-faint);
+  --color-accent: var(--theme-accent);
+  --color-on-accent: var(--theme-on-accent);
+  --color-action: var(--theme-action);
+  --color-on-action: var(--theme-on-action);
+  --color-edge: var(--theme-edge);
+  --color-image-well: var(--theme-image-well);
+  --color-success: var(--theme-success);
+  --color-warning: var(--theme-warning);
+  --color-danger: var(--theme-danger);
+  --color-success-soft: var(--theme-success-soft);
+  --color-warning-soft: var(--theme-warning-soft);
+  --color-danger-soft: var(--theme-danger-soft);
+  --color-shadow: var(--theme-shadow);
+  --color-focus: var(--theme-accent);
+  --color-selection: color-mix(in srgb, var(--theme-accent) 32%, transparent);
+  --color-hover: color-mix(in srgb, currentColor 8%, transparent);
+  --color-selected: color-mix(in srgb, var(--theme-accent) 16%, transparent);
+}
+
+/* --------------------------------------------------------------------------
+   Layer 4 — bridges for the BENDO palettes.
+   The canvas app is ~460kB of CSS written against the flat legacy names and
+   the --os-* names. Mapping them here re-themes every existing canvas surface
+   without touching a single legacy rule, and keeps one source of truth.
+   -------------------------------------------------------------------------- */
+
+[data-canvas-theme="midnight"],
+[data-canvas-theme="paper"],
+[data-canvas-theme="warm"] {
+  /* flat legacy names */
+  --bg: var(--color-canvas);
+  --stage: var(--color-canvas);
+  --panel: var(--color-surface);
+  --field: var(--color-surface-raised);
+  --ink: var(--color-text);
+  --muted: var(--color-text-muted);
+  --line: var(--color-border);
+  --line-strong: var(--color-border-strong);
+  --soft: var(--color-surface-soft);
+  --black: var(--color-text);
+  --paper: var(--color-surface-raised);
+  --surface: var(--color-surface);
+  --text: var(--color-text);
+  --grid-line: var(--color-canvas-dot);
+  --shadow: var(--color-shadow);
+
+  --accent: var(--color-accent);
+  --accent-dark: var(--color-accent);
+  --accent-strong: var(--color-accent);
+  --accent-soft: color-mix(in srgb, var(--color-accent) 16%, transparent);
+  --accent-contrast: var(--color-on-accent);
+  --accent-ring: color-mix(in srgb, var(--color-accent) 48%, transparent);
+
+  --success: var(--color-success);
+  --warning: var(--color-warning);
+  --danger: var(--color-danger);
+  --carrot: var(--color-warning);
+
+  /* AI OS semantic names */
+  --os-canvas-bg: var(--color-canvas);
+  --os-node-bg: var(--color-surface);
+  --os-text: var(--color-text);
+  --os-muted-text: var(--color-text-muted);
+  --os-border: var(--color-border);
+  --os-border-strong: var(--color-border-strong);
+  --os-accent: var(--color-accent);
+  --os-surface-bg: var(--color-surface);
+  --os-field-bg: var(--color-surface-raised);
+  --os-window-bg: var(--color-surface);
+  --os-titlebar-bg: var(--color-surface-soft);
+  --os-sidebar-bg: var(--color-surface-soft);
+  --os-menu-bg: var(--color-surface-raised);
+  --os-dock-bg: var(--color-surface-raised);
+  --os-hover-bg: color-mix(in srgb, var(--color-text) 8%, transparent);
+  --os-selected-bg: var(--color-selected);
+  --os-shadow-color: color-mix(in srgb, var(--color-canvas) 60%, transparent);
+  --os-window-shadow: var(--color-shadow);
+  --os-overlay-bg: var(--theme-overlay);
+  --os-grid-line: var(--color-canvas-dot);
+  --os-cloud: var(--color-surface-soft);
+  --os-frost: color-mix(in srgb, var(--color-surface) 82%, transparent);
+  --os-frost-strong: var(--color-surface);
+  --os-ink: var(--color-text);
+  --os-muted: var(--color-text-muted);
+  --os-line: var(--color-border);
+  --os-shadow: var(--color-shadow);
+}
+
+/* --------------------------------------------------------------------------
+   The classic palette. It is the pre-migration canvas look: it deliberately
+   defines no bridges, so every flat and --os-* name keeps the value AI OS
+   already put on :root. Switching to it restores the old canvas exactly, in
+   both light and dark.
+   -------------------------------------------------------------------------- */
+
+[data-canvas-theme="legacy"] {
+  --color-canvas: var(--stage);
+  --color-canvas-dot: var(--grid-line);
+  --color-surface: var(--panel);
+  --color-surface-raised: var(--field);
+  --color-surface-soft: var(--soft);
+  --color-surface-strong: var(--soft);
+  --color-border: var(--line);
+  --color-border-strong: var(--line-strong);
+  --color-text: var(--ink);
+  --color-text-muted: var(--muted);
+  --color-text-faint: var(--muted);
+  --color-accent: var(--accent);
+  --color-on-accent: var(--accent-contrast, #ffffff);
+  --color-action: var(--accent);
+  --color-on-action: var(--accent-contrast, #ffffff);
+  --color-edge: var(--accent);
+  --color-image-well: var(--soft);
+  --color-success: #14b895;
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-success-soft: color-mix(in srgb, #14b895 16%, transparent);
+  --color-warning-soft: color-mix(in srgb, var(--warning) 16%, transparent);
+  --color-danger-soft: color-mix(in srgb, var(--danger) 16%, transparent);
+  --color-shadow: var(--shadow);
+  --color-focus: var(--accent);
+  --color-selection: color-mix(in srgb, var(--accent) 28%, transparent);
+  --color-hover: color-mix(in srgb, currentColor 8%, transparent);
+  --color-selected: color-mix(in srgb, var(--accent) 16%, transparent);
+}

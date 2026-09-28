@@ -45,9 +45,10 @@ assert.match(extractFunction("restoreCanvasBoardVirtually"), /completeCanvasBoar
 assert.match(extractFunction("completeCanvasBoardRestore"), /syncCanvasWorkspaceState\(\)/);
 assert.match(extractFunction("createNewCanvasBoard"), /syncCanvasWorkspaceState\(\)/);
 
-const closeHistory = extractFunction("closeCanvasBoardPanel");
-assert.match(closeHistory, /syncCanvasWorkspaceState\(\)/);
-assert.doesNotMatch(closeHistory, /createNewCanvasBoard|promptCreateCanvasBoard|restoreCanvasBoard/);
+const showLibrary = extractFunction("showCanvasLibrary");
+assert.match(showLibrary, /saveCanvasBoardNow\(\)/);
+assert.match(showLibrary, /setCanvasAppScreen\("library"\)/);
+assert.doesNotMatch(showLibrary, /createNewCanvasBoard|promptCreateCanvasBoard|restoreCanvasBoard/);
 
 const renderHistory = extractFunction("renderCanvasBoardList");
 assert.doesNotMatch(renderHistory, /trashButton\.textContent\s*=/);
@@ -56,10 +57,8 @@ assert.match(
   /trashButton\.innerHTML\s*=\s*isTrash\s*\?\s*'<i data-lucide="arrow-left"><\/i>'\s*:\s*'<i data-lucide="trash"><\/i>'/,
 );
 assert.match(renderHistory, /window\.lucide\?\.createIcons\(/);
-assert.match(
-  script,
-  /data-start-action="history"[\s\S]+?addEventListener\("click", \(\) => \{\s*openCanvasBoardPanel\(\);/,
-);
+assert.doesNotMatch(extractFunction("ensureCanvasMarkup"), /canvasBoardPanel|canvasHistoryButton|canvas-start-gate/);
+assert.match(extractFunction("openCanvasBoardFromHistory"), /showCanvasEditor\(\)/);
 
 for (const icon of ["refresh-cw", "trash", "plus", "x"]) {
   assert.match(script, new RegExp(`data-lucide="${icon}"`));
@@ -67,9 +66,10 @@ for (const icon of ["refresh-cw", "trash", "plus", "x"]) {
 const trashButtonMarkup = script.match(/<button id="canvasBoardTrash"[^\n]+/)?.[0] || "";
 assert.match(trashButtonMarkup, /data-lucide="trash"/);
 assert.doesNotMatch(trashButtonMarkup, /data-lucide="trash-2"/);
-for (const label of ["刷新画布列表", "打开回收站", "新建画布", "关闭历史画布"]) {
+for (const label of ["刷新画布列表", "打开回收站", "新建画布"]) {
   assert.match(script, new RegExp(`aria-label="${label}"`));
 }
+assert.match(script, /id="canvasLibraryBackButton"[\s\S]*?<span>返回项目<\/span>/);
 
 for (const selector of [
   ".canvas-board-card",
@@ -97,7 +97,7 @@ assert.match(trashIconRule, /width:\s*20px\s*;/);
 assert.match(trashIconRule, /height:\s*20px\s*;/);
 assert.match(trashIconRule, /stroke-width:\s*2\.2px\s*;/);
 
-assert.match(html, /styles\.css\?v=20260827-atomic-image/);
-assert.match(html, /script\.js\?v=20260827-atomic-image/);
+assert.match(html, /styles\.css\?v=20260906-canvas-paint-continuity/);
+assert.match(html, /script\.js\?v=20260906-canvas-paint-continuity/);
 
-console.log("Canvas shell and history theme checks passed.");
+console.log("Canvas shell and library theme checks passed.");

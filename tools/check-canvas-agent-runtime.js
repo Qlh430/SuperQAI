@@ -1,5 +1,6 @@
 const assert = require("node:assert/strict");
 const runtime = require("../canvas-agent-runtime");
+const capabilities = require("../canvas-agent-capabilities");
 
 const skill = runtime.parseSkillDocument(`---
 name: ecommerce-image-set
@@ -53,6 +54,19 @@ assert.deepEqual(skill.canvas.tools, [
 ]);
 assert.match(skill.instructions, /先读取产品图/);
 
+const publicMetadata = runtime.getPublicSkillMetadata([
+  { ...skill, id: "pack-item", origin: "custom", metadata: { pack: "MiniMax H3 Skills" } },
+  { ...skill, id: "standalone-item", origin: "custom", metadata: {} },
+]);
+assert.deepEqual(
+  publicMetadata.find((item) => item.id === "pack-item")?.packageId,
+  "custom-pack:minimax-h3-skills",
+  "declared functional skill packs must be exposed to the picker",
+);
+assert.equal(publicMetadata.find((item) => item.id === "pack-item")?.standalone, false);
+assert.equal(publicMetadata.find((item) => item.id === "standalone-item")?.packageLabel, "独立功能 Skill");
+assert.equal(publicMetadata.find((item) => item.id === "standalone-item")?.standalone, true);
+
 const initial = runtime.buildResponsesRequest({
   skill_id: skill.id,
   prompt: "帮我做一套粉色运动鞋电商图",
@@ -87,17 +101,10 @@ const automatic = runtime.buildResponsesRequest({
   reasoningEffort: "medium",
   skills: [skill, posterSkill],
 });
-assert.deepEqual(new Set(automatic.tools.map((tool) => tool.name)), new Set([
-  "create_text_node",
-  "create_image_node",
-  "create_gallery_node",
-  "connect_nodes",
-  "arrange_nodes",
-  "run_canvas_node",
-  "activate_canvas_skill",
-]));
+assert.equal(automatic.tools.length, 0);
 assert.match(automatic.instructions, /可选业务 Skill 路由目录/);
 assert.match(automatic.instructions, /普通交流/);
+assert.match(automatic.instructions, /selected_node_ids.*reference_node_ids/);
 assert.match(automatic.instructions, /poster-design/);
 assert.equal(automatic.instructions.includes(posterSkill.instructions), false);
 
@@ -197,7 +204,209 @@ assert.equal(runtime.normalizeResponsesApiUrl("https://example.com/v1"), "https:
 
 assert.equal(runtime.selectAgentReasoningEffort({ prompt: "你好", step: 0 }, "medium"), "low");
 assert.equal(runtime.selectAgentReasoningEffort({ skill_mode: "manual", skill_id: skill.id, prompt: "创建套图", step: 0 }, "medium"), "medium");
-assert.equal(runtime.selectAgentReasoningEffort({ tool_outputs: [{ call_id: "c", output: "ok" }], step: 1 }, "medium"), "medium");
+assert.equal(runtime.selectAgentReasoningEffort({ skill_mode: "auto", active_skill_id: skill.id, step: 1 }, "medium"), "medium");
+assert.equal(runtime.selectAgentReasoningEffort({ tool_outputs: [{ call_id: "c", output: "ok" }], step: 1 }, "medium"), "low");
+
+const directImageCapabilities = runtime.selectAdaptiveCapabilityIds({
+  skill_mode: "auto",
+  prompt: "直接生成一张咖啡产品图",
+}, {
+  mode: "auto",
+  capabilityIds: capabilities.CAPABILITY_REGISTRY.map((item) => item.id),
+});
+assert.deepEqual(new Set(directImageCapabilities), new Set([
+  "node.image.create",
+  "image.generate-to-gallery",
+  "image.existing-node-choice",
+  "canvas.node.focus",
+  "node.update",
+  "node.connect",
+  "node.gallery.create",
+  "node.run",
+  "skill.activate",
+]));
+
+const directImageRequest = runtime.buildResponsesRequest({
+  skill_mode: "auto",
+  prompt: "直接生成一张咖啡产品图",
+  canvas: { nodes: [], selected_node_ids: [] },
+  step: 0,
+}, {
+  model: "gpt-5.6-terra",
+  reasoningEffort: "low",
+  skills: [skill, posterSkill],
+});
+assert.deepEqual(new Set(directImageRequest.tools.map((tool) => tool.name)), new Set([
+  "create_image_node",
+  "connect_nodes",
+  "create_gallery_node",
+  "run_canvas_node",
+  "activate_canvas_skill",
+]));
+
+const greetingRequest = runtime.buildResponsesRequest({
+  skill_mode: "auto",
+  prompt: "你好",
+  canvas: { nodes: [], selected_node_ids: [] },
+  step: 0,
+}, {
+  model: "gpt-5.6-terra",
+  reasoningEffort: "low",
+  skills: [skill, posterSkill],
+});
+assert.equal(greetingRequest.tools.length, 0);
+
+// Strict gateways answer `tool_choice is only allowed when 'tools' are
+// specified` for a greeting turn, because that path intentionally selects no
+// tools. The field has to disappear together with them.
+const greetingChat = runtime.buildChatCompletionsRequest({
+  skill_mode: "auto",
+  prompt: "你好",
+  canvas: { nodes: [], selected_node_ids: [] },
+  step: 0,
+}, {
+  reasoningEffort: "low",
+  skills: [skill, posterSkill],
+});
+assert.equal(greetingChat.model, "gpt-5.6-sol", "the Agent default must use gpt-5.6-sol");
+assert.equal(greetingChat.tools.length, 0);
+assert.equal("tool_choice" in greetingChat, false, "a tool-less turn must not send tool_choice");
+assert.equal("parallel_tool_calls" in greetingChat, false, "a tool-less turn must not send parallel_tool_calls");
+
+const greetingTurn = runtime.buildProviderTurnRequest({
+  skill_mode: "auto",
+  prompt: "你好",
+  canvas: { nodes: [], selected_node_ids: [] },
+  step: 0,
+}, {
+  reasoningEffort: "low",
+  skills: [skill, posterSkill],
+});
+assert.equal(greetingTurn.tools.length, 0);
+assert.equal(greetingTurn.toolChoice, "");
+assert.deepEqual(greetingTurn.params, { max_tokens: 4096, reasoning_effort: "low" });
+
+// Replaying an assistant turn without tool calls must omit `tool_calls`
+// entirely: `tool_calls: []` is rejected as `Invalid 'messages[N].tool_calls':
+// empty array.` by strict gateways as soon as the conversation has history.
+const historyTurn = runtime.buildProviderTurnRequest({
+  skill_mode: "auto",
+  prompt: "生成一个雪景",
+  canvas: { nodes: [], selected_node_ids: [] },
+  conversation_context: [
+    { role: "user", content: "你好" },
+    { role: "assistant", content: "你好！有什么需要我在画布上帮你处理的吗？" },
+  ],
+  step: 0,
+}, {
+  reasoningEffort: "low",
+  skills: [skill, posterSkill],
+});
+const replayedAssistant = historyTurn.messages.find((message) => message.role === "assistant");
+assert.equal(replayedAssistant.content, "你好！有什么需要我在画布上帮你处理的吗？");
+assert.equal("tool_calls" in replayedAssistant, false);
+assert.equal(
+  historyTurn.messages.some((message) => Array.isArray(message.tool_calls) && message.tool_calls.length === 0),
+  false,
+  "no replayed message may carry an empty tool_calls array",
+);
+
+const reasoningContinuation = runtime.buildProviderTurnRequest({
+  skill_mode: "manual",
+  skill_id: "poster-design",
+  active_skill_id: "poster-design",
+  prompt: "继续完成海报",
+  canvas: { nodes: [] },
+  tool_outputs: [{ call_id: "call-reason", output: { ok: true } }],
+  step: 1,
+}, {
+  reasoningEffort: "low",
+  skills: [posterSkill],
+  transcript: [
+    {
+      role: "assistant",
+      content: "",
+      reasoning_content: "先读取海报规范，再生成图片。",
+      tool_calls: [{
+        call_id: "call-reason",
+        name: "read_skill_reference",
+        arguments: { skill_id: "poster-design" },
+      }],
+    },
+    { role: "tool", call_id: "call-reason", content: '{"ok":true}' },
+  ],
+});
+const replayedReasoning = reasoningContinuation.messages.find((message) => (
+  message.role === "assistant" && Array.isArray(message.tool_calls)
+));
+assert.equal(
+  replayedReasoning.reasoning_content,
+  "先读取海报规范，再生成图片。",
+  "provider continuation requests must preserve assistant reasoning_content",
+);
+
+const manualSkillOverride = runtime.buildProviderTurnRequest({
+  skill_mode: "manual",
+  skill_id: "poster-design",
+  prompt: "继续沿用之前的两段 15 秒方案",
+  canvas: { nodes: [] },
+  step: 0,
+}, {
+  reasoningEffort: "medium",
+  skills: [posterSkill],
+});
+assert.match(manualSkillOverride.system, /手动专业流程优先级/);
+assert.match(manualSkillOverride.system, /历史对话中与它冲突的结论全部作废/);
+assert.match(manualSkillOverride.system, /当前 Skill 的执行契约（强制）/);
+assert.match(manualSkillOverride.system, /缺项先补齐/);
+assert.match(manualSkillOverride.system, /不得标记为已批准并结束/);
+assert.match(
+  String(manualSkillOverride.messages[0]?.content?.[0]?.text || ""),
+  /历史回答与本轮 Skill 冲突时，一律以本轮 Skill 为准/,
+  "the current manual-skill turn must explicitly reject contradictory historical conclusions",
+);
+
+const flattenedReasoningContinuation = runtime.buildProviderTurnRequest({
+  skill_mode: "manual",
+  skill_id: "poster-design",
+  active_skill_id: "poster-design",
+  prompt: "继续完成海报",
+  canvas: { nodes: [] },
+  tool_outputs: [{ call_id: "call-reason", output: { ok: true } }],
+  step: 1,
+}, {
+  reasoningEffort: "low",
+  skills: [posterSkill],
+  transcript: [
+    {
+      role: "assistant",
+      content: "",
+      reasoning_content: "先读取海报规范，再生成图片。",
+      tool_calls: [{
+        call_id: "call-reason",
+        name: "read_skill_reference",
+        arguments: { skill_id: "poster-design" },
+      }],
+    },
+    { role: "tool", call_id: "call-reason", content: '{"ok":true}' },
+  ],
+  flattenToolHistory: true,
+});
+assert.equal(
+  flattenedReasoningContinuation.messages.some((message) => (
+    message.role === "assistant"
+    && (Array.isArray(message.tool_calls) || Object.hasOwn(message, "reasoning_content"))
+  )),
+  false,
+  "the compatibility request must not replay native reasoning or tool-call state",
+);
+assert.ok(
+  flattenedReasoningContinuation.messages.some((message) => (
+    message.role === "user"
+    && /\[工具结果 call-reason\]/.test(String(message.content || ""))
+  )),
+  "flattened continuations must still provide the latest tool result",
+);
 
 const chat = runtime.buildChatCompletionsRequest({
   skill_mode: "auto",
@@ -219,6 +428,23 @@ assert.equal(chat.tools[0].type, "function");
 assert.equal(typeof chat.tools[0].function.parameters, "object");
 assert.equal(chat.parallel_tool_calls, false);
 
+const providerTurn = runtime.buildProviderTurnRequest({
+  skill_mode: "auto",
+  prompt: "创建一张海报",
+  canvas: { nodes: [] },
+  vision_images: ["https://example.com/reference.png"],
+  step: 0,
+}, {
+  reasoningEffort: "low",
+  skills: [posterSkill],
+});
+assert.match(providerTurn.system, /工具型设计 Agent/);
+assert.equal(providerTurn.messages[0].role, "user");
+assert.equal(providerTurn.tools[0].type, "function");
+assert.equal(providerTurn.toolChoice, "auto");
+assert.equal(providerTurn.needsVision, true);
+assert.deepEqual(providerTurn.params, { max_tokens: 4096, reasoning_effort: "low", parallel_tool_calls: false });
+
 const chatTurn = runtime.extractChatCompletionsTurn({
   id: "chat-1",
   model: "qwen-fast",
@@ -226,6 +452,7 @@ const chatTurn = runtime.extractChatCompletionsTurn({
   choices: [{
     message: {
       content: "完成",
+      reasoning_content: "先规划节点，再调用工具。",
       tool_calls: [{
         id: "chat-call-1",
         type: "function",
@@ -236,6 +463,7 @@ const chatTurn = runtime.extractChatCompletionsTurn({
 });
 assert.equal(chatTurn.response_id, "chat-1");
 assert.equal(chatTurn.message, "完成");
+assert.equal(chatTurn.reasoning_content, "先规划节点，再调用工具。");
 assert.deepEqual(chatTurn.tool_calls, [{
   call_id: "chat-call-1",
   name: "create_text_node",
@@ -276,6 +504,7 @@ async function runStreamChecks() {
 
   let chatFirstEvents = 0;
   const streamedChatTurn = await runtime.consumeChatCompletionsStream(makeSseStream([
+    JSON.stringify({ id: "chat-stream", model: "qwen-fast", choices: [{ delta: { reasoning_content: "先推理。" } }] }),
     JSON.stringify({ id: "chat-stream", model: "qwen-fast", choices: [{ delta: { content: "已" } }] }),
     JSON.stringify({
       id: "chat-stream",
@@ -289,6 +518,7 @@ async function runStreamChecks() {
   });
   assert.equal(chatFirstEvents, 1);
   assert.equal(streamedChatTurn.message, "已");
+  assert.equal(streamedChatTurn.reasoning_content, "先推理。");
   assert.deepEqual(streamedChatTurn.tool_calls, [{
     call_id: "call-stream",
     name: "create_text_node",

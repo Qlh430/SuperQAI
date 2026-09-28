@@ -1,9 +1,15 @@
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
+require("../grid-slicing-rules.js");
+const CanvasGridEditorRules = require("../canvas-grid-editor-rules.js");
 
 const root = path.join(__dirname, "..");
 const script = fs.readFileSync(path.join(root, "script.js"), "utf8");
+const galleryRenderer = fs.readFileSync(path.join(root, "canvas-gallery-node-renderer.js"), "utf8");
+const gridEditorRenderer = require("../canvas-grid-editor-node-renderer.js");
+
+assert.equal(typeof gridEditorRenderer.render, "function", "the grid editor renderer must expose render");
 
 function extractFunction(source, name) {
   const start = source.indexOf(`function ${name}`);
@@ -42,44 +48,34 @@ function extractFunction(source, name) {
   throw new Error(`Unterminated function ${name}`);
 }
 
-const galleryRender = extractFunction(script, "renderCanvasGalleryNode");
-assert.ok(galleryRender.includes("openCanvasGridMenu"));
+const galleryRender = extractFunction(galleryRenderer, "render");
+assert.ok(!galleryRender.includes("openCanvasCropWorkbench"), "A gallery header must not choose an arbitrary member for cropping");
+assert.ok(extractFunction(script, "initializeCanvasBoard").includes("canvas-gallery-member"), "The shared crop workbench must be entered through the right-clicked gallery member");
+assert.ok(!galleryRender.includes("openCanvasGridMenu"));
 assert.ok(!galleryRender.includes("openCanvasGalleryGridSlicer(node)"));
 
-const menu = extractFunction(script, "ensureCanvasGridMenuMarkup");
-["2×2", "3×3", "4×4", "5×5", "自定义", "仅裁剪", "创建格子"]
-  .forEach((label) => assert.ok(menu.includes(label), `Missing menu label ${label}`));
-
-const direct = extractFunction(script, "createCanvasDirectGridSlices");
-assert.ok(direct.includes("GridSlicingRules.createGridLayout"));
-assert.ok(direct.includes("persistCanvasGridCrops"));
-assert.ok(direct.includes("placeCanvasGridImageNodes"));
-assert.ok(direct.indexOf("persistCanvasGridCrops") < direct.indexOf("placeCanvasGridImageNodes"));
+assert.equal(script.indexOf("function ensureCanvasGridMenuMarkup"), -1, "The retired gallery menu must not shadow the workbench");
+assert.equal(script.indexOf("function createCanvasDirectGridSlices"), -1, "Direct gallery slicing belongs to the workbench only");
 
 const persist = extractFunction(script, "persistCanvasGridCrops");
 assert.ok(persist.includes("Promise.allSettled"));
 assert.ok(persist.includes("uploadCanvasImageFile"));
 
-const place = extractFunction(script, "placeCanvasGridImageNodes");
-assert.ok(place.includes("addCanvasImage"));
-assert.ok(place.includes("row"));
-assert.ok(place.includes("column"));
-
 const addEditor = extractFunction(script, "addCanvasGridEditorNode");
 assert.ok(addEditor.includes('createCanvasNode("grid-editor")'));
 assert.ok(addEditor.includes("connectCanvasNodes"));
 
-const renderEditor = extractFunction(script, "renderCanvasGridEditorNode");
+const renderEditor = gridEditorRenderer.render.toString();
 ["canvas-grid-editor-toolbar", "canvas-grid-editor-cells", "canvas-grid-editor-edit", "canvas-grid-editor-output"]
   .forEach((className) => assert.ok(renderEditor.includes(className)));
 
-const createState = extractFunction(script, "createCanvasGridEditorState");
+const createState = CanvasGridEditorRules.createState.toString();
 assert.ok(createState.includes("sourceSrc"));
 assert.ok(createState.includes("horizontalBands"));
 assert.ok(createState.includes("verticalBands"));
 assert.ok(createState.includes("cellTransforms"));
 
-const normalizeState = extractFunction(script, "normalizeCanvasGridEditorState");
+const normalizeState = CanvasGridEditorRules.normalizeState.toString();
 assert.ok(normalizeState.includes("horizontalBands = layout.horizontalBands"));
 assert.ok(normalizeState.includes("verticalBands = layout.verticalBands"));
 
@@ -104,6 +100,7 @@ assert.ok(output.includes("GridSlicingRules.getCommonOutputSize"));
 assert.ok(output.includes("persistCanvasGridCrops"));
 assert.ok(output.includes("createCanvasGridSliceGallery"));
 assert.ok(output.indexOf("persistCanvasGridCrops") < output.indexOf("createCanvasGridSliceGallery"));
+assert.ok(output.includes("assertCanvasCropPersistenceComplete"), "grid-editor must verify every persisted crop before creating an output gallery");
 
 const serialize = extractFunction(script, "serializeCanvasNode");
 assert.ok(serialize.includes('base.kind === "grid-editor"'));

@@ -1,0 +1,52 @@
+"use strict";
+const assert = require("node:assert/strict");
+const fs = require("node:fs"), os = require("node:os"), path = require("node:path");
+const { createCanvasRepository } = require("../canvas-repository");
+const { MAX_FULL_NODE_CANDIDATES } = require("../canvas-virtualization-rules");
+(async () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), "canvas-scene-cache-"));
+  const repository = createCanvasRepository({ dbPath: path.join(temp, "canvas.db") });
+  try {
+    await repository.ready();
+    await repository.createBoard({ id: "cached", title: "缓存一致性" });
+    const sceneNodeCount = MAX_FULL_NODE_CANDIDATES + 1;
+    const nodes = Array.from({ length: sceneNodeCount }, (_, i) => ({ id: `n${i}`, kind: "text", text: `节点${i}`, x: i * 10, y: 0, width: 8, height: 8 }));
+    await repository.applyOperations({ boardId: "cached", baseRevision: 0, operations: nodes.map(n => ({ operationId: `add-${n.id}`, type: "node.upsert", entityId: n.id, after: n })) });
+    const viewport = { boardId: "cached", left: -10, top: -10, right: 9000, bottom: 20, scale: 1 };
+    const first = await repository.queryViewport(viewport);
+    assert.equal(first.mode, "scene");
+    assert.equal(first.candidateCount, sceneNodeCount);
+    assert.deepEqual(await repository.queryViewport(viewport), first, "same revision keeps exact geometry, labels and connections");
+    first.visualNodes[0][8] = "client mutation";
+    assert.notEqual((await repository.queryViewport(viewport)).visualNodes[0][8], "client mutation", "client changes must not mutate cached data");
+    await repository.applyOperations({ boardId: "cached", baseRevision: 1, operations: [{ operationId: "edit", type: "node.upsert", entityId: "n0", after: { ...nodes[0], text: "新内容", x: -5 } }] });
+    const edited = await repository.queryViewport(viewport);
+    assert.equal(edited.boardRevision, 2);
+    const changed = edited.visualNodes.find(n => n[0] === "n0");
+    assert.equal(changed[2], -5);
+    assert.equal(changed[8], "新内容", "an edit must never return a stale cached label");
+    await repository.applyOperations({ boardId: "cached", baseRevision: 2, operations: [{ operationId: "delete", type: "node.delete", entityId: "n0" }] });
+    const reduced = await repository.queryViewport(viewport);
+    assert.equal(reduced.mode, "detail");
+    assert.equal(reduced.candidateCount, MAX_FULL_NODE_CANDIDATES);
+    assert.ok(!reduced.nodes.some(n => n.id === "n0"));
+    assert.equal((await repository.queryViewport({ ...viewport, nodeLimit: 5 })).nodes.length, 5);
+    assert.equal((await repository.queryViewport({ ...viewport, nodeLimit: 7 })).nodes.length, 7, "detail cache includes pagination limits");
+    assert.equal((await repository.queryViewport(viewport)).nodes.length, MAX_FULL_NODE_CANDIDATES);
+    await repository.applyOperations({ boardId: "cached", baseRevision: 3, operations: [{ operationId: "detail-edit", type: "node.upsert", entityId: "n1", after: { ...nodes[1], text: "更新普通节点" } }] });
+    const detailEdited = await repository.queryViewport(viewport);
+    assert.equal(detailEdited.boardRevision, 4);
+    assert.equal(detailEdited.nodes.find(n => n.id === "n1").text, "更新普通节点");
+    await repository.beginLegacyImport({ board: { id: "importing", title: "迁移中" } });
+    const importViewport = { ...viewport, boardId: "importing" };
+    assert.equal((await repository.queryViewport(importViewport)).nodes.length, 0);
+    await repository.importLegacyBatch({ boardId: "importing", entity: "nodes", offset: 0, items: [nodes[0]] });
+    assert.equal((await repository.queryViewport(importViewport)).nodes.length, 1, "revision-zero import batches must never return an old cached page");
+    assert.deepEqual(await repository.quickCheck(), { ok: true, result: "ok" });
+    console.log("Canvas scene cache revision and geometry checks passed.");
+  } finally {
+    await repository.close();
+    assert.ok(temp.startsWith(os.tmpdir() + path.sep));
+    fs.rmSync(temp, { recursive: true, force: true });
+  }
+})().catch(error => { console.error(error); process.exitCode = 1; });

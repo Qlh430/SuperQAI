@@ -43,7 +43,7 @@ async function run() {
   const first = await broker.execute(scopeA, {
     call_id: "call-1",
     name: "create_text_node",
-    arguments: { content: "标题", x: null, y: null },
+    arguments: { content: "标题", title: "标题" },
     board_id: "board-A",
     run_id: "run-1",
   });
@@ -53,7 +53,7 @@ async function run() {
   const conflictingDuplicate = await broker.execute(scopeA, {
     call_id: "call-1",
     name: "create_text_node",
-    arguments: { content: "不应重复", x: null, y: null },
+    arguments: { content: "不应重复", title: "不应重复" },
     board_id: "board-A",
     run_id: "run-1",
   });
@@ -64,7 +64,7 @@ async function run() {
   const exactDuplicate = await broker.execute(scopeA, {
     call_id: "call-1",
     name: "create_text_node",
-    arguments: { y: null, content: "标题", x: null },
+    arguments: { y: null, title: "标题", content: "标题", x: null },
     board_id: "board-A",
     run_id: "run-1",
   });
@@ -88,7 +88,7 @@ async function run() {
   const invalidArguments = await broker.execute(scopeA, {
     call_id: "call-invalid-args",
     name: "create_text_node",
-    arguments: { content: "缺字段" },
+    arguments: { title: "缺正文", x: null, y: null },
     board_id: "board-A",
     run_id: "run-1",
   });

@@ -182,8 +182,8 @@ function candidate(providerId, modelId) {
     outboundFetch: adapterFetch,
   });
   assert.deepEqual(await adapterEngine.execute(
-    { id: "apimart", baseUrl: "https://api.apimart.example/v1", protocol: "apimart", apiKey: "fake-key" },
-    { id: "midjourney", protocol: "apimart" },
+    { id: "apimart", baseUrl: "https://api.apimart.ai/v1", protocol: "openai", apiKey: "fake-key" },
+    { id: "midjourney", protocol: "midjourney" },
     "image.generate",
     { prompt: "forest" },
     { size: "16:9" },
@@ -194,6 +194,95 @@ function candidate(providerId, modelId) {
   assert.match(adapterRequests[0].url, /\/v1\/midjourney\/generations$/);
   assert.match(adapterRequests[1].url, /\/v1\/tasks\/mj-task$/);
   assert.equal(adapterRequests[0].options.headers.authorization, "Bearer fake-key");
+
+  const apimartImageRequests = [];
+  const apimartImageResponses = [
+    new Response(JSON.stringify({ data: { task_id: "gpt-image-task" } }), { status: 200 }),
+    new Response(JSON.stringify({
+      data: {
+        status: "completed",
+        result: { output: [{ image_url: "https://cdn.example/gpt-image-4k.png" }] },
+      },
+    }), { status: 200 }),
+    new Response(JSON.stringify({
+      data: { status: "completed", output: { url: "https://cdn.example/apib-4k.png" } },
+    }), { status: 200 }),
+  ];
+  const apimartImageEngine = createProtocolEngine({
+    registry: createProtocolRegistry({ adapters: createMediaProtocolAdapters({ wait: async () => {} }) }),
+    outboundFetch: async (url, options = {}) => {
+      apimartImageRequests.push({ url: String(url), options });
+      return apimartImageResponses.shift();
+    },
+  });
+  assert.deepEqual(await apimartImageEngine.execute(
+    { id: "apimart-image", baseUrl: "https://api.apimart.ai/v1", protocol: "apimart", apiKey: "fake-key" },
+    { id: "gpt-image-2-apimart", protocol: "openai-images", metadata: { upstreamModel: "gpt-image-2" } },
+    "image.generate",
+    { prompt: "quiet lake" },
+    { size: "1:1", resolution: "4" },
+  ), {
+    data: [{ url: "https://cdn.example/gpt-image-4k.png" }],
+    task_id: "gpt-image-task",
+  });
+  assert.match(apimartImageRequests[0].url, /\/v1\/images\/generations$/);
+  assert.match(apimartImageRequests[1].url, /\/v1\/tasks\/gpt-image-task$/);
+  assert.deepEqual(JSON.parse(apimartImageRequests[0].options.body), {
+    model: "gpt-image-2",
+    prompt: "quiet lake",
+    n: 1,
+    size: "1:1",
+    resolution: "4k",
+  });
+
+  assert.deepEqual(await apimartImageEngine.execute(
+    { id: "apib-image", baseUrl: "https://apib.ai/v1", protocol: "openai", apiKey: "fake-key" },
+    { id: "gpt-image-2", protocol: "openai-images" },
+    "image.generate",
+    { prompt: "paper city" },
+    { size: "1:1", resolution: "4k" },
+  ), {
+    data: [{ url: "https://cdn.example/apib-4k.png" }],
+  });
+  assert.match(apimartImageRequests[2].url, /\/v1\/images\/generations$/);
+  assert.equal(JSON.parse(apimartImageRequests[2].options.body).resolution, "4k");
+
+  apimartImageResponses.push(
+    new Response(JSON.stringify({ data: { task_id: "flux-task" } }), { status: 200 }),
+    new Response(JSON.stringify({
+      data: { status: "completed", output: { url: "https://cdn.example/flux.png" } },
+    }), { status: 200 }),
+  );
+  assert.deepEqual(await apimartImageEngine.execute(
+    { id: "apimart-flux", baseUrl: "https://api.apimart.ai/v1", protocol: "apimart", apiKey: "fake-key" },
+    { id: "flux-pro-1.1", protocol: "openai-images" },
+    "image.generate",
+    { prompt: "paper valley" },
+    {
+      size: "1:1",
+      resolution: "2K",
+      quality: "high",
+      steps: 28,
+      guidance_scale: 3.5,
+      seed: 1234,
+      negativePrompt: "blurry",
+    },
+  ), {
+    data: [{ url: "https://cdn.example/flux.png" }],
+    task_id: "flux-task",
+  });
+  assert.deepEqual(JSON.parse(apimartImageRequests[3].options.body), {
+    model: "flux-pro-1.1",
+    prompt: "paper valley",
+    n: 1,
+    size: "1:1",
+    resolution: "2k",
+    quality: "high",
+    steps: 28,
+    guidance_scale: 3.5,
+    seed: 1234,
+    negative_prompt: "blurry",
+  });
 
   assert.deepEqual(await adapterEngine.execute(
     { id: "grsai", baseUrl: "https://grsai.example", protocol: "image-relay", apiKey: "fake-relay-key" },
@@ -227,7 +316,33 @@ function candidate(providerId, modelId) {
   );
   assert.deepEqual(ambiguousRequests, [
     "https://grsai.example/v1/api/generate",
-    "https://grsai.example/v1/api/result?id=charged-task",
+    ...Array(150).fill("https://grsai.example/v1/api/result?id=charged-task"),
+  ]);
+
+  const chargedApimartRequests = [];
+  const chargedApimartEngine = createProtocolEngine({
+    registry: createProtocolRegistry({ adapters: createMediaProtocolAdapters({ wait: async () => {} }) }),
+    outboundFetch: async (url) => {
+      chargedApimartRequests.push(String(url));
+      if (chargedApimartRequests.length === 1) {
+        return new Response(JSON.stringify({ data: { task_id: "charged-image-task" } }), { status: 200 });
+      }
+      return new Response(JSON.stringify({ message: "polling temporarily unavailable" }), { status: 503 });
+    },
+  });
+  await assert.rejects(
+    chargedApimartEngine.execute(
+      { id: "apimart", baseUrl: "https://api.apimart.ai/v1", protocol: "apimart", apiKey: "fake-key" },
+      { id: "gpt-image-2-apimart", protocol: "openai-images", metadata: { upstreamModel: "gpt-image-2" } },
+      "image.generate",
+      { prompt: "charge once" },
+      { size: "1:1", resolution: "4" },
+    ),
+    (error) => error?.code === "UPSTREAM_TASK_PENDING" && error?.retryable === false,
+  );
+  assert.deepEqual(chargedApimartRequests, [
+    "https://api.apimart.ai/v1/images/generations",
+    ...Array(150).fill("https://api.apimart.ai/v1/tasks/charged-image-task"),
   ]);
 
   assert.deepEqual(await adapterEngine.execute(

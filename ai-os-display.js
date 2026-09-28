@@ -48,6 +48,10 @@
     return Number(clientDelta) / normalizeScale(scale);
   }
 
+  function currentScale(root) {
+    return normalizeScale(root?.dataset?.uiScale);
+  }
+
   function applyPreferences(value, documentRoot, media) {
     const preferences = normalizePreferences(value);
     const target = documentRoot || (typeof document !== "undefined" ? document.documentElement : null);
@@ -59,6 +63,7 @@
     target.dataset.theme = theme;
     target.dataset.animations = preferences.appearance.animations;
     target.dataset.uiScale = String(scale);
+    target.style?.setProperty("--system-scale", String(scale));
     target.removeAttribute?.("data-canvas-theme");
     target.removeAttribute?.("data-canvas-theme-mode");
     target.removeAttribute?.("data-palette");
@@ -78,6 +83,7 @@
     normalizePreferences,
     resolveTheme,
     normalizeScale,
+    currentScale,
     logicalViewport,
     logicalDelta,
     applyPreferences,

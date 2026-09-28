@@ -6,6 +6,7 @@ const os = require("node:os");
 const path = require("node:path");
 
 const { createProviderStore } = require("../provider-store");
+const { createProtocolRegistry } = require("../provider-protocol-registry");
 const { createProviderSecretVault } = require("../provider-secret-vault");
 const { createSystemDb, SCHEMA_VERSION } = require("../system-db");
 
@@ -43,8 +44,8 @@ function providerInput(overrides = {}) {
   const db = createSystemDb({ dbPath: path.join(root, "system.sqlite") });
 
   try {
-    assert.equal(SCHEMA_VERSION, 2);
-    assert.deepEqual(db.migrate(), { schemaVersion: 2 });
+    assert.equal(SCHEMA_VERSION, 4);
+    assert.deepEqual(db.migrate(), { schemaVersion: 4 });
 
     db.insertUser({
       id: "user-a",
@@ -60,7 +61,7 @@ function providerInput(overrides = {}) {
     });
 
     const vault = createProviderSecretVault({ dataDir: root });
-    const store = createProviderStore({ db, vault });
+    const store = createProviderStore({ db, vault, registry: createProtocolRegistry() });
     assert.equal(store.getAutoFallback(), true);
 
     const saved = store.save(providerInput());
@@ -77,6 +78,48 @@ function providerInput(overrides = {}) {
     assert.notEqual(raw.encryptedApiKey, "sk-private");
     assert.deepEqual(raw.models.map((model) => model.id), ["gpt-tools", "gpt-image"]);
     assert.equal(db.hasEncryptedProviderSecrets(), 2);
+
+    assert.throws(
+      () => store.save(providerInput({
+        id: "invalid-image-capability",
+        name: "Invalid Image Capability",
+        models: [{ id: "gpt-image-invalid", protocol: "openai-images", capabilities: ["llm.chat"] }],
+      })),
+      (error) => error.code === "invalid_protocol_capabilities",
+    );
+    assert.equal(store.getPublic("invalid-image-capability"), null);
+
+    const jimeng = store.save({
+      id: "jimeng-local",
+      name: "即梦（本地 CLI）",
+      protocol: "cli:jimeng",
+      source: "cli",
+      cliTool: "jimeng",
+      models: [
+        { id: "jimeng-image", capabilities: ["image.generate"] },
+        { id: "jimeng-video" },
+        { id: "5.0" },
+        { id: "seedance2.5" },
+      ],
+    });
+    assert.equal(jimeng.baseUrl, "");
+    assert.equal(jimeng.source, "cli");
+    assert.equal(jimeng.cliTool, "jimeng");
+    assert.equal(jimeng.hasApiKey, false);
+    assert.equal(jimeng.models[0].protocol, "cli:jimeng");
+    assert.deepEqual(jimeng.models[1].capabilities, ["video.generate"]);
+    assert.equal(jimeng.models[1].protocol, "cli:jimeng");
+    // A Dreamina image model saved under its bare CLI version is upgraded to the
+    // name the client publishes, and the previous name stays resolvable. A
+    // Seedance video name is already final and is left alone.
+    assert.deepEqual(jimeng.models.map((model) => model.id), ["jimeng-image", "jimeng-video", "jimeng-5.0", "seedance2.5"]);
+    assert.deepEqual(jimeng.models[2].capabilities, ["image.generate", "image.edit"]);
+    assert.deepEqual(jimeng.models[2].metadata.legacyModelIds, ["5.0"]);
+    assert.equal(jimeng.models[3].metadata.legacyModelIds, undefined);
+    assert.throws(
+      () => store.save({ id: "bad-http", name: "Bad", protocol: "openai", baseUrl: "", models: [] }),
+      /baseUrl/i,
+    );
 
     store.save({
       id: "openai-main",
@@ -107,10 +150,32 @@ function providerInput(overrides = {}) {
       }],
     }));
 
-    store.reorderProviders(["anthropic-secondary", "openai-main"]);
-    assert.deepEqual(store.listPublic().map((provider) => provider.id), ["anthropic-secondary", "openai-main"]);
+    store.reorderProviders(["anthropic-secondary", "openai-main", "jimeng-local"]);
+    assert.deepEqual(store.listPublic().map((provider) => provider.id), ["anthropic-secondary", "openai-main", "jimeng-local"]);
     store.reorderModels("openai-main", ["gpt-image", "gpt-tools"]);
     assert.deepEqual(store.getPublic("openai-main").models.map((model) => model.id), ["gpt-image", "gpt-tools"]);
+
+    // Legacy records may contain a model protocol in the platform column.
+    // Public reads must expose the canonical platform while preserving the
+    // image model profile on the model row.
+    db.saveProviderRecord({
+      id: "legacy-image-platform",
+      name: "Legacy Image Platform",
+      baseUrl: "https://legacy.example.test",
+      providerProtocol: "openai-images",
+      source: "api",
+      models: [{
+        id: "gpt-image-1",
+        displayName: "GPT Image 1",
+        modelProtocol: "openai-images",
+        capabilities: ["image.generate"],
+      }],
+    });
+    const legacyPublic = store.getPublic("legacy-image-platform");
+    assert.equal(legacyPublic.protocol, "openai", "model protocol aliases must never leak as platform protocol");
+    assert.equal(legacyPublic.models[0].protocol, "openai-images", "image model profile must be preserved");
+    assert.deepEqual(store.repairProtocolAssignments(), ["legacy-image-platform"]);
+    assert.equal(db.getProviderRecord("legacy-image-platform").providerProtocol, "openai");
 
     assert.deepEqual(
       store.publicModelsForCapability("llm.tools").map((model) => model.id),
@@ -135,6 +200,10 @@ function providerInput(overrides = {}) {
       appearance: { theme: "dark", animations: "reduced" },
       canvas: { theme: "light" },
     });
+    db.replaceUserPreferences("user-a", { appearance: { theme: "light", scale: 1.25, animations: "full" } });
+    assert.deepEqual(db.getUserPreferences("user-a"), {
+      appearance: { theme: "light", scale: 1.25, animations: "full" },
+    }, "replacement writes purge retired preference groups instead of deep-merging them");
     assert.deepEqual(db.getUserPreferences("user-b"), {});
 
     const beforeRejectedSave = store.getPublic("openai-main");

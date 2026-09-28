@@ -3,21 +3,134 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>在线生图工作台</title>
+    <title>AI OS</title>
+    <!--
+      three.js is vendored under assets/vendor/three. The official addons import
+      the bare "three" specifier, so the import map is what lets the 3D stage
+      load them without a bundler.
+    -->
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "./assets/vendor/three/three.module.js",
+          "three/addons/": "./assets/vendor/three/addons/"
+        }
+      }
+    </script>
     <script>
       (() => {
+        document.documentElement.dataset.aiAuth = "pending";
         const saved = localStorage.getItem("ai-theme-mode") || "system";
-        const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+        const colorScheme = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)");
+        const prefersDark = colorScheme?.matches;
         document.documentElement.dataset.themeMode = saved;
         document.documentElement.dataset.theme = saved === "system" ? (prefersDark ? "dark" : "light") : saved;
-        document.documentElement.dataset.palette = localStorage.getItem("ai-color-palette") || "yellow-black";
+        const devRefreshKey = "__ai_os_dev_reload_refresh_v1";
+        const devRefreshAt = Number(sessionStorage.getItem(devRefreshKey) || localStorage.getItem(devRefreshKey));
+        if (Number.isFinite(devRefreshAt) && devRefreshAt > 0 && Date.now() - devRefreshAt < 60_000) {
+          document.documentElement.dataset.aiOsDevRefresh = "true";
+        }
+        colorScheme?.addEventListener?.("change", (event) => {
+          const mode = localStorage.getItem("ai-theme-mode") || "system";
+          if (mode === "system") document.documentElement.dataset.theme = event.matches ? "dark" : "light";
+        });
       })();
     </script>
-    <link rel="stylesheet" href="./styles.css?v=20260827-atomic-image&mj=20260806-hd" />
-    <link rel="stylesheet" href="./canvas-agent.css?v=20260824-agent-image-choice" />
+  <link rel="stylesheet" href="./styles.css?v=20260906-canvas-paint-continuity&scene=20260909-fidelity&mj=20260806-hd&info=20260916-gallery-edge-hover&cutout=20260918-cutout-readability&nodebar=20260918-node-name&note=20260918-sticky-note2&boardactions=20260921-card-actions&assetcollection=20260924-media-node-empty-state&textmd=20260928&textname=20260928" />
+    <link rel="stylesheet" href="./startup-overlay.css?v=20260924-startup-progress" />
+    <link rel="stylesheet" href="./canvas-agent.css?v=20260928-skill-context" />
+    <link rel="stylesheet" href="./desktop-shell.css?v=20260928-desktop-home" />
+  <link rel="stylesheet" href="./system-settings.css?v=20260917-capability-skills" />
+    <link rel="stylesheet" href="./comfyui-settings.css?v=20260915" />
+    <link rel="stylesheet" href="./canvas-asset-library.css?v=20260905-canvas-assets" />
+  <link rel="stylesheet" href="./ai-os-theme.css?v=20260927-agent-workbench" />
+<link rel="stylesheet" href="./canvas-tokens.css?v=20260918-bendo-canvas5" />
+<link rel="stylesheet" href="./canvas-bendo.css?v=20260918-bendo-canvas5&titlehit=20260928" />
+<link rel="stylesheet" href="./canvas-collab.css?v=20260920-canvas-collab" />
+  <link rel="stylesheet" href="./canvas-director3d.css?v=20260922-director3d-legs" />
   </head>
   <body>
-    <main class="app-shell">
+    <section class="ai-os-startup-gate" id="aiOsStartupGate" role="status" aria-live="polite" aria-busy="true" aria-label="AI OS 正在启动">
+      <div class="ai-os-startup-panel">
+        <div class="ai-os-startup-brand">
+          <span class="ai-os-startup-brand-mark" aria-hidden="true">∞</span>
+          <div><strong>AI OS</strong><span>本地创作工作台</span></div>
+        </div>
+        <div class="ai-os-startup-heading">
+          <strong id="aiOsStartupStatus">正在准备 AI OS</strong>
+          <span class="ai-os-startup-spinner" aria-hidden="true"></span>
+        </div>
+        <p class="ai-os-startup-detail" id="aiOsStartupDetail">正在加载桌面组件与图标…</p>
+        <div class="ai-os-startup-track" aria-hidden="true">
+          <div class="ai-os-startup-progress" id="aiOsStartupProgress"></div>
+        </div>
+        <div class="ai-os-startup-foot">
+          <span>图片、画布与配置只保留在本机</span>
+          <button id="aiOsStartupContinue" type="button">进入工作台</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="ai-os-auth-gate" id="aiOsAuthGate" aria-live="polite" hidden>
+      <div class="ai-os-auth-aurora" aria-hidden="true"></div>
+      <div class="ai-os-auth-card">
+        <div class="ai-os-auth-brand">
+          <span class="ai-os-brand-mark" aria-hidden="true">∞</span>
+          <div><strong>AI OS</strong><span>局域网创作空间</span></div>
+        </div>
+        <div class="ai-os-auth-copy">
+          <p class="ai-os-eyebrow" id="aiOsAuthEyebrow">安全登录</p>
+          <h1 id="aiOsAuthTitle">回到你的工作空间</h1>
+          <p id="aiOsAuthDescription">画布、文件与对话都只属于当前账号。</p>
+        </div>
+        <form class="ai-os-auth-form" id="aiOsLoginForm">
+          <label><span>账号</span><input id="aiOsLoginUsername" name="username" autocomplete="username" required /></label>
+          <label><span>密码</span><input id="aiOsLoginPassword" name="password" type="password" autocomplete="current-password" required /></label>
+          <button type="submit">登录 AI OS</button>
+        </form>
+        <form class="ai-os-auth-form" id="aiOsBootstrapForm" hidden>
+          <label><span>管理员账号</span><input name="username" autocomplete="username" value="SuperQ" required /></label>
+          <label><span>显示名称</span><input name="displayName" value="超级管理员" required /></label>
+          <label><span>管理员密码</span><input name="password" type="password" autocomplete="new-password" minlength="8" required /></label>
+          <button type="submit">创建超级管理员</button>
+          <small>首次初始化只能在作为主机的这台电脑上完成。</small>
+        </form>
+        <p class="ai-os-auth-error" id="aiOsAuthError" role="alert" hidden></p>
+        <div class="ai-os-auth-status"><span></span><span id="aiOsHostStatus">正在连接主机服务…</span></div>
+      </div>
+    </section>
+
+    <div class="ai-os-desktop" id="aiOsDesktop" hidden>
+      <header class="ai-os-menu-bar">
+        <div class="ai-os-menu-left">
+          <span class="ai-os-menu-logo">∞</span>
+          <strong>AI OS</strong>
+          <span id="aiOsActiveApp">工作台</span>
+        </div>
+        <div class="ai-os-menu-right">
+          <span class="ai-os-lan-indicator"><i></i>局域网已连接</span>
+          <button class="ai-os-user-menu" id="aiOsUserMenu" type="button"><span id="aiOsUserAvatar">A</span><span id="aiOsUserName">账户</span></button>
+          <time id="aiOsClock"></time>
+        </div>
+      </header>
+
+      <section class="ai-os-window-layer" id="aiOsWindowLayer" aria-label="应用窗口"></section>
+      <section class="ai-os-desktop-home" id="aiOsDesktopHome" aria-labelledby="aiOsDesktopHomeTitle" hidden>
+        <div class="ai-os-home-panel">
+          <header class="ai-os-home-header">
+            <span class="ai-os-home-mark" aria-hidden="true">∞</span>
+            <h2 id="aiOsDesktopHomeTitle">工作台</h2>
+          </header>
+          <div class="ai-os-home-grid" id="aiOsDesktopHomeApps"></div>
+        </div>
+      </section>
+      <section class="ai-os-launchpad" id="aiOsLaunchpad" aria-label="启动台" hidden></section>
+
+      <main class="app-shell ai-os-primary-window ai-os-legacy-parking" id="aiOsLegacyParking" aria-hidden="true">
+        <div class="ai-os-window-chrome" aria-hidden="true">
+          <span class="ai-os-traffic-lights"><i></i><i></i><i></i></span>
+          <strong id="aiOsWindowTitle">AI 工作台</strong>
+        </div>
       <aside class="rail" aria-label="功能导航">
         <div class="rail-logo" aria-hidden="true"><img src="./logo.png" alt="" /></div>
         <button class="rail-toggle" id="railToggle" type="button" aria-label="固定或收起导航栏" title="固定或收起导航栏">
@@ -38,18 +151,6 @@
             <span>历史记录</span>
           </button>
         </nav>
-
-        <section class="theme-panel" aria-label="主题">
-          <div class="theme-copy">
-            <strong>主题</strong>
-            <span>使用浅色、深色，或匹配系统设</span>
-          </div>
-          <div class="theme-options" role="group" aria-label="主题选择">
-            <button class="theme-option" type="button" data-theme-choice="light">浅色</button>
-            <button class="theme-option" type="button" data-theme-choice="dark">深色</button>
-            <button class="theme-option" type="button" data-theme-choice="system">系统</button>
-          </div>
-        </section>
 
         <div class="rail-foot">
           <span class="mode-dot" aria-hidden="true"></span>
@@ -85,7 +186,8 @@
               <section class="control-card">
                 <label>
                   <span>模型</span>
-                  <select id="imageModel"></select>
+                  <div class="image-model-picker-mount" id="imageModelPickerMount"></div>
+                  <select id="imageModel" class="image-model-source"></select>
                 </label>
 
                 <div class="size-row">
@@ -326,11 +428,11 @@
                 <div class="shoe-reference-row">
                   <div class="shoe-examples" aria-label="鞋子示例">
                     <button class="shoe-example" type="button" data-shoe-example="/assets/examples/shoe-sneaker.png" data-shoe-name="运动鞋示例.png">
-                      <img src="./assets/examples/shoe-sneaker.png" alt="运动鞋示例" />
+                      <img src="./assets/examples/shoe-sneaker-thumb.webp" alt="运动鞋示例" decoding="async" />
                       <span>运动</span>
                     </button>
                     <button class="shoe-example" type="button" data-shoe-example="/assets/examples/shoe-heel.png" data-shoe-name="高跟鞋示例.png">
-                      <img src="./assets/examples/shoe-heel.png" alt="高跟鞋示例" />
+                      <img src="./assets/examples/shoe-heel-thumb.webp" alt="高跟鞋示例" decoding="async" />
                       <span>高跟</span>
                     </button>
                   </div>
@@ -579,38 +681,211 @@
       </section>
     </main>
 
-    <div class="lightbox" id="lightbox" hidden>
-      <button class="lightbox-close" id="lightboxClose" type="button">×</button>
-      <div class="lightbox-zoom" id="lightboxZoom">100%</div>
-      <img id="lightboxImage" alt="图片预览" />
-      <a class="lightbox-download" id="lightboxDownload" href="#" download>下载图片</a>
+      <nav class="ai-os-dock" aria-label="应用程序">
+        <button type="button" data-ai-app="launcher" aria-label="启动台"><span class="dock-icon dock-launcher"><i data-lucide="layout-grid"></i></span><small>启动台</small></button>
+        <button type="button" data-ai-app="canvas" aria-label="无限画布"><span class="dock-icon dock-canvas"><i data-lucide="workflow"></i></span><small>无限画布</small></button>
+        <button type="button" data-ai-app="image" aria-label="AI 生图"><span class="dock-icon dock-image"><i data-lucide="image-plus"></i></span><small>AI 生图</small></button>
+        <button type="button" data-ai-app="chat" aria-label="AI 对话"><span class="dock-icon dock-chat"><i data-lucide="message-square"></i></span><small>AI 对话</small></button>
+        <span class="ai-os-dock-divider" aria-hidden="true"></span>
+        <button type="button" data-ai-app="shared" aria-label="文件"><span class="dock-icon dock-files"><i data-lucide="folder-open"></i></span><small>文件</small></button>
+        <button type="button" data-ai-app="accounts" aria-label="账户管理" data-superadmin-only hidden><span class="dock-icon dock-accounts"><i data-lucide="users"></i></span><small>账户管理</small></button>
+        <button type="button" data-ai-app="settings" aria-label="系统设置"><span class="dock-icon dock-settings"><i data-lucide="settings-2"></i></span><small>系统设置</small></button>
+      </nav>
+
+      <section class="ai-os-companion-window" id="aiOsSharedWindow" data-ai-window="shared" hidden>
+        <header class="ai-os-companion-titlebar">
+          <span class="ai-os-traffic-lights"><button type="button" data-ai-window-close="shared" aria-label="关闭文件"></button><i></i><i></i></span>
+          <strong>文件</strong>
+          <button type="button" id="aiOsRefreshResources">刷新</button>
+        </header>
+        <div class="ai-os-companion-layout">
+          <aside class="ai-os-companion-sidebar">
+            <div class="ai-os-sidebar-brand"><span class="dock-icon dock-files"><i data-lucide="folder-open"></i></span><div><strong>文件</strong><small id="aiOsResourceCount">0 个项目</small></div></div>
+            <button class="active" type="button" data-resource-filter="all"><span>全部文件</span><span data-resource-count="all">0</span></button>
+            <button type="button" data-resource-filter="owned"><span>我的文件</span><span data-resource-count="owned">0</span></button>
+            <button type="button" data-resource-filter="shared"><span>与我共享</span><span data-resource-count="shared">0</span></button>
+            <span>类型</span>
+            <button type="button" data-resource-filter="canvas"><span>无限画布</span><span data-resource-count="canvas">0</span></button>
+            <button type="button" data-resource-filter="image"><span>图片</span><span data-resource-count="image">0</span></button>
+            <button type="button" data-resource-filter="video"><span>视频</span><span data-resource-count="video">0</span></button>
+            <button type="button" data-resource-filter="audio"><span>音频</span><span data-resource-count="audio">0</span></button>
+            <button type="button" data-resource-filter="chat"><span>对话</span><span data-resource-count="chat">0</span></button>
+          </aside>
+          <div class="ai-os-companion-content">
+            <div class="ai-os-content-heading"><div><p class="ai-os-eyebrow">LIBRARY</p><h2>你的内容，在需要时共享</h2><p>默认仅自己可见。你可以分享给所有账号、指定账号或设置口令。</p></div></div>
+            <div class="ai-os-resource-grid" id="aiOsResourceGrid"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="ai-os-companion-window" id="aiOsAccountsWindow" data-ai-window="accounts" hidden>
+        <header class="ai-os-companion-titlebar">
+          <span class="ai-os-traffic-lights"><button type="button" data-ai-window-close="accounts" aria-label="关闭账户管理"></button><i></i><i></i></span>
+          <strong>账户管理</strong>
+          <button type="button" id="aiOsAddAccount">＋ 新建账号</button>
+        </header>
+        <div class="ai-os-account-layout">
+          <aside class="ai-os-account-list-pane">
+            <div class="ai-os-segmented"><button class="active" type="button">用户</button><button type="button" disabled>部门</button></div>
+            <input id="aiOsAccountSearch" type="search" placeholder="搜索账号或显示名称" />
+            <div id="aiOsAccountList" class="ai-os-account-list"></div>
+            <footer><span id="aiOsAccountCount">0 位用户</span><button id="aiOsAddAccountSecondary" type="button">＋</button></footer>
+          </aside>
+          <div class="ai-os-account-detail" id="aiOsAccountDetail">
+            <div class="ai-os-empty-detail"><span>●</span><h2>选择一个账号</h2><p>查看账号状态并管理登录权限。</p></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="ai-os-companion-window ai-os-system-window" id="aiOsSystemWindow" data-ai-window="settings" hidden>
+        <header class="ai-os-companion-titlebar">
+          <span class="ai-os-traffic-lights"><button type="button" data-ai-window-close="settings" aria-label="关闭系统设置"></button><i></i><i></i></span>
+          <strong>系统设置</strong>
+          <button type="button" id="aiOsRefreshHealth">刷新状态</button>
+        </header>
+        <div id="aiOsSystemSettingsRoot" aria-live="polite"></div>
+      </section>
+
+      <div class="ai-os-user-popover" id="aiOsUserPopover" hidden>
+        <strong id="aiOsPopoverName">账户</strong><span id="aiOsPopoverRole">普通用户</span>
+        <button id="aiOsChangePassword" type="button">修改密码</button>
+        <button id="aiOsLogout" type="button">退出登录</button>
+      </div>
+
+      <dialog class="ai-os-dialog" id="aiOsAccountDialog">
+        <form method="dialog" id="aiOsAccountForm">
+          <header><div><p class="ai-os-eyebrow">NEW ACCOUNT</p><h2>分配一个新账号</h2></div><button value="cancel" formnovalidate aria-label="关闭">×</button></header>
+          <label><span>登录账号</span><input name="username" autocomplete="off" required /></label>
+          <label><span>显示名称</span><input name="displayName" autocomplete="off" required /></label>
+          <p>系统会生成一次性临时密码，首次登录后用户应立即修改。</p>
+          <footer><button value="cancel" formnovalidate>取消</button><button type="submit" value="default">创建账号</button></footer>
+        </form>
+      </dialog>
+
+      <dialog class="ai-os-dialog ai-os-share-dialog" id="aiOsShareDialog">
+        <form method="dialog" id="aiOsShareForm">
+          <input type="hidden" name="resourceId" />
+          <header>
+            <div class="ai-os-share-heading">
+              <p class="ai-os-eyebrow">SHARE</p>
+              <h2 id="aiOsShareTitle">共享设置</h2>
+              <p class="ai-os-share-subject" id="aiOsShareSubject" hidden></p>
+            </div>
+            <button class="ai-os-dialog-close" value="cancel" formnovalidate aria-label="关闭">×</button>
+          </header>
+          <fieldset class="ai-os-share-scope">
+            <legend>可见范围</legend>
+            <div class="ai-os-choice-grid">
+              <label><input type="radio" name="visibility" value="private" checked /><span><b>仅自己</b><small>只有你能打开</small></span></label>
+              <label><input type="radio" name="visibility" value="all" /><span><b data-share-all-label>所有账号</b><small data-share-all-hint>登录的账号都能打开</small></span></label>
+              <label><input type="radio" name="visibility" value="users" /><span><b>指定账号</b><small>只给选中的人</small></span></label>
+              <label data-share-password-choice><input type="radio" name="visibility" value="password" /><span><b>口令访问</b><small>凭口令打开</small></span></label>
+            </div>
+          </fieldset>
+          <label data-share-users hidden><span>指定账号</span><select name="userIds" multiple></select></label>
+          <label data-share-password hidden><span>访问口令</span><input name="password" type="password" autocomplete="new-password" /></label>
+          <label data-share-permission><span>共享权限</span><select name="permission"><option value="read">只读</option><option value="edit">可编辑</option></select></label>
+          <footer><button value="cancel" formnovalidate>取消</button><button type="submit" value="default">保存共享</button></footer>
+        </form>
+      </dialog>
+
+      <dialog class="ai-os-dialog" id="aiOsShareUnlockDialog">
+        <form method="dialog" id="aiOsShareUnlockForm">
+          <input type="hidden" name="resourceId" />
+          <input type="hidden" name="shareId" />
+          <header><div><p class="ai-os-eyebrow">PROTECTED SHARE</p><h2 id="aiOsShareUnlockTitle">输入共享口令</h2></div><button value="cancel" formnovalidate aria-label="关闭">×</button></header>
+          <p>资源内容仍处于锁定状态。口令只用于本次短期解锁，不会明文保存。</p>
+          <label><span>共享口令</span><input name="password" type="password" autocomplete="off" required /></label>
+          <footer><button value="cancel" formnovalidate>取消</button><button type="submit" value="default">解锁并打开</button></footer>
+        </form>
+      </dialog>
+
+      <dialog class="ai-os-dialog" id="aiOsPasswordDialog">
+        <form method="dialog" id="aiOsPasswordForm">
+          <header><div><p class="ai-os-eyebrow">SECURITY</p><h2>修改登录密码</h2></div><button value="cancel" formnovalidate aria-label="关闭">×</button></header>
+          <label><span>当前密码</span><input name="currentPassword" type="password" autocomplete="current-password" required /></label>
+          <label><span>新密码</span><input name="newPassword" type="password" autocomplete="new-password" minlength="8" required /></label>
+          <footer><button value="cancel" formnovalidate>取消</button><button type="submit" value="default">更新密码</button></footer>
+        </form>
+      </dialog>
+
+      <div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="原图预览" hidden>
+        <button class="lightbox-close" id="lightboxClose" type="button" aria-label="关闭预览">×</button>
+        <div class="lightbox-zoom" id="lightboxZoom">100%</div>
+        <img id="lightboxImage" alt="图片预览" />
+        <a class="lightbox-download" id="lightboxDownload" href="#" download>下载图片</a>
+      </div>
+
+      <div class="ai-os-toast-region" id="aiOsToastRegion" aria-live="polite"></div>
     </div>
 
-    <script src="./assets/vendor/lucide.min.js"></script>
-    <script src="./image-model-routing.js?v=20260824-agent-image-choice"></script>
-    <script src="./image-resolution-rules.js?v=20260729-platform-rules"></script>
-    <script src="./video-history-rules.js?v=20260812-node-gallery"></script>
-    <script src="./grid-slicing-rules.js?v=20260812-gallery-grid-slicing"></script>
-    <script src="./canvas-board-loading-rules.js?v=20260819-progressive-loading"></script>
-    <script src="./image-loading-rules.js?v=20260819-detail-stability"></script>
-    <script src="./image-resource-manager.js?v=20260827-atomic-image"></script>
-    <script src="./canvas-engine-contract.js?v=20260826-visual-fidelity-v2"></script>
-    <script src="./canvas-virtualization-rules.js?v=20260825-canvas-virtualization"></script>
-    <script src="./canvas-virtual-store.js?v=20260825-canvas-virtualization"></script>
-    <script src="./canvas-paged-store.js?v=20260825-canvas-paged-storage"></script>
-    <script src="./canvas-viewport-data-source.js?v=20260825-canvas-paged-storage"></script>
-    <script src="./canvas-media-scheduler.js?v=20260825-canvas-media-budget"></script>
-    <script src="./canvas-scene-layer.js?v=20260826-visual-fidelity-v2"></script>
-    <script src="./canvas-virtualizer.js?v=20260825-canvas-virtualization"></script>
-    <script src="./canvas-agent-capabilities.js?v=20260824-agent-image-choice"></script>
-    <script src="./canvas-agent-core.js?v=20260824-agent-image-choice"></script>
-    <script src="./canvas-agent-verification.js?v=20260824-agent-reliability"></script>
-    <script src="./canvas-agent-broker.js?v=20260820-agent-capabilities"></script>
-    <script src="./canvas-agent-mcp-protocol.js?v=20260821-agent-mcp"></script>
-    <script src="./canvas-agent-mcp-server.js?v=20260821-agent-mcp"></script>
-    <script src="./canvas-agent-conversation.js?v=20260820-board-conversation"></script>
-    <script src="./script.js?v=20260827-atomic-image&vh=20260812-video-history-gallery&mj=20260806-hd&agent=20260824-reliability"></script>
-    <script src="./canvas-agent-tool-adapters.js?v=20260824-agent-image-choice"></script>
-    <script src="./canvas-agent-ui.js?v=20260824-agent-image-choice"></script>
+    <script src="./startup-overlay.js?v=20260924-startup-progress"></script>
+    <script src="./core/module-kernel.js?v=20260928-startup-priority"></script>
+    <script src="./module-manifest.js?v=20260928-llm-lazy-presets"></script>
+    <script src="./module-loader.js?v=20260928-startup-priority"></script>
+
+    <!-- Compatibility catalog for existing build and verification tools. The
+         runtime executes the same entries through module-manifest.js. -->
+    <template id="aiOsModuleCatalogCompatibility" hidden>
+      <script src="./assets/vendor/lucide.min.js"></script>
+      <script src="./account-management-ui.js?v=20260921-share-permission"></script>
+      <script src="./desktop-window-manager.js?v=20260916-window-top-boundary"></script>
+      <script src="./desktop-app-runtime.js?v=20260903-dxos-v2"></script>
+      <script src="./ai-os-display.js?v=20260904-display-preferences"></script>
+      <script src="./protocol-center-ui.js?v=20260907-protocol-center"></script>
+      <script src="./model-parameter-controls.js?v=20260914-model-tests"></script>
+      <script src="./provider-test-result.js?v=20260914-model-tests"></script>
+      <script src="./model-test-ui.js?v=20260914-model-tests"></script>
+      <script src="./comfyui-settings-ui.js?v=20260915"></script>
+      <script src="./local-models-ui.js?v=20260918-local-models"></script>
+      <script src="./system-settings-ui.js?v=20260917-capability-skills"></script>
+      <script src="./desktop-shell.js?v=20260928-pending-app-open"></script>
+      <script src="./image-model-routing.js?v=20260824-agent-image-choice"></script>
+      <script src="./image-model-picker.js?v=20260906-provider-groups"></script>
+      <script src="./image-resolution-rules.js?v=20260729-platform-rules"></script>
+      <script src="./video-history-rules.js?v=20260812-node-gallery"></script>
+      <script src="./canvas-video-output-state.js?v=20260924-decoupled-state"></script>
+      <script src="./canvas-asset-collection-rules.js?v=20260923-unified-materials"></script>
+      <script src="./grid-slicing-rules.js?v=20260812-gallery-grid-slicing"></script>
+      <script src="./canvas-board-loading-rules.js?v=20260819-progressive-loading"></script>
+      <script src="./image-loading-rules.js?v=20260819-detail-stability"></script>
+      <script src="./image-resource-manager.js?v=20260827-raster-refresh"></script>
+      <script src="./canvas-view-rules.js?v=20260924-canvas-view-rules"></script>
+      <script src="./canvas-connection-rules.js?v=20260924-canvas-connection-rules"></script>
+      <script src="./canvas-geometry-rules.js?v=20260924-canvas-geometry-rules"></script>
+      <script src="./canvas-alignment-rules.js?v=20260928-node-alignment"></script>
+      <script src="./canvas-engine-contract.js?v=20260826-visual-fidelity-v2"></script>
+      <script src="./canvas-virtualization-rules.js?v=20260825-canvas-virtualization"></script>
+      <script src="./canvas-virtual-store.js?v=20260825-canvas-virtualization"></script>
+      <script src="./canvas-paged-store.js?v=20260902-delete-authority"></script>
+      <script src="./canvas-viewport-data-source.js?v=20260825-canvas-paged-storage"></script>
+      <script src="./canvas-media-scheduler.js?v=20260825-canvas-media-budget"></script>
+      <script src="./canvas-scene-layer.js?v=20260826-visual-fidelity-v2"></script>
+      <script src="./canvas-virtualizer.js?v=20260825-canvas-virtualization"></script>
+      <script src="./canvas-agent-focus-rules.js?v=20260828-readable-focus"></script>
+      <script src="./canvas-layout-rules.js?v=20260921-arrange-canvas"></script>
+      <script src="./canvas-agent-capabilities.js?v=20260928-skill-manifest"></script>
+      <script src="./canvas-agent-core.js?v=20260920-director3d"></script>
+      <script src="./canvas-agent-skill-contract.js?v=20260928-skill-manifest"></script>
+      <script src="./canvas-agent-verification.js?v=20260824-agent-reliability"></script>
+      <script src="./canvas-agent-broker.js?v=20260928-skill-manifest"></script>
+      <script src="./canvas-agent-mcp-protocol.js?v=20260821-agent-mcp"></script>
+      <script src="./canvas-agent-mcp-server.js?v=20260821-agent-mcp"></script>
+      <script src="./canvas-agent-conversation.js?v=20260928-skill-context"></script>
+      <script src="./canvas-image-toolbar.js?v=20260928-toolbar-crop"></script>
+      <script src="./canvas-image-name.js?v=20260915-editable-image-name"></script>
+      <script src="./canvas-image-info.js?v=20260916-gallery-edge-hover"></script>
+      <script src="./background-removal-ui.js?v=20260918-cutout-readability"></script>
+      <script src="./canvas-collab-client.js?v=20260920-canvas-collab"></script>
+      <script src="./canvas-director3d.js?v=20260922-director3d-legs"></script>
+      <script src="./canvas-director3d-three.js?v=20260922-director3d-legs"></script>
+      <script src="./canvas-director3d-ui.js?v=20260922-director3d-legs"></script>
+      <script src="./script.js?v=20260906-canvas-paint-continuity&scene=20260909-fidelity&images=20260918-transparent-media&vh=20260812-video-history-gallery&mj=20260806-hd&agent=20260928-skill-manifest&llm=20260928-llm-lazy-presets&info=20260916-gallery-edge-hover&cutout=20260917-canvas-cutout&nodebar=20260918-node-name&note=20260918-sticky-note2&roles=20260918-bendo-canvas5&collab=20260920-canvas-collab&director3d=20260922-director3d-legs&boardactions=20260921-card-actions&share=20260921-share-noscrollbar&arrange=20260921-arrange-canvas2&assetcollection=20260924-media-node-empty-state&designbrief=20260927&imageactions=20260928&textmd=20260928&textname=20260928-name"></script>
+      <script src="./canvas-asset-library.js?v=20260905-canvas-assets"></script>
+      <script src="./canvas-agent-tool-adapters.js?v=20260927-agent-workbench"></script>
+      <script src="./canvas-agent-markdown.js?v=20260928-agent-resize"></script>
+      <script src="./canvas-agent-ui.js?v=20260928-skill-manifest&textmd=20260928"></script>
+      <script src="./canvas-theme.js?v=20260918-bendo-canvas5"></script>
+    </template>
   </body>
 </html>

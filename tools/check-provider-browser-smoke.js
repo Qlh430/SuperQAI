@@ -81,10 +81,10 @@ async function main() {
     req.on("end", () => {
       let body = {};
       try { body = raw ? JSON.parse(raw) : {}; } catch {}
-      upstreamRequests.push({ url: req.url, authorization: req.headers.authorization || "", body });
+      upstreamRequests.push({ url: req.url, authorization: req.headers.authorization || req.headers["x-goog-api-key"] || "", body });
       res.setHeader("content-type", "application/json; charset=utf-8");
       if (req.method === "GET" && req.url === "/v1/models") {
-        res.end(JSON.stringify({ data: [{ id: "smoke-chat" }, { id: "smoke-image" }] }));
+        res.end(JSON.stringify({ data: ["smoke-chat", "smoke-image", "gemini-3-pro-image-preview", "claude-sonnet-4", "text-embedding-3-large"].map(id => ({ id })) }));
         return;
       }
       if (req.method === "POST" && req.url === "/v1/images/generations") {
@@ -128,32 +128,180 @@ async function main() {
     await root.locator('[data-settings-section="providers"]').waitFor({ state: "visible" });
     assert.equal(await root.getByText("API 监测", { exact: true }).count(), 0);
     assert.equal(await root.getByText("Agent 模型", { exact: true }).count(), 0);
-    assert.equal(await root.locator('input[name="apiKey"]').inputValue(), "");
+    if (await root.locator('input[name="apiKey"]').count()) assert.equal(await root.locator('input[name="apiKey"]').inputValue(), "");
     await root.locator("[data-provider-new]").first().click();
-    await root.locator('input[name="id"]').fill("smoke-provider");
+    const smokeProviderId = await root.locator('input[name="id"]').inputValue();
+    assert.ok(smokeProviderId, "new providers receive an internal ID automatically");
+    assert.equal(await root.locator('input[name="id"]').isVisible(), false);
     await root.locator('input[name="name"]').fill("Smoke Provider");
-    await root.locator('input[name="baseUrl"]').fill(`http://127.0.0.1:${upstreamPort}/v1`);
+    await root.locator('input[name="baseUrl"]').fill(`http://127.0.0.1:${upstreamPort}/v1/images/generations`);
     await root.locator('input[name="apiKey"]').fill("browser-smoke-key");
-    await root.locator("[data-provider-sync]").click();
+    await root.locator('select[name="protocol"]').selectOption("gemini");
+    const geminiVerification = await Promise.all([
+      page.waitForResponse((response) => {
+        const url = new URL(response.url());
+        return url.pathname === "/api/providers/verify-protocol";
+      }),
+      root.locator("[data-provider-verify]").click(),
+    ]).then(([response]) => response);
+    assert.equal(geminiVerification.status(), 200, "verification diagnostics are actionable results");
+    const geminiDiagnostic = await geminiVerification.json();
+    assert.equal(geminiDiagnostic.available, false, "an incompatible selected protocol is not reported available");
+    assert.equal(geminiDiagnostic.recommendedProtocol, "openai");
+    assert.equal(await root.locator('select[name="protocol"]').inputValue(), "gemini", "verification must not silently replace the selected protocol");
+    await root.locator('[data-provider-use-protocol="openai"]').waitFor({ state: "visible" });
+    assert.match(await root.locator('[data-provider-status]').textContent(), /模型目录/);
+
+    await root.locator('select[name="protocol"]').selectOption("openai");
+    const openaiVerification = await Promise.all([
+      page.waitForResponse((response) => {
+        const url = new URL(response.url());
+        return url.pathname === "/api/providers/verify-protocol" && response.status() === 200;
+      }),
+      root.locator("[data-provider-verify]").click(),
+    ]).then(([response]) => response);
+    assert.equal(openaiVerification.status(), 200);
+    await page.waitForFunction(expected => document.querySelector('#aiOsSystemSettingsRoot input[name="baseUrl"]')?.value === expected, `http://127.0.0.1:${upstreamPort}/v1`);
+    assert.equal(await root.locator('input[name="baseUrl"]').inputValue(), `http://127.0.0.1:${upstreamPort}/v1`);
+    await root.locator('select[name="networkMode"]').selectOption("direct");
+    const initialModelSync = await Promise.all([
+      page.waitForResponse(response => new URL(response.url()).pathname === "/api/providers/models"),
+      root.locator("[data-provider-sync]").click(),
+    ]).then(([response]) => response);
+    assert.equal(initialModelSync.status(), 200, await initialModelSync.text());
+    await root.locator("[data-model-discovery]").waitFor({ state: "visible" });
+    assert.equal(await root.locator('[data-provider-model][data-model-id="smoke-chat"]').count(), 0, "discovery must not persist every fetched model automatically");
+    await root.locator('[data-discovered-model="smoke-chat"]').check();
+    await root.locator('[data-discovered-model="smoke-image"]').check();
+    await root.locator("[data-model-discovery-add]").click();
     await root.locator('[data-provider-model][data-model-id="smoke-chat"]').waitFor({ state: "visible" });
     const chatModel = root.locator('[data-provider-model][data-model-id="smoke-chat"]');
     const imageModel = root.locator('[data-provider-model][data-model-id="smoke-image"]');
+    await chatModel.locator('.settings-model-details > summary').click();
     await chatModel.locator('[data-model-capability="llm.tools"]').check();
-    await imageModel.locator("[data-model-protocol]").selectOption("openai-images");
-    await imageModel.locator('[data-model-capability="image.generate"]').check();
+    assert.equal(await imageModel.locator("[data-model-protocol]").inputValue(), "openai");
+    assert.equal(await imageModel.locator('[data-model-capability="image.generate"]').isChecked(), true);
+    assert.equal(await imageModel.locator('[data-model-capability="llm.chat"]').isChecked(), false);
+    await root.locator('[data-new-model-id]').fill("nano-banana-pro");
+    await root.locator('[data-model-add]').click();
+    await root.locator('[data-provider-model][data-model-id="nano-banana-pro"]').waitFor();
+    assert.equal(await root.locator('[data-model-id="nano-banana-pro"] [data-model-protocol]').inputValue(), "openai");
+    await chatModel.locator('.settings-model-details > summary').click();
+    await chatModel.locator('[data-model-capability="llm.tools"]').check();
+    const savedModelCountBeforeDiscovery = await root.locator("[data-provider-model]").count();
+    await Promise.all([
+      page.waitForResponse(response => new URL(response.url()).pathname === "/api/providers/models" && response.status() === 200),
+      root.locator('[data-provider-sync]').click(),
+    ]);
+    await root.locator("[data-model-discovery]").waitFor({ state: "visible" });
+    const discovery = root.locator("[data-model-discovery]");
+    assert.equal(await discovery.locator("[data-discovery-selected]").textContent(), "已选择 2 个");
+    await discovery.locator("[data-discovery-search]").fill("smoke");
+    assert.equal(await discovery.locator('[data-discovered-model="smoke-chat"]').isChecked(), true);
+    assert.equal(await discovery.locator('[data-discovered-model="smoke-image"]').isChecked(), true);
+    assert.equal(await discovery.locator("[data-discovery-selected]").textContent(), "已选择 2 个");
+    await discovery.locator('[data-discovery-filter="image"]').click();
+    assert.equal(await discovery.locator('[data-discovered-model="smoke-image"]').isChecked(), true);
+    assert.equal(await discovery.locator('[data-discovered-model="smoke-chat"]').isChecked(), true);
+    assert.equal(await discovery.locator("[data-discovery-selected]").textContent(), "已选择 2 个");
+    await discovery.locator("[data-model-discovery-cancel]").click();
+    await root.locator("[data-model-discovery]").waitFor({ state: "hidden" });
+    assert.equal(await root.locator("[data-provider-model]").count(), savedModelCountBeforeDiscovery);
+    await Promise.all([
+      page.waitForResponse(response => new URL(response.url()).pathname === "/api/providers/models" && response.status() === 200),
+      root.locator('[data-provider-sync]').click(),
+    ]);
+    await root.locator("[data-model-discovery]").waitFor({ state: "visible" });
+    assert.equal(await root.locator('[data-discovered-model="smoke-chat"]').isChecked(), true);
+    assert.equal(await root.locator('[data-discovered-model="smoke-image"]').isChecked(), true);
+    assert.equal(await root.locator('[data-discovered-model="gemini-3-pro-image-preview"]').isChecked(), false);
+    await root.locator('[data-discovered-model="smoke-chat"]').uncheck();
+    await root.locator('[data-discovered-model="smoke-image"]').uncheck();
+    assert.equal(await root.locator("[data-model-discovery-add]").isDisabled(), true);
+    await root.locator('[data-discovered-model="smoke-chat"]').check();
+    assert.equal(await root.locator("[data-model-discovery-add]").isDisabled(), false);
+    await root.locator('[data-discovered-model="gemini-3-pro-image-preview"]').check();
+    await root.locator('[data-discovered-model="claude-sonnet-4"]').check();
+    await root.locator('[data-discovered-model="text-embedding-3-large"]').check();
+    await root.locator("[data-model-discovery-add]").click();
+    await root.locator('select[name="protocol"]').selectOption("gemini");
+    await page.waitForFunction(() => document.querySelector('#aiOsSystemSettingsRoot [data-model-id="claude-sonnet-4"] [data-model-protocol]')?.value === "gemini");
+    await root.locator('select[name="protocol"]').selectOption("openai");
+    await page.waitForFunction(() => document.querySelector('#aiOsSystemSettingsRoot [data-model-id="claude-sonnet-4"] [data-model-protocol]')?.value === "openai");
+    assert.equal(await root.locator('[data-model-id="claude-sonnet-4"] [data-model-protocol]').inputValue(), "openai");
+    // Switching protocols re-infers capabilities; restore the Agent fixture's tools capability.
+    await chatModel.locator('.settings-model-details > summary').click();
+    await chatModel.locator('[data-model-capability="llm.tools"]').check();
+    await Promise.all([
+      page.waitForResponse(response => new URL(response.url()).pathname === "/api/providers/models" && response.status() === 200),
+      root.locator('[data-provider-sync]').click(),
+    ]);
+    await root.locator("[data-model-discovery]").waitFor({ state: "visible" });
+    await root.locator("[data-model-discovery-cancel]").click();
+    assert.equal(await chatModel.locator('[data-model-capability="llm.tools"]').isChecked(), true, "fetching a catalog preserves configured model capabilities");
+    const existingCanvasNodeId = await page.evaluate(() => {
+      const node = addCanvasApiNode(getCanvasViewportCenterPoint());
+      return node.dataset.id;
+    });
     await root.locator("[data-provider-form]").getByRole("button", { name: "保存更改" }).click();
     await page.getByText("提供商已创建", { exact: true }).waitFor({ state: "visible" });
     assert.equal(await root.locator('input[name="apiKey"]').inputValue(), "");
+    await page.waitForFunction(() => [...document.querySelectorAll("#imageModel option")]
+      .some((option) => option.value.includes("c21va2UtaW1hZ2U") || option.textContent.includes("smoke-image")));
+    const savedImageModelId = await page.evaluate(() => [...document.querySelectorAll("#imageModel option")]
+      .find((option) => option.value.includes("c21va2UtaW1hZ2U") || option.textContent.includes("smoke-image"))?.value || "");
+    assert.ok(savedImageModelId, "saving a provider must update the canvas image catalog without a reload");
+    assert.equal(await page.evaluate(({ nodeId, modelId }) => {
+      const node = document.querySelector(`.canvas-node-image[data-id="${nodeId}"]`);
+      return Boolean(node && [...node.querySelectorAll(".canvas-node-model option")].some((option) => option.value === modelId));
+    }, { nodeId: existingCanvasNodeId, modelId: savedImageModelId }), true, "saving a provider must refresh model selects on canvas nodes that already exist");
+    const canvasParameterFields = await page.evaluate((modelId) => {
+      if (typeof addCanvasApiNode !== "function") return ["missing-addCanvasApiNode"];
+      const node = addCanvasApiNode({ x: 2400, y: 1800 });
+      const select = node.querySelector(".canvas-node-model");
+      if (!select || ![...select.options].some((option) => option.value === modelId)) return ["missing-model-option"];
+      // The model picker flips the node to an exact model before dispatching
+      // change. Setting the option alone would leave it on 自动选择, which now
+      // renders no per-model protocol fields on purpose.
+      select.dataset.modelSelection = "exact";
+      node.dataset.modelSelection = "exact";
+      select.value = modelId;
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+      return [...node.querySelectorAll("[data-canvas-model-param]")].map((control) => control.dataset.canvasModelParam);
+    }, savedImageModelId);
+    assert.deepEqual(canvasParameterFields, ["quality"], "canvas node controls must follow the selected model parameters");
+    const uiTestRequestStart = upstreamRequests.length;
     await root.locator('[data-provider-model][data-model-id="smoke-chat"] [data-model-test]').click();
-    await page.getByText("smoke-chat 连接正常", { exact: true }).waitFor({ state: "visible" });
-    const moveUp = root.locator('[data-provider-move="up"][data-provider-id="smoke-provider"]');
+    const chatTest = root.locator("dialog.settings-test-dialog");
+    await chatTest.waitFor({ state: "visible" });
+    await chatTest.locator("[data-test-prompt]").fill("hello");
+    await chatTest.locator("[data-test-send]").click();
+    await chatTest.getByText(/对话测试成功/).waitFor({ state: "visible" });
+    await chatTest.locator("[data-test-close]").click();
+    await root.locator('[data-provider-model][data-model-id="smoke-image"] [data-model-test]').click();
+    const imageTest = root.locator("dialog.settings-test-dialog");
+    await imageTest.waitFor({ state: "visible" });
+    await imageTest.locator("[data-test-prompt]").fill("one pixel");
+    await imageTest.locator("[data-test-send]").click();
+    await imageTest.getByText(/图片生成成功/).waitFor({ state: "visible" });
+    await imageTest.locator("[data-test-close]").click();
+    const uiTestRequests = upstreamRequests.slice(uiTestRequestStart);
+    assert.ok(uiTestRequests.some(entry => entry.url === "/v1/chat/completions"), "the LLM test must reach the chat completion endpoint");
+    assert.ok(uiTestRequests.some(entry => entry.url === "/v1/images/generations"), "the image test must reach the image generation endpoint");
+    const moveUp = root.locator(`[data-provider-move="up"][data-provider-id="${smokeProviderId}"]`);
     if (await moveUp.isEnabled()) await moveUp.click();
     const orderedProviders = await page.evaluate(async () => (await fetch("/api/providers")).json());
-    assert.equal(orderedProviders.providers[0].id, "smoke-provider");
+    assert.equal(orderedProviders.providers.filter(provider => String(provider.protocol || "").toLowerCase() !== "comfyui")[0]?.id, smokeProviderId);
     await root.locator("[data-provider-fallback]").setChecked(false, { force: true });
     await root.locator("[data-provider-fallback]").setChecked(true, { force: true });
 
-    const runtimeResults = await page.evaluate(async () => {
+    const boardCreation = await page.evaluate(async () => {
+      const response = await fetch("/api/canvas/boards", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: "smoke-board", title: "Smoke" }) });
+      return { status: response.status, data: await response.json() };
+    });
+    assert.equal(boardCreation.status, 201, JSON.stringify(boardCreation.data));
+
+    const runtimeResults = await page.evaluate(async (smokeProviderId) => {
       async function json(pathname, body) {
         const response = await fetch(pathname, body === undefined ? {} : { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
         return { status: response.status, data: await response.json() };
@@ -162,24 +310,30 @@ async function main() {
         models: await json("/api/models"),
         chat: await json("/api/chat", { messages: [{ role: "user", content: "hello" }], model: "smoke-chat" }),
         agent: await json("/api/canvas-agent/turn", { prompt: "summarize this canvas", canvas: { id: "smoke-board", title: "Smoke", selected_node_ids: [], nodes: [], connections: [] }, vision_images: [], step: 0 }),
-        image: await json("/api/images", { prompt: "one pixel", model: "custom:smoke-provider:c21va2UtaW1hZ2U", size: "1024x1024", resolution: "1k", count: 1 }),
+        image: await json("/api/images", { prompt: "one pixel", model: `custom:${smokeProviderId}:c21va2UtaW1hZ2U`, size: "1024x1024", resolution: "1k", count: 1 }),
       };
-    });
+    }, smokeProviderId);
     assert.equal(runtimeResults.models.status, 200);
     assert.ok(runtimeResults.models.data.models.some((model) => model.id === "smoke-chat"));
     assert.equal(runtimeResults.chat.status, 200, JSON.stringify(runtimeResults.chat.data));
     assert.match(runtimeResults.chat.data.text || "", /smoke provider reply/);
     assert.equal(runtimeResults.agent.status, 200, JSON.stringify(runtimeResults.agent.data));
     assert.equal(runtimeResults.image.status, 200, JSON.stringify(runtimeResults.image.data));
-    assert.ok(upstreamRequests.every((entry) => entry.authorization === "Bearer browser-smoke-key"));
+    assert.ok(upstreamRequests.every((entry) => ["Bearer browser-smoke-key", "browser-smoke-key"].includes(entry.authorization)));
     await root.locator('input[name="enabled"]').setChecked(false, { force: true });
     await root.getByRole("button", { name: "保存更改" }).click();
-    await page.waitForFunction(async () => (await (await fetch("/api/providers")).json()).providers.find((provider) => provider.id === "smoke-provider")?.enabled === false);
+    await page.waitForFunction(async id => (await (await fetch("/api/providers")).json()).providers.find((provider) => provider.id === id)?.enabled === false, smokeProviderId);
     await root.locator('input[name="enabled"]').setChecked(true, { force: true });
     await root.getByRole("button", { name: "保存更改" }).click();
-    await page.waitForFunction(async () => (await (await fetch("/api/providers")).json()).providers.find((provider) => provider.id === "smoke-provider")?.enabled === true);
+    await page.waitForFunction(async id => (await (await fetch("/api/providers")).json()).providers.find((provider) => provider.id === id)?.enabled === true, smokeProviderId);
     await root.locator('[data-settings-nav="appearance"]').click();
-    await root.locator('[data-settings-theme="dark"]').click();
+    await Promise.all([
+      page.waitForResponse(response => {
+        const request = response.request();
+        return new URL(response.url()).pathname === "/api/preferences" && request.method() === "PATCH" && response.status() === 200;
+      }),
+      root.locator('[data-settings-theme="dark"]').click(),
+    ]);
     await page.waitForFunction(() => document.documentElement.dataset.theme === "dark");
     await page.reload({ waitUntil: "networkidle" });
     assert.equal(await page.locator("html").getAttribute("data-theme"), "dark");
@@ -203,7 +357,13 @@ async function main() {
     assert.equal(await root.locator('[data-settings-nav="host"]').count(), 0);
     const ordinaryProviderStatus = await page.evaluate(async () => (await fetch("/api/providers")).status);
     assert.equal(ordinaryProviderStatus, 403);
-    await root.locator('[data-settings-theme="light"]').click();
+    await Promise.all([
+      page.waitForResponse(response => {
+        const request = response.request();
+        return new URL(response.url()).pathname === "/api/preferences" && request.method() === "PATCH" && response.status() === 200;
+      }),
+      root.locator('[data-settings-theme="light"]').click(),
+    ]);
     await page.reload({ waitUntil: "networkidle" });
     assert.equal(await page.locator("html").getAttribute("data-theme"), "light");
 
@@ -213,6 +373,7 @@ async function main() {
     await page.locator("#aiOsLoginForm [name=password]").fill("browser smoke administrator password");
     await page.getByRole("button", { name: "登录 AI OS" }).click();
     await page.locator("#aiOsDesktop").waitFor({ state: "visible" });
+    await page.waitForFunction(() => document.documentElement.dataset.theme === "dark");
     assert.equal(await page.locator("html").getAttribute("data-theme"), "dark");
 
     await stopChild(child);
@@ -221,11 +382,13 @@ async function main() {
     await waitForApp(child, port, diagnostics);
     await page.reload({ waitUntil: "networkidle" });
     await page.locator("#aiOsDesktop").waitFor({ state: "visible" });
+    await page.waitForFunction(() => document.documentElement.dataset.theme === "dark");
     assert.equal(await page.locator("html").getAttribute("data-theme"), "dark");
     await page.locator('[data-ai-app="settings"]').click();
     await root.locator('[data-settings-nav="providers"]').click();
-    await root.locator('[data-provider-select="smoke-provider"]').click();
+    await root.locator(`[data-provider-select="${smokeProviderId}"]`).click();
     assert.equal(await root.locator('input[name="apiKey"]').inputValue(), "");
+    assert.equal(await root.locator('select[name="networkMode"]').inputValue(), "direct");
     const retiredRequest = requests.find((pathname) => pathname.startsWith("/api/settings/providers/") || pathname === "/api/settings/agent-candidates");
     assert.equal(retiredRequest, undefined, `browser requested retired control plane: ${retiredRequest}`);
     console.log("Provider browser smoke checks passed.");

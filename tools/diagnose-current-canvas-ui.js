@@ -77,7 +77,7 @@ async function state(page) {
       revision: canvasPagedStore.lodPage.boardRevision,
     } : null,
     hasPrimitiveClass: document.querySelector("#infiniteCanvas")?.classList.contains("has-primitive-lod"),
-    panelOpen: !document.querySelector("#canvasBoardPanel")?.hidden,
+    libraryOpen: !document.querySelector("#canvasLibraryScreen")?.hidden,
     storeGeneration: canvasPagedStore.activeGeneration,
     sourceGeneration: canvasViewportDataSource.generation,
     blankMountedNodes: nodes.filter((node) => !(
@@ -169,10 +169,10 @@ async function state(page) {
       } catch {}
     });
     await page.goto(`http://127.0.0.1:${port}`, { waitUntil: "networkidle", timeout: 30_000 });
-    await page.locator("#infiniteCanvas").waitFor({ state: "visible" });
-    await page.evaluate(() => document.querySelector(".canvas-start-gate")?.classList.add("is-dismissed"));
+    await page.locator("#canvasLibraryScreen").waitFor({ state: "visible" });
     for (const boardId of BOARD_IDS) {
-      await page.locator("#canvasHistoryButton").click();
+      if (await page.locator("#canvasEditorScreen").isVisible()) await page.locator("#canvasLibraryBackButton").click();
+      await page.locator("#canvasLibraryScreen").waitFor({ state: "visible" });
       await page.locator(`[data-board-id="${boardId}"]`).click();
       await page.locator("#canvasBoardLoading").waitFor({ state: "hidden", timeout: 30_000 });
       await page.waitForFunction((id) => canvasState.activeBoardId === id, boardId);
@@ -187,9 +187,6 @@ async function state(page) {
       );
       console.log(`after open: ${JSON.stringify(opened)}`);
     }
-    await page.locator("#canvasHistoryButton").click();
-    await page.waitForTimeout(250);
-    console.log(`with history: ${JSON.stringify(await state(page))}`);
     console.log(`viewport responses: ${JSON.stringify(viewportResponses)}`);
     await page.screenshot({
       path: process.env.CANVAS_DIAGNOSTIC_SCREENSHOT || path.join(directory, "current-canvas.png"),

@@ -32,7 +32,7 @@ async function removeTemporaryRoot(root) {
   const dbPath = path.join(root, "canvas.db");
   let repository = createCanvasRepository({ dbPath, requestTimeoutMs: 10_000 });
   try {
-    assert.equal((await repository.ready()).schemaVersion, 4);
+    assert.equal((await repository.ready()).schemaVersion, 5);
     await repository.createBoard({ id: "preview-board", title: "Preview Board" });
     await repository.applyOperations({
       boardId: "preview-board",
@@ -81,7 +81,7 @@ async function removeTemporaryRoot(root) {
     `);
 
     repository = createCanvasRepository({ dbPath, requestTimeoutMs: 10_000 });
-    assert.equal((await repository.ready()).schemaVersion, 4);
+    assert.equal((await repository.ready()).schemaVersion, 5);
     listed = await repository.listBoards();
     board = listed.find((item) => item.id === "preview-board");
     assert.deepEqual(board.previewImages, ["/second-saved.webp", "/first-thumb.webp"]);

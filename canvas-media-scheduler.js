@@ -102,6 +102,11 @@
       return count;
     }
 
+    isPending(key) {
+      const state = this.entries.get(String(key))?.state;
+      return state === "queued" || state === "running" || state === "retrying";
+    }
+
     pumpQuality(quality) {
       if (quality === "original" && this.interactionActive) return;
       while (this.runningCount(quality) < this.limits[quality] && this.queues[quality].length) {

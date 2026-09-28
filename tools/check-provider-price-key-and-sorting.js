@@ -2,9 +2,11 @@ const assert = require("assert");
 const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
+const { normalizeModelPrice } = require("../provider-catalog-service");
 
 const ROOT = path.join(__dirname, "..");
 const SERVER_SOURCE = fs.readFileSync(path.join(ROOT, "server.js"), "utf8");
+const PROVIDER_CATALOG_SOURCE = fs.readFileSync(path.join(ROOT, "provider-catalog-http-api.js"), "utf8");
 const CLIENT_SOURCE = fs.readFileSync(path.join(ROOT, "script.js"), "utf8");
 const STYLE_SOURCE = fs.readFileSync(path.join(ROOT, "styles.css"), "utf8");
 
@@ -36,35 +38,11 @@ function extractFunction(source, name) {
   throw new Error(`Unterminated function ${name}`);
 }
 
-const context = {};
-vm.runInNewContext(
-  [
-    extractFunction(SERVER_SOURCE, "normalizeModelPrice"),
-    extractFunction(SERVER_SOURCE, "compareProviderMonitoringQuality"),
-    "this.normalizeModelPrice = normalizeModelPrice;",
-    "this.compareProviderMonitoringQuality = compareProviderMonitoringQuality;",
-  ].join("\n"),
-  context,
-);
-
-assert.strictEqual(context.normalizeModelPrice("0.05"), "0.05");
-assert.strictEqual(context.normalizeModelPrice("￥0.05"), "0.05");
-assert.strictEqual(context.normalizeModelPrice("$0.006"), "$0.006");
-assert.strictEqual(context.normalizeModelPrice("0.03~0.06"), "0.03~0.06");
-assert.strictEqual(context.normalizeModelPrice("随便写"), "");
-
-const states = [
-  { name: "offline", state: "offline", availability: 0, avgLatencyMs: null },
-  { name: "slow", state: "slow", availability: 95, avgLatencyMs: 5000 },
-  { name: "online-b", state: "online", availability: 99, avgLatencyMs: 900 },
-  { name: "online-a", state: "online", availability: 100, avgLatencyMs: 500 },
-  { name: "account", state: "account-limited", availability: 100, avgLatencyMs: 300 },
-];
-states.sort(context.compareProviderMonitoringQuality);
-assert.deepStrictEqual(
-  states.map((item) => item.name),
-  ["online-a", "online-b", "slow", "account", "offline"],
-);
+assert.strictEqual(normalizeModelPrice("0.05"), "0.05");
+assert.strictEqual(normalizeModelPrice("￥0.05"), "0.05");
+assert.strictEqual(normalizeModelPrice("$0.006"), "$0.006");
+assert.strictEqual(normalizeModelPrice("0.03~0.06"), "0.03~0.06");
+assert.strictEqual(normalizeModelPrice("随便写"), "");
 
 const clientPriceContext = {};
 vm.runInNewContext(
@@ -85,9 +63,9 @@ assert.strictEqual(
 );
 
 assert.match(SERVER_SOURCE, /\/api\/settings\/providers\/key/, "The retired reveal route should remain explicitly blocked");
-assert.match(SERVER_SOURCE, /const prices = Object\.fromEntries/, "Image model metadata should collect manual prices");
-assert.match(SERVER_SOURCE, /families,\s*prices,/, "Image model metadata should expose manual prices");
-assert.match(SERVER_SOURCE, /\.sort\(compareProviderMonitoringQuality\)/, "Monitoring cards should be quality-sorted");
+assert.match(PROVIDER_CATALOG_SOURCE, /const prices = Object\.fromEntries/, "Image model metadata should collect manual prices");
+assert.match(PROVIDER_CATALOG_SOURCE, /families,\s*prices,/, "Image model metadata should expose manual prices");
+assert.doesNotMatch(SERVER_SOURCE, /compareProviderMonitoringQuality/, "retired monitoring sorting must not stay in the server");
 assert.match(CLIENT_SOURCE, /DYNAMIC_IMAGE_MODEL_PRICES/, "Client should load dynamic model prices");
 assert.match(CLIENT_SOURCE, /data-model-price=/, "Generation models should expose a manual price input");
 assert.doesNotMatch(CLIENT_SOURCE, /SETTINGS_PROVIDER_KEY_API_URL|\/api\/settings\/providers\/key|data\.apiKey\s*\|\|/, "Saved keys must never be fetched back into the browser");

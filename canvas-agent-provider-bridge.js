@@ -33,18 +33,26 @@ function createCanvasAgentProviderBridge({ executor } = {}) {
 
   async function runTurn(input = {}) {
     const requirements = getProviderTaskRequirements({ needsVision: Boolean(input.needsVision) });
+    if (!requirements.mustAll.includes("llm.chat.vision")) requirements.mustAll.push("llm.chat.vision");
 
     const request = {
       intent: requirements.intent,
       mustAll: requirements.mustAll,
       preferredProviderId: String(input.providerId || "").trim(),
       preferredModelId: String(input.modelId || "").trim(),
-      input: {
-        messages: Array.isArray(input.messages) ? input.messages : [],
-        system: String(input.system || ""),
-        tools: Array.isArray(input.tools) ? input.tools : [],
-        toolChoice: input.toolChoice || "auto",
-      },
+      candidateOrder: Array.isArray(input.candidateOrder) ? input.candidateOrder : [],
+      forceFallback: input.forceFallback === true,
+      input: (() => {
+        const tools = Array.isArray(input.tools) ? input.tools.filter(Boolean) : [];
+        return {
+          messages: Array.isArray(input.messages) ? input.messages : [],
+          system: String(input.system || ""),
+          tools,
+          // Strict gateways reject `tool_choice` when no tools are sent, so an
+          // empty tool list must not fall back to "auto".
+          toolChoice: tools.length ? (input.toolChoice || "auto") : "",
+        };
+      })(),
       params: {
         max_tokens: 4096,
         ...(input.params && typeof input.params === "object" ? input.params : {}),
@@ -61,6 +69,9 @@ function createCanvasAgentProviderBridge({ executor } = {}) {
       turn: {
         response_id: String(result?.responseId || `agent_${crypto.randomUUID()}`),
         message: String(result?.text || ""),
+        ...(result?.reasoningContent
+          ? { reasoning_content: String(result.reasoningContent) }
+          : {}),
         tool_calls: normalizeToolCalls(result?.toolCalls),
         usage: result?.usage || null,
       },

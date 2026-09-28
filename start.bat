@@ -3,11 +3,11 @@ setlocal
 
 cd /d "%~dp0"
 
-if not exist ".env" (
-  echo Missing .env file.
-  echo Copy .env.example to .env and fill your API settings first.
-  pause
-  exit /b 1
+if not exist ".env" echo NOTE: .env is missing. Login and local data will work, but AI providers need configuration.
+
+if exist "node_modules\electron\dist\electron.exe" (
+  start "" "node_modules\electron\dist\electron.exe" "%~dp0desktop\main.js"
+  exit /b 0
 )
 
 where node >nul 2>nul
@@ -25,8 +25,9 @@ if errorlevel 1 (
   exit /b 1
 )
 
-echo Starting AI Studio...
-start "AI Studio Server" cmd /k "cd /d ""%~dp0"" && node server.js"
+echo Starting AI OS in browser mode...
+set "PORT=3099"
+start "AI OS Server" cmd /k "cd /d ""%~dp0"" && set PORT=3099 && node server.js"
 
 ping -n 3 127.0.0.1 >nul
 start "" "http://localhost:3099"

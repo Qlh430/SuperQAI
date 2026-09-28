@@ -34,6 +34,7 @@ function provider(id, modelId) {
       onDelta({ type: "text-delta", text: "正在处理" });
       return {
         text: "完成",
+        reasoningContent: "先判断需要创建文本节点。",
         toolCalls: [{ id: "call-1", name: "create_text_node", arguments: '{"content":"海报"}' }],
         usage: { total_tokens: 9 },
         selection: { providerId: "primary", modelId: "agent-primary" },
@@ -48,21 +49,32 @@ function provider(id, modelId) {
     messages: [{ role: "user", content: "创建海报" }],
     system: "你是画布 Agent",
     tools: [{ type: "function", function: { name: "create_text_node", parameters: { type: "object" } } }],
-    needsVision: true,
+    needsVision: false,
     providerId: "primary",
     modelId: "agent-primary",
+    candidateOrder: [
+      { providerId: "primary", modelId: "agent-primary" },
+      { providerId: "secondary", modelId: "agent-secondary" },
+    ],
+    forceFallback: true,
     signal: controller.signal,
     onDelta: (event) => deltas.push(event),
   });
   assert.equal(directCalls[0].intent, "llm.tools");
-  assert.deepEqual(directCalls[0].mustAll.sort(), ["llm.chat.vision", "llm.tools"]);
+  assert.deepEqual(directCalls[0].mustAll.sort(), ["llm.chat", "llm.chat.vision", "llm.tools"]);
   assert.equal(directCalls[0].preferredProviderId, "primary");
   assert.equal(directCalls[0].preferredModelId, "agent-primary");
+  assert.deepEqual(directCalls[0].candidateOrder, [
+    { providerId: "primary", modelId: "agent-primary" },
+    { providerId: "secondary", modelId: "agent-secondary" },
+  ]);
+  assert.equal(directCalls[0].forceFallback, true);
   assert.equal(directCalls[0].options.signal, controller.signal);
   assert.deepEqual(directCalls[0].input.tools, [{ type: "function", function: { name: "create_text_node", parameters: { type: "object" } } }]);
   assert.deepEqual(deltas, [{ type: "text-delta", text: "正在处理" }]);
   assert.deepEqual(direct.turn.tool_calls, [{ call_id: "call-1", name: "create_text_node", arguments: { content: "海报" } }]);
   assert.equal(direct.turn.message, "完成");
+  assert.equal(direct.turn.reasoning_content, "先判断需要创建文本节点。");
 
   const providers = [provider("primary", "agent-primary"), provider("secondary", "agent-secondary")];
   const store = {
@@ -86,7 +98,15 @@ function provider(id, modelId) {
   const executor = createProviderExecutor({ resolver: createCapabilityResolver({ store }), engine });
   const bridge = createCanvasAgentProviderBridge({ executor });
 
-  const fallback = await bridge.runTurn({ messages: [{ role: "user", content: "hi" }], tools: [] });
+  const fallback = await bridge.runTurn({
+    messages: [{ role: "user", content: "hi" }],
+    tools: [],
+    candidateOrder: [
+      { providerId: "primary", modelId: "agent-primary" },
+      { providerId: "secondary", modelId: "agent-secondary" },
+    ],
+    forceFallback: true,
+  });
   assert.equal(fallback.selection.providerId, "secondary");
   assert.deepEqual(attempts, ["primary", "secondary"]);
 

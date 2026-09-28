@@ -14,7 +14,7 @@ const { createSystemDb } = require("../system-db");
   const db = createSystemDb({ dbPath, clock });
 
   try {
-    assert.deepEqual(db.migrate(), { schemaVersion: 2 });
+    assert.deepEqual(db.migrate(), { schemaVersion: 4 });
     assert.deepEqual(db.quickCheck(), { ok: true, result: "ok" });
     assert.equal(db.countUsers(), 0);
 

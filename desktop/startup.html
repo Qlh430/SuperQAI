@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>正在启动 AI OS</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: "Segoe UI", "Microsoft YaHei UI", sans-serif;
+        background: #eef3f8;
+        color: #172033;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        background:
+          radial-gradient(circle at 18% 8%, rgba(55, 132, 226, 0.16), transparent 36%),
+          radial-gradient(circle at 92% 92%, rgba(20, 184, 166, 0.13), transparent 38%),
+          #eef3f8;
+      }
+      main {
+        width: 100%;
+        padding: 42px 46px 36px;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin-bottom: 34px;
+      }
+      .mark {
+        width: 48px;
+        height: 48px;
+        display: grid;
+        place-items: center;
+        border-radius: 14px;
+        color: #fff;
+        font: 700 27px/1 Georgia, serif;
+        background: linear-gradient(145deg, #246ad6, #188f9b);
+        box-shadow: 0 12px 30px rgba(36, 106, 214, 0.24);
+      }
+      .brand strong {
+        display: block;
+        font-size: 20px;
+        letter-spacing: 0;
+      }
+      .brand small {
+        display: block;
+        margin-top: 4px;
+        color: #63748a;
+        font-size: 12px;
+      }
+      .status-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+      }
+      #status {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 700;
+      }
+      .spinner {
+        width: 20px;
+        height: 20px;
+        flex: 0 0 auto;
+        border: 2px solid #c4d3e5;
+        border-top-color: #246ad6;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+      #detail {
+        min-height: 22px;
+        margin: 10px 0 18px;
+        color: #63748a;
+        font-size: 13px;
+      }
+      .track {
+        height: 6px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: #d9e4f1;
+      }
+      #progress {
+        width: 4%;
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, #246ad6, #1aa4a5);
+        transition: width 220ms ease;
+      }
+      footer {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        margin-top: 14px;
+        color: #8190a3;
+        font-size: 11px;
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="brand">
+        <span class="mark" aria-hidden="true">∞</span>
+        <div><strong>AI OS</strong><small>本地创作工作台</small></div>
+      </div>
+      <div class="status-row">
+        <p id="status" role="status" aria-live="polite">正在启动 AI OS</p>
+        <span class="spinner" aria-hidden="true"></span>
+      </div>
+      <p id="detail">正在准备启动环境，请稍候…</p>
+      <div class="track" aria-hidden="true"><div id="progress"></div></div>
+      <footer><span>数据只保留在本机</span><span id="hint">首次启动可能需要几秒</span></footer>
+    </main>
+  </body>
+</html>

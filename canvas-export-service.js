@@ -167,6 +167,7 @@ async function importCanvasStream({
   readable,
   boardId,
   onProgress,
+  validateNodes,
   batchSize = 500,
 } = {}) {
   if (!repository || !readable) throw new Error("Canvas import requires repository and readable.");
@@ -186,6 +187,7 @@ async function importCanvasStream({
     if (!batch.length || !entity) return;
     const items = batch;
     batch = [];
+    if (entity === "nodes" && validateNodes) await validateNodes(items);
     await repository.importLegacyBatch({
       boardId: targetId,
       entity,

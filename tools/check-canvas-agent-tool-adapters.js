@@ -33,6 +33,10 @@ async function run() {
     suggested_prompt: "新的苹果产品图",
   }, context)).method, "requestImageNodeChoice");
   assert.equal(calls.at(-1).name, "requestImageNodeChoice");
+  assert.equal((await adapters.request_design_brief({
+    workflow: "poster",
+  }, context)).method, "requestDesignBrief");
+  assert.equal(calls.at(-1).name, "requestDesignBrief");
   assert.equal((await adapters.create_llm_node({ prompt: "总结" }, context)).method, "createNode");
   assert.equal(calls.at(-1).args[0], "llm");
   assert.equal((await adapters.create_comfy_node({ mode: "upscale2" }, context)).method, "createNode");
@@ -51,6 +55,21 @@ async function run() {
 
   await adapters.update_node({ node_id: "1", changes: { prompt: "新提示" } }, context);
   assert.deepEqual(calls.at(-1), { name: "updateNode", args: ["1", { prompt: "新提示" }, context] });
+  await adapters.update_node({
+    node_id: "1",
+    changes: { prompt: "桃子竖版构图，2K清晰度", size: "9:16", resolution: null },
+  }, context);
+  assert.equal(calls.at(-1).args[1].resolution, "2", "prompt-only 2K intent must become a structured resolution");
+  await adapters.update_node({
+    node_id: "1",
+    changes: { prompt: "4K清晰度", resolution: "1K" },
+  }, context);
+  assert.equal(calls.at(-1).args[1].resolution, "1", "an explicit structured resolution must override prompt inference");
+  await adapters.update_node({
+    node_id: "1",
+    changes: { prompt: "展示名为 2K-demo 的产品", resolution: null },
+  }, context);
+  assert.equal(calls.at(-1).args[1].resolution, null, "unrelated 2K text must not change the output tier");
   await adapters.update_nodes({ node_ids: ["1", "2"], changes: { title: "统一" } }, context);
   assert.deepEqual(calls.at(-1).args[0], ["1", "2"]);
   await adapters.disconnect_nodes({ from_id: "1", to_id: "2" }, context);
@@ -61,6 +80,15 @@ async function run() {
   const activated = await adapters.activate_canvas_skill({ skill_id: "poster-design", reason: "海报" }, context);
   assert.deepEqual(activated, { activated_skill_id: "poster-design", reason: "海报" });
   assert.equal(calls.at(-1).name, "deleteNodes", "skill activation must not touch the canvas API");
+
+  assert.equal(
+    (await adapters.read_skill_reference({ skill_id: "poster-design", path: "references/base.txt" }, context)).method,
+    "readSkillReference",
+  );
+  assert.deepEqual(calls.at(-1), {
+    name: "readSkillReference",
+    args: [{ skill_id: "poster-design", path: "references/base.txt" }, context],
+  });
 
   console.log("Canvas agent tool adapter checks passed.");
 }

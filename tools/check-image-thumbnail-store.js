@@ -76,13 +76,15 @@ assert.equal(recovered.lookup("/output/a.png"), null);
 
 fs.rmSync(root, { recursive: true, force: true });
 
-const serverSource = fs.readFileSync(path.resolve(__dirname, "..", "server.js"), "utf8");
+const serverSource = require("./server-source").readServerSource();
+const thumbnailApiSource = fs.readFileSync(path.resolve(__dirname, "..", "thumbnail-http-api.js"), "utf8");
+const staticApiSource = fs.readFileSync(path.resolve(__dirname, "..", "static-http-api.js"), "utf8");
 assert.match(serverSource, /require\("\.\/image-thumbnail-store"\)/);
 assert.match(serverSource, /const thumbnailStore = createThumbnailStore\(/);
-assert.match(serverSource, /req\.url\.startsWith\("\/api\/image-thumbnails"\)/);
-assert.match(serverSource, /async function handleImageThumbnails\(/);
-assert.match(serverSource, /function resolveOutputPath\(/);
-assert.match(serverSource, /decodeURIComponent\(String\(urlPath/);
-assert.doesNotMatch(serverSource, /function serveOutput\(urlPath, res\) \{\s*const filename = path\.basename\(urlPath\)/);
+assert.match(thumbnailApiSource, /requestPathname\(req\)\.startsWith\("\/api\/image-thumbnails"\)/);
+assert.match(thumbnailApiSource, /async function handle\(req, res\)/);
+assert.match(staticApiSource, /function resolveOutputPath\(/);
+assert.match(staticApiSource, /decodeURIComponent\(String\(urlPath/);
+assert.doesNotMatch(staticApiSource, /function serveOutput\(urlPath, res\) \{\s*const filename = path\.basename\(urlPath\)/);
 
 console.log("Image thumbnail store checks passed.");

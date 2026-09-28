@@ -11,10 +11,10 @@ assert.match(workerSource, /FROM connection_spatial s\s+CROSS JOIN connections c
 const database = new DatabaseSync(":memory:");
 initializeSchema(database);
 
-function assertSpatialFirst(sql, params) {
+function assertSpatialFirst(sql, params, expectedIndex = /SEARCH [nc] USING INTEGER PRIMARY KEY/) {
   const plan = database.prepare(`EXPLAIN QUERY PLAN ${sql}`).all(...params);
   assert.match(plan[0]?.detail || "", /SCAN s VIRTUAL TABLE INDEX/);
-  assert.match(plan[1]?.detail || "", /SEARCH [nc] USING INTEGER PRIMARY KEY/);
+  assert.match(plan[1]?.detail || "", expectedIndex);
   assert.equal(plan.some((item) => /USE TEMP B-TREE/.test(item.detail)), false);
 }
 
@@ -38,6 +38,23 @@ assertSpatialFirst(`
      AND c.board_pk = ?
    LIMIT ?
 `, [0, 1, 0, 1, 1, 1_201]);
+
+assertSpatialFirst(`
+  SELECT n.external_id, n.x, n.y, n.width, n.height
+    FROM node_spatial s
+    CROSS JOIN nodes n INDEXED BY nodes_viewport_geometry_idx ON n.pk = s.pk
+   WHERE s.max_x >= ? AND s.min_x <= ?
+     AND s.max_y >= ? AND s.min_y <= ? AND n.board_pk = ?
+`, [0, 1, 0, 1, 1], /SEARCH n USING COVERING INDEX nodes_viewport_geometry_idx/);
+
+assertSpatialFirst(`
+  SELECT geometry.from_x, geometry.to_x
+    FROM connection_spatial s
+    CROSS JOIN connections c INDEXED BY connections_viewport_idx ON c.pk = s.pk
+    CROSS JOIN connection_geometry geometry ON geometry.connection_pk = c.pk
+   WHERE s.max_x >= ? AND s.min_x <= ?
+     AND s.max_y >= ? AND s.min_y <= ? AND c.board_pk = ?
+`, [0, 1, 0, 1, 1], /SEARCH c USING COVERING INDEX connections_viewport_idx/);
 
 database.close();
 console.log("Canvas spatial query plan checks passed.");

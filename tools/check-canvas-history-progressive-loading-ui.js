@@ -62,9 +62,8 @@ function createProgressiveBoard() {
 
   try {
     await page.goto(APP_URL, { waitUntil: "domcontentloaded", timeout: 30000 });
-    await page.locator("#infiniteCanvas").waitFor({ state: "visible" });
+    await page.locator("#canvasLibraryScreen").waitFor({ state: "visible" });
     await page.evaluate(() => {
-      document.querySelector(".canvas-start-gate")?.classList.add("is-dismissed");
       window.__canvasLoadingProgress = [];
       const percent = document.querySelector("#canvasBoardLoadingPercent");
       const capture = () => {
@@ -75,7 +74,6 @@ function createProgressiveBoard() {
       new MutationObserver(capture).observe(percent, { childList: true, subtree: true, characterData: true });
     });
 
-    await page.locator("#canvasHistoryButton").click();
     const card = page.locator('[data-board-id="progressive-test-board"]');
     await card.waitFor({ state: "visible" });
     await card.click();

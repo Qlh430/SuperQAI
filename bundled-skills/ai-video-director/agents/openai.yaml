@@ -1,0 +1,6 @@
+interface:
+  display_name: "AI 视频导演"
+  short_description: "用纯文字完成AI视频策划、分镜提示词、画面复盘和剪辑节奏设计"
+  default_prompt: "使用 $ai-video-director 把我的视频想法整理成分阶段确认的脚本、完整分镜提示词和剪辑节奏蓝图。"
+policy:
+  allow_implicit_invocation: false

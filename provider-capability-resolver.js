@@ -16,12 +16,32 @@ function compareText(left, right) {
 }
 
 function compareCandidate(left, right) {
-  return left.providerCapabilityOrder - right.providerCapabilityOrder
+  return left.configuredOrder - right.configuredOrder
+    || left.healthRank - right.healthRank
+    || left.providerCapabilityOrder - right.providerCapabilityOrder
     || left.providerSortOrder - right.providerSortOrder
     || left.modelCapabilityOrder - right.modelCapabilityOrder
     || left.modelSortOrder - right.modelSortOrder
     || compareText(left.provider.id, right.provider.id)
     || compareText(left.model.id, right.model.id);
+}
+
+function candidateKey(providerId, modelId) {
+  return `${String(providerId || "").trim()}\n${String(modelId || "").trim()}`;
+}
+
+function normalizeCandidateOrder(value) {
+  const output = [];
+  const seen = new Set();
+  for (const item of Array.isArray(value) ? value : []) {
+    const providerId = String(item?.providerId || "").trim();
+    const modelId = String(item?.modelId || "").trim();
+    const key = candidateKey(providerId, modelId);
+    if (!providerId || !modelId || seen.has(key)) continue;
+    seen.add(key);
+    output.push({ providerId, modelId });
+  }
+  return output;
 }
 
 function publicAlternative(candidate) {
@@ -34,7 +54,7 @@ function publicAlternative(candidate) {
   };
 }
 
-function createCapabilityResolver({ store } = {}) {
+function createCapabilityResolver({ store, candidateHealth = null } = {}) {
   if (!store || typeof store.listInternal !== "function" || typeof store.getAutoFallback !== "function") {
     throw new TypeError("Capability Resolver requires a compatible Provider Store.");
   }
@@ -50,25 +70,47 @@ function createCapabilityResolver({ store } = {}) {
       anyOf,
       preferredProviderId: String(query.preferredProviderId || "").trim(),
       preferredModelId: String(query.preferredModelId || "").trim(),
+      candidateOrder: normalizeCandidateOrder(query.candidateOrder),
     };
   }
 
   function listCandidates(query = {}) {
     const normalized = normalizedQuery(query);
+    const pinned = Boolean(normalized.preferredProviderId || normalized.preferredModelId);
+    const orderByKey = new Map(normalized.candidateOrder.map((item, index) => [candidateKey(item.providerId, item.modelId), index]));
+    const ordered = orderByKey.size > 0;
     const output = [];
-    for (const provider of store.listInternal()) {
-      if (!provider?.enabled) continue;
-      if (normalized.preferredProviderId && provider.id !== normalized.preferredProviderId) continue;
-      for (const model of Array.isArray(provider.models) ? provider.models : []) {
-        if (normalized.preferredModelId && model.id !== normalized.preferredModelId) continue;
+    const providers = store.listInternal().filter(provider => provider?.enabled
+      && (!normalized.preferredProviderId || provider.id === normalized.preferredProviderId));
+    const exactMatch = providers.some(provider => (provider.models || []).some(model => model.id === normalized.preferredModelId));
+    for (const provider of providers) {
+      const models = Array.isArray(provider.models) ? provider.models : [];
+      for (const model of models) {
+        const configuredOrder = orderByKey.get(candidateKey(provider.id, model.id));
+        if (ordered && configuredOrder === undefined) continue;
+        if (normalized.preferredModelId && model.id !== normalized.preferredModelId
+          && (exactMatch || !Array.isArray(model.metadata?.legacyModelIds) || !model.metadata.legacyModelIds.includes(normalized.preferredModelId))) continue;
         const capabilities = new Set(Array.isArray(model.capabilities) ? model.capabilities : []);
         if (!normalized.mustAll.every((capability) => capabilities.has(capability))) continue;
         if (normalized.anyOf.length && !normalized.anyOf.some((capability) => capabilities.has(capability))) continue;
+        let health = null;
+        if (!pinned && !ordered && typeof candidateHealth === "function") {
+          try {
+            health = candidateHealth({ provider, model, intent: normalized.intent }) || null;
+          } catch {
+            health = null;
+          }
+        }
+        const healthRanked = Number.isFinite(Number(health?.rank));
         output.push({
           provider,
           model,
           intent: normalized.intent,
-          reason: normalized.preferredProviderId || normalized.preferredModelId ? "pinned-selection" : "administrator-order",
+          reason: pinned ? "pinned-selection" : healthRanked ? "health-priority" : "administrator-order",
+          health: healthRanked ? { ...health, rank: Number(health.rank) } : null,
+          healthRanked,
+          healthRank: healthRanked ? Number(health.rank) : 0,
+          configuredOrder: configuredOrder ?? Number.MAX_SAFE_INTEGER,
           providerCapabilityOrder: finiteOrder(provider.capabilitySort?.[normalized.intent]),
           providerSortOrder: finiteOrder(provider.sortOrder),
           modelCapabilityOrder: finiteOrder(model.capabilitySort?.[normalized.intent]),
@@ -99,7 +141,7 @@ function createCapabilityResolver({ store } = {}) {
     const selected = candidates[0];
     return {
       ...selected,
-      reason: pinned ? "pinned-selection" : "administrator-order",
+      reason: pinned ? "pinned-selection" : selected.reason,
       warnings: [],
       alternatives: candidates.slice(1, 6).map(publicAlternative),
     };

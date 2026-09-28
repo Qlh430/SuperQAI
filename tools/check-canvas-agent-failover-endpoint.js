@@ -75,19 +75,18 @@ function parseNdjson(text) {
     req.resume();
     req.on("end", () => {
       upstreamPaths.push(req.url);
-      if (req.url === "/v1/responses") {
+      if (req.url === "/v1/chat/completions") {
         res.writeHead(503, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ error: { message: "temporary upstream failure" } }));
         return;
       }
-      if (req.url === "/v1/chat/completions") {
-        res.writeHead(200, { "Content-Type": "text/event-stream; charset=utf-8" });
-        res.write(`data: ${JSON.stringify({
-          id: "chat-fallback-ok",
+      if (req.url === "/v1/responses") {
+        res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+        res.end(JSON.stringify({
+          id: "response-fallback-ok",
           model: "must-not-leak-model",
-          choices: [{ delta: { content: "备用通道已响应" } }],
-        })}\n\n`);
-        res.end("data: [DONE]\n\n");
+          output: [{ type: "message", content: [{ type: "output_text", text: "备用通道已响应" }] }],
+        }));
         return;
       }
       res.writeHead(404);
@@ -112,11 +111,18 @@ function parseNdjson(text) {
     cwd: ROOT,
     env: {
       ...process.env,
+      AI_OS_SKIP_ENV_FILE: "1",
       PORT: String(appPort),
       HOST: "127.0.0.1",
+      AI_OS_AUTH_DISABLED: "1",
+      AI_OS_DATA_DIR: tempDirectory,
+      AI_API_URL: `http://127.0.0.1:${upstreamPort}/v1/chat/completions`,
+      AI_API_KEY: "test-chat-key",
+      AI_MODEL: "test-chat-primary",
+      AI_MODELS: "test-chat-primary",
       CANVAS_AGENT_API_URL: `http://127.0.0.1:${upstreamPort}/v1`,
       CANVAS_AGENT_API_KEY: "test-agent-key",
-      CANVAS_AGENT_MODEL: "test-fast-model",
+      CANVAS_AGENT_MODEL: "test-response-fallback",
       CANVAS_AGENT_USE_SETTINGS_PROVIDERS: "false",
       CANVAS_AGENT_ROUTE_HISTORY_ENABLED: "false",
       CANVAS_AGENT_ROUTE_HISTORY_FILE: routeHistoryFile,
@@ -133,6 +139,9 @@ function parseNdjson(text) {
 
   try {
     await waitForServer(appPort, child, diagnostics);
+    assert.equal((await request(appPort, "/api/canvas/boards", {
+      method: "POST", body: { id: "board-failover", title: "故障转移测试" },
+    })).status, 201);
     const response = await request(appPort, "/api/canvas-agent/turn", {
       method: "POST",
       headers: { Accept: "application/x-ndjson" },
@@ -151,10 +160,10 @@ function parseNdjson(text) {
     assert.deepEqual(events.map((event) => event.type), ["status", "status", "status", "turn"]);
     assert.deepEqual(events.filter((event) => event.type === "status").map((event) => event.stage), ["understanding", "recovering", "resumed"]);
     assert.equal(events.at(-1).turn.message, "备用通道已响应");
-    assert.equal(events.at(-1).turn.response_id, "chat-fallback-ok");
+    assert.equal(events.at(-1).turn.response_id, "response-fallback-ok");
     assert.deepEqual(events.at(-1).turn.tool_calls, []);
-    assert.doesNotMatch(response.text, /must-not-leak-model|test-fast-model|provider|endpoint/i);
-    assert.deepEqual(upstreamPaths, ["/v1/responses", "/v1/chat/completions"]);
+    assert.doesNotMatch(response.text, /must-not-leak-model|test-chat-primary|test-response-fallback|provider|endpoint/i);
+    assert.deepEqual(upstreamPaths, ["/v1/chat/completions", "/v1/responses"]);
   } finally {
     if (child.exitCode === null) {
       child.kill();

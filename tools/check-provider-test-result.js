@@ -1,0 +1,30 @@
+"use strict";
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+assert.ok(fs.existsSync(path.join(__dirname, "../provider-test-result.js")), "test results need a dedicated safe presentation contract");
+const { presentTestResult, safeImageSource } = require("../provider-test-result");
+const reply = "这是实际回复。".repeat(600);
+const chat = presentTestResult({ text: reply }, "llm.chat", 234);
+assert.equal(chat.text, reply);
+assert.equal(chat.status, "succeeded");
+assert.equal(chat.elapsedMs, 234);
+const b64 = Buffer.alloc(5000, 1).toString("base64");
+const image = presentTestResult({ data: [{ b64_json: b64, mime_type: "image/webp" }] }, "image.generate", 789);
+assert.deepEqual(image.images, [`data:image/webp;base64,${b64}`]);
+assert.equal(image.status, "succeeded");
+assert.equal(presentTestResult({ task_id: "job-42" }, "image.generate").status, "pending");
+assert.equal(presentTestResult({ data: { taskId: "job-42" } }, "image.generate").taskId, "job-42");
+assert.equal(presentTestResult({ task_id: "job", status: "failed", error: "failed" }, "image.generate").status, "failed");
+assert.equal(presentTestResult({ data: [{ url: "https://images.example/a.png" }], task_id: "job" }, "image.generate").status, "succeeded");
+assert.equal(presentTestResult({ data: [{}] }, "image.generate").status, "invalid");
+assert.equal(presentTestResult({ text: "  " }, "llm.chat").status, "invalid");
+assert.equal(presentTestResult({ toolCalls: [{ name: "test" }] }, "llm.chat").status, "succeeded");
+for (const unsafe of ["javascript:alert(1)", "file:///C:/secret", "data:image/svg+xml;base64,PHN2Zz4=", "https://user:pass@example.test/a", "data:text/html,hello"]) {
+  assert.equal(safeImageSource(unsafe), "", unsafe);
+  assert.equal(presentTestResult({ data: [{ url: unsafe }] }, "image.generate").status, "invalid");
+}
+assert.equal(presentTestResult({ data: [{ b64_json: "not base64!" }] }, "image.generate").status, "invalid");
+assert.equal(presentTestResult({ text: `secret: sk-real-key` }, "llm.chat", 0, ["sk-real-key"]).text.includes("sk-real-key"), false);
+assert.equal(presentTestResult({ data: [{ url: "https://example.test/sk-real-key" }] }, "image.generate", 0, ["sk-real-key"]).images.length, 0);
+console.log("Provider test result checks passed (reply, image, pending, failure, safety).");

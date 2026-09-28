@@ -86,7 +86,8 @@
         error.code = "unsupported_tool";
         throw error;
       }
-      const args = call?.arguments;
+      const args = applySchemaDefaults(capability.tool?.inputSchema, call?.arguments);
+      call.arguments = args;
       validateSchema(capability.tool?.inputSchema, args, "参数");
       const count = getTargetCount(args);
       if (count > MAX_BATCH_TARGETS) {
@@ -240,6 +241,47 @@
         if (Object.prototype.hasOwnProperty.call(value, key)) validateSchema(propertySchema, value[key], `${path}.${key}`);
       });
     }
+  }
+
+  function applySchemaDefaults(schema, value) {
+    if (!schema || typeof schema !== "object") return value;
+    if (Array.isArray(value)) {
+      const itemSchema = schema.items;
+      return value.map((item) => applySchemaDefaults(itemSchema, item));
+    }
+    if (!value || typeof value !== "object") return value;
+    const properties = schema.properties && typeof schema.properties === "object" ? schema.properties : {};
+    const result = { ...value };
+    Object.entries(properties).forEach(([key, propertySchema]) => {
+      if (Object.prototype.hasOwnProperty.call(result, key)) {
+        result[key] = applySchemaDefaults(propertySchema, result[key]);
+        return;
+      }
+      const inferredDefault = inferSchemaDefault(propertySchema);
+      if (inferredDefault.hasDefault) {
+        result[key] = cloneSchemaDefault(inferredDefault.value);
+      }
+    });
+    return result;
+  }
+
+  function inferSchemaDefault(schema) {
+    if (!schema || typeof schema !== "object") return { hasDefault: false, value: undefined };
+    if (Object.prototype.hasOwnProperty.call(schema, "default")) {
+      return { hasDefault: true, value: schema.default };
+    }
+    const types = Array.isArray(schema.type) ? schema.type : [schema.type];
+    if (types.includes("null")) return { hasDefault: true, value: null };
+    if (schema.type === "array") return { hasDefault: true, value: [] };
+    return { hasDefault: false, value: undefined };
+  }
+
+  function cloneSchemaDefault(value) {
+    if (Array.isArray(value)) return value.map(cloneSchemaDefault);
+    if (value && typeof value === "object") {
+      return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, cloneSchemaDefault(item)]));
+    }
+    return value;
   }
 
   function matchesJsonType(value, type) {

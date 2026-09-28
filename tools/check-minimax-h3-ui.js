@@ -15,6 +15,8 @@ const root = path.join(__dirname, "..");
   page.on("pageerror", (error) => pageErrors.push(error.message));
 
   await page.goto(baseUrl, { waitUntil: "networkidle" });
+  await page.locator('[data-ai-app="canvas"]').click();
+  await page.locator("#canvasLibraryScreen").waitFor({ state: "visible" });
   const result = await page.evaluate(() => {
     setActiveTool("canvas");
     canvasState.isRestoring = true;
@@ -58,7 +60,8 @@ const root = path.join(__dirname, "..");
     const before = getCanvasIncomingMinimaxH3Refs(h3);
     const board = JSON.parse(JSON.stringify(serializeCanvasBoard()));
     restoreCanvasBoard(board);
-    canvasState.isRestoring = true;
+    showCanvasEditor();
+    canvasVirtualizer.flushNow();
     const restoredH3 = document.querySelector(".canvas-node-minimax-h3");
     const restoredOutput = document.querySelector(".canvas-node-video-output");
     const getH3Select = (caption) => Array.from(restoredH3.querySelectorAll(".canvas-h3-field"))
@@ -163,7 +166,7 @@ const root = path.join(__dirname, "..");
     };
   });
 
-  ["video", "audio", "minimax-h3", "video-output"].forEach((kind) => assert.ok(result.menuKinds.includes(kind), `Missing menu kind: ${kind}`));
+  ["asset", "video-generator"].forEach((kind) => assert.ok(result.menuKinds.includes(kind), `Missing menu kind: ${kind}`));
   ["audio", "image", "minimax-h3", "text", "video", "video-output"].forEach((kind) => assert.ok(result.kinds.includes(kind), `Missing serialized kind: ${kind}`));
   assert.deepEqual(result.before, { images: 1, videos: 1, audios: 1 });
   assert.deepEqual(result.after, result.before);
@@ -195,13 +198,15 @@ const root = path.join(__dirname, "..");
   assert.deepEqual(result.missingReferenceCheck, { ok: false, missing: ["<Video 2>"] });
 
   await page.evaluate((nodeId) => {
-    const node = document.querySelector(`[data-id="${nodeId}"]`);
+    showCanvasEditor();
+    const node = document.querySelector(`[data-id="${nodeId}"]`) || ensureCanvasNodeMounted(nodeId);
     setCanvasNodePoint(node, { x: 560, y: 80 });
     updateCanvasNodePosition(node);
     canvasState.x = 0;
     canvasState.y = 0;
     canvasState.scale = 0.82;
     applyCanvasTransform();
+    canvasVirtualizer.flushNow();
   }, result.mentionH3Id);
   const mentionNode = page.locator(`[data-id="${result.mentionH3Id}"]`);
   const mentionPrompt = mentionNode.locator(".canvas-h3-prompt");

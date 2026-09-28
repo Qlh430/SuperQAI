@@ -49,9 +49,7 @@ async function waitForServer(port, diagnostics) {
 }
 
 async function openBoard(page) {
-  await page.locator("#infiniteCanvas").waitFor({ state: "visible", timeout: 30_000 });
-  await page.evaluate(() => document.querySelector(".canvas-start-gate")?.classList.add("is-dismissed"));
-  await page.locator("#canvasHistoryButton").click();
+  await page.locator("#canvasLibraryScreen").waitFor({ state: "visible", timeout: 30_000 });
   await page.locator(`[data-board-id="${BOARD_ID}"]`).click({ timeout: 10_000 });
   await page.locator("#canvasBoardLoading").waitFor({ state: "hidden", timeout: 30_000 });
   await page.waitForFunction((nodeId) => Boolean(
@@ -150,7 +148,7 @@ async function openBoard(page) {
       await openBoard(page);
     } catch (error) {
       const state = await page.evaluate(() => ({
-        boardPanelText: document.querySelector("#canvasBoardPanel")?.textContent?.trim(),
+        libraryText: document.querySelector("#canvasLibraryScreen")?.textContent?.trim(),
         loadingText: document.querySelector("#canvasBoardLoading")?.textContent?.trim(),
         statusText: document.querySelector("#canvasStatus")?.textContent?.trim(),
         storeSize: globalThis.canvasVirtualStore?.size,
@@ -214,6 +212,38 @@ async function openBoard(page) {
     );
     assert.deepEqual(pageErrors, [], `unexpected 404 responses: ${missingResponses.join(", ")}`);
     assert.ok(fs.readdirSync(backupDirectory).some((name) => name.includes(".bak-")));
+
+    await page.locator(`#canvasPlane .canvas-node[data-id="${FAR_NODE_ID}"] .canvas-node-delete`).click();
+    await page.waitForFunction((nodeId) => !document.querySelector(`#canvasPlane .canvas-node[data-id="${nodeId}"]`), FAR_NODE_ID);
+    await page.evaluate(async () => {
+      await flushCanvasOperations();
+    });
+    const canvasBox = await page.locator("#infiniteCanvas").boundingBox();
+    assert.ok(canvasBox, "canvas must remain available after deleting a node");
+    await page.mouse.move(canvasBox.x + canvasBox.width - 80, canvasBox.y + canvasBox.height - 80);
+    await page.mouse.down();
+    await page.mouse.move(canvasBox.x + canvasBox.width - 260, canvasBox.y + canvasBox.height - 180, { steps: 6 });
+    await page.mouse.up();
+    await page.waitForTimeout(700);
+    const deletedAfterPan = await page.evaluate((nodeId) => ({
+      mounted: Boolean(document.querySelector(`#canvasPlane .canvas-node[data-id="${nodeId}"]`)),
+      resident: Boolean(canvasVirtualStore.get(nodeId)),
+    }), FAR_NODE_ID);
+    assert.deepEqual(
+      deletedAfterPan,
+      { mounted: false, resident: false },
+      "deleting from the title bar must survive panning without the node being mounted again",
+    );
+    const remoteAfterDelete = await requestJson(
+      port,
+      `/api/canvas/boards/${BOARD_ID}/viewport?left=49000&top=-500&right=51000&bottom=900&scale=1&nodeLimit=800&connectionLimit=1200&generation=delete-regression`,
+    );
+    assert.equal(remoteAfterDelete.status, 200);
+    assert.equal(
+      remoteAfterDelete.data.nodes.some((node) => node.id === FAR_NODE_ID),
+      false,
+      "the persisted board must not return a node deleted from its title bar",
+    );
     console.log("Canvas paged migration and round-trip UI checks passed.");
   } finally {
     await browser?.close();

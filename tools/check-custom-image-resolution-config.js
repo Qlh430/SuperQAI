@@ -12,6 +12,34 @@ const SERVER_SOURCE = fs.readFileSync(path.join(ROOT, "server.js"), "utf8");
 const CLIENT_SOURCE = fs.readFileSync(path.join(ROOT, "script.js"), "utf8");
 const STYLE_SOURCE = fs.readFileSync(path.join(ROOT, "styles.css"), "utf8");
 
+function resolveLocalModule(root, fromRelativePath, request) {
+  const base = path.resolve(path.dirname(path.join(root, fromRelativePath)), request);
+  const candidates = [base, `${base}.js`, `${base}.json`, path.join(base, "index.js")];
+  const resolved = candidates.find((candidate) => fs.existsSync(candidate) && fs.statSync(candidate).isFile());
+  if (!resolved) throw new Error(`Cannot resolve local server dependency ${fromRelativePath} -> ${request}`);
+  return path.relative(root, resolved).replace(/\\/g, "/");
+}
+
+function copyServerDependencyClosure(sourceRoot, targetRoot) {
+  const visited = new Set();
+  function visit(relativePath) {
+    if (visited.has(relativePath)) return;
+    visited.add(relativePath);
+    const sourcePath = path.join(sourceRoot, relativePath);
+    const targetPath = path.join(targetRoot, relativePath);
+    fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+    fs.copyFileSync(sourcePath, targetPath);
+    if (path.extname(relativePath).toLowerCase() !== ".js") return;
+    const source = fs.readFileSync(sourcePath, "utf8");
+    const requirePattern = /require\(\s*["'](\.[^"']+)["']\s*\)/g;
+    let match;
+    while ((match = requirePattern.exec(source))) {
+      visit(resolveLocalModule(sourceRoot, relativePath, match[1]));
+    }
+  }
+  visit("server.js");
+}
+
 function extractFunction(source, name) {
   const start = source.indexOf(`function ${name}(`);
   assert.notStrictEqual(start, -1, `Missing function ${name}`);
@@ -43,7 +71,7 @@ function extractFunction(source, name) {
 async function waitForServer(port, child) {
   const deadline = Date.now() + 5000;
   while (Date.now() < deadline) {
-    if (child.exitCode !== null) throw new Error(`Test server exited with code ${child.exitCode}`);
+    if (child.exitCode !== null) throw new Error(`Test server exited with code ${child.exitCode}${child.__diagnostics ? `: ${child.__diagnostics}` : ""}`);
     try {
       return await new Promise((resolve, reject) => {
         http.get(`http://127.0.0.1:${port}/api/image-models`, (response) => {
@@ -62,12 +90,17 @@ async function waitForServer(port, child) {
 
 async function checkProviderResolutionIsolation() {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "image-resolution-config-"));
+  copyServerDependencyClosure(ROOT, tempRoot);
   fs.copyFileSync(path.join(ROOT, "server.js"), path.join(tempRoot, "server.js"));
   fs.copyFileSync(path.join(ROOT, "image-job-manager.js"), path.join(tempRoot, "image-job-manager.js"));
   fs.copyFileSync(path.join(ROOT, "image-model-routing.js"), path.join(tempRoot, "image-model-routing.js"));
   fs.copyFileSync(path.join(ROOT, "image-resolution-rules.js"), path.join(tempRoot, "image-resolution-rules.js"));
   fs.copyFileSync(path.join(ROOT, "image-thumbnail-store.js"), path.join(tempRoot, "image-thumbnail-store.js"));
+  fs.copyFileSync(path.join(ROOT, "canvas-media-cleanup.js"), path.join(tempRoot, "canvas-media-cleanup.js"));
   fs.copyFileSync(path.join(ROOT, "outbound-fetch.js"), path.join(tempRoot, "outbound-fetch.js"));
+  fs.copyFileSync(path.join(ROOT, "outbound-route-policy.js"), path.join(tempRoot, "outbound-route-policy.js"));
+  fs.copyFileSync(path.join(ROOT, "outbound-route-state.js"), path.join(tempRoot, "outbound-route-state.js"));
+  fs.copyFileSync(path.join(ROOT, "image-sync-service.js"), path.join(tempRoot, "image-sync-service.js"));
   fs.copyFileSync(path.join(ROOT, "minimax-h3-workflow.js"), path.join(tempRoot, "minimax-h3-workflow.js"));
   fs.copyFileSync(path.join(ROOT, "canvas-agent-runtime.js"), path.join(tempRoot, "canvas-agent-runtime.js"));
   fs.copyFileSync(path.join(ROOT, "canvas-agent-capabilities.js"), path.join(tempRoot, "canvas-agent-capabilities.js"));
@@ -77,6 +110,56 @@ async function checkProviderResolutionIsolation() {
   fs.copyFileSync(path.join(ROOT, "canvas-agent-llm-connectors.js"), path.join(tempRoot, "canvas-agent-llm-connectors.js"));
   fs.copyFileSync(path.join(ROOT, "canvas-agent-conversation.js"), path.join(tempRoot, "canvas-agent-conversation.js"));
   fs.copyFileSync(path.join(ROOT, "canvas-agent-conversation-store.js"), path.join(tempRoot, "canvas-agent-conversation-store.js"));
+  fs.copyFileSync(path.join(ROOT, "auth-crypto.js"), path.join(tempRoot, "auth-crypto.js"));
+  fs.copyFileSync(path.join(ROOT, "system-db.js"), path.join(tempRoot, "system-db.js"));
+  fs.copyFileSync(path.join(ROOT, "auth-service.js"), path.join(tempRoot, "auth-service.js"));
+  fs.copyFileSync(path.join(ROOT, "resource-access.js"), path.join(tempRoot, "resource-access.js"));
+  fs.copyFileSync(path.join(ROOT, "backup-service.js"), path.join(tempRoot, "backup-service.js"));
+  for (const file of [
+    "ai-os-display.js",
+    "server-image-thumbnails.js",
+    "canvas-collab-hub.js",
+    "canvas-media-references.js",
+    "image-loading-rules.js",
+    "media-image-contract.js",
+    "protocol-contracts.js",
+    "provider-model-rules.js",
+    "canvas-spatial-rules.js",
+    "canvas-project-service.js",
+    "asset-library-service.js",
+    "provider-secret-vault.js",
+    "provider-store.js",
+    "provider-migration.js",
+    "provider-protocol-registry.js",
+    "provider-protocol-engine.js",
+    "model-capabilities.js",
+    "provider-capability-resolver.js",
+    "provider-executor.js",
+    "canvas-agent-provider-bridge.js",
+    "media-provider-bridge.js",
+    "media-protocol-adapters.js",
+    "provider-http-api.js",
+    "jimeng-cli-service.js",
+    "protocol-center.js",
+    "provider-response-errors.js",
+    "provider-test-result.js",
+    "provider-agent-coverage.js",
+    "canvas-repository.js",
+    "canvas-legacy-migrator.js",
+    "canvas-query-service.js",
+    "canvas-command-service.js",
+    "canvas-export-service.js",
+    "provider-catalog-health.js",
+    "skill-registry.js",
+    "resource-preview.js",
+    "agent-model-settings.js",
+    "background-removal-service.js",
+    "comfyui-background-removal.js",
+    "comfyui-service.js",
+    "comfyui-http-api.js",
+  ]) {
+    fs.copyFileSync(path.join(ROOT, file), path.join(tempRoot, file));
+  }
   for (const directory of ["data", "output", "workflows", path.join("tmp", "uploads")]) {
     fs.mkdirSync(path.join(tempRoot, directory), { recursive: true });
   }
@@ -108,20 +191,53 @@ async function checkProviderResolutionIsolation() {
           platform: "openai",
         }],
       },
+      {
+        id: "provider-apimart",
+        name: "apimart-test",
+        baseUrl: "https://api.apimart.ai/v1",
+        apiKey: "test-key-apimart",
+        protocol: "apimart",
+        enabled: true,
+        models: [{
+          id: "gpt-image-2-apimart",
+          protocol: "openai-images",
+          capabilities: ["generation", "edit"],
+          resolutions: ["1", "2", "4"],
+          platform: "openai",
+        }],
+      },
     ],
   }));
 
   const port = 38000 + Math.floor(Math.random() * 2000);
   const child = spawn(process.execPath, ["server.js"], {
     cwd: tempRoot,
-    env: { ...process.env, PORT: String(port), HOST: "127.0.0.1", AI_API_KEY: "", AI_IMAGE_API_KEY: "" },
-    stdio: "ignore",
+    env: {
+      ...process.env,
+      AI_OS_SKIP_ENV_FILE: "1",
+      PORT: String(port),
+      HOST: "127.0.0.1",
+      AI_OS_AUTH_DISABLED: "1",
+      AI_OS_DATA_DIR: path.join(tempRoot, "data"),
+      AI_API_KEY: "",
+      AI_IMAGE_API_KEY: "",
+      NODE_PATH: [path.join(ROOT, "node_modules"), process.env.NODE_PATH].filter(Boolean).join(path.delimiter),
+    },
+    stdio: ["ignore", "pipe", "pipe"],
   });
+  child.__diagnostics = "";
+  child.stdout.on("data", (chunk) => { child.__diagnostics += String(chunk); });
+  child.stderr.on("data", (chunk) => { child.__diagnostics += String(chunk); });
   try {
     const data = await waitForServer(port, child);
     const byLabel = Object.fromEntries(Object.entries(data.labels).map(([id, label]) => [label, data.resolutions[id]]));
     assert.deepStrictEqual(byLabel["gpt-image-2 · one"], ["1"]);
     assert.deepStrictEqual(byLabel["gpt-image-2 · four"], ["1", "2", "4"]);
+    const apimartModel = data.models.find((model) => model.providerName === "apimart-test");
+    assert.equal(apimartModel.providerProtocol, "openai");
+    assert.equal(apimartModel.modelProtocol, "openai-images");
+    assert.equal(apimartModel.providerHost, "api.apimart.ai");
+    assert.equal(Object.hasOwn(apimartModel, "baseUrl"), false);
   } finally {
     if (child.exitCode === null) {
       child.kill();
@@ -179,17 +295,27 @@ async function checkHttpCompatibilityValidation() {
       const parsed = JSON.parse(body || "{}");
       upstreamRequests.push({ url: request.url, body: parsed });
       response.writeHead(200, { "Content-Type": "application/json" });
-      response.end(JSON.stringify({ model: parsed.model, data: [] }));
+      response.end(JSON.stringify({
+        model: parsed.model,
+        data: [{
+          b64_json: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+        }],
+      }));
     });
   });
   const upstreamPort = await listen(upstream);
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "image-resolution-http-"));
+  copyServerDependencyClosure(ROOT, tempRoot);
   fs.copyFileSync(path.join(ROOT, "server.js"), path.join(tempRoot, "server.js"));
   fs.copyFileSync(path.join(ROOT, "image-job-manager.js"), path.join(tempRoot, "image-job-manager.js"));
   fs.copyFileSync(path.join(ROOT, "image-model-routing.js"), path.join(tempRoot, "image-model-routing.js"));
   fs.copyFileSync(path.join(ROOT, "image-resolution-rules.js"), path.join(tempRoot, "image-resolution-rules.js"));
   fs.copyFileSync(path.join(ROOT, "image-thumbnail-store.js"), path.join(tempRoot, "image-thumbnail-store.js"));
+  fs.copyFileSync(path.join(ROOT, "canvas-media-cleanup.js"), path.join(tempRoot, "canvas-media-cleanup.js"));
   fs.copyFileSync(path.join(ROOT, "outbound-fetch.js"), path.join(tempRoot, "outbound-fetch.js"));
+  fs.copyFileSync(path.join(ROOT, "outbound-route-policy.js"), path.join(tempRoot, "outbound-route-policy.js"));
+  fs.copyFileSync(path.join(ROOT, "outbound-route-state.js"), path.join(tempRoot, "outbound-route-state.js"));
+  fs.copyFileSync(path.join(ROOT, "image-sync-service.js"), path.join(tempRoot, "image-sync-service.js"));
   fs.copyFileSync(path.join(ROOT, "minimax-h3-workflow.js"), path.join(tempRoot, "minimax-h3-workflow.js"));
   fs.copyFileSync(path.join(ROOT, "canvas-agent-runtime.js"), path.join(tempRoot, "canvas-agent-runtime.js"));
   fs.copyFileSync(path.join(ROOT, "canvas-agent-capabilities.js"), path.join(tempRoot, "canvas-agent-capabilities.js"));
@@ -199,6 +325,56 @@ async function checkHttpCompatibilityValidation() {
   fs.copyFileSync(path.join(ROOT, "canvas-agent-llm-connectors.js"), path.join(tempRoot, "canvas-agent-llm-connectors.js"));
   fs.copyFileSync(path.join(ROOT, "canvas-agent-conversation.js"), path.join(tempRoot, "canvas-agent-conversation.js"));
   fs.copyFileSync(path.join(ROOT, "canvas-agent-conversation-store.js"), path.join(tempRoot, "canvas-agent-conversation-store.js"));
+  fs.copyFileSync(path.join(ROOT, "auth-crypto.js"), path.join(tempRoot, "auth-crypto.js"));
+  fs.copyFileSync(path.join(ROOT, "system-db.js"), path.join(tempRoot, "system-db.js"));
+  fs.copyFileSync(path.join(ROOT, "auth-service.js"), path.join(tempRoot, "auth-service.js"));
+  fs.copyFileSync(path.join(ROOT, "resource-access.js"), path.join(tempRoot, "resource-access.js"));
+  fs.copyFileSync(path.join(ROOT, "backup-service.js"), path.join(tempRoot, "backup-service.js"));
+  for (const file of [
+    "ai-os-display.js",
+    "server-image-thumbnails.js",
+    "canvas-collab-hub.js",
+    "canvas-media-references.js",
+    "image-loading-rules.js",
+    "media-image-contract.js",
+    "protocol-contracts.js",
+    "provider-model-rules.js",
+    "canvas-spatial-rules.js",
+    "canvas-project-service.js",
+    "asset-library-service.js",
+    "provider-secret-vault.js",
+    "provider-store.js",
+    "provider-migration.js",
+    "provider-protocol-registry.js",
+    "provider-protocol-engine.js",
+    "model-capabilities.js",
+    "provider-capability-resolver.js",
+    "provider-executor.js",
+    "canvas-agent-provider-bridge.js",
+    "media-provider-bridge.js",
+    "media-protocol-adapters.js",
+    "provider-http-api.js",
+    "jimeng-cli-service.js",
+    "protocol-center.js",
+    "provider-response-errors.js",
+    "provider-test-result.js",
+    "provider-agent-coverage.js",
+    "canvas-repository.js",
+    "canvas-legacy-migrator.js",
+    "canvas-query-service.js",
+    "canvas-command-service.js",
+    "canvas-export-service.js",
+    "provider-catalog-health.js",
+    "skill-registry.js",
+    "resource-preview.js",
+    "agent-model-settings.js",
+    "background-removal-service.js",
+    "comfyui-background-removal.js",
+    "comfyui-service.js",
+    "comfyui-http-api.js",
+  ]) {
+    fs.copyFileSync(path.join(ROOT, file), path.join(tempRoot, file));
+  }
   for (const directory of ["data", "output", "workflows", path.join("tmp", "uploads")]) {
     fs.mkdirSync(path.join(tempRoot, directory), { recursive: true });
   }
@@ -250,9 +426,22 @@ async function checkHttpCompatibilityValidation() {
   const port = 40000 + Math.floor(Math.random() * 1000);
   const child = spawn(process.execPath, ["server.js"], {
     cwd: tempRoot,
-    env: { ...process.env, PORT: String(port), HOST: "127.0.0.1", AI_API_KEY: "", AI_IMAGE_API_KEY: "" },
-    stdio: "ignore",
+    env: {
+      ...process.env,
+      AI_OS_SKIP_ENV_FILE: "1",
+      PORT: String(port),
+      HOST: "127.0.0.1",
+      AI_OS_AUTH_DISABLED: "1",
+      AI_OS_DATA_DIR: path.join(tempRoot, "data"),
+      AI_API_KEY: "",
+      AI_IMAGE_API_KEY: "",
+      NODE_PATH: [path.join(ROOT, "node_modules"), process.env.NODE_PATH].filter(Boolean).join(path.delimiter),
+    },
+    stdio: ["ignore", "pipe", "pipe"],
   });
+  child.__diagnostics = "";
+  child.stdout.on("data", (chunk) => { child.__diagnostics += String(chunk); });
+  child.stderr.on("data", (chunk) => { child.__diagnostics += String(chunk); });
   try {
     const models = await waitForServer(port, child);
     const openAiModel = Object.keys(models.labels).find((id) => models.labels[id].includes("openai-test"));
@@ -328,7 +517,9 @@ function checkResolutionChoiceContract() {
 
   const fillSource = extractFunction(CLIENT_SOURCE, "fillCanvasNodeResolutionSelect");
   const availabilitySource = extractFunction(CLIENT_SOURCE, "updateCanvasNodeResolutionAvailability");
-  extractFunction(CLIENT_SOURCE, "getImageResolutionChoiceContext");
+  const contextSource = extractFunction(CLIENT_SOURCE, "getImageResolutionChoiceContext");
+  assert(contextSource.includes("providerProtocol"), "client resolution rules need the selected provider protocol");
+  assert(contextSource.includes("providerHost"), "client resolution rules need the selected provider host");
   extractFunction(CLIENT_SOURCE, "syncCanvasNodeResolutionState");
   assert(fillSource.includes("ImageResolutionRules.getResolutionChoices"));
   assert(fillSource.includes("option.dataset.reason"));

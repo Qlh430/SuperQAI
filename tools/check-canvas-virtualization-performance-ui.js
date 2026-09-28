@@ -56,9 +56,7 @@ function createStressBoard() {
 
   try {
     await page.goto(APP_URL, { waitUntil: "domcontentloaded", timeout: 30_000 });
-    await page.locator("#infiniteCanvas").waitFor({ state: "visible" });
-    await page.evaluate(() => document.querySelector(".canvas-start-gate")?.classList.add("is-dismissed"));
-    await page.locator("#canvasHistoryButton").click();
+    await page.locator("#canvasLibraryScreen").waitFor({ state: "visible" });
     const startedAt = Date.now();
     await page.locator('[data-board-id="virtual-stress-3000"]').click({ timeout: 5000 });
     await page.waitForFunction((count) => window.canvasVirtualStore?.size === count, NODE_COUNT, { timeout: 30_000 });

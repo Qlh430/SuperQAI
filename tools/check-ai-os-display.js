@@ -28,8 +28,10 @@ const fakeDocument = {
     dispatchEvent(event) { preferenceEvent = event; },
   },
 };
+const rootStyle = {};
 const fakeRoot = {
   dataset: {},
+  style: { setProperty(key, value) { rootStyle[key] = value; } },
   ownerDocument: fakeDocument,
   removeAttribute() {},
 };
@@ -38,6 +40,7 @@ assert.deepEqual(preferences, { appearance: { theme: "light", scale: 1.75, anima
 assert.equal(fakeRoot.dataset.themeMode, "light");
 assert.equal(fakeRoot.dataset.theme, "light");
 assert.equal(fakeRoot.dataset.uiScale, "1.75");
+assert.equal(rootStyle["--system-scale"], "1.75", "document root exposes the scale to top-layer UI");
 assert.equal(desktopStyle["--system-scale"], "1.75");
 assert.equal(preferenceEvent.type, "ai-os-preferences-applied");
 assert.deepEqual(preferenceEvent.detail, { preferences, theme: "light", scale: 1.75 });

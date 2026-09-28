@@ -89,13 +89,13 @@
       });
     }
 
-    flushNow() {
+    flushNow({ ignoreBudget = true } = {}) {
       this.generation += 1;
       if (this.frame) {
         this.cancelFrame(this.frame);
         this.frame = 0;
       }
-      return this.flush(this.generation, { ignoreBudget: true });
+      return this.flush(this.generation, { ignoreBudget });
     }
 
     getRects() {
@@ -140,6 +140,11 @@
       let unmountedCount = 0;
       this.store.mountedIds().forEach((id) => {
         if (desired.has(id)) return;
+        if (sceneMode) {
+          this.unmountId(id);
+          unmountedCount += 1;
+          return;
+        }
         const rect = this.store.getRect(id);
         if (isClusteredOverview && rect && this.rules.rectsIntersect(rect, mountRect)) {
           this.unmountId(id);
@@ -198,7 +203,10 @@
           this.store.setMounted(item.id, element, item.level);
           if (!item.current) mountedCount += 1;
         }
-        if (!ignoreBudget && cursor < missing.length - 1 && this.now() - startedAt >= this.rules.FRAME_BUDGET_MS) {
+        if (!ignoreBudget && cursor < missing.length - 1 && (
+          this.now() - startedAt >= this.rules.FRAME_BUDGET_MS
+          || cursor + 1 >= (this.rules.MAX_MOUNTS_PER_FRAME || 12)
+        )) {
           cursor += 1;
           break;
         }

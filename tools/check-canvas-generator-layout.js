@@ -5,6 +5,7 @@ const vm = require("vm");
 
 const ROOT = path.join(__dirname, "..");
 const SCRIPT_SOURCE = fs.readFileSync(path.join(ROOT, "script.js"), "utf8");
+const RENDERER_SOURCE = fs.readFileSync(path.join(ROOT, "canvas-generator-node-renderer.js"), "utf8");
 const STYLE_SOURCE = fs.readFileSync(path.join(ROOT, "styles.css"), "utf8");
 
 function extractFunction(source, name) {
@@ -36,7 +37,7 @@ function extractFunction(source, name) {
 }
 
 assert.match(
-  SCRIPT_SOURCE,
+  RENDERER_SOURCE,
   /classList\.toggle\("canvas-node-generator",\s*!src\)/,
   "Blank image nodes should receive the generator-specific class",
 );
@@ -47,8 +48,18 @@ assert.match(
 );
 assert.match(
   STYLE_SOURCE,
-  /grid-template-columns:\s*minmax\(96px,\s*180px\)\s+112px\s+minmax\(0,\s*1fr\)\s+120px/,
-  "Wide generator controls should cap both selectors and keep the run button at the right",
+  /\.canvas-node-generator \.canvas-node-controls\s*\{[^}]*grid-template-columns:\s*minmax\(92px,\s*1fr\)\s+minmax\(92px,\s*1fr\)\s+112px/s,
+  "Wide API generator controls should keep size, resolution, and run action aligned",
+);
+assert.doesNotMatch(
+  STYLE_SOURCE,
+  /\.canvas-node-generator \.canvas-node-platform\s*\{/,
+  "API generators should not reserve a row for a redundant platform selector",
+);
+assert.match(
+  STYLE_SOURCE,
+  /\.canvas-node-generator \.canvas-node-controls \.image-model-picker\s*\{\s*grid-column:\s*1\s*\/\s*-1/,
+  "API model selection should occupy its own readable row",
 );
 assert.match(
   STYLE_SOURCE,

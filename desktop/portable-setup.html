@@ -1,0 +1,403 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>设置 AI OS</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: "Segoe UI", "Microsoft YaHei UI", sans-serif;
+        background: #eef3f8;
+        color: #172033;
+      }
+      * { box-sizing: border-box; }
+      [hidden] { display: none !important; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background:
+          radial-gradient(circle at 12% 0%, rgba(36, 106, 214, 0.14), transparent 38%),
+          radial-gradient(circle at 92% 100%, rgba(24, 143, 155, 0.12), transparent 42%),
+          #eef3f8;
+      }
+      main {
+        width: 100%;
+        min-height: 100vh;
+        padding: 42px 48px 38px;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 13px;
+        margin-bottom: 30px;
+      }
+      .mark {
+        width: 46px;
+        height: 46px;
+        display: grid;
+        place-items: center;
+        border-radius: 13px;
+        color: #fff;
+        font: 700 26px/1 Georgia, serif;
+        background: linear-gradient(145deg, #246ad6, #188f9b);
+        box-shadow: 0 12px 30px rgba(36, 106, 214, 0.22);
+      }
+      .brand strong { display: block; font-size: 19px; letter-spacing: 0; }
+      .brand small { display: block; margin-top: 3px; color: #68788c; font-size: 12px; }
+      .eyebrow {
+        margin: 0 0 7px;
+        color: #246ad6;
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+      }
+      h1, h2 { margin: 0; letter-spacing: 0; }
+      h1 { font-size: 29px; line-height: 1.25; }
+      h2 { font-size: 22px; line-height: 1.3; }
+      .intro {
+        max-width: 570px;
+        margin: 12px 0 26px;
+        color: #5c6d82;
+        font-size: 14px;
+        line-height: 1.75;
+      }
+      .choices {
+        display: grid;
+        gap: 13px;
+      }
+      button {
+        min-height: 44px;
+        border: 1px solid #cbd8e8;
+        border-radius: 10px;
+        padding: 10px 17px;
+        background: #fff;
+        color: #213047;
+        font: inherit;
+        font-size: 14px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: border-color 140ms ease, background 140ms ease, box-shadow 140ms ease, transform 140ms ease;
+      }
+      button:hover:not(:disabled) { border-color: #91acd0; box-shadow: 0 7px 18px rgba(42, 78, 125, 0.1); transform: translateY(-1px); }
+      button:focus-visible { outline: 3px solid rgba(36, 106, 214, 0.28); outline-offset: 2px; }
+      button:disabled { cursor: default; opacity: 0.55; }
+      button.primary {
+        border-color: #246ad6;
+        background: linear-gradient(180deg, #2f78e5, #2460c8);
+        color: #fff;
+        box-shadow: 0 9px 22px rgba(36, 106, 214, 0.2);
+      }
+      .choice {
+        width: 100%;
+        min-height: 82px;
+        display: grid;
+        gap: 5px;
+        text-align: left;
+        padding: 16px 19px;
+      }
+      .choice strong { font-size: 15px; }
+      .choice span {
+        color: #66778b;
+        font-size: 12px;
+        font-weight: 500;
+        line-height: 1.5;
+      }
+      .choice.primary span { color: rgba(255, 255, 255, 0.82); }
+      .notice {
+        margin: 0 0 18px;
+        padding: 12px 14px;
+        border: 1px solid #e3b6b6;
+        border-radius: 9px;
+        background: #fff6f4;
+        color: #8d3434;
+        font-size: 13px;
+        line-height: 1.6;
+      }
+      .summary {
+        display: grid;
+        grid-template-columns: 120px minmax(0, 1fr);
+        gap: 0;
+        margin: 20px 0;
+        overflow: hidden;
+        border: 1px solid #d7e1ed;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.82);
+      }
+      .summary dt, .summary dd {
+        min-height: 42px;
+        margin: 0;
+        padding: 10px 13px;
+        border-bottom: 1px solid #e1e8f1;
+        font-size: 13px;
+        line-height: 1.55;
+      }
+      .summary dt { color: #65768b; background: #f7f9fc; font-weight: 700; }
+      .summary dd { color: #25364d; overflow-wrap: anywhere; }
+      .summary dt:last-of-type, .summary dd:last-of-type { border-bottom: 0; }
+      .progress-block {
+        margin: 18px 0;
+        padding: 15px 16px;
+        border: 1px solid #d7e1ed;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.82);
+      }
+      progress {
+        width: 100%;
+        height: 9px;
+        overflow: hidden;
+        border: 0;
+        border-radius: 999px;
+        accent-color: #246ad6;
+      }
+      #migrationStatus {
+        min-height: 22px;
+        margin: 10px 0 0;
+        color: #5f7085;
+        font-size: 13px;
+      }
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 20px;
+      }
+      .actions button { flex: 1 1 150px; }
+      .result-mark {
+        width: 40px;
+        height: 40px;
+        display: grid;
+        place-items: center;
+        margin-bottom: 15px;
+        border-radius: 50%;
+        font-size: 22px;
+        font-weight: 800;
+      }
+      .result-mark.success { background: #e0f4eb; color: #14724f; }
+      .result-mark.error { background: #fff0ee; color: #a23c37; }
+      #resultMessage {
+        max-width: 610px;
+        margin: 11px 0 0;
+        color: #5d6f84;
+        font-size: 14px;
+        line-height: 1.7;
+      }
+      .footer-note {
+        margin-top: 25px;
+        color: #7d8ca0;
+        font-size: 11px;
+        line-height: 1.6;
+      }
+      @media (max-width: 560px) {
+        main { padding: 30px 26px; }
+        .summary { grid-template-columns: 1fr; }
+        .summary dt { min-height: 0; padding-bottom: 3px; border-bottom: 0; }
+        .summary dd { min-height: 0; padding-top: 3px; }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="brand">
+        <span class="mark" aria-hidden="true">∞</span>
+        <div><strong>AI OS</strong><small>便携版首次设置</small></div>
+      </div>
+
+      <section id="welcomeView" class="view">
+        <p class="eyebrow">首次启动</p>
+        <h1>准备你的 AI OS</h1>
+        <p class="intro">如果有旧版数据，可以复制账号、画布、图片和接口配置。旧目录只会被读取，不会移动或删除。</p>
+        <p id="welcomeError" class="notice" role="alert" hidden></p>
+        <div class="choices">
+          <button id="migrateChoice" class="choice primary" type="button">
+            <strong>迁移旧数据</strong>
+            <span>先检查旧项目，再决定是否开始复制。</span>
+          </button>
+          <button id="freshChoice" class="choice" type="button">
+            <strong>直接全新开始</strong>
+            <span>不复制任何旧数据，进入空白工作台。</span>
+          </button>
+        </div>
+        <p class="footer-note">迁移前请完全退出旧版 AI OS。本窗口关闭后不会启动工作台。</p>
+      </section>
+
+      <section id="migrationView" class="view" hidden>
+        <p class="eyebrow">迁移旧数据</p>
+        <h2 id="migrationTitle">正在检查旧项目…</h2>
+        <dl id="sourceSummary" class="summary"></dl>
+        <div class="progress-block">
+          <progress id="migrationProgress" max="1" value="0"></progress>
+          <p id="migrationStatus" role="status" aria-live="polite">正在读取项目结构，不会修改旧目录。</p>
+        </div>
+        <div id="migrationActions" class="actions">
+          <button id="confirmMigration" class="primary" type="button">开始迁移</button>
+          <button id="chooseAnother" type="button">重新选择</button>
+          <button id="freshFromMigration" type="button">直接全新开始</button>
+        </div>
+      </section>
+
+      <section id="resultView" class="view" hidden>
+        <div id="resultMark" class="result-mark success" aria-hidden="true">✓</div>
+        <p id="resultState" class="eyebrow">迁移结果</p>
+        <h2 id="resultTitle">迁移完成</h2>
+        <p id="resultMessage"></p>
+        <dl id="resultSummary" class="summary"></dl>
+        <div class="actions">
+          <button id="retryMigration" class="primary" type="button">重试迁移</button>
+          <button id="chooseAnotherFromResult" type="button">重新选择</button>
+          <button id="freshFromResult" type="button">直接全新开始</button>
+          <button id="openSystem" class="primary" type="button">打开 AI OS</button>
+        </div>
+        <p class="footer-note">技术诊断保存在 data/.logs；界面不会显示接口密钥或数据库内容。</p>
+      </section>
+    </main>
+
+    <script>
+      "use strict";
+      const setup = window.aiOsSetup;
+      const views = {
+        welcome: document.querySelector("#welcomeView"),
+        migration: document.querySelector("#migrationView"),
+        result: document.querySelector("#resultView"),
+      };
+      const welcomeError = document.querySelector("#welcomeError");
+      const migrationTitle = document.querySelector("#migrationTitle");
+      const migrationProgress = document.querySelector("#migrationProgress");
+      const migrationStatus = document.querySelector("#migrationStatus");
+      const migrationActions = document.querySelector("#migrationActions");
+      const sourceSummary = document.querySelector("#sourceSummary");
+      const resultMark = document.querySelector("#resultMark");
+      const resultState = document.querySelector("#resultState");
+      const resultTitle = document.querySelector("#resultTitle");
+      const resultMessage = document.querySelector("#resultMessage");
+      const resultSummary = document.querySelector("#resultSummary");
+      const buttons = {
+        migrateChoice: document.querySelector("#migrateChoice"),
+        freshChoice: document.querySelector("#freshChoice"),
+        confirmMigration: document.querySelector("#confirmMigration"),
+        chooseAnother: document.querySelector("#chooseAnother"),
+        freshFromMigration: document.querySelector("#freshFromMigration"),
+        retryMigration: document.querySelector("#retryMigration"),
+        chooseAnotherFromResult: document.querySelector("#chooseAnotherFromResult"),
+        freshFromResult: document.querySelector("#freshFromResult"),
+        openSystem: document.querySelector("#openSystem"),
+      };
+
+      function showOnly(name) {
+        for (const [key, view] of Object.entries(views)) view.hidden = key !== name;
+      }
+
+      function addRow(list, label, value) {
+        const term = document.createElement("dt");
+        term.textContent = label;
+        const detail = document.createElement("dd");
+        detail.textContent = value;
+        list.append(term, detail);
+      }
+
+      function renderSource(summary) {
+        sourceSummary.replaceChildren();
+        if (!summary) return;
+        addRow(sourceSummary, "来源类型", summary.sourceKindLabel || "旧 AI OS 项目");
+        addRow(sourceSummary, "将复制", `${summary.fileCount || 0} 个文件 · ${summary.totalSizeLabel || "0 B"}`);
+        addRow(sourceSummary, "数据库", `${summary.databaseCount || 0} 个`);
+        const included = [];
+        if (summary.hasEnv) included.push(".env 接口配置");
+        if (summary.hasOutput) included.push("output 图片与媒体");
+        if (summary.hasWorkflows) included.push("workflows 工作流");
+        addRow(sourceSummary, "发现内容", included.length ? included.join("、") : "未发现可选目录");
+      }
+
+      function renderReport(report) {
+        resultSummary.replaceChildren();
+        if (!report) return;
+        addRow(resultSummary, "迁移文件", `${report.fileCount || 0} 个 · ${report.totalSizeLabel || "0 B"}`);
+        addRow(resultSummary, "数据库", `${report.databaseCount || 0} 个`);
+        addRow(resultSummary, "发布文件", `${report.publishedFileCount || 0} 个`);
+      }
+
+      function setButton(button, visible, enabled = true) {
+        button.hidden = !visible;
+        button.disabled = !enabled;
+      }
+
+      function render(state = {}) {
+        const view = state.view || "welcome";
+        if (view === "welcome") {
+          showOnly("welcome");
+          welcomeError.hidden = !state.error;
+          welcomeError.textContent = state.error?.message || "";
+          setButton(buttons.migrateChoice, true, true);
+          setButton(buttons.freshChoice, true, true);
+          return;
+        }
+
+        if (view === "inspecting" || view === "preview" || view === "migrating") {
+          showOnly("migration");
+          renderSource(state.source);
+          const progress = state.progress || {};
+          migrationProgress.value = Number(progress.ratio) || (view === "preview" ? 0.72 : 0.04);
+          migrationProgress.setAttribute("aria-valuetext", `${Math.round(migrationProgress.value * 100)}%`);
+          if (view === "inspecting") {
+            migrationTitle.textContent = "正在检查旧项目…";
+            migrationStatus.textContent = "只读取目录结构和文件信息，不会修改旧数据。";
+          } else if (view === "preview") {
+            migrationTitle.textContent = "检查完成，可以开始迁移";
+            migrationStatus.textContent = "迁移会先复制到临时区域，校验数据库和主密钥后再发布。";
+          } else {
+            migrationTitle.textContent = "正在迁移旧数据";
+            migrationStatus.textContent = progress.label || "正在复制并校验文件…";
+          }
+          const preview = view === "preview";
+          setButton(buttons.confirmMigration, preview, preview);
+          setButton(buttons.chooseAnother, preview, preview);
+          setButton(buttons.freshFromMigration, preview, preview);
+          if (preview) setTimeout(() => buttons.confirmMigration.focus(), 0);
+          return;
+        }
+
+        showOnly("result");
+        const success = view === "success";
+        resultMark.className = `result-mark ${success ? "success" : "error"}`;
+        resultMark.textContent = success ? "✓" : "!";
+        resultState.textContent = success ? "迁移结果" : "需要处理";
+        resultTitle.textContent = success ? "旧数据已经迁移完成" : "迁移没有完成";
+        resultMessage.textContent = success
+          ? "文件、数据库和接口密钥已经校验。旧目录仍然保留，可用于回退。"
+          : (state.error?.message || "迁移没有完成，请重试或改为全新开始。");
+        renderReport(state.report);
+        setButton(buttons.retryMigration, !success && Boolean(state.canRetry), !success && Boolean(state.canRetry));
+        setButton(buttons.chooseAnotherFromResult, !success && Boolean(state.canChooseAnother), !success && Boolean(state.canChooseAnother));
+        setButton(buttons.freshFromResult, !success && Boolean(state.canStartFresh), !success && Boolean(state.canStartFresh));
+        setButton(buttons.openSystem, success && Boolean(state.canOpenSystem), success && Boolean(state.canOpenSystem));
+        setTimeout(() => (success ? buttons.openSystem : buttons.retryMigration).focus(), 0);
+      }
+
+      const actionByButton = {
+        migrateChoice: "selectMigration",
+        freshChoice: "fresh",
+        confirmMigration: "confirmMigration",
+        chooseAnother: "chooseAnother",
+        freshFromMigration: "fresh",
+        retryMigration: "retryMigration",
+        chooseAnotherFromResult: "chooseAnother",
+        freshFromResult: "fresh",
+        openSystem: "openSystem",
+      };
+      for (const [id, button] of Object.entries(buttons)) {
+        button.addEventListener("click", async () => {
+          button.disabled = true;
+          try { await setup.sendAction(actionByButton[id]); }
+          finally { button.disabled = false; }
+        });
+      }
+
+      setup.onState(render);
+      setup.getState().then(render).catch((error) => {
+        welcomeError.hidden = false;
+        welcomeError.textContent = error?.message || "设置窗口初始化失败。";
+      });
+    </script>
+  </body>
+</html>

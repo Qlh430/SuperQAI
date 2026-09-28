@@ -111,6 +111,23 @@ async function readCanvasUi(page) {
       image.dataset.imageQuality === "error"
       || (image.hasAttribute("src") && image.complete && image.naturalWidth === 0)
     ));
+    const connectionPortErrors = typeof getVisibleCanvasConnections === "function"
+      ? getVisibleCanvasConnections().flatMap(({ item, from, to }) => {
+        const fromNode = nodes.find((node) => String(node.dataset.id) === String(item.from));
+        const toNode = nodes.find((node) => String(node.dataset.id) === String(item.to));
+        if (!fromNode || !toNode) return [];
+        const actualFrom = getCanvasPortPoint(fromNode, "output");
+        const actualTo = getCanvasPortPoint(toNode, item.toPort || "input");
+        if (!actualFrom || !actualTo) return [];
+        return [{
+          from: String(item.from),
+          to: String(item.to),
+          toPort: item.toPort || "input",
+          fromError: Math.hypot(from.x - actualFrom.x, from.y - actualFrom.y),
+          toError: Math.hypot(to.x - actualTo.x, to.y - actualTo.y),
+        }];
+      })
+      : [];
     return {
       activeBoardId: canvasState.activeBoardId,
       activeBoardTitle: canvasState.activeBoardTitle,
@@ -155,6 +172,15 @@ async function readCanvasUi(page) {
             html: image.outerHTML.slice(0, 500),
         };
       }),
+      connectionAlignment: {
+        compared: connectionPortErrors.length,
+        maxError: connectionPortErrors.reduce((maximum, item) => (
+          Math.max(maximum, item.fromError, item.toError)
+        ), 0),
+        worst: connectionPortErrors
+          .sort((a, b) => Math.max(b.fromError, b.toError) - Math.max(a.fromError, a.toError))
+          .slice(0, 5),
+      },
       levels: summaries.reduce((levels, node) => {
         const level = node.dataset.virtualLevel || "unknown";
         levels[level] = (levels[level] || 0) + 1;
@@ -184,8 +210,9 @@ async function openBoard(page, board) {
     }));
     throw new Error(`${error.message}\nHistorical canvas runtime: ${JSON.stringify(runtime)}`);
   }
-  await page.locator("#canvasHistoryButton").click();
-  await page.locator(`[data-board-id="${board.id}"]`).click({ timeout: 15_000 });
+  if (await page.locator("#canvasEditorScreen").isVisible()) await page.locator("#canvasLibraryBackButton").click();
+  await page.locator("#canvasLibraryScreen").waitFor({ state: "visible" });
+  await page.locator(`.canvas-board-item[data-board-id="${board.id}"]`).click({ timeout: 15_000 });
   await page.locator("#canvasBoardLoading").waitFor({ state: "hidden", timeout: 30_000 });
   await page.waitForFunction(({ boardId, nodeCount }) => (
     typeof canvasState === "object"
@@ -256,6 +283,8 @@ async function setScale(page, scale) {
       ...process.env,
       PORT: String(port),
       HOST: "127.0.0.1",
+      AI_OS_AUTH_DISABLED: "1",
+      AI_OS_DATA_DIR: directory,
       CANVAS_DB_FILE: databaseFile,
       CANVAS_LEGACY_FILE: legacyFile,
       CANVAS_BACKUP_DIR: backupDirectory,
@@ -291,8 +320,9 @@ async function setScale(page, scale) {
       }
     });
     await page.goto(`http://127.0.0.1:${port}`, { waitUntil: "networkidle", timeout: 30_000 });
-    await page.locator("#infiniteCanvas").waitFor({ state: "visible", timeout: 30_000 });
-    await page.evaluate(() => document.querySelector(".canvas-start-gate")?.classList.add("is-dismissed"));
+    await page.waitForFunction(() => document.querySelector("#aiOsDesktop") && !document.querySelector("#aiOsDesktop").hidden, null, { timeout: 30_000 });
+    await page.locator('[data-ai-app="canvas"]').evaluate((element) => element.click());
+    await page.locator("#canvasLibraryScreen").waitFor({ state: "visible", timeout: 30_000 });
     const results = [];
     for (const board of allBoards) {
       const opened = await openBoard(page, board);
@@ -308,6 +338,10 @@ async function setScale(page, scale) {
         assert.equal(snapshot.summaryNodes, 0, `${board.title} @ ${scale} rendered a summary shell`);
         assert.equal(snapshot.blankMountedNodes, 0, `${board.title} @ ${scale} has blank nodes`);
         assert.equal(snapshot.unloadedVisibleImages, 0, `${board.title} @ ${scale} has unloaded visible images`);
+        assert.ok(
+          snapshot.connectionAlignment.maxError <= 1.5,
+          `${board.title} @ ${scale} has connection endpoints outside their ports: ${JSON.stringify(snapshot.connectionAlignment)}`,
+        );
         assert.equal(
           snapshot.brokenImages,
           0,
@@ -332,6 +366,7 @@ async function setScale(page, scale) {
           summaryNodes: snapshot.summaryNodes,
           mountedImages: snapshot.mountedImages,
           unloadedVisibleImages: snapshot.unloadedVisibleImages,
+          connectionAlignment: snapshot.connectionAlignment,
           imageStates: snapshot.imageStates,
           levels: snapshot.levels,
         })),
@@ -354,11 +389,15 @@ async function setScale(page, scale) {
     for (const board of selected) {
       await openBoard(page, board);
       const snapshots = [];
-      for (const scale of [0.05, 0.15, 0.25, 0.35, 0.45, 0.55, 0.6, 0.64, 0.65, 0.74, 1, 1.6]) {
+      for (const scale of [0.05, 0.15, 0.25, 0.35, 0.45, 0.55, 0.57, 0.6, 0.64, 0.65, 0.74, 1, 1.6]) {
         const snapshot = await setScale(page, scale);
         assert.equal(snapshot.primitiveLod, false, `${board.title} @ ${scale} incorrectly entered dense-scene mode`);
         assert.equal(snapshot.blankMountedNodes, 0, `${board.title} @ ${scale} has blank mounted nodes`);
         assert.equal(snapshot.unloadedVisibleImages, 0, `${board.title} @ ${scale} has unloaded visible images`);
+        assert.ok(
+          snapshot.connectionAlignment.maxError <= 1.5,
+          `${board.title} @ ${scale} has connection endpoints outside their ports: ${JSON.stringify(snapshot.connectionAlignment)}`,
+        );
         assert.equal(snapshot.primitiveBlankCards, 0, `${board.title} @ ${scale} has blank aggregate cards`);
         assert.equal(snapshot.summaryNodes, 0, `${board.title} @ ${scale} rendered a summary shell`);
         assert.equal(snapshot.mountedNodes, snapshot.fullNodes, `${board.title} @ ${scale} did not keep complete nodes`);

@@ -1,48 +1,24 @@
-const fs = require("fs");
-const path = require("path");
+"use strict";
 
-const source = fs.readFileSync(path.join(__dirname, "..", "server.js"), "utf8");
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
 
-function getBlock(start, end) {
-  const startIndex = source.indexOf(start);
-  const endIndex = source.indexOf(end, startIndex);
-  if (startIndex === -1 || endIndex === -1) {
-    console.error(`Could not find block from ${start} to ${end}`);
-    process.exit(1);
-  }
-  return source.slice(startIndex, endIndex);
-}
+const adapterSource = fs.readFileSync(path.join(__dirname, "..", "media-protocol-adapters.js"), "utf8");
+const executorSource = fs.readFileSync(path.join(__dirname, "..", "provider-executor.js"), "utf8");
+const start = adapterSource.indexOf("const imageRelay =");
+const end = adapterSource.indexOf("const comfyui =", start);
 
-const transientBlock = getBlock("function isGrsaiTransientError", "function normalizeGrsaiError");
-const normalizeBlock = getBlock("function normalizeGrsaiError", "function getModelDisplayNameForError");
-const requestBlock = getBlock("async function submitGrsaiImageTask", "function extractGrsaiImageUrls");
-const attemptBlock = getBlock("async function runGrsaiImageAttemptWithRetry", "async function submitGrsaiImageTask");
+assert.notEqual(start, -1, "image relay adapter should exist");
+assert.notEqual(end, -1, "image relay adapter boundary should exist");
 
-const expectations = [
-  {
-    ok: !/abort|timeout|timed out/i.test(transientBlock),
-    message: "GrsAI must not classify an ambiguous timeout as safe to resubmit.",
-  },
-  {
-    ok: /abort|timeout|timed out/i.test(normalizeBlock) && /GrsAI/.test(normalizeBlock),
-    message: "GrsAI normalized errors should turn aborted timeouts into a useful GrsAI message.",
-  },
-  {
-    ok: /GRSAI_IMAGE_FETCH_TIMEOUT_MS/.test(source),
-    message: "GrsAI requests should use a dedicated timeout constant.",
-  },
-  {
-    ok: (requestBlock.match(/GRSAI_IMAGE_FETCH_TIMEOUT_MS/g) || []).length >= 2,
-    message: "GrsAI submit and result polling should use the dedicated timeout.",
-  },
-  {
-    ok: !/maxAttempts|setTimeout\(resolve, attempt/.test(attemptBlock) && /避免重复扣费|duplicate charges/.test(attemptBlock + normalizeBlock),
-    message: "GrsAI image jobs must not auto-resubmit after an ambiguous submission outcome.",
-  },
-];
+const block = adapterSource.slice(start, end);
+assert.equal((block.match(/postJson\(/g) || []).length, 1, "an image relay task must be submitted only once");
+assert.match(block, /\/v1\/api\/generate/);
+assert.match(block, /\/v1\/api\/result/);
+assert.match(block, /waitForSubmittedTask\(\{/);
+assert.match(adapterSource, /UPSTREAM_TASK_PENDING/);
+assert.match(adapterSource, /retryable\s*=\s*false|retryable:\s*false/);
+assert.match(executorSource, /error\?\.retryable\s*===\s*false/);
 
-const failures = expectations.filter((item) => !item.ok);
-if (failures.length) {
-  for (const failure of failures) console.error(failure.message);
-  process.exit(1);
-}
+console.log("Image relay timeout handling checks passed.");

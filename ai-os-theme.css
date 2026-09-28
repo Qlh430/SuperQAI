@@ -1,0 +1,548 @@
+/* Global appearance compatibility layer. Keep this stylesheet last in the cascade. */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --os-wallpaper: radial-gradient(circle at 72% 18%, rgba(140, 188, 255, .72), transparent 38%), radial-gradient(circle at 90% 82%, rgba(246, 187, 212, .58), transparent 36%), radial-gradient(circle at 12% 78%, rgba(155, 222, 226, .58), transparent 39%), linear-gradient(135deg, #dce9f5 0%, #eceaf2 52%, #f2e7e9 100%);
+  --os-wallpaper-base: #e7edf4;
+  --os-menu-bg: rgba(244, 248, 253, .62);
+  --os-dock-bg: rgba(242, 247, 252, .66);
+  --os-window-bg: rgba(248, 250, 253, .9);
+  /* 窗口/面板的"不透明垫底"：半透明的 --os-window-bg 叠在它上面，
+     这样窗口即使用玻璃配色也不会让后面的应用透出来。 */
+  --os-window-solid: #f6f9fc;
+  --os-titlebar-bg: rgba(238, 244, 251, .8);
+  --os-surface-bg: rgba(255, 255, 255, .82);
+  --os-sidebar-bg: rgba(222, 233, 246, .78);
+  --os-field-bg: rgba(255, 255, 255, .82);
+  --os-accent: #2f80ed;
+  --os-text: #202630;
+  --os-muted-text: #778291;
+  --os-border: rgba(63, 80, 105, .15);
+  --os-border-strong: rgba(55, 72, 98, .22);
+  --os-shadow-color: rgba(35, 49, 75, .18);
+  --os-window-shadow: 0 28px 80px rgba(38, 51, 78, .2), 0 2px 8px rgba(25, 34, 54, .1);
+  --os-overlay-bg: rgba(24, 33, 48, .28);
+  --os-hover-bg: rgba(255, 255, 255, .56);
+  --os-selected-bg: rgba(47, 128, 237, .14);
+  --os-canvas-bg: #edf2f7;
+  --os-node-bg: rgba(255, 255, 255, .9);
+  --bg: #eef3f8;
+  --stage: #edf2f7;
+  --panel: rgba(255, 255, 255, .88);
+  --field: rgba(255, 255, 255, .82);
+  --ink: #202630;
+  --muted: #778291;
+  --line: rgba(63, 80, 105, .15);
+  --line-strong: rgba(55, 72, 98, .22);
+  --soft: rgba(227, 235, 245, .74);
+  --black: #202630;
+  --os-grid-line: rgba(51, 71, 98, .07);
+  --grid-line: var(--os-grid-line);
+  --shadow: 0 22px 70px rgba(35, 49, 75, .14);
+  --os-cloud: #eef3f8;
+  --os-frost: rgba(248, 250, 253, .78);
+  --os-frost-strong: rgba(255, 255, 255, .9);
+  --os-ink: var(--os-text);
+  --os-muted: var(--os-muted-text);
+  --os-line: var(--os-border);
+  --os-shadow: var(--os-window-shadow);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --os-wallpaper: radial-gradient(circle at 74% 16%, rgba(54, 86, 132, .5), transparent 40%), radial-gradient(circle at 88% 82%, rgba(105, 55, 84, .32), transparent 38%), radial-gradient(circle at 12% 76%, rgba(32, 91, 96, .34), transparent 42%), linear-gradient(135deg, #0d1219 0%, #151820 52%, #1a151b 100%);
+  --os-wallpaper-base: #10141b;
+  --os-menu-bg: rgba(20, 25, 33, .72);
+  --os-dock-bg: rgba(31, 38, 49, .74);
+  --os-window-bg: rgba(29, 35, 45, .9);
+  --os-window-solid: #1a1f28;
+  --os-titlebar-bg: rgba(39, 46, 58, .78);
+  --os-surface-bg: rgba(29, 35, 45, .88);
+  --os-sidebar-bg: rgba(35, 43, 55, .86);
+  --os-field-bg: rgba(18, 23, 31, .82);
+  --os-accent: #4c96ff;
+  --os-text: #f2f5f9;
+  --os-muted-text: #a4afbd;
+  --os-border: rgba(196, 211, 232, .14);
+  --os-border-strong: rgba(196, 211, 232, .22);
+  --os-shadow-color: rgba(0, 0, 0, .46);
+  --os-window-shadow: 0 30px 86px rgba(0, 0, 0, .5), 0 2px 10px rgba(0, 0, 0, .32);
+  --os-overlay-bg: rgba(3, 6, 10, .54);
+  --os-hover-bg: rgba(255, 255, 255, .07);
+  --os-selected-bg: rgba(76, 150, 255, .2);
+  --os-canvas-bg: #141a23;
+  --os-node-bg: rgba(29, 35, 45, .94);
+  --bg: #10141b;
+  --stage: #141a23;
+  --panel: rgba(29, 35, 45, .9);
+  --field: rgba(18, 23, 31, .82);
+  --ink: #f2f5f9;
+  --muted: #a4afbd;
+  --line: rgba(196, 211, 232, .14);
+  --line-strong: rgba(196, 211, 232, .22);
+  --soft: rgba(49, 58, 72, .72);
+  --black: #f2f5f9;
+  --os-grid-line: rgba(196, 211, 232, .08);
+  --grid-line: var(--os-grid-line);
+  --shadow: 0 24px 74px rgba(0, 0, 0, .46);
+  --os-cloud: #10141b;
+  --os-frost: rgba(29, 35, 45, .82);
+  --os-frost-strong: rgba(39, 46, 58, .92);
+  --os-ink: var(--os-text);
+  --os-muted: var(--os-muted-text);
+  --os-line: var(--os-border);
+  --os-shadow: var(--os-window-shadow);
+}
+
+/* A stale legacy attribute must not reactivate the retired palette system. */
+:root[data-theme="light"][data-palette],
+:root[data-theme="dark"][data-palette] {
+  --bg: var(--os-wallpaper-base) !important;
+  --stage: var(--os-canvas-bg) !important;
+  --panel: var(--os-window-bg) !important;
+  --surface: var(--os-surface-bg) !important;
+  --surface-2: var(--os-sidebar-bg) !important;
+  --field: var(--os-field-bg) !important;
+  --ink: var(--os-text) !important;
+  --text: var(--os-text) !important;
+  --muted: var(--os-muted-text) !important;
+  --line: var(--os-border) !important;
+  --line-strong: var(--os-border-strong) !important;
+  --soft: var(--os-hover-bg) !important;
+  --grid-line: var(--os-grid-line) !important;
+  --accent: var(--os-accent) !important;
+  --accent-dark: var(--os-accent) !important;
+  --accent-strong: var(--os-accent) !important;
+  --accent-soft: var(--os-selected-bg) !important;
+  --accent-contrast: #fff !important;
+  --accent-ring: color-mix(in srgb, var(--os-accent) 48%, transparent) !important;
+  --settings-bg: var(--os-surface-bg) !important;
+  --settings-sidebar: var(--os-sidebar-bg) !important;
+  --settings-sidebar-text: var(--os-text) !important;
+  --settings-card: var(--os-window-bg) !important;
+  --settings-field: var(--os-field-bg) !important;
+  --settings-text: var(--os-text) !important;
+  --settings-muted: var(--os-muted-text) !important;
+  --settings-line: var(--os-border) !important;
+  --rail-bg: var(--os-sidebar-bg) !important;
+  --rail-fg: var(--os-text) !important;
+  --rail-muted: var(--os-muted-text) !important;
+  --rail-hover: var(--os-hover-bg) !important;
+  --rail-active-bg: #2f80ed !important;
+  --rail-active-fg: #fff !important;
+  --menu-bg: var(--os-window-bg) !important;
+  --menu-fg: var(--os-text) !important;
+  --menu-icon-bg: var(--os-sidebar-bg) !important;
+  --menu-icon-fg: var(--os-text) !important;
+  --menu-hover-bg: var(--os-hover-bg) !important;
+  --menu-border: var(--os-border) !important;
+  --settings-close-bg: var(--os-hover-bg) !important;
+  --settings-close-fg: var(--os-text) !important;
+}
+
+:root[data-theme="light"][data-palette] body,
+:root[data-theme="dark"][data-palette] body {
+  color: var(--os-text) !important;
+  background: var(--os-wallpaper-base) !important;
+}
+
+:root[data-theme="light"][data-palette] .rail,
+:root[data-theme="dark"][data-palette] .rail {
+  border-color: var(--os-border) !important;
+  background: var(--os-sidebar-bg) !important;
+}
+
+:root[data-theme="light"][data-palette] .app-shell,
+:root[data-theme="dark"][data-palette] .app-shell {
+  color: var(--os-text) !important;
+  background: var(--os-window-bg) !important;
+}
+
+:root[data-theme="light"][data-palette] .settings-center,
+:root[data-theme="dark"][data-palette] .settings-center {
+  color: var(--os-text) !important;
+  background: var(--os-surface-bg) !important;
+}
+
+:root[data-theme="light"][data-palette] .settings-sidebar,
+:root[data-theme="dark"][data-palette] .settings-sidebar {
+  border-color: var(--os-border) !important;
+  background: var(--os-sidebar-bg) !important;
+}
+
+:root[data-theme="light"][data-palette] .canvas-node-menu:not(.canvas-image-menu),
+:root[data-theme="dark"][data-palette] .canvas-node-menu:not(.canvas-image-menu) {
+  color: var(--os-text) !important;
+  background: var(--os-window-bg) !important;
+}
+
+:root[data-theme] body {
+  color: var(--os-text);
+  background: var(--os-wallpaper-base);
+}
+
+:root[data-theme] body::before { background: var(--os-wallpaper); }
+:root[data-theme] body::after { opacity: .18; }
+
+/* Desktop chrome and real application windows. */
+:root[data-theme] .ai-os-menu-bar {
+  border-color: var(--os-border);
+  color: var(--os-text);
+  background: var(--os-menu-bg);
+}
+
+:root[data-theme] .ai-os-user-menu,
+:root[data-theme] .ai-os-launchpad-grid button:hover { background: var(--os-hover-bg); }
+
+:root[data-theme] .ai-os-lan-indicator,
+:root[data-theme] .ai-os-window-chrome > strong { color: var(--os-muted-text); }
+
+:root[data-theme] .ai-os-dock {
+  border-color: var(--os-border-strong);
+  background: var(--os-dock-bg);
+  box-shadow: 0 16px 44px var(--os-shadow-color), inset 0 1px rgba(255, 255, 255, .12);
+}
+
+:root[data-theme] .ai-os-dock-divider { background: var(--os-border-strong); }
+
+:root[data-theme] .ai-os-app-window,
+:root[data-theme] .ai-os-primary-window.app-shell,
+:root[data-theme] .ai-os-companion-window,
+:root[data-theme] .ai-os-auth-card {
+  border-color: var(--os-border-strong) !important;
+  color: var(--os-text);
+  background: var(--os-window-bg) !important;
+  box-shadow: var(--os-window-shadow) !important;
+}
+
+/* 应用窗口必须是"不透明合成"：半透明的 --os-window-bg 只用来调色，
+   不透明的 --os-window-solid 垫在下面。否则未聚焦（或叠了两层玻璃）的
+   窗口会把后面的应用以可读文字的形式透出来——画布项目管理界面就是这么
+   露出来的。 */
+:root[data-theme] .ai-os-app-window {
+  background-color: var(--os-window-solid) !important;
+  background-image: linear-gradient(var(--os-window-bg), var(--os-window-bg)) !important;
+}
+
+:root[data-theme] .ai-os-app-titlebar,
+:root[data-theme] .ai-os-window-chrome,
+:root[data-theme] .ai-os-companion-titlebar {
+  border-color: var(--os-border);
+  background: var(--os-titlebar-bg);
+}
+
+:root[data-theme] .ai-os-window-content,
+:root[data-theme] .ai-os-companion-content,
+:root[data-theme] .ai-os-account-detail,
+:root[data-theme] .ai-os-system-content {
+  color: var(--os-text);
+  background: var(--os-surface-bg);
+}
+
+:root[data-theme] .ai-os-companion-sidebar,
+:root[data-theme] .ai-os-account-list-pane,
+:root[data-theme] .ai-os-primary-window > .rail {
+  border-color: var(--os-border) !important;
+  color: var(--os-text);
+  background: var(--os-sidebar-bg) !important;
+}
+
+:root[data-theme] .ai-os-primary-window > .stage { background: var(--os-surface-bg) !important; }
+
+:root[data-theme] .ai-os-launchpad-backdrop { background: var(--os-overlay-bg); }
+:root[data-theme] .ai-os-launchpad-grid {
+  border-color: var(--os-border-strong);
+  color: var(--os-text);
+  background: var(--os-window-bg);
+  box-shadow: var(--os-window-shadow);
+}
+
+/* Dialogs, popovers, fields, accounts and shared resources. */
+:root[data-theme] .ai-os-user-popover,
+:root[data-theme] .ai-os-dialog,
+:root[data-theme] .ai-os-toast {
+  border-color: var(--os-border-strong);
+  color: var(--os-text);
+  background: var(--os-window-bg);
+  box-shadow: var(--os-window-shadow);
+}
+
+:root[data-theme] .ai-os-dialog::backdrop { background: var(--os-overlay-bg); }
+
+/* 共享面板：主题层是后加载的，通用 footer 按钮规则会把主按钮的强调色盖掉，
+   选中项的 #176acb 在深色主题上更是糊成一片，所以这里单独把这两个状态铺回主题色。 */
+:root[data-theme] .ai-os-share-dialog footer button:last-child {
+  border-color: transparent;
+  color: #fff;
+  background: var(--os-accent);
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--os-accent) 30%, transparent);
+}
+
+:root[data-theme] .ai-os-dialog .ai-os-choice-grid input:checked + span {
+  border-color: var(--os-accent);
+  color: var(--os-text);
+  background: var(--os-selected-bg);
+}
+
+:root[data-theme] :is(.ai-os-auth-form, .ai-os-dialog, .ai-os-account-list-pane) :is(input, select, textarea),
+:root[data-theme] .ai-os-dialog footer button,
+:root[data-theme] .ai-os-account-controls button,
+:root[data-theme] .ai-os-resource-actions button,
+:root[data-theme] .ai-os-temporary-password button {
+  border-color: var(--os-border);
+  color: var(--os-text);
+  background: var(--os-field-bg);
+}
+
+:root[data-theme] .ai-os-resource-card,
+:root[data-theme] .ai-os-health-grid article,
+:root[data-theme] .ai-os-setting-group,
+:root[data-theme] .ai-os-segmented button.active {
+  border-color: var(--os-border);
+  color: var(--os-text);
+  background: var(--os-surface-bg);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--os-shadow-color) 55%, transparent);
+}
+
+:root[data-theme] .ai-os-companion-sidebar > button,
+:root[data-theme] .ai-os-account-list-pane footer button { color: var(--os-text); }
+
+:root[data-theme] .ai-os-companion-sidebar > button:hover,
+:root[data-theme] .ai-os-user-popover button:hover { background: var(--os-hover-bg); }
+
+:root[data-theme] .ai-os-companion-sidebar > button.active,
+:root[data-theme] .ai-os-segmented button.active { background: var(--os-selected-bg); }
+
+/* System Settings consumes the same global palette instead of owning a theme. */
+:root[data-theme] .ai-os-settings-layout {
+  --ai-settings-surface: var(--os-surface-bg);
+  --ai-settings-sidebar-bg: var(--os-sidebar-bg);
+  --ai-settings-card-bg: var(--os-window-bg);
+  --ai-settings-field-bg: var(--os-field-bg);
+  --ai-settings-ink: var(--os-text);
+  --ai-settings-muted: var(--os-muted-text);
+  --ai-settings-line: var(--os-border);
+  --ai-settings-shadow: var(--os-window-shadow);
+  color: var(--os-text);
+  background: var(--os-surface-bg);
+}
+
+:root[data-theme] .ai-os-settings-sidebar,
+:root[data-theme] .settings-provider-sidebar { background: var(--os-sidebar-bg); }
+
+:root[data-theme] :is(.settings-card, .settings-account-hero, .settings-health-grid article, .settings-provider-workspace, .settings-model-row),
+:root[data-theme] .settings-scale-grid button.active { background: var(--os-window-bg); }
+
+:root[data-theme] :is(.settings-search, .settings-provider-fields input, .settings-provider-fields select, .settings-model-heading input, .settings-model-meta select, .settings-model-title input, .settings-path-field input, .settings-number-field input) {
+  border-color: var(--os-border);
+  color: var(--os-text);
+  background: var(--os-field-bg);
+}
+
+/* Legacy workbench surfaces follow the same :root[data-theme] contract. */
+:root[data-theme] .app-shell { color: var(--os-text); background: var(--os-window-bg); }
+:root[data-theme] .rail { border-color: var(--os-border); background: var(--os-sidebar-bg); }
+:root[data-theme] .stage,
+:root[data-theme] .tool-view { color: var(--os-text); background: var(--os-surface-bg); }
+:root[data-theme] .nav-item { color: var(--os-muted-text); }
+:root[data-theme] .nav-item:not(.active):hover { color: var(--os-text); background: var(--os-hover-bg); }
+:root[data-theme] .nav-item.active { color: #fff; background: #2f80ed; }
+
+:root[data-theme] :is(.image-control, .history-panel, .records-workspace, .record-card, .preview-panel, .control-card, .upscale-control, .chat-panel, .chat-composer, .message, .history-chat-row) {
+  border-color: var(--os-border);
+  color: var(--os-text);
+  background: var(--os-window-bg);
+}
+
+:root[data-theme] :is(input, select, textarea) {
+  border-color: var(--os-border);
+  color: var(--os-text);
+  background-color: var(--os-field-bg);
+}
+
+/* Infinite canvas chrome only: media pixels are intentionally untouched. */
+:root[data-theme] .infinite-canvas {
+  color: var(--os-text);
+  background:
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px),
+    var(--os-canvas-bg);
+  background-size: 42px 42px;
+}
+
+:root[data-theme] :is(.canvas-node:not(.canvas-node-frameless), .canvas-node-gallery, .canvas-node-group, .canvas-board-card, .canvas-name-card, .canvas-confirm-card, .canvas-delete-confirm-card, .canvas-board-loading-card) {
+  border-color: var(--os-border-strong);
+  color: var(--os-text);
+  background: var(--os-node-bg);
+  box-shadow: var(--shadow);
+}
+
+:root[data-theme] :is(.canvas-status, .canvas-node-bar, .canvas-group-bar, .canvas-selection-tools, .canvas-node-menu, .canvas-connect-menu, .canvas-board-menu, .canvas-board-modal, .canvas-grid-editor-popover, .canvas-h3-mention-menu, .canvas-video-history-panel) {
+  border-color: var(--os-border);
+  color: var(--os-text);
+  background: var(--os-window-bg);
+  box-shadow: var(--shadow);
+}
+
+:root[data-theme] :is(.canvas-node-prompt, .canvas-text-editor, .canvas-node-model, .canvas-llm-prompt, .canvas-h3-prompt-field, .canvas-grid-editor-edit-controls input) {
+  border-color: var(--os-border);
+  color: var(--os-text);
+  background: var(--os-field-bg);
+}
+
+:root[data-theme] :is(.canvas-node-menu, .canvas-connect-menu, .canvas-board-menu) button:hover { background: var(--os-hover-bg); }
+
+:root[data-theme] .canvas-mask-dialog {
+  border-color: var(--os-border-strong);
+  background: var(--os-window-bg);
+  color: var(--os-text);
+  box-shadow: var(--os-window-shadow);
+}
+
+:root[data-theme] .canvas-crop-workbench-panel {
+  border-color: var(--os-border-strong);
+  background: var(--os-window-bg);
+  color: var(--os-text);
+  box-shadow: var(--os-window-shadow);
+}
+
+:root[data-theme] :is(.canvas-mask-toolbar button, .canvas-mask-brush-control, .canvas-mask-zoom-controls, .canvas-crop-workbench-panel button, .canvas-crop-workbench-panel select) {
+  border-color: var(--os-border);
+  background: var(--os-field-bg);
+  color: var(--os-text);
+}
+
+:root[data-theme] :is(.canvas-mask-header span, .canvas-mask-hint, .canvas-mask-toolbar label, .canvas-crop-workbench-controls > div, .canvas-crop-workbench-status) {
+  color: var(--os-muted-text);
+}
+
+:root[data-theme] :is(.canvas-mask-modal, .canvas-crop-workbench) { background: var(--os-overlay-bg); }
+
+/* Canvas Agent inherits the same surfaces while retaining its semantic run states. */
+:root[data-theme] .canvas-agent-panel {
+  border-color: var(--os-border);
+  color: var(--os-text);
+  background: var(--os-window-bg);
+  box-shadow: -18px 0 50px var(--os-shadow-color);
+}
+
+:root[data-theme] :is(.canvas-agent-header, .canvas-agent-footer) { border-color: var(--os-border); }
+
+:root[data-theme] :is(.canvas-agent-skill, .canvas-agent-popover, .canvas-agent-context-chip, .canvas-agent-image-choice) {
+  border-color: var(--os-border);
+  color: var(--os-text);
+  background: var(--os-surface-bg);
+}
+
+:root[data-theme] .canvas-agent-tool-step {
+  border-color: transparent;
+  color: var(--os-text);
+  background: transparent;
+}
+
+:root[data-theme] .canvas-agent-tool-step:hover {
+  background: var(--os-hover-bg);
+}
+
+:root[data-theme] .canvas-agent-form textarea {
+  color: var(--os-text);
+  background: var(--os-field-bg);
+}
+
+:root[data-theme] :is(.canvas-agent-skill:hover, .canvas-agent-skill.active, .canvas-agent-composer-tools > button:hover) { background: var(--os-hover-bg); }
+
+:root[data-theme] ::placeholder { color: var(--os-muted-text); }
+
+/*
+ * These explicit roots deliberately match canvas-agent.css's dark selectors.
+ * Kept after the general compatibility rules, they also cover the compound
+ * selectors whose old dark declarations are more specific than a panel-wide
+ * surface override.
+ */
+:root[data-theme="light"] .canvas-agent-panel,
+:root[data-theme="dark"] .canvas-agent-panel {
+  border-color: var(--os-border);
+  color: var(--os-text);
+  background: var(--os-window-bg);
+  box-shadow: -18px 0 50px var(--os-shadow-color);
+}
+
+:root[data-theme="light"] :is(.canvas-agent-skill, .canvas-agent-popover, .canvas-agent-context-chip),
+:root[data-theme="dark"] :is(.canvas-agent-skill, .canvas-agent-popover, .canvas-agent-context-chip) {
+  border-color: var(--os-border);
+  color: var(--os-text);
+  background: var(--os-surface-bg);
+}
+
+:root[data-theme="light"] .canvas-agent-skill:hover,
+:root[data-theme="light"] .canvas-agent-skill.active,
+:root[data-theme="dark"] .canvas-agent-skill:hover,
+:root[data-theme="dark"] .canvas-agent-skill.active {
+  background: var(--os-hover-bg);
+}
+
+:root[data-theme="light"] .canvas-agent-form textarea,
+:root[data-theme="dark"] .canvas-agent-form textarea {
+  color: var(--os-text);
+  background: var(--os-field-bg);
+}
+
+:root[data-theme="dark"] .canvas-agent-message.is-user {
+  border-color: var(--os-border);
+}
+
+:root[data-theme="light"] .canvas-agent-image-choice,
+:root[data-theme="dark"] .canvas-agent-image-choice {
+  border-color: var(--os-border);
+  color: var(--os-text);
+  background: var(--os-surface-bg);
+  box-shadow: 0 10px 28px var(--os-shadow-color);
+}
+
+:root[data-theme="light"] .canvas-agent-image-choice-actions button,
+:root[data-theme="dark"] .canvas-agent-image-choice-actions button {
+  border-color: var(--os-border);
+  color: var(--os-text);
+  background: var(--os-field-bg);
+}
+
+:root[data-theme="light"] .canvas-agent-image-choice-actions small,
+:root[data-theme="dark"] .canvas-agent-image-choice-actions small { color: var(--os-muted-text); }
+
+:root[data-theme="light"] .canvas-agent-image-choice-actions button.is-primary,
+:root[data-theme="dark"] .canvas-agent-image-choice-actions button.is-primary {
+  border-color: color-mix(in srgb, var(--os-accent) 45%, var(--os-border));
+  background: color-mix(in srgb, var(--os-accent) 17%, var(--os-field-bg));
+}
+
+/*
+ * Legacy darkroom palette blocks set custom properties directly on these
+ * views. Root token remapping cannot cross that local definition, so keep a
+ * same-specificity, later-loaded mapping for stale palette attributes.
+ */
+:root[data-theme="light"][data-palette] #imageView,
+:root[data-theme="dark"][data-palette] #imageView {
+  --darkroom-canvas: var(--os-canvas-bg);
+  --darkroom-panel: var(--os-window-bg);
+  --darkroom-field: var(--os-field-bg);
+  --darkroom-preview: var(--os-canvas-bg);
+  --darkroom-line: var(--os-border);
+  --darkroom-ink: var(--os-text);
+  --darkroom-muted: var(--os-muted-text);
+  --darkroom-accent: var(--os-accent);
+  --darkroom-close: var(--os-field-bg);
+  --darkroom-close-ink: var(--os-text);
+}
+
+:root[data-theme="light"][data-palette] #chatView,
+:root[data-theme="dark"][data-palette] #chatView {
+  --darkroom-canvas: var(--os-canvas-bg);
+  --darkroom-panel: var(--os-window-bg);
+  --darkroom-field: var(--os-field-bg);
+  --darkroom-preview: var(--os-canvas-bg);
+  --darkroom-line: var(--os-border);
+  --darkroom-ink: var(--os-text);
+  --darkroom-muted: var(--os-muted-text);
+  --darkroom-accent: var(--os-accent);
+  --darkroom-close: var(--os-field-bg);
+  --darkroom-close-ink: var(--os-text);
+}

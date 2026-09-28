@@ -67,7 +67,7 @@ assert.deepEqual(chat.parseResponse({
     },
   }],
   usage: { total_tokens: 8 },
-}), expectedTurn);
+}), { ...expectedTurn, reasoning_content: "" });
 
 const probeTool = {
   name: "report_agent_probe",
@@ -81,6 +81,12 @@ const probeTool = {
 };
 const responsesProbe = responses.buildToolProbe({ model: "model-a", prompt: "report nonce", tool: probeTool });
 const chatProbe = chat.buildToolProbe({ model: "model-a", prompt: "report nonce", tool: probeTool });
+assert.equal(
+  responsesProbe.tools[0].type,
+  "function",
+  "Responses tool verification must explicitly identify the function tool type for OpenAI-compatible gateways.",
+);
+assert.equal(responsesProbe.tools[0].name, "report_agent_probe");
 assert.equal(responsesProbe.tool_choice.name, "report_agent_probe");
 assert.equal(chatProbe.tool_choice.function.name, "report_agent_probe");
 assert.equal(responses.buildVisionProbe({ model: "model-a", prompt: "see", imageUrl: "data:image/png;base64,abc" }).input[0].content[1].type, "input_image");

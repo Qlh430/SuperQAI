@@ -42,6 +42,7 @@
       img.setAttribute("data-original-src", source);
       img.dataset.imageQuality = "unloaded";
       img.dataset.requestedQuality = "unloaded";
+      img.dataset.imagePaintQuality = "unloaded";
       img.decoding = "async";
       img.classList.add("deferred-image");
       this.bindImageEvents(img);
@@ -65,10 +66,11 @@
       img.setAttribute("data-canvas-original-src", source);
       img.dataset.imageQuality = "unloaded";
       img.dataset.requestedQuality = "unloaded";
+      img.dataset.imagePaintQuality = "unloaded";
       img.decoding = "async";
       img.classList.add("deferred-image");
       this.bindImageEvents(img);
-      this.options.set(img, { unload: true, maxQuality: "original", canvas: true });
+      this.options.set(img, { unload: true, maxQuality: "original", allowOriginalFallback: false, canvas: true });
       return img;
     }
 
@@ -81,6 +83,7 @@
           img.dataset.imageQuality = "original";
         } else if (img.dataset.requestedQuality === "thumbnail") {
           img.dataset.imageQuality = "thumbnail";
+          img.dataset.imagePaintQuality = "thumbnail";
         }
         delete img.dataset.fallbackStage;
       });
@@ -181,6 +184,7 @@
       img.removeAttribute("src");
       img.dataset.requestedQuality = "error";
       img.dataset.imageQuality = "error";
+      img.dataset.imagePaintQuality = "error";
       img.dispatchEvent(new CustomEvent("image-resource-state", { detail: { state: "error" } }));
     }
 
@@ -251,6 +255,9 @@
       if (!lookup.ok) throw new Error(`Thumbnail lookup failed: ${lookup.status}`);
       const lookupData = await lookup.json().catch(() => ({}));
       if (lookupData.item?.thumbnailUrl) return lookupData.item;
+      // Local previews belong on the server. A missing preview must not silently
+      // download the whole original on every LAN client to generate it again.
+      if (source.startsWith("/output/")) throw new Error("Local thumbnail is unavailable.");
       const generated = await this.generateThumbnail(source);
       return this.uploadThumbnail(generated);
     }
@@ -285,7 +292,7 @@
         worker.postMessage({
           id,
           source,
-          maxSide: root.ImageLoadingRules?.THUMBNAIL_MAX_SIDE || 768,
+          maxSide: root.ImageLoadingRules?.THUMBNAIL_MAX_SIDE || 640,
           quality: root.ImageLoadingRules?.THUMBNAIL_QUALITY || 0.76,
         });
       });
@@ -298,11 +305,11 @@
       const bitmap = await createImageBitmap(blob);
       const width = bitmap.width;
       const height = bitmap.height;
-      if (Math.max(width, height) <= 1600 && blob.size <= 1024 * 1024) {
+      if (Math.max(width, height) <= (root.ImageLoadingRules?.THUMBNAIL_MAX_SIDE || 640) && blob.size <= 1024 * 1024) {
         bitmap.close();
         return { source, width, height, bytes: blob.size, lightweight: true };
       }
-      const maxSide = root.ImageLoadingRules?.THUMBNAIL_MAX_SIDE || 768;
+      const maxSide = root.ImageLoadingRules?.THUMBNAIL_MAX_SIDE || 640;
       const scale = Math.min(1, maxSide / Math.max(width, height));
       const canvas = document.createElement("canvas");
       canvas.width = Math.max(1, Math.round(width * scale));
@@ -339,6 +346,7 @@
 
     showThumbnail(img, { allowOriginalFallback = true } = {}) {
       if (!img) return Promise.resolve(null);
+      if (this.options.get(img)?.allowOriginalFallback === false) allowOriginalFallback = false;
       const source = img.getAttribute("data-original-src") || "";
       if (!source) return Promise.resolve(null);
       if (img.dataset.imageQuality === "original" && img.getAttribute("src") === source) {
@@ -356,6 +364,7 @@
           if (img.getAttribute("src") !== item.thumbnailUrl) img.src = item.thumbnailUrl;
           img.dataset.imageQuality = "thumbnail";
           img.dataset.requestedQuality = "thumbnail";
+          img.dataset.imagePaintQuality = "thumbnail";
           img.dataset.fallbackStage = "thumbnail";
         } else if (hadDisplayedImage) {
           img.dataset.requestedQuality = img.dataset.imageQuality;
@@ -420,6 +429,7 @@
           if (preload.naturalHeight) task.img.dataset.originalHeight = String(preload.naturalHeight);
           const previousSrc = task.img.getAttribute("src") || "";
           const previousQuality = task.img.dataset.imageQuality || "unloaded";
+          const previousPaintQuality = task.img.dataset.imagePaintQuality || previousQuality;
           const clearPaint = this.preserveCanvasImagePaint(task.img);
           task.img.src = task.source;
           let decoded = true;
@@ -428,6 +438,7 @@
             if (task.img.getAttribute("src") === task.source && previousSrc) {
               task.img.src = previousSrc;
               task.img.dataset.imageQuality = previousQuality;
+              task.img.dataset.imagePaintQuality = previousPaintQuality;
             }
             clearPaint();
             finish(false);
@@ -436,11 +447,20 @@
           task.img.dataset.imageQuality = "original";
           task.img.dataset.requestedQuality = "original";
           task.img.dataset.fallbackStage = "original";
+          task.img.dataset.imagePaintQuality = task.img.hasAttribute("data-canvas-original-src")
+            ? "pending"
+            : "original";
           await new Promise((resolve) => {
             const schedule = root.requestAnimationFrame || ((callback) => setTimeout(callback, 0));
             schedule(resolve);
           });
           clearPaint();
+          if (task.img.hasAttribute("data-canvas-original-src")) {
+            task.img.dispatchEvent(new CustomEvent("canvas-image-original-ready", {
+              bubbles: true,
+              detail: { source: task.source },
+            }));
+          }
           finish(true);
         };
         preload.onerror = () => {
@@ -466,12 +486,15 @@
       img.dataset.requestedQuality = "unloaded";
       img.removeAttribute("src");
       img.dataset.imageQuality = "unloaded";
+      img.dataset.imagePaintQuality = "unloaded";
     }
 
     releaseRemovedNode(node) {
       if (!node || node.nodeType !== 1) return;
-      if (node.matches?.("img[data-original-src]")) this.releaseImage(node);
-      node.querySelectorAll?.("img[data-original-src]").forEach((img) => this.releaseImage(img));
+      if (node.matches?.("img[data-original-src]") && !node.isConnected) this.releaseImage(node);
+      node.querySelectorAll?.("img[data-original-src]").forEach((img) => {
+        if (!img.isConnected) this.releaseImage(img);
+      });
     }
 
     releaseImage(img) {

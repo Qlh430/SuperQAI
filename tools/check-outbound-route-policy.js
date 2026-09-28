@@ -85,8 +85,20 @@ assert.equal(JSON.stringify(snapshot).includes("apiKey"), false);
 currentTime += 11_000;
 assert.equal(
   policy.choose({ url: "https://overseas.example/v1/chat", mode: "auto", proxyAvailable: true }).route,
+  "proxy",
+  "expiration must not discard a successful route and force a known failing direct route",
+);
+
+const recoveryPolicy = createOutboundRoutePolicy({ now: () => currentTime, ttlMs: 10_000 });
+for (let attempt = 0; attempt < 2; attempt += 1) {
+  recoveryPolicy.record({ url: "https://recover.example/models", route: "direct", ok: false, stage: "connect" });
+}
+assert.equal(recoveryPolicy.choose({ url: "https://recover.example/models", proxyAvailable: true }).route, "proxy");
+currentTime += 11_000;
+assert.equal(
+  recoveryPolicy.choose({ url: "https://recover.example/models", proxyAvailable: true }).route,
   "direct",
-  "expired observations should return auto mode to its direct-first default",
+  "a failed circuit must become eligible for a probe after its observations expire",
 );
 
 assert.deepEqual(policy.resetRuntime(), { version: 1, hosts: {} });

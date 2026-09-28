@@ -63,9 +63,9 @@ async function waitForServer(port, diagnostics) {
 }
 
 async function openBoard(page) {
-  await page.locator("#infiniteCanvas").waitFor({ state: "visible", timeout: 30_000 });
-  await page.evaluate(() => document.querySelector(".canvas-start-gate")?.classList.add("is-dismissed"));
-  await page.locator("#canvasHistoryButton").click();
+  await page.locator("#aiOsDesktop:not([hidden])").waitFor();
+  await page.locator('[data-ai-app="canvas"]').click();
+  await page.locator("#canvasLibraryScreen").waitFor({ state: "visible", timeout: 30_000 });
   await page.locator(`[data-board-id="${BOARD_ID}"]`).click({ timeout: 15_000 });
   await page.locator("#canvasBoardLoading").waitFor({ state: "hidden", timeout: 30_000 });
   await page.waitForFunction((boardId) => (
@@ -227,6 +227,8 @@ async function scanDenseScene(page) {
         page?.visualConnectionCount
         || Math.floor(Number(page?.visualConnections?.length || 0) / 4),
       ),
+      visualConnectionTotalCount: Number(page?.visualConnectionTotalCount || 0),
+      visualConnectionTruncated: Boolean(page?.visualConnectionTruncated),
       renderedConnectionCount: Number(diagnostics.connectionCount || 0),
       aggregateCardCount: Number(diagnostics.aggregateCardCount || 0),
       blankNodeCount: Number(diagnostics.blankNodeCount || 0),
@@ -251,6 +253,13 @@ async function runPerformanceCheck() {
       ...process.env,
       PORT: String(port),
       HOST: "127.0.0.1",
+      AI_OS_SKIP_ENV_FILE: "1",
+      AI_OS_AUTH_DISABLED: "1",
+      AI_OS_DATA_DIR: path.join(PRESSURE_ROOT, "runtime"),
+      AI_OS_SYSTEM_DB_FILE: path.join(PRESSURE_ROOT, "runtime", "system.sqlite"),
+      AI_OS_OUTPUT_DIR: path.join(PRESSURE_ROOT, "runtime", "output"),
+      AI_IMAGE_API_KEY: "",
+      AI_IMAGE_API_URL: "",
       CANVAS_DB_FILE: DATABASE_FILE,
       CANVAS_LEGACY_FILE: path.join(PRESSURE_ROOT, "no-legacy-canvas.json"),
       CANVAS_BACKUP_DIR: path.join(PRESSURE_ROOT, "backups"),
@@ -267,6 +276,7 @@ async function runPerformanceCheck() {
   try {
     await waitForServer(port, diagnostics);
     const viewportSamples = [];
+    const viewportSamplesByQuery = Array.from({ length: 4 }, () => ({ bytes: 0, samples: [] }));
     const queryPaths = [
       `/api/canvas/boards/${BOARD_ID}/viewport?left=-4000&top=-2200&right=4000&bottom=2200&scale=1&nodeLimit=800&connectionLimit=1200`,
       `/api/canvas/boards/${BOARD_ID}/viewport?left=1999000&top=1999000&right=2002000&bottom=2002000&scale=0.2&nodeLimit=800&connectionLimit=1200`,
@@ -287,6 +297,8 @@ async function runPerformanceCheck() {
         assert.equal(response.data.mode, "detail");
       }
       viewportSamples.push(response.elapsedMs);
+      viewportSamplesByQuery[index % 4].samples.push(Number(response.elapsedMs.toFixed(2)));
+      if (index < 4) viewportSamplesByQuery[index].bytes = Buffer.byteLength(JSON.stringify(response.data));
     }
     const farResponse = await requestJson(
       port,
@@ -326,6 +338,7 @@ async function runPerformanceCheck() {
     const cold = await measureOpen(page);
     await page.reload({ waitUntil: "networkidle", timeout: 30_000 });
     const warm = await measureOpen(page);
+    const initialViewport = await page.evaluate(() => ({ x: canvasState.x, y: canvasState.y, scale: canvasState.scale }));
 
     const zoomMatrix = [];
     for (const scale of [0.05, 0.09, 0.25, 0.55, 0.64, 0.65, 0.74, 1, 1.6]) {
@@ -357,13 +370,22 @@ async function runPerformanceCheck() {
     assert.ok(denseScene.visualNodeCount > 0, JSON.stringify(denseScene));
     assert.equal(denseScene.titledNodeCount, denseScene.visualNodeCount, JSON.stringify(denseScene));
     assert.ok(denseScene.visualConnectionCount > 0, JSON.stringify(denseScene));
+    assert.ok(
+      denseScene.visualConnectionTotalCount >= denseScene.visualConnectionCount,
+      JSON.stringify(denseScene),
+    );
+    assert.equal(
+      denseScene.visualConnectionTruncated,
+      denseScene.visualConnectionTotalCount > denseScene.visualConnectionCount,
+      JSON.stringify(denseScene),
+    );
     assert.equal(denseScene.renderedConnectionCount, denseScene.visualConnectionCount, JSON.stringify(denseScene));
     assert.equal(denseScene.aggregateCardCount, 0, JSON.stringify(denseScene));
     assert.equal(denseScene.blankNodeCount, 0, JSON.stringify(denseScene));
     assert.ok(denseScene.hitNodeId, JSON.stringify(denseScene));
     assert.ok(denseScene.mountedNodes <= 800, JSON.stringify(denseScene));
 
-    const interaction = await page.evaluate(async () => {
+    const interaction = await page.evaluate(async (initialViewport) => {
       const frameDurations = [];
       const inputResponses = [];
       globalThis.__canvasLongTasks = [];
@@ -381,12 +403,16 @@ async function runPerformanceCheck() {
           resolve();
         }));
       }
+      const longestInteractionTaskMs = Math.max(0, ...(globalThis.__canvasLongTasks || []));
       const firstRequest = canvasViewportDataSource.request({
         left: 999_999_900, top: 999_999_900, right: 1_000_000_500, bottom: 1_000_000_500, scale: 1,
       });
-      const secondRequest = canvasViewportDataSource.request({
-        left: -4_000, top: -2_200, right: 4_000, bottom: 2_200, scale: 1,
-      });
+      // Restore the actual viewport through the application path. A scene page
+      // plus an unrelated raw request used to report zero DOM as "no blanks".
+      Object.assign(canvasState, initialViewport);
+      applyCanvasTransformNow();
+      const { mountRect } = canvasVirtualizer.getRects();
+      const secondRequest = requestCanvasViewportPage({ ...mountRect, scale: canvasState.scale });
       await Promise.allSettled([firstRequest, secondRequest]);
       canvasVirtualizer.flushNow();
       await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
@@ -403,12 +429,12 @@ async function runPerformanceCheck() {
         totalCanvasDom: document.querySelector("#infiniteCanvas")?.querySelectorAll("*").length || 0,
         canvasHeapMB: Number(((performance.memory?.usedJSHeapSize || 0) / 1024 / 1024).toFixed(2)),
         blankNodeCount,
-        longestInteractionTaskMs: Math.max(0, ...(globalThis.__canvasLongTasks || [])),
+        longestInteractionTaskMs,
         residentModels: canvasVirtualStore.size,
         activeGeneration: String(canvasPagedStore.activeGeneration || ""),
         requestGeneration: String(canvasViewportDataSource.generation || ""),
       };
-    });
+    }, initialViewport);
     assert.equal(interaction.activeGeneration, interaction.requestGeneration, "stale viewport response became active");
     const metrics = {
       ...manifest,
@@ -416,6 +442,7 @@ async function runPerformanceCheck() {
       warmUsableMs: warm.usableMs,
       viewportP95Ms: percentile(viewportSamples, 0.95),
       viewportP99Ms: percentile(viewportSamples, 0.99),
+      viewportSamplesByQuery,
       panP95Ms: percentile(interaction.frameDurations, 0.95),
       panP99Ms: percentile(interaction.frameDurations, 0.99),
       inputResponseP95Ms: percentile(interaction.inputResponses, 0.95),
@@ -432,13 +459,18 @@ async function runPerformanceCheck() {
       zoomMatrix,
       pageErrors,
     };
+    // Keep measured failures reviewable instead of deleting all evidence with
+    // the disposable pressure database during cleanup.
+    const artifactDir = path.join(ROOT, "artifacts", "canvas-media-performance");
+    fs.mkdirSync(artifactDir, { recursive: true });
+    fs.writeFileSync(path.join(artifactDir, "canvas-50000.json"), `${JSON.stringify(metrics, null, 2)}\n`);
     assert.ok(metrics.coldUsableMs <= 2_000, JSON.stringify(metrics));
     assert.ok(metrics.warmUsableMs <= 1_000, JSON.stringify(metrics));
     assert.ok(metrics.viewportP95Ms <= 100, JSON.stringify(metrics));
     assert.ok(metrics.panP95Ms <= 20, JSON.stringify(metrics));
     assert.ok(metrics.panP99Ms <= 50, JSON.stringify(metrics));
     assert.ok(metrics.longestInteractionTaskMs <= 100, JSON.stringify(metrics));
-    assert.ok(metrics.detailedDomNodes <= 800, JSON.stringify(metrics));
+    assert.ok(metrics.detailedDomNodes > 0 && metrics.detailedDomNodes <= 800, JSON.stringify(metrics));
     assert.ok(metrics.totalCanvasDom <= 1_200, JSON.stringify(metrics));
     assert.ok(metrics.canvasHeapMB === 0 || metrics.canvasHeapMB <= 350, JSON.stringify(metrics));
     assert.ok(metrics.serverCanvasRssMB === 0 || metrics.serverCanvasRssMB <= 250, JSON.stringify(metrics));
@@ -456,7 +488,7 @@ async function runPerformanceCheck() {
       child.kill("SIGTERM");
       await new Promise((resolve) => child.once("exit", resolve));
     }
-    if (!succeeded) removePressureRoot();
+    if (!succeeded && !process.argv.includes("--keep-fixture-on-failure")) removePressureRoot();
   }
 }
 

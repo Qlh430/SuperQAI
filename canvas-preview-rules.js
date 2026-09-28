@@ -9,15 +9,19 @@
     gallery: { label: "图集", icon: "集" },
     group: { label: "图片组", icon: "组" },
     text: { label: "文字", icon: "文" },
+    note: { label: "便签", icon: "签" },
     comfy: { label: "ComfyUI", icon: "流" },
     generator: { label: "生成器", icon: "生" },
     llm: { label: "LLM", icon: "AI" },
     "minimax-h3": { label: "H3 视频", icon: "影" },
+    midjourney: { label: "Midjourney", icon: "M" },
+    "video-api": { label: "API 视频", icon: "影" },
     video: { label: "视频", icon: "影" },
     "video-output": { label: "视频结果", icon: "影" },
     audio: { label: "音频", icon: "音" },
     loop: { label: "循环", icon: "循" },
     "grid-editor": { label: "网格编辑", icon: "格" },
+    "director-3d": { label: "3D 导演台", icon: "3D" },
   });
 
   function bounded(value, fallback, maximum) {
@@ -65,10 +69,15 @@
 
   function nodeTitle(model, fallback) {
     if (model.kind === "text") return bounded(model.text, fallback, 80);
+    if (model.kind === "note") return bounded(model.text, fallback, 80);
     if (model.kind === "group") return bounded(model.groupTitle, fallback, 80);
     if (model.kind === "gallery") return bounded(model.galleryTitle, fallback, 80);
     if (model.kind === "llm") return bounded(model.llmPrompt, fallback, 80);
     if (model.kind === "minimax-h3") return bounded(model.minimaxH3Prompt, fallback, 80);
+    if (model.kind === "video-api") return bounded(model.apiVideoPrompt, fallback, 80);
+    if (model.kind === "midjourney") {
+      return bounded(model.midjourneyPrompt || model.prompt, fallback, 80);
+    }
     if (["video", "audio", "video-output"].includes(model.kind)) {
       return bounded(model.mediaName || model.title || model.name, fallback, 80);
     }
@@ -93,6 +102,7 @@
       return `${Array.isArray(model.groupImages) ? model.groupImages.length : 0} 张参考图`;
     }
     if (model.kind === "text") return "内容可读";
+    if (model.kind === "note") return "便签";
     if (nodeImageSource(model)) return "预览可用";
     return `${fallback} · 待处理`;
   }

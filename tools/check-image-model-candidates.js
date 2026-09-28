@@ -2,15 +2,26 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const routing = require("../image-model-routing");
+const { readServerSource } = require("./server-source");
 
-const serverSource = fs.readFileSync(path.join(__dirname, "..", "server.js"), "utf8");
+const serverSource = readServerSource();
+const imageModelCatalogSource = fs.readFileSync(path.join(__dirname, "..", "image-model-catalog.js"), "utf8");
+const providerCatalogServiceSource = fs.readFileSync(path.join(__dirname, "..", "provider-catalog-service.js"), "utf8");
+const providerCatalogSource = fs.readFileSync(path.join(__dirname, "..", "provider-catalog-http-api.js"), "utf8");
 const clientSource = fs.readFileSync(path.join(__dirname, "..", "script.js"), "utf8");
 const htmlSource = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
 assert.match(serverSource, /require\("\.\/image-model-routing"\)/);
-assert.match(serverSource, /function getImageModelCandidates\(/);
-assert.match(serverSource, /sendProviderModelCatalog\(res,\s*"image\.generate",\s*\{ image: true \}\)/);
-assert.match(serverSource, /providerStore\.publicModelsForCapability\(capability\)/);
-assert.match(serverSource, /defaultModel:\s*models\[0\]\?\.id\s*\|\|\s*""/);
+assert.match(serverSource, /require\("\.\/provider-catalog-service"\)/);
+assert.match(serverSource, /require\("\.\/image-model-catalog"\)/);
+assert.doesNotMatch(
+  serverSource,
+  /function getImageModelCandidates\(/,
+  "the image model candidate list must live in the image-model-catalog component",
+);
+assert.match(imageModelCatalogSource, /function getImageModelCandidates\(/);
+assert.match(providerCatalogSource, /sendProviderModelCatalog\(res,\s*"image\.generate",\s*\{ image: true \}\)/);
+assert.match(providerCatalogServiceSource, /providerStore\.publicModelsForCapability\(capability\)/);
+assert.match(providerCatalogServiceSource, /defaultModel:\s*models\[0\]\?\.id\s*\|\|\s*""/);
 assert.match(serverSource, /networkMode:\s*normalizeRouteMode\(provider\.networkMode\s*\|\|\s*old\.networkMode,\s*baseUrl\)/);
 assert.match(clientSource, /let canvasImageModelCandidates\s*=\s*\[\]/);
 assert.match(clientSource, /canvasImageModelCandidates\s*=\s*Array\.isArray\(data\.candidates\)/);

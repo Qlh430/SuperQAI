@@ -2,7 +2,7 @@ self.onmessage = async (event) => {
   const {
     id,
     source,
-    maxSide = 768,
+    maxSide = 640,
     quality = 0.76,
   } = event.data || {};
   try {
@@ -12,7 +12,7 @@ self.onmessage = async (event) => {
     const bitmap = await createImageBitmap(blob);
     const width = bitmap.width;
     const height = bitmap.height;
-    if (Math.max(width, height) <= 1600 && blob.size <= 1024 * 1024) {
+    if (Math.max(width, height) <= maxSide && blob.size <= 1024 * 1024) {
       bitmap.close();
       self.postMessage({ id, source, width, height, bytes: blob.size, lightweight: true });
       return;

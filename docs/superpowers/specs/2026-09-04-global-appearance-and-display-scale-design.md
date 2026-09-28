@@ -168,3 +168,13 @@
 - 不新增主题颜色自定义、壁纸上传或更多缩放档位。
 - 不重写无限画布业务引擎，也不拆分现有 legacy DOM adapter。
 - 不复制 DX OS 的商标、图标、图片或其他品牌资产。
+
+## 11. 实施状态（2026-09-04）
+
+- 状态：已实现并通过浏览器视觉 QA。
+- 偏好：统一 `appearance.theme`、`appearance.scale`、`appearance.animations` 结构已经接入 `/api/preferences`，主题与比例按账号保存；旧 `canvas.theme` 仅兼容读取，不再应用或写回。
+- 主题：`html[data-theme]` 驱动桌面、菜单栏、Dock、窗口、表单、系统设置和无限画布的语义颜色；设置页已删除独立“画布主题”。
+- 缩放：`.ai-os-desktop` 使用根 transform 与逻辑宽高反向补偿；窗口视口、窗口拖拽以及画布平移等物理位移按当前比例换算为逻辑坐标。
+- 浏览器：在隔离临时数据目录和 3199 端口，以 1440 × 900、device scale factor 1 完成浅/深设置与画布截图、五档矩阵与逻辑尺寸、150% 刷新和重新登录持久化、另一账号隔离、窗口拖拽、画布平移以及认证后 console/page error 检查。
+- 视觉结论：提供的错误图中浅色模式黑侧栏、简单缩放字形与独立画布主题三个 P1/P2 问题均已消除；最终没有剩余 P0/P1/P2。可选 P3 是进一步贴近参考图的小字号光学重量，并清理登录门的预期 401 与 favicon 404 网络诊断。
+- 证据：`artifacts/design-qa/global-appearance-scale/` 保存四张主题截图和同框对照；项目根 `design-qa.md` 以 `final result: passed` 收尾。

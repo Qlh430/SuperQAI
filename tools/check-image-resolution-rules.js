@@ -125,6 +125,42 @@ assert.deepStrictEqual(
 assert.strictEqual(openAiSquareChoices[2].label, "4K（1:1 不支持）");
 assert.strictEqual(openAiSquareChoices[3].label, "最大方图 2880×2880");
 
+for (const providerContext of [
+  { providerProtocol: "apimart", providerHost: "api.apimart.ai" },
+  { providerProtocol: "openai", providerHost: "apib.ai" },
+]) {
+  assert.deepStrictEqual(
+    rules.getCompatibility({
+      platform: "openai",
+      ratio: "1:1",
+      resolution: "4",
+      configuredResolutions: ["1", "2", "4"],
+      ...providerContext,
+    }),
+    {
+      supported: true,
+      requestedSize: "1:1",
+      level: "4",
+      reason: "",
+      alternative: null,
+      parameterMode: "ratio-resolution",
+    },
+  );
+  assert.deepStrictEqual(
+    rules.getResolutionChoices({
+      platform: "openai",
+      ratio: "1:1",
+      configuredResolutions: ["1", "2", "4"],
+      ...providerContext,
+    }).map(({ value, disabled }) => ({ value, disabled })),
+    [
+      { value: "1", disabled: false },
+      { value: "2", disabled: false },
+      { value: "4", disabled: false },
+    ],
+  );
+}
+
 const googleCases = [
   ["gemini-3.1-flash-image", ["512", "1", "2", "4"]],
   ["gemini-3-pro-image", ["1", "2", "4"]],
@@ -187,6 +223,27 @@ assert.deepStrictEqual(rules.parseResolutionChoice("exact:2880x2880"), {
   level: "4",
   exactSize: "2880x2880",
 });
+
+// 即梦 video ladders mirror the CLI's own published support table. The 2.5 build
+// reaches 30s at three resolutions; the VIP builds add 4k; everything else is
+// 720p within 4-15s.
+assert.deepStrictEqual(rules.videoResolutionsFor("seedance2.5"), ["480p", "720p", "1080p"]);
+assert.deepStrictEqual(rules.videoDurationRangeFor("seedance2.5"), { min: 4, max: 30 });
+assert.deepStrictEqual(rules.videoResolutionsFor("seedance2.0_vip"), ["720p", "1080p", "4k"]);
+assert.deepStrictEqual(rules.videoDurationRangeFor("seedance2.0fast_vip"), { min: 4, max: 15 });
+assert.deepStrictEqual(rules.videoResolutionsFor("seedance2.0"), ["720p"]);
+assert.deepStrictEqual(rules.videoDurationRangeFor("seedance2.0mini"), { min: 4, max: 15 });
+assert.deepStrictEqual(rules.videoRatiosFor("seedance2.5"), ["1:1", "3:4", "16:9", "4:3", "9:16", "21:9"]);
+// A first frame changes both flags: 2.5 rejects --ratio outright, and the two
+// legacy builds narrow their duration window.
+assert.deepStrictEqual(rules.videoRatiosFor("seedance2.5", { hasReference: true }), []);
+assert.deepStrictEqual(rules.videoRatiosFor("seedance2.0", { hasReference: true }), ["1:1", "3:4", "16:9", "4:3", "9:16", "21:9"]);
+assert.deepStrictEqual(rules.videoDurationRangeFor("seedance1.0fast"), { min: 4, max: 15 });
+assert.deepStrictEqual(rules.videoDurationRangeFor("seedance1.0fast", { hasReference: true }), { min: 5, max: 10 });
+assert.deepStrictEqual(rules.videoDurationRangeFor("seedance1.5pro", { hasReference: true }), { min: 5, max: 12 });
+// A non-即梦 transport keeps its own catalog values.
+assert.deepStrictEqual(rules.videoResolutionsFor("seedance2.5", { platform: "comfyui" }), []);
+assert.strictEqual(rules.videoDurationRangeFor("seedance2.5", { platform: "comfyui" }), null);
 
 const indexSource = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
 const rulesScriptIndex = indexSource.indexOf("image-resolution-rules.js");

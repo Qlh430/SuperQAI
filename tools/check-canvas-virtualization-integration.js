@@ -1,12 +1,14 @@
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
+const { collectPortablePackageManifest } = require("./portable-package-manifest");
 
 const root = path.resolve(__dirname, "..");
 const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
 const script = fs.readFileSync(path.join(root, "script.js"), "utf8");
 const styles = fs.readFileSync(path.join(root, "styles.css"), "utf8");
 const portable = fs.readFileSync(path.join(root, "build-portable.bat"), "utf8");
+const portableManifest = collectPortablePackageManifest(root);
 const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
 
 assert.match(
@@ -22,9 +24,10 @@ assert.match(
   "canvas-scene-layer.js",
   "canvas-virtualizer.js",
 ].forEach((name) => {
-  assert.match(portable, new RegExp(`\\b${name.replace(/\./g, "\\.")}\\b`), `portable build must copy ${name}`);
+  assert.ok(portableManifest.files.includes(name), `portable manifest must include ${name}`);
   assert.match(pkg.scripts.check, new RegExp(`node --check ${name.replace(/\./g, "\\.")}`), `npm check must syntax-check ${name}`);
 });
+assert.match(portable, /(?:copy-portable-runtime|build-electron-portable)\.js/i);
 
 [
   "check-canvas-virtualization-rules.js",
@@ -53,6 +56,11 @@ assert.match(script, /function ensureCanvasNodeMounted\(/);
 assert.match(script, /function pinCanvasNode\(/);
 assert.match(script, /function unpinCanvasNode\(/);
 assert.match(script, /function removeCanvasNodeModels\(/);
+assert.match(
+  script,
+  /function removeCanvasNodeModels\(ids\) \{[\s\S]*?unpinCanvasNode\(id\);[\s\S]*?canvasVirtualizer\.unmountId\(id\);/,
+  "deleting a node must release its virtualizer pin before unmounting it",
+);
 assert.match(
   script,
   /plane\.addEventListener\("focusin",[\s\S]*?pinCanvasNode\([\s\S]*?plane\.addEventListener\("focusout",[\s\S]*?unpinCanvasNode\(/,

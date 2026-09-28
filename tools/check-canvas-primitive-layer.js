@@ -2,6 +2,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const { CanvasPrimitiveLayer } = require("../canvas-primitive-layer");
+const { collectPortablePackageManifest } = require("./portable-package-manifest");
 
 function fakeCanvas() {
   const commands = [];
@@ -80,14 +81,16 @@ function fakeCanvas() {
   const script = fs.readFileSync(path.join(root, "script.js"), "utf8");
   const styles = fs.readFileSync(path.join(root, "styles.css"), "utf8");
   const portable = fs.readFileSync(path.join(root, "build-portable.bat"), "utf8");
+  const portableManifest = collectPortablePackageManifest(root);
   const packageJson = fs.readFileSync(path.join(root, "package.json"), "utf8");
   assert.match(html, /canvas-media-scheduler\.js[\s\S]*canvas-primitive-layer\.js[\s\S]*script\.js/);
   assert.match(script, /id="canvasPrimitiveLayer"/);
   assert.match(script, /const canvasMediaScheduler\s*=\s*new window\.CanvasMediaScheduler/);
   assert.match(script, /function renderCanvasPrimitiveLayer\(/);
   assert.match(styles, /\.canvas-primitive-layer/);
-  assert.match(portable, /canvas-media-scheduler\.js/);
-  assert.match(portable, /canvas-primitive-layer\.js/);
+  assert.ok(portableManifest.files.includes("canvas-media-scheduler.js"));
+  assert.ok(portableManifest.files.includes("canvas-primitive-layer.js"));
+  assert.match(portable, /(?:copy-portable-runtime|build-electron-portable)\.js/i);
   assert.match(packageJson, /check-canvas-media-scheduler\.js/);
   assert.match(packageJson, /check-canvas-primitive-layer\.js/);
   console.log("Canvas primitive layer checks passed.");

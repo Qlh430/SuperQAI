@@ -43,9 +43,10 @@ const SCREENSHOT_PATH = path.join(__dirname, "..", "artifacts", "canvas-grid-edi
   });
 
   await page.goto(APP_URL, { waitUntil: "domcontentloaded" });
-  await page.waitForSelector("#canvasPlane");
+  await page.waitForSelector("#canvasPlane", { state: "attached" });
   await page.evaluate(() => {
-    document.querySelector(".canvas-start-gate")?.classList.add("is-dismissed");
+    ensureCanvasBoardIdentity();
+    showCanvasEditor();
     const source = document.createElement("canvas");
     source.width = 1200;
     source.height = 900;

@@ -10,6 +10,19 @@ function response(status = 200) {
   };
 }
 
+function imageResponse({ failBody = false } = {}) {
+  const bytes = Buffer.from("image-bytes");
+  return {
+    ok: true,
+    status: 200,
+    headers: new Headers({ "content-type": "image/png", "content-length": String(bytes.length) }),
+    arrayBuffer: async () => {
+      if (failBody) throw Object.assign(new Error("socket closed while downloading body"), { code: "ECONNRESET" });
+      return bytes;
+    },
+  };
+}
+
 async function main() {
   const dispatcher = { route: "proxy" };
   const calls = [];
@@ -54,6 +67,110 @@ async function main() {
   });
   assert.equal(fallbackResponse.ok, true);
   assert.equal(fallbackAttempts, 2, "idempotent downloads may switch from direct to proxy");
+
+  const proxyCandidates = ["http://127.0.0.1:7890", "http://127.0.0.1:7897"];
+  const proxyRoutes = [];
+  const rotatingPolicy = createOutboundRoutePolicy({ failureThreshold: 1 });
+  rotatingPolicy.record({ url: "https://retry-proxy.example/models", route: "direct", ok: false, stage: "connect" });
+  const rotatingProxyFetch = createProxyAwareFetch({
+    proxyUrl: "auto",
+    discoverProxy: async ({ excludedProxyUrls = [] }) => (
+      proxyCandidates.find((candidate) => !excludedProxyUrls.includes(candidate)) || ""
+    ),
+    createProxyDispatcher: (url) => ({ url }),
+    fetchImpl: async (_url, options = {}) => {
+      proxyRoutes.push(options.dispatcher?.url || "direct");
+      if (options.dispatcher?.url === proxyCandidates[0]) {
+        throw Object.assign(new Error("first proxy tunnel failed"), { code: "UND_ERR_CONNECT_TIMEOUT" });
+      }
+      if (!options.dispatcher) {
+        throw Object.assign(new Error("direct connection failed"), { code: "UND_ERR_CONNECT_TIMEOUT" });
+      }
+      return response(200);
+    },
+    routePolicy: rotatingPolicy,
+  });
+  assert.equal((await rotatingProxyFetch("https://retry-proxy.example/models", {
+    outbound: { mode: "auto", requestClass: "idempotent" },
+  })).ok, true);
+  assert.deepEqual(
+    proxyRoutes,
+    proxyCandidates,
+    "an automatic proxy failure should discard that candidate and try the next verified proxy before direct fallback",
+  );
+
+  const billableProxyRoutes = [];
+  const billableProxyFetch = createProxyAwareFetch({
+    proxyUrl: "auto",
+    discoverProxy: async ({ excludedProxyUrls = [] }) => (
+      proxyCandidates.find((candidate) => !excludedProxyUrls.includes(candidate)) || ""
+    ),
+    createProxyDispatcher: (url) => ({ url }),
+    fetchImpl: async (_url, options = {}) => {
+      billableProxyRoutes.push(options.dispatcher?.url || "direct");
+      if (!options.dispatcher || options.dispatcher.url === proxyCandidates[0]) {
+        throw Object.assign(new Error("connection failed before request submission"), { code: "UND_ERR_CONNECT_TIMEOUT" });
+      }
+      return response(200);
+    },
+    routePolicy: createOutboundRoutePolicy(),
+  });
+  assert.equal((await billableProxyFetch("https://paid-retry-proxy.example/v1/images/generations", {
+    method: "POST",
+    body: "{}",
+    outbound: { mode: "auto", requestClass: "billable" },
+  })).ok, true);
+  assert.deepEqual(
+    billableProxyRoutes,
+    ["direct", ...proxyCandidates],
+    "a billable request may rotate automatic proxies only after a proven pre-submission failure",
+  );
+
+  for (const requestClass of ["single", "legacy", "billable"]) {
+    const submittedRoutes = [];
+    const onceOnlyFetch = createProxyAwareFetch({
+      proxyUrl: "auto",
+      discoverProxy: async ({ excludedProxyUrls = [] }) => (
+        proxyCandidates.find((candidate) => !excludedProxyUrls.includes(candidate)) || ""
+      ),
+      createProxyDispatcher: (url) => ({ url }),
+      fetchImpl: async (_url, options) => {
+        submittedRoutes.push(options.dispatcher.url);
+        throw Object.assign(new Error("socket closed after sending request"), { code: "ECONNRESET" });
+      },
+    });
+    await assert.rejects(onceOnlyFetch("https://uncertain-submit.example/generate", {
+      method: "POST",
+      body: "{}",
+      outbound: { mode: "proxy", requestClass },
+    }), /socket closed after sending request/);
+    assert.deepEqual(submittedRoutes, [proxyCandidates[0]], `${requestClass} must not rotate proxies after uncertain submission`);
+  }
+
+  let bodyAttempts = 0;
+  const bodyFallbackFetch = createProxyAwareFetch({
+    fetchImpl: async (_url, options = {}) => {
+      bodyAttempts += 1;
+      return imageResponse({ failBody: !options.dispatcher });
+    },
+    proxyUrl: "http://127.0.0.1:7890",
+    createProxyDispatcher: () => dispatcher,
+    routePolicy: createOutboundRoutePolicy(),
+  });
+  const bodyFallbackResponse = await bodyFallbackFetch("https://overseas.example/body.png", {
+    outbound: { mode: "auto", requestClass: "idempotent", purpose: "image-download", maxBytes: 1024 },
+  });
+  assert.equal(Buffer.from(await bodyFallbackResponse.arrayBuffer()).toString(), "image-bytes");
+  assert.equal(bodyAttempts, 2, "a failed image body download must switch routes, not stop at received headers");
+
+  const circuitPolicy = createOutboundRoutePolicy({ failureThreshold: 2 });
+  circuitPolicy.record({ url: "https://circuit.example/image.png", route: "direct", ok: false, stage: "connect" });
+  circuitPolicy.record({ url: "https://circuit.example/image.png", route: "direct", ok: false, stage: "connect" });
+  assert.equal(
+    circuitPolicy.choose({ url: "https://circuit.example/image.png", mode: "auto", proxyAvailable: true }).route,
+    "proxy",
+    "an open direct-route circuit must probe the unsampled proxy route",
+  );
 
   let billableAttempts = 0;
   const billableFetch = createProxyAwareFetch({

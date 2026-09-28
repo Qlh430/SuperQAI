@@ -1,40 +1,30 @@
-const fs = require("fs");
-const path = require("path");
+"use strict";
 
-const source = fs.readFileSync(path.join(__dirname, "..", "server.js"), "utf8");
-const match = source.match(/async function requestImageChat\([\s\S]*?\r?\n}\r?\n\r?\nfunction buildGeminiImageChatContent/);
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
 
-if (!match) {
-  console.error("Could not find requestImageChat block in server.js");
-  process.exit(1);
-}
+const serverSource = require("./server-source").readServerSource();
+const imageGenerationSource = fs.readFileSync(path.join(__dirname, "..", "image-generation-service.js"), "utf8");
+const bridgeSource = fs.readFileSync(path.join(__dirname, "..", "media-provider-bridge.js"), "utf8");
+const engineSource = fs.readFileSync(path.join(__dirname, "..", "provider-protocol-engine.js"), "utf8");
+const start = imageGenerationSource.indexOf("async function execute(payload = {}, options = {})");
+const end = imageGenerationSource.indexOf("return Object.freeze({", start);
 
-const block = match[0];
-const expectations = [
-  {
-    ok: /resolveCustomModel\(\s*model,\s*"generation"\s*\)/.test(block),
-    message: "requestImageChat should resolve custom image generation models.",
-  },
-  {
-    ok: /getUpstreamImageModel\(\s*model,\s*size\s*\)/.test(block),
-    message: "requestImageChat should send the upstream model id, not the custom client id.",
-  },
-  {
-    ok: /fetch\(\s*provider\.url\s*,/.test(block),
-    message: "requestImageChat should fetch through the resolved provider url.",
-  },
-  {
-    ok: /Authorization:\s*`Bearer \$\{provider\.key\}`/.test(block),
-    message: "requestImageChat should use the resolved provider API key.",
-  },
-  {
-    ok: !/fetch\(\s*IMAGE_CHAT_API_URL\s*,/.test(block),
-    message: "requestImageChat should not hard-code IMAGE_CHAT_API_URL for every model.",
-  },
-];
+assert.notEqual(start, -1, "shared image executor should exist");
+assert.notEqual(end, -1, "shared image executor boundary should exist");
 
-const failures = expectations.filter((item) => !item.ok);
-if (failures.length) {
-  for (const failure of failures) console.error(failure.message);
-  process.exit(1);
-}
+const block = imageGenerationSource.slice(start, end);
+assert.match(block, /getPublicProviderModelCatalog\(requirements\.intent\)/);
+assert.match(block, /mediaProviderBridge\.generateImage/);
+assert.match(block, /mediaProviderBridge\.editImage/);
+assert.doesNotMatch(block, /fetch\(|resolveCustomModel|IMAGE_CHAT_API_URL|requestImageChat/);
+assert.match(bridgeSource, /executor\.execute\(\{[\s\S]*intent,[\s\S]*preferredProviderId:[\s\S]*preferredModelId:/);
+assert.match(engineSource, /model\?\.metadata\?\.upstreamModel\s*\|\|\s*model\?\.id/);
+assert.match(serverSource, /const getImageGenerationService = createLazyValue\(\(\) => createImageGenerationService\(\{/);
+assert.match(
+  serverSource,
+  /executeImageGenerationPayload:\s*\(\.\.\.args\)\s*=>\s*getImageGenerationService\(\)\.execute\(\.\.\.args\)/,
+);
+
+console.log("Image provider routing checks passed.");

@@ -54,9 +54,7 @@ function createLegacyBoard() {
 
   try {
     await page.goto(APP_URL, { waitUntil: "domcontentloaded", timeout: 30_000 });
-    await page.locator("#infiniteCanvas").waitFor({ state: "visible" });
-    await page.evaluate(() => document.querySelector(".canvas-start-gate")?.classList.add("is-dismissed"));
-    await page.locator("#canvasHistoryButton").click();
+    await page.locator("#canvasLibraryScreen").waitFor({ state: "visible" });
     await page.locator('[data-board-id="legacy-virtual-board"]').click({ timeout: 5000 });
     await page.locator("#canvasBoardLoading").waitFor({ state: "hidden", timeout: 30_000 });
     await page.waitForFunction(() => typeof window.canvasVirtualStore === "object");

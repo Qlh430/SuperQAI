@@ -2,108 +2,16 @@
 
 const fs = require("fs");
 const path = require("path");
+const { collectPortablePackageManifest, toPortablePath } = require("./portable-package-manifest");
 
 const sourceRoot = path.resolve(__dirname, "..");
 const packageRoot = path.resolve(process.argv[2] || path.join(sourceRoot, "dist", "AI-Studio-Portable"));
-const requiredPaths = new Set([
-  ".env.example",
-  "README.md",
-  "index.html",
-  "logo.png",
-  "package-lock.json",
-  "package.json",
-  "script.js",
-  "server.js",
-  "start.bat",
-  "styles.css",
-  "canvas-agent-model-adapters.js",
-  "canvas-agent-llm-connectors.js",
-  "canvas-agent-mcp-protocol.js",
-  "canvas-agent-mcp-server.js",
-  "canvas-agent-verification.js",
-  "canvas-spatial-rules.js",
-  "canvas-schema.js",
-  "canvas-db-worker.js",
-  "canvas-repository.js",
-  "canvas-legacy-migrator.js",
-  "canvas-query-service.js",
-  "canvas-command-service.js",
-  "canvas-export-service.js",
-  "canvas-paged-store.js",
-  "canvas-viewport-data-source.js",
-  "canvas-media-scheduler.js",
-  "canvas-primitive-layer.js",
-  "canvas-virtualizer.js",
-]);
-const visitedSourceFiles = new Set();
-
-function toPortablePath(filePath) {
-  return filePath.split(path.sep).join("/");
+if (fs.existsSync(path.join(packageRoot, "ai-os-portable.json"))) {
+  require("./build-electron-portable").inspectPortablePackage(packageRoot);
+  console.log("Electron portable package check passed.");
+  process.exit(0);
 }
-
-function addBrowserScripts() {
-  const indexSource = fs.readFileSync(path.join(sourceRoot, "index.html"), "utf8");
-  const scriptPattern = /<script\b[^>]*\bsrc=["']([^"']+)["'][^>]*>/gi;
-  let match;
-
-  while ((match = scriptPattern.exec(indexSource))) {
-    const reference = match[1].split(/[?#]/, 1)[0];
-    if (!reference || /^(?:[a-z]+:)?\/\//i.test(reference) || reference.startsWith("data:")) {
-      continue;
-    }
-    requiredPaths.add(reference.replace(/^\.\//, "").replace(/^\//, ""));
-  }
-}
-
-function resolveLocalModule(fromRelativePath, request) {
-  const fromDirectory = path.dirname(path.join(sourceRoot, fromRelativePath));
-  const basePath = path.resolve(fromDirectory, request);
-  const candidates = [basePath, `${basePath}.js`, `${basePath}.json`, path.join(basePath, "index.js")];
-  const resolvedPath = candidates.find((candidate) => fs.existsSync(candidate) && fs.statSync(candidate).isFile());
-
-  if (!resolvedPath) {
-    throw new Error(`Source dependency cannot be resolved: ${fromRelativePath} -> ${request}`);
-  }
-
-  const relativePath = path.relative(sourceRoot, resolvedPath);
-  if (relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
-    throw new Error(`Source dependency escapes the project root: ${request}`);
-  }
-
-  return toPortablePath(relativePath);
-}
-
-function addServerDependencies(relativePath) {
-  if (visitedSourceFiles.has(relativePath)) {
-    return;
-  }
-  visitedSourceFiles.add(relativePath);
-  requiredPaths.add(relativePath);
-
-  if (path.extname(relativePath).toLowerCase() !== ".js") {
-    return;
-  }
-
-  const source = fs.readFileSync(path.join(sourceRoot, relativePath), "utf8");
-  const requirePattern = /require\(\s*["'](\.[^"']+)["']\s*\)/g;
-  let match;
-
-  while ((match = requirePattern.exec(source))) {
-    const dependency = resolveLocalModule(relativePath, match[1]);
-    addServerDependencies(dependency);
-  }
-}
-
-function addProductionDependencies() {
-  const packageJson = JSON.parse(fs.readFileSync(path.join(sourceRoot, "package.json"), "utf8"));
-  for (const dependencyName of Object.keys(packageJson.dependencies || {})) {
-    requiredPaths.add(toPortablePath(path.join("node_modules", dependencyName)));
-  }
-}
-
-addBrowserScripts();
-addServerDependencies("server.js");
-addProductionDependencies();
+const requiredPaths = new Set(collectPortablePackageManifest(sourceRoot).files);
 
 const sourcePackage = JSON.parse(fs.readFileSync(path.join(sourceRoot, "package.json"), "utf8"));
 const launcher = fs.readFileSync(path.join(sourceRoot, "start.bat"), "utf8");
@@ -114,14 +22,8 @@ if (sourcePackage.engines?.node !== ">=24.13.0 <25") {
 if (!/major===24&&minor>=13/.test(launcher)) {
   throw new Error("start.bat must reject unsupported Node.js runtimes.");
 }
-const unlistedRootRuntimeFiles = [...requiredPaths].filter((runtimeFile) => (
-  runtimeFile.endsWith(".js")
-  && !runtimeFile.startsWith("node_modules/")
-  && !runtimeFile.includes("/")
-  && !portableBuilder.includes(runtimeFile)
-));
-if (unlistedRootRuntimeFiles.length) {
-  throw new Error(`build-portable.bat does not copy runtime files: ${unlistedRootRuntimeFiles.sort().join(", ")}`);
+if (!/(?:copy-portable-runtime|build-electron-portable)\.js/i.test(portableBuilder)) {
+  throw new Error("build-portable.bat must invoke a verified portable builder.");
 }
 
 const missingPaths = [...requiredPaths]
@@ -138,6 +40,17 @@ if (missingPaths.length > 0) {
 
 if (fs.existsSync(path.join(packageRoot, ".env"))) {
   throw new Error("Portable package must not contain .env or real API credentials.");
+}
+if (fs.existsSync(path.join(packageRoot, "data", "outbound-route-state.json"))) {
+  throw new Error("Portable package must not copy machine-specific outbound route learning.");
+}
+
+const packagedServer = fs.readFileSync(path.join(packageRoot, "server.js"), "utf8");
+if (!/networkMode:\s*normalizeRouteMode/.test(packagedServer)) {
+  throw new Error("Portable settings must preserve each provider networkMode.");
+}
+if (!/outbound-route-state\.json/.test(packagedServer)) {
+  throw new Error("Portable runtime must recreate outbound route learning on the target computer.");
 }
 
 const packagedToolsDirectory = path.join(packageRoot, "tools");
@@ -165,6 +78,13 @@ const embeddedSecretFiles = collectTextFiles(packageRoot).filter((file) => (
 ));
 if (embeddedSecretFiles.length) {
   throw new Error(`Portable package contains embedded API credentials: ${embeddedSecretFiles.map((file) => toPortablePath(path.relative(packageRoot, file))).join(", ")}`);
+}
+
+const credentialedProxyFiles = collectTextFiles(packageRoot).filter((file) => (
+  /https?:\/\/[^\s/@:]+:[^\s/@]+@[^\s/]+/i.test(fs.readFileSync(file, "utf8"))
+));
+if (credentialedProxyFiles.length) {
+  throw new Error(`Portable package contains a proxy URL with embedded credentials: ${credentialedProxyFiles.map((file) => toPortablePath(path.relative(packageRoot, file))).join(", ")}`);
 }
 
 console.log(`Portable package check passed (${requiredPaths.size} required paths).`);

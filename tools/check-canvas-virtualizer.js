@@ -112,6 +112,22 @@ assert.ok(budgetStore.mountedSize < 6, "first frame must respect the time budget
 while (budgetFrames.length) budgetFrames.shift()();
 assert.equal(budgetStore.mountedSize, 6, "continuation frames finish remaining mounts");
 
+// Creating detached DOM can be cheap while the following browser layout/paint
+// is expensive. A clock-only budget must not allow all rich nodes in one frame.
+const richStore = new CanvasVirtualStore({ rules });
+richStore.load(Array.from({ length: 60 }, (_, index) => ({ id: `rich-${index}`, kind: "gallery-container", x: 0, y: 0, width: 320, height: 300 })));
+const richFrames = [];
+const richVirtualizer = new CanvasVirtualizer({
+  store: richStore, rules, getViewport: () => ({ width: 1000, height: 800, x: 0, y: 0, scale: 1 }),
+  mount: id => ({ id }), unmount() {}, now: () => 0,
+  requestFrame: callback => { richFrames.push(callback); return richFrames.length; }, cancelFrame() {},
+});
+const firstRichBatch = richVirtualizer.flushNow({ ignoreBudget: false });
+assert.ok(firstRichBatch.mounted > 0 && firstRichBatch.mounted <= 12, "board opening must budget rich nodes even before layout is measured");
+assert.ok(firstRichBatch.remaining > 0);
+while (richFrames.length) richFrames.shift()();
+assert.equal(richStore.mountedSize, 60, "budgeted opening must eventually mount every visible node");
+
 const overviewStore = new CanvasVirtualStore({ rules });
 overviewStore.load(Array.from({ length: 3000 }, (_, index) => ({
   id: `overview-${index + 1}`,

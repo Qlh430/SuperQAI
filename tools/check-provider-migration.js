@@ -6,13 +6,19 @@ const os = require("node:os");
 const path = require("node:path");
 
 const {
+  LEGACY_APIMART_PLATFORM_MIGRATION_KEY,
   migrateLegacyAgentProviders,
+  migrateLegacyApimartPlatforms,
   migrateLegacyMediaProviders,
+  migrateLegacyMediaModelProfiles,
   migrateLegacyProviders,
   normalizeBaseUrl,
 } = require("../provider-migration");
 const { createProviderSecretVault } = require("../provider-secret-vault");
 const { createProviderStore } = require("../provider-store");
+const { createProtocolRegistry } = require("../provider-protocol-registry");
+const { createProtocolEngine } = require("../provider-protocol-engine");
+const { createMediaProtocolAdapters } = require("../media-protocol-adapters");
 const { createSystemDb } = require("../system-db");
 
 function createFixture(rootName) {
@@ -176,9 +182,16 @@ function closeFixture(fixture) {
         protocol: "openai-images",
         source: "environment",
         apiKey: "fake-grsai-key",
-        models: [{ id: "nano-banana-pro-grsai", protocol: "openai-images", capabilities: ["image.generate", "image.edit"] }],
+        models: [{ id: "nano-banana-pro-grsai", protocol: "openai-images", capabilities: ["image.generate", "image.edit"], metadata: { upstreamModel: "nano-banana-pro" } }],
       },
     ].forEach((provider) => mediaUpgradeFixture.store.save(provider));
+
+    // Simulate rows written by the old application: current saves already
+    // normalize these inherited protocols before the migration runs.
+    for (const id of ["standard-images", "apimart-images"]) {
+      const record = mediaUpgradeFixture.db.getProviderRecord(id);
+      mediaUpgradeFixture.db.saveProviderRecord({ ...record, models: record.models.map(model => ({ ...model, modelProtocol: "openai" })) });
+    }
 
     const input = {
       db: mediaUpgradeFixture.db,
@@ -198,7 +211,7 @@ function closeFixture(fixture) {
     assert.equal(mediaUpgradeSnapshots, 1);
     const upgraded = mediaUpgradeFixture.store.listInternal();
     assert.equal(upgraded.find((provider) => provider.id === "standard-images").models[0].protocol, "openai-images");
-    assert.deepEqual(upgraded.find((provider) => provider.id === "apimart-images").models.map((model) => model.protocol), ["openai-images", "apimart"]);
+    assert.deepEqual(upgraded.find((provider) => provider.id === "apimart-images").models.map((model) => model.protocol), ["openai-images", "midjourney"]);
     assert.equal(upgraded.find((provider) => provider.id === "grsai-images").models[0].protocol, "image-relay");
     assert.equal(upgraded.find((provider) => provider.id === "grsai-images").models[0].metadata.upstreamModel, "nano-banana-pro");
     assert.equal(upgraded.find((provider) => provider.id === "local-comfyui").models[0].capabilities[0], "video.generate");
@@ -206,6 +219,170 @@ function closeFixture(fixture) {
     assert.equal(mediaUpgradeSnapshots, 1);
   } finally {
     closeFixture(mediaUpgradeFixture);
+  }
+
+  const mediaModelProfileFixture = createFixture("aios-provider-media-model-profile-");
+  let mediaModelProfileSnapshots = 0;
+  try {
+    mediaModelProfileFixture.store.save({
+      id: "apimart-images",
+      name: "APIMart Images",
+      baseUrl: "https://api.apimart.ai/v1",
+      protocol: "apimart",
+      source: "environment",
+      apiKey: "fake-apimart-key",
+      models: [
+        {
+          id: "gpt-image-2-apimart",
+          displayName: "gpt-image-2-apimart",
+          protocol: "openai-images",
+          capabilities: ["image.generate", "image.edit"],
+          metadata: { upstreamModel: "gpt-image-2", resolutions: ["1", "2", "4"] },
+        },
+        {
+          id: "midjourney",
+          displayName: "midjourney",
+          protocol: "apimart",
+          capabilities: ["image.generate"],
+          metadata: { platform: "midjourney", family: "midjourney" },
+        },
+      ],
+    });
+    // A historical GRSAI row can contain the legacy image-relay model profile
+    // under an OpenAI platform. It must not prevent the APIMart-only cleanup.
+    mediaModelProfileFixture.store.save({
+      id: "grsai-images",
+      name: "GRSAI Images",
+      baseUrl: "https://grsai.example/v1/api/generate",
+      protocol: "openai",
+      source: "environment",
+      apiKey: "fake-grsai-key",
+      models: [{
+        id: "gpt-image-2-grsai",
+        displayName: "gpt-image-2-grsai",
+        protocol: "image-relay",
+        capabilities: ["image.generate"],
+        metadata: { upstreamModel: "gpt-image-2" },
+      }],
+    });
+    const strictMediaModelStore = createProviderStore({
+      db: mediaModelProfileFixture.db,
+      vault: createProviderSecretVault({ dataDir: mediaModelProfileFixture.root }),
+      registry: createProtocolRegistry(),
+    });
+    mediaModelProfileFixture.db.setSetting("providers.media-bridge.v1", { completed: true, version: 1 });
+    const input = {
+      db: mediaModelProfileFixture.db,
+      store: strictMediaModelStore,
+      createSnapshot: () => ({ id: `media-model-profile-${++mediaModelProfileSnapshots}` }),
+    };
+
+    assert.equal(migrateLegacyMediaModelProfiles(input).updated, 1, "v2 migration must run even when the v1 bridge already completed");
+    assert.equal(mediaModelProfileSnapshots, 1);
+    const apimart = strictMediaModelStore.listInternal()[0];
+    assert.deepEqual(apimart.models.map((model) => model.id), ["gpt-image-2", "midjourney"]);
+    assert.deepEqual(apimart.models.map((model) => model.displayName), ["gpt-image-2", "midjourney"]);
+    assert.deepEqual(apimart.models.map((model) => model.protocol), ["openai-images", "midjourney"]);
+    assert.deepEqual(apimart.models[0].metadata.legacyModelIds, ["gpt-image-2-apimart"]);
+    assert.equal(apimart.models[0].metadata.upstreamModel, "gpt-image-2");
+    assert.equal(strictMediaModelStore.listInternal().find((provider) => provider.id === "grsai-images").models[0].id, "gpt-image-2-grsai");
+    assert.equal(migrateLegacyMediaModelProfiles(input).updated, 0);
+    assert.equal(mediaModelProfileSnapshots, 1, "idempotent startup must not create another v2 snapshot");
+  } finally {
+    closeFixture(mediaModelProfileFixture);
+  }
+
+  const legacyApimartPlatformFixture = createFixture("aios-legacy-apimart-platform-");
+  let legacyApimartPlatformSnapshots = 0;
+  try {
+    legacyApimartPlatformFixture.store.save({
+      id: "legacy-apimart",
+      name: "Legacy APIMart",
+      baseUrl: "https://api.apimart.ai/v1",
+      protocol: "apimart",
+      source: "environment",
+      apiKey: "fake-apimart-key",
+      models: [
+        {
+          id: "gpt-image-2",
+          displayName: "GPT Image 2",
+          protocol: "openai-images",
+          capabilities: ["image.generate", "image.edit"],
+          metadata: { family: "gpt-image" },
+        },
+        {
+          id: "mj-v7",
+          displayName: "Midjourney V7",
+          protocol: "midjourney",
+          capabilities: ["image.generate"],
+          metadata: { family: "midjourney" },
+        },
+        {
+          id: "gemini-3-pro-image",
+          displayName: "Gemini Image",
+          protocol: "gemini",
+          capabilities: ["image.generate", "image.edit"],
+          metadata: { family: "gemini" },
+        },
+      ],
+    });
+    const input = {
+      db: legacyApimartPlatformFixture.db,
+      store: legacyApimartPlatformFixture.store,
+      createSnapshot: () => ({ id: `legacy-apimart-platform-${++legacyApimartPlatformSnapshots}` }),
+    };
+
+    const migrated = migrateLegacyApimartPlatforms(input);
+    assert.equal(migrated.updated, 1);
+    assert.equal(migrated.snapshotId, "legacy-apimart-platform-1");
+    assert.equal(legacyApimartPlatformSnapshots, 1);
+    assert.deepEqual(migrated.providerIds, ["legacy-apimart"]);
+    assert.equal(legacyApimartPlatformFixture.db.getSetting(LEGACY_APIMART_PLATFORM_MIGRATION_KEY).completed, true);
+
+    const provider = legacyApimartPlatformFixture.store.listInternal()[0];
+    assert.equal(provider.protocol, "openai");
+    assert.equal(provider.metadata.legacyPlatformProtocol, "apimart");
+    assert.deepEqual(provider.models.map(model => ({
+      id: model.id,
+      displayName: model.displayName,
+      protocol: model.protocol,
+      capabilities: model.capabilities,
+      metadata: model.metadata,
+    })), [
+      {
+        id: "gpt-image-2",
+        displayName: "GPT Image 2",
+        protocol: "openai-images",
+        capabilities: ["image.generate", "image.edit"],
+        metadata: { family: "gpt-image" },
+      },
+      {
+        id: "mj-v7",
+        displayName: "Midjourney V7",
+        protocol: "midjourney",
+        capabilities: ["image.generate", "image.edit"],
+        metadata: { family: "midjourney" },
+      },
+      {
+        id: "gemini-3-pro-image",
+        displayName: "Gemini Image",
+        protocol: "gemini",
+        capabilities: ["image.generate", "image.edit"],
+        metadata: { family: "gemini" },
+      },
+    ]);
+    assert.equal(migrateLegacyApimartPlatforms(input).updated, 0);
+    assert.equal(legacyApimartPlatformSnapshots, 1, "restarting must not create another APIMart migration snapshot");
+
+    const engine = createProtocolEngine({
+      registry: createProtocolRegistry({ adapters: createMediaProtocolAdapters() }),
+      outboundFetch: async () => new Response(JSON.stringify({ data: [] }), { status: 200 }),
+    });
+    assert.equal(engine.describeExecution(provider, provider.models[0], "image.generate").runtimeProtocol, "apimart");
+    assert.equal(engine.describeExecution(provider, provider.models[1], "image.generate").runtimeProtocol, "midjourney");
+    assert.equal(engine.describeExecution(provider, provider.models[2], "image.generate").runtimeProtocol, "gemini");
+  } finally {
+    closeFixture(legacyApimartPlatformFixture);
   }
 
   const rollbackFixture = createFixture("aios-provider-migration-rollback-");

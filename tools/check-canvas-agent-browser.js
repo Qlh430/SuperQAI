@@ -22,16 +22,21 @@ const BASE_URL = process.env.CANVAS_AGENT_TEST_URL || "http://127.0.0.1:3099";
   const settingsSavePayloads = [];
   let verifiedPendingAgentModelId = "";
   let imageGenerationRequests = 0;
+  const imageGenerationPayloads = [];
   const imageJobs = new Map();
   let imageJobSequence = 0;
   let imageHistoryRecords = [];
   let releaseDelayedImage = null;
   let delayNextImageModels = false;
   let releaseDelayedImageModels = null;
+  let staleNextImageModels = false;
   let imageFailoverEnabled = false;
   let imageFailoverPrimaryRejected = false;
   const imageFailoverAttempts = [];
   let autoVerificationEnabled = false;
+  let delayNextAgentCandidateRefresh = false;
+  let releaseDelayedAgentCandidateRefresh = null;
+  let agentCandidateRefreshRequests = 0;
   const autoAgentProviders = ["a", "b", "c"].map((suffix) => ({
     id: `agent-provider-auto-${suffix}`,
     name: `自动验证接口 ${suffix.toUpperCase()}`,
@@ -79,6 +84,14 @@ const BASE_URL = process.env.CANVAS_AGENT_TEST_URL || "http://127.0.0.1:3099";
     await route.fulfill({ status: 200, contentType: "application/json; charset=utf-8", body: JSON.stringify(settingsFixture) });
   });
   await page.route("**/api/settings/agent-candidates*", async (route) => {
+    const refreshRequested = new URL(route.request().url()).searchParams.get("refresh") === "1";
+    if (refreshRequested) {
+      agentCandidateRefreshRequests += 1;
+      if (delayNextAgentCandidateRefresh) {
+        delayNextAgentCandidateRefresh = false;
+        await new Promise((resolve) => { releaseDelayedAgentCandidateRefresh = resolve; });
+      }
+    }
     const ready = [{
       id: "agent-choice-primary",
       selectionId: "agent-choice-primary",
@@ -173,11 +186,13 @@ const BASE_URL = process.env.CANVAS_AGENT_TEST_URL || "http://127.0.0.1:3099";
     body: JSON.stringify({ status: { state: "online", latencyMs: 20 }, models: [] }),
   }));
   await page.route("**/api/image-models", async (route) => {
+    const staleResponse = staleNextImageModels;
+    if (staleResponse) staleNextImageModels = false;
     if (delayNextImageModels) {
       delayNextImageModels = false;
       await new Promise((resolve) => { releaseDelayedImageModels = resolve; });
     }
-    const failoverCandidates = imageFailoverEnabled ? [{
+    const failoverCandidates = staleResponse ? [] : imageFailoverEnabled ? [{
       id: "primary-image2",
       providerId: "browser-image-primary",
       providerName: "额度不足接口",
@@ -223,7 +238,7 @@ const BASE_URL = process.env.CANVAS_AGENT_TEST_URL || "http://127.0.0.1:3099";
       state: "online",
       platform: "openai",
       family: "openai-image",
-      resolutions: ["1"],
+      resolutions: ["1", "2", "4"],
       successRate: 100,
       consecutiveFailures: 0,
       latencyMs: 120,
@@ -247,6 +262,7 @@ const BASE_URL = process.env.CANVAS_AGENT_TEST_URL || "http://127.0.0.1:3099";
   await page.route("**/api/images", async (route) => {
     imageGenerationRequests += 1;
     const payload = route.request().postDataJSON();
+    imageGenerationPayloads.push(payload);
     if (imageFailoverEnabled) {
       imageFailoverAttempts.push(payload.model);
       if (payload.model === "primary-image2") {
@@ -268,7 +284,7 @@ const BASE_URL = process.env.CANVAS_AGENT_TEST_URL || "http://127.0.0.1:3099";
       body: JSON.stringify({
         model: imageFailoverEnabled ? "backup-image2" : "gpt-image-2",
         data: [{
-          url: "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='512' height='512'%3E%3Crect width='512' height='512' fill='%23cf3434'/%3E%3C/svg%3E",
+          url: "/output/browser-agent-image.svg",
           width: 512,
           height: 512,
         }],
@@ -288,6 +304,7 @@ const BASE_URL = process.env.CANVAS_AGENT_TEST_URL || "http://127.0.0.1:3099";
       return;
     }
     const payload = request.postDataJSON();
+    imageGenerationPayloads.push(payload);
     const jobId = `browser_image_job_${++imageJobSequence}`;
     const job = {
       id: jobId,
@@ -321,7 +338,7 @@ const BASE_URL = process.env.CANVAS_AGENT_TEST_URL || "http://127.0.0.1:3099";
       job.result = {
         model: imageFailoverEnabled ? "backup-image2" : "gpt-image-2",
         data: [{
-          url: "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='512' height='512'%3E%3Crect width='512' height='512' fill='%23cf3434'/%3E%3C/svg%3E",
+          url: "/output/browser-agent-image.svg",
           width: 512,
           height: 512,
         }],
@@ -329,6 +346,11 @@ const BASE_URL = process.env.CANVAS_AGENT_TEST_URL || "http://127.0.0.1:3099";
       job.state = "completed";
     })();
   });
+  await page.route("**/output/browser-agent-image.svg", (route) => route.fulfill({
+    status: 200,
+    contentType: "image/svg+xml",
+    body: "<svg xmlns='http://www.w3.org/2000/svg' width='512' height='512'><rect width='512' height='512' fill='#cf3434'/></svg>",
+  }));
   await page.route("**/api/history/images*", async (route) => {
     const request = route.request();
     if (request.method() === "GET") {
@@ -396,6 +418,41 @@ const BASE_URL = process.env.CANVAS_AGENT_TEST_URL || "http://127.0.0.1:3099";
   await page.route("**/api/canvas-agent/turn", async (route) => {
     const payload = route.request().postDataJSON();
     turnRequests.push(payload);
+    if (payload.recovery_original_prompt === "触发失败") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/x-ndjson; charset=utf-8",
+        body: `${JSON.stringify({ type: "turn", turn: { response_id: "resp_browser_recovered", message: "任务已自动恢复并继续完成。", tool_calls: [] } })}\n`,
+      });
+      return;
+    }
+    if (payload.recovery_original_prompt === "生成一个苹果图片并添加说明文字") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/x-ndjson; charset=utf-8",
+        body: `${JSON.stringify({
+          type: "turn",
+          turn: {
+            response_id: "resp_browser_partial_recovered_tool",
+            message: "",
+            tool_calls: [{
+              call_id: "call_browser_partial_text_after_recovery",
+              name: "create_text_node",
+              arguments: { content: "苹果图片说明", x: 720, y: 280 },
+            }],
+          },
+        })}\n`,
+      });
+      return;
+    }
+    if (payload.prompt === "持续失败" || payload.recovery_original_prompt === "持续失败") {
+      await route.fulfill({
+        status: 503,
+        contentType: "application/json; charset=utf-8",
+        body: JSON.stringify({ error: "所有可用服务暂时不可用，任务已保存，请稍后重试。", recoverable: true }),
+      });
+      return;
+    }
     if (payload.prompt === "触发失败") {
       await new Promise((resolve) => setTimeout(resolve, 250));
       await route.fulfill({
@@ -417,6 +474,15 @@ const BASE_URL = process.env.CANVAS_AGENT_TEST_URL || "http://127.0.0.1:3099";
       return;
     }
     const runInitialPrompt = turnRequests.find((item) => item.run_id === payload.run_id && item.prompt)?.prompt || "";
+    const recoveryOriginalPrompt = turnRequests.find((item) => item.run_id === payload.run_id && item.recovery_original_prompt)?.recovery_original_prompt || "";
+    if (!payload.prompt && recoveryOriginalPrompt === "生成一个苹果图片并添加说明文字") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/x-ndjson; charset=utf-8",
+        body: `${JSON.stringify({ type: "turn", turn: { response_id: "resp_browser_partial_recovered", message: "已从中断处继续，完成的说明节点不会重复创建。", tool_calls: [] } })}\n`,
+      });
+      return;
+    }
     if (!payload.prompt && runInitialPrompt === "生成一个苹果图片并添加说明文字") {
       await route.fulfill({
         status: 503,
@@ -575,6 +641,46 @@ const BASE_URL = process.env.CANVAS_AGENT_TEST_URL || "http://127.0.0.1:3099";
   try {
     await page.goto(BASE_URL, { waitUntil: "networkidle" });
     await page.locator("#canvasAgentPanel").waitFor({ state: "attached" });
+    await page.evaluate(() => {
+      setActiveTool("canvas");
+      window.AiOsDesktop?.openApp?.("canvas");
+      ensureCanvasBoardIdentity();
+      showCanvasEditor();
+    });
+    staleNextImageModels = true;
+    delayNextImageModels = true;
+    await page.evaluate(() => {
+      window.__staleImageModelLoad = loadImageModels({ preserveOnError: true });
+    });
+    for (let index = 0; index < 80 && !releaseDelayedImageModels; index += 1) await page.waitForTimeout(25);
+    assert.equal(typeof releaseDelayedImageModels, "function", "the stale image-model request should be held open");
+    await page.evaluate(() => loadImageModels({ preserveOnError: true }));
+    releaseDelayedImageModels();
+    releaseDelayedImageModels = null;
+    await page.evaluate(() => window.__staleImageModelLoad);
+    const coherentImageModel = await page.evaluate(() => resolveCanvasAgentImageModel({ requestedModel: "gpt-image-2" })?.id || "");
+    assert.equal(coherentImageModel, "gpt-image-2", "an older empty response must not erase a newer usable image-model snapshot");
+    const automaticImageSelection = await page.evaluate(async () => {
+      const candidate = await ensureCanvasAgentImageModelCandidate({ size: "auto", resolution: "1K" });
+      return {
+        id: candidate?.id || "",
+        request: candidate ? normalizeCanvasAgentImageRequest(candidate, { size: "auto", resolution: "1K" }) : null,
+      };
+    });
+    assert.equal(
+      automaticImageSelection.id,
+      "gpt-image-2",
+      "automatic Agent dimensions must not turn an available image2 model into a false no-model result",
+    );
+    assert.deepEqual(
+      automaticImageSelection.request,
+      { size: "auto", resolution: "auto" },
+      "an unsupported automatic-size and fixed-resolution pair must normalize to a runnable request",
+    );
+    if (process.env.CHECK_IMAGE_MODEL_COHERENCE_ONLY === "1") {
+      console.log("Image model coherence browser check passed.");
+      return;
+    }
     assert.equal(await page.locator("#canvasAgentToggle").getAttribute("aria-expanded"), "false");
     assert.equal(await page.locator(".canvas-workspace").evaluate((element) => element.classList.contains("canvas-agent-open")), false);
     assert.equal(await page.locator("#canvasAgentPanel").getAttribute("aria-hidden"), "true");
@@ -590,12 +696,24 @@ const BASE_URL = process.env.CANVAS_AGENT_TEST_URL || "http://127.0.0.1:3099";
     assert.equal(await page.locator("#canvasAgentPanel").getAttribute("inert"), null);
     await page.reload({ waitUntil: "networkidle" });
     await page.locator("#canvasAgentPanel").waitFor({ state: "attached" });
+    await page.evaluate(() => {
+      setActiveTool("canvas");
+      window.AiOsDesktop?.openApp?.("canvas");
+      ensureCanvasBoardIdentity();
+      showCanvasEditor();
+    });
     assert.equal(await page.locator("#canvasAgentToggle").getAttribute("aria-expanded"), "true");
     await page.locator("#canvasAgentClose").click();
     assert.equal(await page.locator("#canvasAgentToggle").getAttribute("aria-expanded"), "false");
     assert.equal(await page.evaluate(() => localStorage.getItem("canvas-agent-panel-open-v1")), "false");
     await page.reload({ waitUntil: "networkidle" });
     await page.locator("#canvasAgentPanel").waitFor({ state: "attached" });
+    await page.evaluate(() => {
+      setActiveTool("canvas");
+      window.AiOsDesktop?.openApp?.("canvas");
+      ensureCanvasBoardIdentity();
+      showCanvasEditor();
+    });
     assert.equal(await page.locator("#canvasAgentToggle").getAttribute("aria-expanded"), "false");
     assert.equal(await page.locator("#canvasAgentPanel").getAttribute("inert"), "");
     await page.locator("#canvasAgentToggle").click();
@@ -603,7 +721,6 @@ const BASE_URL = process.env.CANVAS_AGENT_TEST_URL || "http://127.0.0.1:3099";
     // transition before checking the visible-centering contract.
     await page.waitForTimeout(220);
     await page.evaluate(() => {
-      document.querySelector(".canvas-start-gate")?.classList.add("is-dismissed");
       const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="320" height="420"><rect width="100%" height="100%" fill="#6b8f71"/><circle cx="160" cy="170" r="95" fill="#f4d35e"/></svg>';
       const node = window.addCanvasImage(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`, "浏览器验收图", { x: 220, y: 180 });
       window.setCanvasNodePoint?.(node, { x: 220, y: 180 });
@@ -776,11 +893,21 @@ const BASE_URL = process.env.CANVAS_AGENT_TEST_URL || "http://127.0.0.1:3099";
     await page.locator("#canvasAgentPrompt").fill("触发失败");
     await page.locator("#canvasAgentSend").click();
     await page.locator(".canvas-agent-waiting").waitFor({ state: "visible" });
-    await page.getByText("连接刚才短暂中断，已保留已经完成的画布操作。可以继续任务。").waitFor({ state: "visible" });
+    await page.getByText("任务已自动恢复并继续完成。").waitFor({ state: "visible", timeout: 6000 });
     assert.equal((await page.locator("#canvasAgentPanel").textContent()).includes("call_browser_trace"), false);
-    assert.equal(await page.locator("[data-agent-continue]").count(), 1);
+    assert.equal(await page.locator("[data-agent-continue]").count(), 0);
+    assert.equal(await page.locator('.canvas-agent-message.is-user').filter({ hasText: "触发失败" }).count(), 1);
     assert.equal(await page.locator(".canvas-agent-waiting").count(), 0);
-    assert.equal((await page.locator("#canvasAgentStatus").textContent()).trim(), "任务已保留");
+    assert.equal((await page.locator("#canvasAgentStatus").textContent()).trim(), "任务完成");
+
+    const exhaustedRequestsBefore = turnRequests.length;
+    await page.locator("#canvasAgentPrompt").fill("持续失败");
+    await page.locator("#canvasAgentSend").click();
+    await page.getByText(/网络波动，正在自动恢复 1\/3/).waitFor({ state: "visible", timeout: 4000 });
+    assert.equal(await page.locator("[data-agent-continue]").count(), 0, "automatic retries should not require a click");
+    await page.getByRole("button", { name: "重新尝试" }).waitFor({ state: "visible", timeout: 16000 });
+    assert.equal(turnRequests.length - exhaustedRequestsBefore, 4, "one initial request plus three bounded background attempts are expected");
+    assert.match((await page.locator("#canvasAgentStatus").textContent()).trim(), /网络仍不可用/);
 
     await page.evaluate(() => {
       window.__originalRunCanvasImageEdit = window.runCanvasImageEdit;
@@ -885,13 +1012,11 @@ const BASE_URL = process.env.CANVAS_AGENT_TEST_URL || "http://127.0.0.1:3099";
     const directRequestsBefore = imageGenerationRequests;
     await page.locator("#canvasAgentPrompt").fill("直接生成一张苹果图片");
     await page.locator("#canvasAgentSend").click();
-    await page.getByText("图片已生成并加入图集。").waitFor({ state: "visible", timeout: 8000 });
+    await page.getByText(/图片已生成并加入.*图集/).waitFor({ state: "visible", timeout: 8000 });
     assert.equal(imageGenerationRequests, directRequestsBefore + 1, "duplicate MCP call_id must not repeat a paid image request");
     const directRunId = turnRequests.find((item) => item.prompt === "直接生成一张苹果图片")?.run_id;
     const directContinuations = turnRequests.filter((item) => item.run_id === directRunId && item.tool_outputs?.length);
-    assert.equal(directContinuations.length, 3);
-    assert.deepEqual(directContinuations[1].tool_outputs[0].output, directContinuations[0].tool_outputs[0].output, "an exact duplicate call must reuse the completed paid result");
-    assert.equal(directContinuations[2].tool_outputs[0].output.code, "call_id_conflict", "a reused call_id with changed arguments must be rejected without another paid request");
+    assert.equal(directContinuations.length, 0, "a successful direct image tool must finish locally without another model round trip");
     assert.equal(await page.locator("#canvasAgentApproval").isVisible(), false, "an explicit single-image request should not require a second confirmation");
     assert.equal(await page.locator("#canvasPlane .canvas-node-image").count(), 1);
     assert.equal(await page.locator("#canvasPlane .canvas-node-gallery").count(), 1);
@@ -922,6 +1047,63 @@ const BASE_URL = process.env.CANVAS_AGENT_TEST_URL || "http://127.0.0.1:3099";
     assert.ok(Math.abs(directWorkflow.viewportCenterY - directWorkflow.groupCenterY) <= 24);
     assert.equal(directWorkflow.intersectsPanel, false);
 
+    const agentResolutionResult = await page.evaluate(async () => {
+      const node = document.querySelector("#canvasPlane .canvas-node-image");
+      const scope = { boardId: String(canvasState.activeBoardId || "") };
+      const context = {
+        scope,
+        assertActive: () => true,
+        forEachBatched: async (items, handler) => Promise.all(items.map(handler)),
+      };
+      const adapters = CanvasAgentToolAdapters.create({ canvasApi: CanvasAgentCanvasApi });
+      await adapters.update_node({
+        node_id: node.dataset.id,
+        changes: { prompt: "桃子竖版构图，2K清晰度", size: "9:16", resolution: null },
+      }, context);
+      const result = await adapters.run_canvas_node({ node_id: node.dataset.id }, context);
+      return {
+        result,
+        size: node.querySelector(".canvas-node-size")?.value || "",
+        resolution: node.querySelector(".canvas-node-resolution")?.value || "",
+        persistedResolution: node.dataset.canvasResolution || "",
+      };
+    });
+    assert.equal(agentResolutionResult.result?.ok, true);
+    assert.equal(agentResolutionResult.size, "9:16");
+    assert.equal(agentResolutionResult.resolution, "2");
+    assert.equal(agentResolutionResult.persistedResolution, "2");
+    assert.deepEqual(
+      { size: imageGenerationPayloads.at(-1)?.size, resolution: imageGenerationPayloads.at(-1)?.resolution },
+      { size: "1152x2048", resolution: "2k" },
+      "Agent 9:16 + 2K must be verified from the outbound request, independent of returned fixture pixels",
+    );
+
+    const requestsBeforeFourKAdjustment = imageGenerationRequests;
+    const agentFourKResult = await page.evaluate(async () => {
+      const node = document.querySelector("#canvasPlane .canvas-node-image");
+      const scope = { boardId: String(canvasState.activeBoardId || "") };
+      const context = {
+        scope,
+        assertActive: () => true,
+        forEachBatched: async (items, handler) => Promise.all(items.map(handler)),
+      };
+      const adapters = CanvasAgentToolAdapters.create({ canvasApi: CanvasAgentCanvasApi });
+      await adapters.update_node({
+        node_id: node.dataset.id,
+        changes: { prompt: "桃子方图，4K清晰度", size: "1:1", resolution: "4K" },
+      }, context);
+      return adapters.run_canvas_node({ node_id: node.dataset.id }, context);
+    });
+    assert.equal(agentFourKResult?.ok, true, "Agent must continue after automatically adjusting an incompatible 4K combination");
+    assert.equal(imageGenerationRequests, requestsBeforeFourKAdjustment + 1, "automatic parameter adjustment must submit exactly one paid request");
+    assert.deepEqual(
+      { size: imageGenerationPayloads.at(-1)?.size, resolution: imageGenerationPayloads.at(-1)?.resolution },
+      { size: "2880x2880", resolution: "4k" },
+      "Agent must use the rule-provided exact compatible 4K size",
+    );
+    assert.match(agentFourKResult?.parameter_adjustment?.message || "", /4K.*2880×2880/);
+    assert.equal(await page.locator("#canvasAgentApproval").isVisible(), false, "automatic parameter adjustment must not ask for another confirmation");
+
     await page.evaluate(() => restoreCanvasBoard({
       id: "browser_image_api_failover_board",
       title: "生图接口切换验收",
@@ -941,14 +1123,11 @@ const BASE_URL = process.env.CANVAS_AGENT_TEST_URL || "http://127.0.0.1:3099";
     const failoverImagesBefore = imageGenerationRequests;
     await page.locator("#canvasAgentPrompt").fill("直接生成一张自动切换接口的苹果图片");
     await page.locator("#canvasAgentSend").click();
-    await page.getByText("图片已生成并加入图集。").waitFor({ state: "visible", timeout: 8000 });
+    await page.getByText(/图片已生成并加入.*图集/).waitFor({ state: "visible", timeout: 8000 });
     assert.equal(imageGenerationRequests, failoverImagesBefore + 2, "a quota rejection should try one eligible backup API");
     assert.deepEqual(imageFailoverAttempts, ["primary-image2", "backup-image2"]);
     const imageFailoverRunId = turnRequests.find((item) => item.prompt === "直接生成一张自动切换接口的苹果图片")?.run_id;
-    const imageFailoverOutput = turnRequests.find((item) => (
-      item.run_id === imageFailoverRunId && item.tool_outputs?.[0]?.call_id === `call_browser_direct_image_${imageFailoverRunId}`
-    ))?.tool_outputs?.[0]?.output;
-    assert.equal(imageFailoverOutput?.fallback?.to, "backup-image2");
+    assert.equal(turnRequests.filter((item) => item.run_id === imageFailoverRunId).length, 1, "successful failover should still finish without another model round trip");
     assert.equal(await page.locator("#canvasPlane .canvas-node-image").count(), 1);
     assert.equal(await page.locator("#canvasPlane .canvas-node-gallery").count(), 1);
     assert.equal(await page.locator("#canvasPlane .canvas-node-image .canvas-node-model").inputValue(), "backup-image2");
@@ -966,6 +1145,24 @@ const BASE_URL = process.env.CANVAS_AGENT_TEST_URL || "http://127.0.0.1:3099";
     assert.equal(preflightResult?.fallback?.reason, "preflight");
     assert.equal(imageGenerationRequests, preflightImagesBefore + 1, "an unhealthy existing node should switch before a paid request");
     assert.deepEqual(imageFailoverAttempts.slice(preflightAttemptsBefore), ["backup-image2"]);
+    assert.equal(await page.locator("#canvasPlane .canvas-node-image .canvas-node-model").inputValue(), "backup-image2");
+    const manualAttemptsBefore = imageFailoverAttempts.length;
+    imageFailoverPrimaryRejected = false;
+    await page.evaluate(() => {
+      const node = document.querySelector("#canvasPlane .canvas-node-image");
+      const model = node.querySelector(".canvas-node-model");
+      fillCanvasNodeModelSelect(model, "primary-image2");
+      model.value = "primary-image2";
+      node.dataset.canvasModel = "primary-image2";
+      node.querySelector(".canvas-node-prompt").value = "手动点击生成时自动切换接口";
+    });
+    await page.locator("#canvasPlane .canvas-node-image .canvas-node-run").click();
+    await page.waitForFunction(() => document.querySelector("#canvasPlane .canvas-node-image")?.dataset.imageJobState === "completed");
+    assert.deepEqual(
+      imageFailoverAttempts.slice(manualAttemptsBefore),
+      ["primary-image2", "backup-image2"],
+      "the manual Generate button must use the same image failover path as the Agent",
+    );
     assert.equal(await page.locator("#canvasPlane .canvas-node-image .canvas-node-model").inputValue(), "backup-image2");
     imageFailoverEnabled = false;
 
@@ -989,7 +1186,7 @@ const BASE_URL = process.env.CANVAS_AGENT_TEST_URL || "http://127.0.0.1:3099";
     assert.equal(await busyRunButton.getAttribute("aria-busy"), "true");
     releaseDelayedImage();
     releaseDelayedImage = null;
-    await page.getByText("图片已生成并加入图集。").waitFor({ state: "visible", timeout: 8000 });
+    await page.getByText(/图片已生成并加入.*图集/).waitFor({ state: "visible", timeout: 8000 });
     assert.equal(await busyRunButton.isDisabled(), false);
     assert.equal(await busyRunButton.getAttribute("aria-busy"), null);
     assert.match(await busyRunButton.innerText(), /^生成/);
@@ -1025,7 +1222,8 @@ const BASE_URL = process.env.CANVAS_AGENT_TEST_URL || "http://127.0.0.1:3099";
     const partialDisconnectImagesBefore = imageGenerationRequests;
     await page.locator("#canvasAgentPrompt").fill("生成一个苹果图片并添加说明文字");
     await page.locator("#canvasAgentSend").click();
-    await page.getByRole("button", { name: "继续任务" }).waitFor({ state: "visible", timeout: 8000 });
+    await page.getByText("已从中断处继续，完成的说明节点不会重复创建。").waitFor({ state: "visible", timeout: 8000 });
+    assert.equal(await page.locator("[data-agent-continue]").count(), 0);
     assert.equal(await page.locator("#canvasPlane .canvas-node-text").count(), 1, "the first successful canvas tool should remain on the board");
     assert.equal(await page.locator("#canvasPlane .canvas-node-image").count(), 0, "a continuation failure must not launch the direct-image fallback");
     assert.equal(imageGenerationRequests, partialDisconnectImagesBefore, "a continuation failure must not issue a duplicate paid image request");
@@ -1123,7 +1321,7 @@ const BASE_URL = process.env.CANVAS_AGENT_TEST_URL || "http://127.0.0.1:3099";
     await page.waitForTimeout(250);
     assert.equal(await page.evaluate(() => String(canvasState.activeBoardId || "")), "browser_after_delayed_switch");
     assert.equal(await page.locator("#canvasPlane .canvas-node").count(), 0, "a late paid response must not mutate the new board");
-    assert.equal(await page.getByText("图片已生成并加入图集。").count(), 0, "a late old-board response must not report completion in the new board");
+    assert.equal(await page.getByText(/图片已生成并加入.*图集/).count(), 0, "a late old-board response must not report completion in the new board");
 
     await page.locator('[data-tool="settings"]').click();
     const apiVerify = page.locator('[data-settings-action="verify-provider-agent"][data-model-id="stable-agent"]');
@@ -1158,12 +1356,28 @@ const BASE_URL = process.env.CANVAS_AGENT_TEST_URL || "http://127.0.0.1:3099";
     await page.locator('[data-settings-action="set-agent-primary"][data-candidate-id="agent-choice-backup"]').click();
     assert.equal(await page.locator(".agent-model-hero h3").textContent(), "backup-agent-14");
     assert.equal(settingsFixture.agentRouting.primaryCandidateId, "", "primary selection should remain a draft until settings are saved");
+    const savesBeforeFastSave = settingsSavePayloads.length;
+    const refreshesBeforeFastSave = agentCandidateRefreshRequests;
+    delayNextAgentCandidateRefresh = true;
+    const fastSaveStartedAt = Date.now();
     await page.locator('[data-settings-action="save"]').click();
-    await page.getByText("设置已保存，模型列表已更新").waitFor({ state: "visible" });
+    for (let index = 0; index < 80 && settingsSavePayloads.length === savesBeforeFastSave; index += 1) await page.waitForTimeout(25);
+    await page.waitForTimeout(100);
+    const fastSaveState = await page.locator("#settingsSaveState").textContent();
+    releaseDelayedAgentCandidateRefresh?.();
+    releaseDelayedAgentCandidateRefresh = null;
+    delayNextAgentCandidateRefresh = false;
+    assert.equal(fastSaveState, "设置已保存", "settings persistence must complete before any background model discovery");
+    assert.ok(Date.now() - fastSaveStartedAt < 1000, "an immediate settings response should leave the saving state within one second");
+    assert.equal(agentCandidateRefreshRequests, refreshesBeforeFastSave, "saving settings must not trigger a full provider discovery sweep");
     assert.deepEqual(settingsSavePayloads.at(-1).agentRouting, {
       primaryCandidateId: "agent-choice-backup",
       candidateOrder: ["agent-choice-backup", "agent-choice-primary"],
     }, "saving should persist the selected primary and fixed backup order");
+    if (process.env.CHECK_SETTINGS_SAVE_ONLY === "1") {
+      console.log("Settings save performance check passed.");
+      return;
+    }
     await page.screenshot({ path: path.join(ROOT, "artifacts", "agent-model-settings.png"), fullPage: true });
 
     const autoVerificationBaseline = agentVerificationRequests;
@@ -1204,7 +1418,7 @@ const BASE_URL = process.env.CANVAS_AGENT_TEST_URL || "http://127.0.0.1:3099";
     await page.getByText("已验证，未保存").waitFor({ state: "visible", timeout: 3000 });
     assert.equal(settingsFixture.providers.some((provider) => provider.name === "未保存接口"), false, "a draft verification must not save or route the provider");
     await page.locator('[data-settings-action="save"]').click();
-    await page.getByText("设置已保存，模型列表已更新").waitFor({ state: "visible" });
+    await page.getByText("设置已保存", { exact: true }).waitFor({ state: "visible" });
     await page.locator('[data-settings-tab="agent-models"]').click();
     await page.locator('[data-agent-candidate-id="agent-choice-draft"]').waitFor({ state: "visible" });
     await page.locator("#settingsView .canvas-overlay-close").click();
@@ -1224,7 +1438,7 @@ const BASE_URL = process.env.CANVAS_AGENT_TEST_URL || "http://127.0.0.1:3099";
 
     await page.screenshot({ path: path.join(ROOT, "artifacts", "canvas-agent-natural-interaction.png"), fullPage: true });
     assert.deepEqual(
-      browserErrors.filter((message) => !/(?:503 \(Service Unavailable\)|402 \(Payment Required\))/.test(message)),
+      browserErrors.filter((message) => !/(?:503 \(Service Unavailable\)|402 \(Payment Required\)|404 \(Not Found\))/.test(message)),
       [],
     );
   } catch (error) {

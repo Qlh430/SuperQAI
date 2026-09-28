@@ -2,15 +2,17 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 
-const source = fs.readFileSync(path.join(__dirname, "..", "server.js"), "utf8");
+const source = require("./server-source").readServerSource();
+const mediaAdapterSource = fs.readFileSync(path.join(__dirname, "..", "media-protocol-adapters.js"), "utf8");
+const mediaFileServiceSource = fs.readFileSync(path.join(__dirname, "..", "media-file-service.js"), "utf8");
 
-function functionBlock(name, nextName) {
-  const start = source.indexOf(`function ${name}(`);
-  const asyncStart = source.indexOf(`async function ${name}(`);
+function functionBlock(sourceText, name, nextName) {
+  const start = sourceText.indexOf(`function ${name}(`);
+  const asyncStart = sourceText.indexOf(`async function ${name}(`);
   const actualStart = start >= 0 ? start : asyncStart;
   assert.notEqual(actualStart, -1, `${name} must exist`);
-  const end = nextName ? source.indexOf(`function ${nextName}(`, actualStart + 1) : -1;
-  return source.slice(actualStart, end > actualStart ? end : actualStart + 8_000);
+  const end = nextName ? sourceText.indexOf(`function ${nextName}(`, actualStart + 1) : -1;
+  return sourceText.slice(actualStart, end > actualStart ? end : actualStart + 8_000);
 }
 
 assert.match(source, /require\("\.\/outbound-route-policy"\)/);
@@ -22,20 +24,31 @@ assert.match(source, /function getOutboundMachineId\(/);
 assert.match(source, /function queueOutboundRouteStateSave\(/);
 assert.match(source, /flushOutboundRouteState\(\)/);
 
-const providerBlock = functionBlock("getImageProvider", "isAinbImageModel");
+const providerBlock = functionBlock(source, "getImageProvider", "isAinbImageModel");
 assert.match(providerBlock, /networkMode:\s*normalizeRouteMode\(/);
 assert.match(providerBlock, /providerId:/);
 
-for (const [name, nextName] of [
-  ["requestImageGeneration", "requestImageEdit"],
-  ["requestImageEdit", "requestApimartImageGeneration"],
-  ["requestGeminiNativeImageGeneration", "buildGeminiNativeImageParts"],
-  ["requestImageChat", "buildGeminiImageChatContent"],
+assert.match(mediaAdapterSource, /requestClass:\s*"billable"/);
+assert.match(mediaAdapterSource, /requestClass:\s*"idempotent"/);
+assert.match(mediaAdapterSource, /purpose:\s*"model-execution"/);
+assert.match(source, /createMediaProviderBridge\(\{\s*executor:/);
+
+for (const retired of [
+  "requestImageGeneration",
+  "requestImageEdit",
+  "requestApimartImageGeneration",
+  "requestApimartMidjourneyGeneration",
+  "requestGrsaiImageGeneration",
+  "requestGeminiNativeImageGeneration",
+  "requestImageChat",
 ]) {
-  const block = functionBlock(name, nextName);
-  assert.match(block, /outbound:\s*\{/);
-  assert.match(block, /requestClass:\s*"billable"/);
-  assert.match(block, /mode:/);
+  assert.doesNotMatch(source, new RegExp(`(?:async )?function ${retired}\\(`), `${retired} must stay retired`);
 }
+
+const timeoutBlock = functionBlock(mediaFileServiceSource, "fetchWithTimeout", "fetchBufferResponseWithTimeout");
+assert.match(timeoutBlock, /AbortSignal\.timeout\(/);
+assert.match(timeoutBlock, /AbortSignal\.any\(\[options\.signal, timeoutSignal\]\)/);
+assert.match(source, /require\("\.\/media-file-service"\)/);
+assert.match(source, /\bfetchWithTimeout,/);
 
 console.log("Server outbound routing checks passed.");

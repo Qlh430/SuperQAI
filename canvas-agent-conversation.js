@@ -8,6 +8,7 @@
   const MAX_ITEM_TEXT_LENGTH = 12000;
   const ALLOWED_ROLES = new Set(["user", "assistant", "notice", "error", "tool"]);
   const ALLOWED_STATUSES = new Set(["running", "completed", "failed", "recoverable", "stopped", "declined"]);
+  const ALLOWED_SKILL_SOURCES = new Set(["manual", "activated", "auto"]);
 
   function create(boardId) {
     return {
@@ -71,10 +72,16 @@
       .slice(-MAX_TRANSCRIPT_ITEMS)
       .map((item) => ({
         role: item.role,
-        content: item.text,
+        content: buildTranscriptContent(item),
         ...(item.toolName ? { tool_name: item.toolName } : {}),
         ...(item.nodeId ? { node_id: item.nodeId } : {}),
       }));
+  }
+
+  function buildTranscriptContent(item) {
+    if (!item.skillLabel) return item.text;
+    const skillId = item.skillId ? `（${item.skillId}）` : "";
+    return `[本次专业流程：${item.skillLabel}${skillId}]\n${item.text}`;
   }
 
   function normalizeItem(value) {
@@ -82,6 +89,9 @@
     const role = ALLOWED_ROLES.has(String(value.role || "")) ? String(value.role) : "notice";
     const text = String(value.text || "").slice(0, MAX_ITEM_TEXT_LENGTH);
     if (!text && role !== "tool") return null;
+    const skillSource = ALLOWED_SKILL_SOURCES.has(String(value.skillSource || ""))
+      ? String(value.skillSource)
+      : "";
     return {
       id: String(value.id || makeConversationId()).slice(0, 160),
       role,
@@ -89,6 +99,9 @@
       status: ALLOWED_STATUSES.has(String(value.status || "")) ? String(value.status) : "completed",
       toolName: String(value.toolName || "").slice(0, 120),
       nodeId: String(value.nodeId || "").slice(0, 120),
+      skillId: String(value.skillId || "").slice(0, 120),
+      skillLabel: String(value.skillLabel || "").slice(0, 80),
+      skillSource,
       createdAt: normalizeDate(value.createdAt),
     };
   }

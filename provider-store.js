@@ -1,5 +1,7 @@
 "use strict";
 
+const { inferModelConfiguration, normalizeProviderBaseUrl, canonicalJimengImageModelId } = require("./provider-model-rules");
+
 function codedError(code, message) {
   return Object.assign(new Error(message), { code });
 }
@@ -23,6 +25,10 @@ function isMaskedSecret(value) {
   return text.includes("••••") || /^\*+$/.test(text) || /^.{0,4}\*{4,}.{0,4}$/.test(text);
 }
 
+function isCliProtocol(registry, protocol) {
+  return registry?.getBuiltin?.(protocol)?.connectionType === "cli";
+}
+
 function publicModel(model) {
   return {
     id: model.id,
@@ -35,7 +41,23 @@ function publicModel(model) {
   };
 }
 
-function createProviderStore({ db, vault } = {}) {
+function materializeModelCapabilities(model, provider, inferConfiguration = inferModelConfiguration) {
+  if (!model || !Array.isArray(model.capabilities) || model.capabilities.length > 0 || model.metadata?.capabilitiesExplicit === true) {
+    return model;
+  }
+  const inferred = inferConfiguration(
+    { ...model, capabilities: undefined },
+    { protocol: provider?.providerProtocol, baseUrl: provider?.baseUrl },
+  );
+  return { ...model, capabilities: uniqueStrings(inferred.capabilities) };
+}
+
+function materializeProviderModels(provider, inferConfiguration = inferModelConfiguration) {
+  const models = Array.isArray(provider?.models) ? provider.models : [];
+  return models.map(model => materializeModelCapabilities(model, provider, inferConfiguration));
+}
+
+function createProviderStore({ db, vault, registry } = {}) {
   const requiredDbMethods = [
     "listProviderRecords",
     "getProviderRecord",
@@ -62,13 +84,20 @@ function createProviderStore({ db, vault } = {}) {
     }
   }
 
+  function canonicalPlatformProtocol(protocol) {
+    const value = String(protocol || "").trim();
+    return registry?.platformProtocolId?.(value) || value;
+  }
+
   function toPublic(provider) {
     if (!provider) return null;
+    const protocol = canonicalPlatformProtocol(provider.providerProtocol);
+    const models = materializeProviderModels(provider, registry?.inferModelConfiguration || inferModelConfiguration);
     return {
       id: provider.id,
       name: provider.name,
       baseUrl: provider.baseUrl,
-      protocol: provider.providerProtocol,
+      protocol,
       source: provider.source,
       cliTool: provider.cliTool,
       enabled: provider.enabled,
@@ -77,31 +106,64 @@ function createProviderStore({ db, vault } = {}) {
       metadata: { ...provider.metadata },
       hasApiKey: Boolean(provider.encryptedApiKey),
       apiKeyMasked: decryptedMask(provider.encryptedApiKey),
-      models: provider.models.map(publicModel),
+      models: models.map(publicModel),
       createdAt: provider.createdAt,
       updatedAt: provider.updatedAt,
     };
   }
 
-  function normalizeModels(models, providerProtocol) {
+  function normalizeModels(models, providerProtocol, baseUrl) {
     if (!Array.isArray(models)) throw codedError("invalid_provider_models", "models must be an array.");
     const ids = new Set();
     return models.map((model, index) => {
-      const id = requiredText(model?.id, "model id");
+      const requestedId = requiredText(model?.id, "model id");
+      // A Dreamina image model is published as "jimeng-5.0", so a row saved with
+      // the bare version is upgraded here. The previous name is kept as a legacy
+      // id, which is how a canvas node that still refers to it keeps resolving.
+      const canonicalId = canonicalPlatformProtocol(providerProtocol) === "cli:jimeng"
+        ? canonicalJimengImageModelId(requestedId)
+        : "";
+      const id = canonicalId || requestedId;
       if (ids.has(id)) throw codedError("duplicate_provider_model", `Duplicate model id: ${id}`);
       ids.add(id);
+      const inferred = (registry?.inferModelConfiguration || inferModelConfiguration)({ ...model, id }, { protocol: providerProtocol, baseUrl });
+      const legacyModelIds = [...new Set([
+        ...(Array.isArray(model.metadata?.legacyModelIds) ? model.metadata.legacyModelIds : []),
+        ...(id !== requestedId ? [requestedId] : []),
+      ])];
       return {
         id,
         displayName: String(model.displayName ?? id).trim() || id,
-        modelProtocol: requiredText(model.modelProtocol ?? model.protocol ?? providerProtocol, "model protocol"),
-        capabilities: uniqueStrings(model.capabilities),
+        modelProtocol: inferred.protocol,
+        capabilities: uniqueStrings(inferred.capabilities),
         sortOrder: Number.isSafeInteger(Number(model.sortOrder)) && Number(model.sortOrder) >= 0
           ? Number(model.sortOrder)
           : index,
         capabilitySort: isObject(model.capabilitySort) ? { ...model.capabilitySort } : {},
-        metadata: isObject(model.metadata) ? { ...model.metadata } : {},
+        metadata: {
+          ...(isObject(model.metadata) ? model.metadata : {}),
+          ...(legacyModelIds.length ? { legacyModelIds } : {}),
+        },
       };
     });
+  }
+
+  function repairProtocolAssignments() {
+    const repairedProviderIds = [];
+    for (const existing of db.listProviderRecords()) {
+      const protocol = canonicalPlatformProtocol(existing.providerProtocol);
+      if (protocol === existing.providerProtocol) continue;
+      // Migration must not re-run strict model compatibility inference on
+      // legacy rows. Only the platform column is repaired; model profiles,
+      // secrets, and capabilities remain byte-for-byte under DB validation.
+      db.saveProviderRecord({
+        ...existing,
+        providerProtocol: protocol,
+        models: existing.models || [],
+      });
+      repairedProviderIds.push(existing.id);
+    }
+    return repairedProviderIds;
   }
 
   function nextSortOrder() {
@@ -113,29 +175,45 @@ function createProviderStore({ db, vault } = {}) {
     if (clear) return "";
     if (value === undefined || value === null || value === "" || isMaskedSecret(value)) return current || "";
     if (typeof value !== "string") throw codedError("invalid_provider_secret", "Provider secret must be a string.");
-    return vault.encrypt(value);
+    const clean = value.trim();
+    return clean ? vault.encrypt(clean) : current || "";
   }
 
   function save(input = {}) {
     const id = requiredText(input.id, "provider id");
     const existing = db.getProviderRecord(id);
-    const protocol = requiredText(input.providerProtocol ?? input.protocol ?? existing?.providerProtocol, "provider protocol");
-    const models = input.models === undefined
-      ? existing?.models || []
-      : normalizeModels(input.models, protocol);
+    const requestedProtocol = requiredText(input.providerProtocol ?? input.protocol ?? existing?.providerProtocol, "provider protocol");
+    // APIMart is represented by the OpenAI platform in the public settings
+    // contract, but its asynchronous image adapter still needs to be selected
+    // at execution time. Preserve that runtime identity when a caller saves the
+    // legacy protocol explicitly, including local APIMart-compatible relays
+    // that cannot be recognized from their hostname.
+    const legacyApimartPlatform = (registry?.runtimeId?.(requestedProtocol) || requestedProtocol).toLowerCase() === "apimart";
+    let protocol = registry?.platformProtocolId?.(requestedProtocol) || requestedProtocol;
+    protocol = registry?.checkScope(protocol, "platform")?.id || protocol;
+    const cliProtocol = isCliProtocol(registry, protocol);
+    const metadata = { ...(existing?.metadata || {}), ...(isObject(input.metadata) ? input.metadata : {}) };
+    if (legacyApimartPlatform) metadata.legacyPlatformProtocol = "apimart";
+    const networkMode = String((input.networkMode ?? metadata.networkMode ?? metadata.legacyNetworkMode) || "auto").trim().toLowerCase();
+    if (!["auto", "direct", "proxy"].includes(networkMode)) throw codedError("invalid_provider_input", "网络线路必须是自动、直连或代理。");
+    metadata.networkMode = networkMode;
+    const baseUrl = cliProtocol
+      ? ""
+      : normalizeProviderBaseUrl(requiredText(input.baseUrl ?? existing?.baseUrl, "provider baseUrl"));
+    const models = normalizeModels(input.models === undefined ? existing?.models || [] : input.models, protocol, baseUrl);
     const record = {
       id,
       name: requiredText(input.name ?? existing?.name, "provider name"),
-      baseUrl: requiredText(input.baseUrl ?? existing?.baseUrl, "provider baseUrl"),
+      baseUrl,
       providerProtocol: protocol,
-      source: requiredText(input.source ?? existing?.source ?? "api", "provider source"),
-      cliTool: input.cliTool === undefined ? existing?.cliTool || null : String(input.cliTool || "").trim() || null,
-      encryptedApiKey: nextEncryptedSecret({
+      source: cliProtocol ? "cli" : requiredText(input.source ?? existing?.source ?? "api", "provider source"),
+      cliTool: cliProtocol ? "jimeng" : input.cliTool === undefined ? existing?.cliTool || null : String(input.cliTool || "").trim() || null,
+      encryptedApiKey: cliProtocol ? "" : nextEncryptedSecret({
         value: input.apiKey,
         clear: input.clearApiKey === true,
         current: existing?.encryptedApiKey,
       }),
-      encryptedWalletKey: nextEncryptedSecret({
+      encryptedWalletKey: cliProtocol ? "" : nextEncryptedSecret({
         value: input.walletKey,
         clear: input.clearWalletKey === true,
         current: existing?.encryptedWalletKey,
@@ -149,7 +227,7 @@ function createProviderStore({ db, vault } = {}) {
         : isObject(input.capabilities)
           ? { ...input.capabilities }
           : { ...(existing?.capabilitySort || {}) },
-      metadata: isObject(input.metadata) ? { ...input.metadata } : { ...(existing?.metadata || {}) },
+      metadata,
       models,
     };
     return toPublic(db.saveProviderRecord(record));
@@ -171,7 +249,7 @@ function createProviderStore({ db, vault } = {}) {
       metadata: { ...provider.metadata },
       apiKey: provider.encryptedApiKey ? vault.decrypt(provider.encryptedApiKey) : "",
       walletKey: provider.encryptedWalletKey ? vault.decrypt(provider.encryptedWalletKey) : "",
-      models: provider.models.map(publicModel),
+      models: materializeProviderModels(provider, registry?.inferModelConfiguration || inferModelConfiguration).map(publicModel),
     };
   }
 
@@ -213,13 +291,18 @@ function createProviderStore({ db, vault } = {}) {
     const output = [];
     for (const provider of db.listProviderRecords()) {
       if (!provider.enabled) continue;
-      for (const model of provider.models) {
+      let providerHost = "";
+      try { providerHost = new URL(String(provider.baseUrl || "")).hostname.toLowerCase(); } catch {}
+      for (const model of materializeProviderModels(provider, registry?.inferModelConfiguration || inferModelConfiguration)) {
         if (!model.capabilities.includes(requiredCapability)) continue;
         output.push({
           id: model.id,
           displayName: model.displayName || model.id,
           providerId: provider.id,
           providerName: provider.name,
+          providerProtocol: String(provider.providerProtocol || ""),
+          providerHost,
+          modelProtocol: String(model.modelProtocol || ""),
           capabilities: [...model.capabilities],
           providerSortOrder: provider.sortOrder,
           modelSortOrder: model.sortOrder,
@@ -227,6 +310,10 @@ function createProviderStore({ db, vault } = {}) {
           platform: String(model.metadata?.platform || ""),
           family: String(model.metadata?.family || ""),
           price: String(model.metadata?.price || ""),
+          parameterOverrides: isObject(model.metadata?.parameterOverrides)
+            ? { ...model.metadata.parameterOverrides }
+            : {},
+          legacyModelIds: Array.isArray(model.metadata?.legacyModelIds) ? [...model.metadata.legacyModelIds] : [],
         });
       }
     }
@@ -244,6 +331,7 @@ function createProviderStore({ db, vault } = {}) {
     remove,
     reorderProviders,
     reorderModels,
+    repairProtocolAssignments,
     getAutoFallback: () => db.getProviderSettings().autoFallback,
     setAutoFallback: (enabled) => db.setProviderSettings({ autoFallback: Boolean(enabled) }).autoFallback,
     publicModelsForCapability,

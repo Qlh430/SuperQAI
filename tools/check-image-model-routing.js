@@ -165,16 +165,24 @@ assert.equal(routing.matchesRequestedModel(mixedModels[0], "image2"), true);
 assert.equal(routing.matchesRequestedModel(mixedModels[2], "gpt-image-2"), false);
 
 const fallback = routing.selectFallbackCandidate([
-  { ...mixedModels[0], id: "quota", state: "balance-error", latencyMs: 20 },
-  { ...mixedModels[0], id: "primary", latencyMs: 100 },
-  { ...mixedModels[0], id: "backup", latencyMs: 180 },
-  { ...mixedModels[2], id: "other-model", latencyMs: 10 },
+  { ...mixedModels[0], id: "quota", state: "balance-error", latencyMs: 20, order: 0 },
+  { ...mixedModels[0], id: "primary", state: "online", latencyMs: 100, order: 1 },
+  { ...mixedModels[0], id: "backup", state: "online", latencyMs: 180, order: 2 },
+  { ...mixedModels[2], id: "other-model", latencyMs: 10, order: 3 },
 ], {
   requestedModel: "gpt-image-2",
   excludeIds: ["primary"],
 });
 
 assert.equal(fallback?.id, "backup");
+assert.equal(
+  routing.shouldReplaceCandidate(
+    { ...mixedModels[0], id: "degraded", state: "degraded", order: 0 },
+    { ...mixedModels[0], id: "healthy", state: "online", order: 1 },
+  ),
+  true,
+  "a rejected/degraded candidate must be replaceable during preflight",
+);
 
 const monitoringIgnored = routing.buildCandidateRecords([
   {

@@ -6,7 +6,7 @@ canvas:
   category: video
   icon: clapperboard
   required_context: image
-  triggers: [图生视频, 图片转视频, 镜头运动, 短视频]
+  triggers: [图生视频, 图片转视频, 生成视频, 镜头运动, 短视频]
   capabilities: [node.video.create, node.update, node.connect, node.arrange, node.run]
 ---
 

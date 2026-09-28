@@ -22,9 +22,9 @@ echo Starting AI API website...
 start "AI API Server" cmd /k "cd /d ""%~dp0"" && node server.js"
 
 ping -n 3 127.0.0.1 >nul
-start "" "http://localhost:3099"
+start "" "http://localhost:3199"
 
-echo Website opened: http://localhost:3099
+echo Website opened: http://localhost:3199
 echo On another computer in the same LAN, open:
 for /f "tokens=2 delims=:" %%A in ('ipconfig ^| findstr /c:"IPv4"') do (
   set "LAN_IP=%%A"
@@ -33,5 +33,5 @@ for /f "tokens=2 delims=:" %%A in ('ipconfig ^| findstr /c:"IPv4"') do (
 
 :show_lan_url
 set "LAN_IP=%LAN_IP: =%"
-if defined LAN_IP echo http://%LAN_IP%:3099
+if defined LAN_IP echo http://%LAN_IP%:3199
 exit /b 0

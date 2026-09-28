@@ -6,7 +6,7 @@ const db = new DatabaseSync(":memory:");
 schema.configureDatabase(db);
 schema.initializeSchema(db);
 
-assert.equal(schema.SCHEMA_VERSION, 4);
+assert.equal(schema.SCHEMA_VERSION, 5);
 assert.equal(schema.readSchemaVersion(db), schema.SCHEMA_VERSION);
 assert.equal(Number(db.prepare("PRAGMA foreign_keys").get().foreign_keys), 1);
 
@@ -31,7 +31,7 @@ const tables = db
 });
 
 const boardColumns = db.prepare("PRAGMA table_info(boards)").all().map((row) => row.name);
-["external_id", "revision", "schema_version", "migration_state", "validation_hash"].forEach((name) => {
+["external_id", "project_id", "revision", "schema_version", "migration_state", "validation_hash"].forEach((name) => {
   assert.ok(boardColumns.includes(name), `missing boards.${name}`);
 });
 
@@ -88,6 +88,6 @@ assert.ok(
   legacy.prepare("PRAGMA table_info(node_previews)").all().some((row) => row.name === "title"),
   "schema v2 preview index must upgrade in place",
 );
-assert.equal(schema.readSchemaVersion(legacy), 4);
+assert.equal(schema.readSchemaVersion(legacy), 5);
 legacy.close();
 console.log("Canvas schema checks passed.");

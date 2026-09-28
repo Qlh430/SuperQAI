@@ -29,6 +29,24 @@ assert.deepEqual(appended.items.map((item) => item.id), ["u1", "t1", "a1"]);
 assert.match(JSON.stringify(Conversation.buildTranscript(appended)), /生成苹果/);
 assert.match(JSON.stringify(Conversation.buildTranscript(appended)), /63/);
 assert.equal(Conversation.normalize(appended, "board-b").boardId, "board-b");
+
+const skillSelected = Conversation.appendItems(empty, [{
+  id: "u-skill",
+  role: "user",
+  text: "帮我生成一段视频",
+  skillId: "ai-video-director",
+  skillLabel: "AI 视频导演",
+  skillSource: "manual",
+  status: "completed",
+}]);
+assert.equal(skillSelected.items[0].skillId, "ai-video-director");
+assert.equal(skillSelected.items[0].skillLabel, "AI 视频导演");
+assert.equal(skillSelected.items[0].skillSource, "manual");
+assert.match(
+  Conversation.buildTranscript(skillSelected)[0].content,
+  /^\[本次专业流程：AI 视频导演（ai-video-director）\]\n帮我生成一段视频$/,
+);
+
 const declined = Conversation.appendItems(empty, [
   { id: "declined", role: "tool", text: "已按用户选择跳过", status: "declined" },
 ]);
@@ -63,6 +81,19 @@ try {
   assert.equal(first.revision, 1);
   assert.equal(store.get("board-a").items[0].text, "生成苹果");
   assert.deepEqual(store.get("board-b").items, []);
+
+  const storedSkill = store.upsert(Conversation.appendItems(Conversation.create("board-skill"), [{
+    id: "skill-u1",
+    role: "user",
+    text: "继续视频方案",
+    skillId: "ai-video-director",
+    skillLabel: "AI 视频导演",
+    skillSource: "manual",
+  }]), 0);
+  assert.equal(storedSkill.items[0].skillId, "ai-video-director");
+  assert.equal(storedSkill.items[0].skillLabel, "AI 视频导演");
+  assert.equal(storedSkill.items[0].skillSource, "manual");
+  assert.match(Conversation.buildTranscript(store.get("board-skill"))[0].content, /AI 视频导演/);
 
   const boardB = store.upsert(Conversation.appendItems(Conversation.create("board-b"), [
     { id: "b-u1", role: "user", text: "另一个画布", status: "completed" },

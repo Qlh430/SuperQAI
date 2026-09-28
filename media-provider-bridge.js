@@ -11,20 +11,30 @@ const PARAMETER_KEYS = Object.freeze([
   "size",
   "resolution",
   "quality",
+  "background",
+  "output_format",
+  "output_compression",
+  "aspect_ratio",
+  "image_size",
+  "moderation",
+  "user",
   "n",
   "duration",
   "aspectRatio",
   "megapixels",
   "steps",
+  "guidance_scale",
   "refImageSize",
   "format",
   "style",
   "speed",
   "version",
   "niji",
+  "midjourneyOperation",
   "stylize",
   "hd",
   "negativePrompt",
+  "negative_prompt",
   "seed",
   "fps",
 ]);
@@ -73,7 +83,12 @@ function createMediaProviderBridge({ executor, adapters = {} } = {}) {
 
   async function run(operationName, input = {}) {
     const intent = MEDIA_OPERATIONS[operationName];
-    const prompt = normalizePrompt(input.prompt);
+    const params = buildParams(input);
+    // Midjourney blend only submits reference images, so an empty prompt is a
+    // valid request for that one operation.
+    const blend = String(params.midjourneyOperation || "").trim().toLowerCase() === "blend"
+      && !String(input.prompt ?? "").trim();
+    const prompt = blend ? "" : normalizePrompt(input.prompt);
     const inputImages = normalizeInputImages(input);
     if (intent === "image.edit" && !inputImages.length) {
       throw invalidInput("Image editing requires at least one input image.");
@@ -88,8 +103,8 @@ function createMediaProviderBridge({ executor, adapters = {} } = {}) {
     }
     const adapter = adapters[operationName] || adapters[intent];
     const prepared = typeof adapter?.prepare === "function"
-      ? await adapter.prepare({ input: canonicalInput, params: buildParams(input) })
-      : { input: canonicalInput, params: buildParams(input) };
+      ? await adapter.prepare({ input: canonicalInput, params })
+      : { input: canonicalInput, params };
     const result = await executor.execute({
       intent,
       mustAll: [intent],

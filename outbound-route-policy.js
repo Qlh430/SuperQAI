@@ -80,6 +80,7 @@ function routeScore(sample, failureThreshold) {
 function pickPreferred(host, failureThreshold) {
   return ROUTES
     .filter((route) => host[route])
+    .filter((route) => Number.isFinite(routeScore(host[route], failureThreshold)))
     .sort((left, right) => routeScore(host[left], failureThreshold) - routeScore(host[right], failureThreshold))[0] || "";
 }
 
@@ -88,7 +89,11 @@ function bestHealthyRoute(host, currentTime, ttlMs, proxyAvailable, failureThres
   if (!ROUTES.includes(preferred) || (preferred === "proxy" && !proxyAvailable)) return "";
   const sample = host[preferred];
   if (!sample || sample.consecutiveFailures >= failureThreshold) return "";
-  return currentTime - Number(sample.updatedAt || 0) <= ttlMs ? preferred : "";
+  // Keep a last-known successful route through idle periods. Read-only discovery
+  // can probe an alternative if it becomes slow; TTL should expire failures,
+  // rather than repeatedly send new requests back to a known blocked route.
+  return currentTime - Number(sample.updatedAt || 0) <= ttlMs
+    || (sample.successes > 0 && sample.consecutiveFailures === 0) ? preferred : "";
 }
 
 function createOutboundRoutePolicy({
@@ -111,13 +116,21 @@ function createOutboundRoutePolicy({
     }
 
     const host = state.hosts[getRouteKey(url)] || {};
-    const preferred = bestHealthyRoute(
+    const currentTime = Number(now());
+    let preferred = bestHealthyRoute(
       host,
-      Number(now()),
+      currentTime,
       effectiveTtlMs,
       Boolean(proxyAvailable),
       effectiveFailureThreshold,
-    ) || "direct";
+    );
+    if (!preferred) {
+      const isOpen = (sample) => Number(sample?.consecutiveFailures || 0) >= effectiveFailureThreshold
+        && currentTime - Number(sample?.updatedAt || 0) <= effectiveTtlMs;
+      const directOpen = isOpen(host.direct);
+      const proxyOpen = isOpen(host.proxy);
+      preferred = directOpen && proxyAvailable && !proxyOpen ? "proxy" : "direct";
+    }
     return {
       route: preferred,
       alternate: proxyAvailable ? (preferred === "direct" ? "proxy" : "direct") : null,

@@ -1,7 +1,10 @@
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 
-const server = fs.readFileSync("server.js", "utf8");
+const server = require("./server-source").readServerSource();
+const imageModelCatalog = fs.readFileSync("image-model-catalog.js", "utf8");
+const imageModelRules = fs.readFileSync("image-model-rules.js", "utf8");
+const mediaProtocolAdapters = fs.readFileSync("media-protocol-adapters.js", "utf8");
 const script = fs.readFileSync("script.js", "utf8");
 const html = fs.readFileSync("index.html", "utf8");
 const styles = fs.readFileSync("styles.css", "utf8");
@@ -13,8 +16,11 @@ assert.match(server, /isMidjourneyImageModel\(model\)/);
 assert.match(server, /new Set\(\["8\.2", "8\.1", "7", "6\.1", "5\.2", "5\.1"\]\)/);
 assert.match(server, /new Set\(\["7", "6"\]\)/);
 assert.match(server, /new Set\(\["relax", "fast", "turbo"\]\)/);
-assert.match(server, /normalizeImagePlatform[\s\S]*MIDJOURNEY_IMAGE_MODEL_ALIAS/);
-assert.match(server, /getDefaultImageResolutionsForModel[\s\S]*MIDJOURNEY_IMAGE_MODEL_ALIAS/);
+assert.match(server, /midjourneyImageModelAlias: MIDJOURNEY_IMAGE_MODEL_ALIAS/);
+assert.doesNotMatch(server, /function normalizeImagePlatform\(/);
+assert.doesNotMatch(server, /function getDefaultImageResolutionsForModel\(/);
+assert.match(imageModelRules, /function normalizeImagePlatform\(value, modelId = ""\) \{\n\s+if \(isMidjourneyModelId\(modelId\)\) return "midjourney";/);
+assert.match(imageModelRules, /function defaultImageResolutionsForModel\(modelId, modelConfig = null\) \{\n\s+const config = modelConfig && typeof modelConfig === "object" \? modelConfig : \{\};\n\s+if \(isMidjourneyModelId\(modelId\)\) return \[\];/);
 assert.match(server, /stylize must be an integer from 0 to 1000/);
 assert.match(server, /Midjourney HD is only supported for V8\.1 and V8\.2/);
 assert.ok(server.includes("if (normalizedHd) normalized.hd = true;"));
@@ -35,17 +41,10 @@ assert.deepEqual(normalizeMidjourneyOptions({ version: "8.2", hd: true }), {
 assert.throws(() => normalizeMidjourneyOptions({ version: "7", hd: true }), /HD is only supported/);
 assert.throws(() => normalizeMidjourneyOptions({ version: "7", niji: true, hd: true }), /HD is only supported/);
 
-const legacyRequest = server.slice(
-  server.indexOf("async function requestApimartImageGeneration"),
-  server.indexOf("async function requestApimartMidjourneyGeneration"),
-);
-const midjourneyRequest = server.slice(
-  server.indexOf("async function requestApimartMidjourneyGeneration"),
-  server.indexOf("function normalizeMidjourneyOptions"),
-);
-assert.match(legacyRequest, /model: APIMART_IMAGE_UPSTREAM_MODEL/);
-assert.doesNotMatch(midjourneyRequest, /model\s*:/);
-assert.match(midjourneyRequest, /waitForApimartTask\(taskId, MIDJOURNEY_IMAGE_TASK_API_URL\)/);
+assert.doesNotMatch(server, /async function requestApimartImageGeneration\(/);
+assert.doesNotMatch(server, /async function requestApimartMidjourneyGeneration\(/);
+assert.match(mediaProtocolAdapters, /MIDJOURNEY_ENDPOINTS/);
+assert.match(mediaProtocolAdapters, /function midjourneyRequestBody\(/);
 
 [
   "imageMidjourneyOptions",

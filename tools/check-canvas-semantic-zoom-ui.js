@@ -88,9 +88,7 @@ function fixtureBoard() {
 
 async function openBoard(page) {
   await page.goto(page.url(), { waitUntil: "networkidle", timeout: 30_000 });
-  await page.locator("#infiniteCanvas").waitFor({ state: "visible", timeout: 30_000 });
-  await page.evaluate(() => document.querySelector(".canvas-start-gate")?.classList.add("is-dismissed"));
-  await page.locator("#canvasHistoryButton").click();
+  await page.locator("#canvasLibraryScreen").waitFor({ state: "visible", timeout: 30_000 });
   await page.locator(`[data-board-id="${BOARD_ID}"]`).click({ timeout: 15_000 });
   await page.locator("#canvasBoardLoading").waitFor({ state: "hidden", timeout: 30_000 });
   await page.waitForFunction((boardId) => (

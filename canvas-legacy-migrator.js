@@ -169,7 +169,7 @@ function createCanvasLegacyMigrator({
     };
   }
 
-  async function ensureMigrated(boardId, onProgress = () => {}) {
+  async function ensureMigrated(boardId, onProgress = () => {}, { projectId } = {}) {
     const id = String(boardId || "");
     const existing = await repository.getBoardMeta(id).catch((error) => {
       if (error?.code === "board_not_found") return null;
@@ -183,7 +183,7 @@ function createCanvasLegacyMigrator({
     const backupFile = ensureTimestampedBackup();
     onProgress({ boardId: id, phase: "backup", completed: 1, total: 1, backupFile });
     try {
-      await repository.beginLegacyImport({ board, backupFile });
+      await repository.beginLegacyImport({ board, backupFile, projectId });
       await importBatches(id, "nodes", Array.isArray(board.nodes) ? board.nodes : [], onProgress);
       await importBatches(
         id,

@@ -5,29 +5,32 @@ const Router = require("../canvas-agent-router");
 
 async function main() {
   const server = fs.readFileSync(path.join(__dirname, "..", "server.js"), "utf8");
-  assert.match(server, /function getOrCreateCanvasAgentSession/);
-  assert.match(server, /function pruneCanvasAgentSessions/);
-  assert.match(server, /function runCanvasAgentCandidate/);
-  assert.match(server, /function writeCanvasAgentEvent/);
-  assert.match(server, /application\/x-ndjson/);
-  assert.match(server, /CanvasAgentRouter\.executeSequentialFailover/);
-  assert.match(server, /req\.once\("close"/);
-  assert.match(server, /pinnedCandidateId/);
-  assert.match(server, /forceStateless/);
+  const canvasAgentHttpApi = fs.readFileSync(path.join(__dirname, "..", "canvas-agent-http-api.js"), "utf8");
+  assert.match(server, /require\("\.\/canvas-agent-http-api"\)/);
+  assert.match(canvasAgentHttpApi, /function getOrCreateSession/);
+  assert.match(canvasAgentHttpApi, /function pruneSessions/);
+  assert.doesNotMatch(canvasAgentHttpApi, /function runCanvasAgentCandidate/);
+  assert.match(canvasAgentHttpApi, /function writeEvent/);
+  assert.match(canvasAgentHttpApi, /application\/x-ndjson/);
+  assert.match(server, /createCanvasAgentProviderBridge/);
+  assert.match(canvasAgentHttpApi, /req\.once\("close"/);
+  assert.match(canvasAgentHttpApi, /pinnedCandidateId/);
+  assert.match(canvasAgentHttpApi, /forceStateless/);
   assert.match(server, /CANVAS_AGENT_SESSION_TTL_MS/);
-  assert.match(server, /function disposeCanvasAgentSession/);
-  assert.match(server, /disposeCanvasAgentSession\(session\)/);
-  assert.match(server, /async function handleCanvasAgentCancel/);
-  assert.match(server, /\/api\/canvas-agent\/cancel/);
-  assert.match(server, /session\.initialPayload\.vision_images\s*=\s*\[\]/);
-  assert.match(server, /session\.initialPayload\.canvas\s*=\s*\{\}/);
-  assert.doesNotMatch(server, /writeCanvasAgentEvent\([^\n]+(?:candidate|provider|model)/);
-  const turnHandlerSource = server.slice(
-    server.indexOf("async function handleCanvasAgentTurn"),
-    server.indexOf("async function handleCanvasAgentCancel"),
+  assert.match(canvasAgentHttpApi, /function disposeSession/);
+  assert.match(canvasAgentHttpApi, /disposeSession\(session\)/);
+  assert.match(canvasAgentHttpApi, /async function handleCancel/);
+  assert.match(canvasAgentHttpApi, /\/api\/canvas-agent\/cancel/);
+  assert.match(canvasAgentHttpApi, /session\.initialPayload\.vision_images\s*=\s*\[\]/);
+  assert.match(canvasAgentHttpApi, /session\.initialPayload\.canvas\s*=\s*\{\}/);
+  assert.doesNotMatch(canvasAgentHttpApi, /writeEvent\([^\n]+(?:candidate|provider|model)/);
+  const turnHandlerSource = canvasAgentHttpApi.slice(
+    canvasAgentHttpApi.indexOf("async function handleTurn"),
+    canvasAgentHttpApi.indexOf("async function handleCancel"),
   );
-  assert.match(turnHandlerSource, /let candidates = getCanvasAgentCandidates\(scopedPayload\)/);
-  assert.doesNotMatch(turnHandlerSource, /wantsStream\s*\?\s*getCanvasAgentCandidates/);
+  assert.match(turnHandlerSource, /canvasAgentProviderBridge\.runTurn/);
+  assert.match(turnHandlerSource, /onAttemptFailure:[\s\S]{0,180}stage:\s*"recovering"/);
+  assert.doesNotMatch(turnHandlerSource, /getCanvasAgentCandidates|executeSequentialFailover/);
   assert.doesNotMatch(turnHandlerSource, /getLegacyCanvasAgentCandidate/);
 
   const attempts = [];

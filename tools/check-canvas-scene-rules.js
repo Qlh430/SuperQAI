@@ -34,14 +34,22 @@ const overlapping = Array.from({ length: 50_000 }, (_, index) => ({
   width: 320,
   height: 240,
   zOrder: index,
-  previewSource: `/thumb-${index}.webp`,
+  previewSource: `/same-thumbnail.webp`,
 }));
 const overlapResult = selectVisibleSprites(overlapping, {
   bounds: { left: -10, top: -10, right: 400, bottom: 300 },
   scale: 0.11,
 });
-assert.equal(overlapResult.visualNodes.length, 1);
+assert.equal(overlapResult.visualNodes.length, 1, "overlap culling still draws only one shared image");
+assert.equal(overlapResult.occludedStacks.length, 1);
+assert.equal(overlapResult.occludedStacks[0].members.length, 49_999, "retain all hidden identities without repeating geometry or image payloads");
+assert.deepEqual(overlapResult.occludedStacks[0].members[0], ["overlap-49998", 49998, ""]);
 assert.equal(overlapResult.visualNodes[0].id, "overlap-49999", "top z-order node must survive occlusion");
+const differentImages = selectVisibleSprites([
+  { ...overlapping[0], id: "portrait", previewSource: "/portrait.webp" },
+  { ...overlapping[1], id: "landscape", previewSource: "/landscape.webp" },
+], { bounds: { left: -10, top: -10, right: 400, bottom: 300 }, scale: 1 });
+assert.equal(differentImages.visualNodes.length, 2, "different images with the same envelope may expose different areas");
 
 const subpixel = selectVisibleSprites([
   { id: "bottom", x: 0, y: 0, width: 1, height: 1, zOrder: 1 },
@@ -51,6 +59,15 @@ const subpixel = selectVisibleSprites([
   scale: 0.05,
 });
 assert.deepEqual(subpixel.visualNodes.map((node) => node.id), ["top"]);
+
+const autoSize = selectVisibleSprites([
+  { id: "legacy-auto-image", kind: "image", x: 0, y: 0, width: 0, height: 0 },
+  { id: "legacy-auto-text", kind: "text", x: 500, y: 0, width: 0, height: 0 },
+], { bounds: { left: -10, top: -10, right: 1000, bottom: 500 }, scale: 0.2 });
+assert.equal(autoSize.visualNodes[0].width, 320, "auto-sized images must not collapse to a subpixel dot in scene mode");
+assert.equal(autoSize.visualNodes[0].height, 240);
+assert.equal(autoSize.visualNodes[1].width, 292);
+assert.equal(autoSize.visualNodes[1].height, 180);
 
 const dense = Array.from({ length: 5_000 }, (_, index) => ({
   id: `dense-${index}`,

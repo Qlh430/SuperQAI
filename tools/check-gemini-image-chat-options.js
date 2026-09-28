@@ -1,44 +1,28 @@
-const fs = require("fs");
-const path = require("path");
+"use strict";
 
-const source = fs.readFileSync(path.join(__dirname, "..", "server.js"), "utf8");
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
 
-function getBlock(start, end) {
-  const startIndex = source.indexOf(start);
-  const endIndex = source.indexOf(end, startIndex);
-  if (startIndex === -1 || endIndex === -1) {
-    console.error(`Could not find block from ${start} to ${end}`);
-    process.exit(1);
-  }
-  return source.slice(startIndex, endIndex);
-}
+const source = fs.readFileSync(path.join(__dirname, "..", "provider-protocol-engine.js"), "utf8");
+const bodyStart = source.indexOf('if (kind === "gemini-content" || kind === "gemini-image")');
+const bodyEnd = source.indexOf('if (kind === "openai-image-edit")', bodyStart);
+const parseStart = source.indexOf('if (kind === "gemini-image")', bodyEnd);
+const parseEnd = source.indexOf('if (kind === "openai-image")', parseStart);
 
-const requestBlock = getBlock("async function requestImageChat", "function buildGeminiImageChatContent");
-const collectBlock = getBlock("function collectImagesFromValue", "function collectImagesFromText");
-const normalizeBlock = getBlock("function normalizeChatImageResponse", "function collectImagesFromValue");
+assert.notEqual(bodyStart, -1, "Gemini request builder should exist");
+assert.notEqual(bodyEnd, -1, "Gemini request builder boundary should exist");
+assert.notEqual(parseStart, -1, "Gemini image parser should exist");
+assert.notEqual(parseEnd, -1, "Gemini image parser boundary should exist");
 
-const expectations = [
-  {
-    ok: /body\.modalities\s*=\s*\[\s*"text"\s*,\s*"image"\s*\]/.test(requestBlock),
-    message: "Gemini image chat requests should ask for image output via modalities.",
-  },
-  {
-    ok: /collectImagesFromValue\(data\.data,\s*items\)/.test(normalizeBlock)
-      && !/Array\.isArray\(data\.data\)\s*&&\s*data\.data\.length\)\s*return data/.test(normalizeBlock),
-    message: "Chat image normalization should inspect existing data arrays instead of returning early.",
-  },
-  {
-    ok: /source/.test(collectBlock) && /inline_data/.test(collectBlock) && /inlineData/.test(collectBlock),
-    message: "Image extraction should handle Gemini source/inline_data image parts.",
-  },
-  {
-    ok: /file_data/.test(collectBlock) && /fileData/.test(collectBlock),
-    message: "Image extraction should handle file_data image parts.",
-  },
-];
+const bodyBlock = source.slice(bodyStart, bodyEnd);
+const parseBlock = source.slice(parseStart, parseEnd);
+assert.match(bodyBlock, /responseModalities:\s*\["TEXT",\s*"IMAGE"\]/);
+assert.match(bodyBlock, /input\.inputImages/);
+assert.match(bodyBlock, /inlineData/);
+assert.match(parseBlock, /inlineData/);
+assert.match(parseBlock, /inline_data/);
+assert.match(parseBlock, /fileData/);
+assert.match(parseBlock, /file_data/);
 
-const failures = expectations.filter((item) => !item.ok);
-if (failures.length) {
-  for (const failure of failures) console.error(failure.message);
-  process.exit(1);
-}
+console.log("Gemini image options checks passed.");

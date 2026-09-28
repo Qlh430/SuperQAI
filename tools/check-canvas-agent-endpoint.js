@@ -116,8 +116,11 @@ async function waitForServer(port, child, diagnostics) {
     cwd: ROOT,
     env: {
       ...process.env,
+      AI_OS_SKIP_ENV_FILE: "1",
       PORT: String(appPort),
       HOST: "127.0.0.1",
+      AI_OS_AUTH_DISABLED: "1",
+      AI_OS_DATA_DIR: tempDirectory,
       CANVAS_AGENT_API_URL: `http://127.0.0.1:${upstreamPort}/v1`,
       CANVAS_AGENT_API_KEY: "test-agent-key",
       CANVAS_AGENT_MODEL: "test-agent-model",
@@ -136,7 +139,19 @@ async function waitForServer(port, child, diagnostics) {
     assert.equal(skillsResponse.data.model, undefined);
     assert.equal(skillsResponse.data.reasoning_effort, undefined);
     assert.equal(skillsResponse.data.configured, true);
+    assert.ok(skillsResponse.data.models.length > 0, "skills catalog includes saved Agent candidates");
+    assert.ok(skillsResponse.data.models.every(model => model.providerId && model.modelId));
+    assert.ok(skillsResponse.data.models.every(model => !("apiKey" in model) && !("baseUrl" in model)));
     assert.ok(skillsResponse.data.skills.some((skill) => skill.id === "poster-design"));
+    ["generate-image", "edit-image", "upscale-image", "describe-image"].forEach((id) => {
+      const skill = skillsResponse.data.skills.find((item) => item.id === id);
+      assert.ok(skill, `${id} should be exposed to the canvas Agent`);
+      assert.ok(skill.capabilities.length >= 2, `${id} should expose its real capabilities`);
+    });
+
+    assert.equal((await requestJson(appPort, "/api/canvas/boards", {
+      method: "POST", body: { id: "board-1", title: "测试画布" },
+    })).status, 201);
 
     const firstTurn = await requestJson(appPort, "/api/canvas-agent/turn", {
       method: "POST",
@@ -144,7 +159,7 @@ async function waitForServer(port, child, diagnostics) {
         run_id: "endpoint-run-1",
         skill_mode: "auto",
         skill_id: "",
-        prompt: "你好",
+        prompt: "创建一个文字节点，内容是夏日新品",
         canvas: { id: "board-1", title: "测试画布", selected_node_ids: [], nodes: [], connections: [] },
         vision_images: [],
         step: 0,
@@ -201,7 +216,68 @@ async function waitForServer(port, child, diagnostics) {
     });
     assert.equal(manualTurn.status, 200);
 
-    assert.equal(upstreamRequests.length, 3);
+    // 直接生图：自动模式同样保留 Skill 激活入口，并把 generate-image 放进路由目录。
+    const imagePlanTurn = await requestJson(appPort, "/api/canvas-agent/turn", {
+      method: "POST",
+      body: {
+        run_id: "endpoint-run-image",
+        skill_mode: "auto",
+        skill_id: "",
+        prompt: "帮我生成一张赛博朋克城市夜景图片",
+        canvas: { id: "board-1", title: "测试画布", selected_node_ids: [], nodes: [], connections: [] },
+        vision_images: [],
+        step: 0,
+      },
+    });
+    assert.equal(imagePlanTurn.status, 200);
+    // 触发词唯一命中的需求由服务端预加载专业流程，并把这个结论回报给界面。
+    assert.equal(imagePlanTurn.data.auto_skill_id, "generate-image");
+    assert.equal(imagePlanTurn.data.auto_skill_label, "生成图片");
+
+    // 激活生图 Skill 后，模型拿到的是生图 Skill 的真实流程与真实工具集。
+    const imageSkillTurn = await requestJson(appPort, "/api/canvas-agent/turn", {
+      method: "POST",
+      body: {
+        run_id: "endpoint-run-image",
+        skill_mode: "auto",
+        skill_id: "",
+        active_skill_id: "generate-image",
+        previous_response_id: "resp_plan",
+        tool_outputs: [{ call_id: "call_text_1", output: { ok: true } }],
+        step: 1,
+      },
+    });
+    assert.equal(imageSkillTurn.status, 200);
+
+    // 同一条需求续跑时不依赖模型再次激活：服务端把预加载的流程带回去。
+    const autoRunTurn = await requestJson(appPort, "/api/canvas-agent/turn", {
+      method: "POST",
+      body: {
+        run_id: "endpoint-run-image-auto",
+        skill_mode: "auto",
+        skill_id: "",
+        prompt: "帮我生成一张赛博朋克城市夜景图片",
+        canvas: { id: "board-1", title: "测试画布", selected_node_ids: [], nodes: [], connections: [] },
+        vision_images: [],
+        step: 0,
+      },
+    });
+    assert.equal(autoRunTurn.status, 200);
+
+    const autoContinuedTurn = await requestJson(appPort, "/api/canvas-agent/turn", {
+      method: "POST",
+      body: {
+        run_id: "endpoint-run-image-auto",
+        skill_mode: "auto",
+        skill_id: "",
+        previous_response_id: "resp_plan",
+        tool_outputs: [{ call_id: "call_text_1", output: { ok: true } }],
+        step: 1,
+      },
+    });
+    assert.equal(autoContinuedTurn.status, 200);
+
+    assert.equal(upstreamRequests.length, 7);
     assert.equal(upstreamRequests[0].url, "/v1/responses");
     assert.equal(upstreamRequests[0].authorization, "Bearer test-agent-key");
     assert.equal(upstreamRequests[0].body.model, "test-agent-model");
@@ -216,6 +292,23 @@ async function waitForServer(port, child, diagnostics) {
     assert.doesNotMatch(upstreamRequests[2].body.instructions, /当前处于自动模式/);
     assert.match(upstreamRequests[2].body.instructions, /当前业务 Skill：poster-design/);
     assert.ok(upstreamRequests[2].body.tools.length < upstreamRequests[0].body.tools.length);
+    assert.match(upstreamRequests[3].body.instructions, /- generate-image（生成图片）/);
+    assert.match(upstreamRequests[3].body.instructions, /- upscale-image（放大图片）/);
+    assert.ok(upstreamRequests[3].body.tools.some((tool) => tool.name === "activate_canvas_skill"));
+    assert.ok(upstreamRequests[3].body.tools.some((tool) => tool.name === "generate_image_to_gallery"));
+    assert.match(upstreamRequests[4].body.instructions, /当前业务 Skill：generate-image/);
+    assert.match(upstreamRequests[4].body.instructions, /generate_image_to_gallery/);
+    assert.ok(upstreamRequests[4].body.tools.some((tool) => tool.name === "generate_image_to_gallery"));
+    assert.equal(upstreamRequests[4].body.tools.some((tool) => tool.name === "create_video_node"), false);
+    // 预加载是"软"的：正文到位，同时保留路由目录和切换入口。
+    assert.match(upstreamRequests[5].body.instructions, /当前业务 Skill：generate-image/);
+    assert.match(upstreamRequests[5].body.instructions, /本次需求已预加载上述专业流程/);
+    assert.match(upstreamRequests[5].body.instructions, /- upscale-image（放大图片）/);
+    assert.ok(upstreamRequests[5].body.tools.some((tool) => tool.name === "activate_canvas_skill"));
+    // 续跑那一轮没有 prompt，也必须继续带上同一个流程。
+    assert.match(upstreamRequests[6].body.instructions, /当前业务 Skill：generate-image/);
+    assert.ok(upstreamRequests[6].body.tools.some((tool) => tool.name === "generate_image_to_gallery"));
+    assert.ok(upstreamRequests[6].body.tools.some((tool) => tool.name === "activate_canvas_skill"));
   } finally {
     if (child.exitCode === null) {
       child.kill();

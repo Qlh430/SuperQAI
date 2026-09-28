@@ -1,9 +1,10 @@
-const SCHEMA_VERSION = 4;
+const SCHEMA_VERSION = 5;
 
 const SCHEMA_SQL = `
   CREATE TABLE IF NOT EXISTS boards (
     pk INTEGER PRIMARY KEY,
     external_id TEXT NOT NULL UNIQUE,
+    project_id TEXT,
     title TEXT NOT NULL,
     viewport_json TEXT NOT NULL,
     revision INTEGER NOT NULL DEFAULT 0,
@@ -94,6 +95,12 @@ const SCHEMA_SQL = `
     PRIMARY KEY(board_pk, node_id)
   ) STRICT, WITHOUT ROWID;
 
+  CREATE TABLE IF NOT EXISTS node_media_index_state (
+    node_pk INTEGER PRIMARY KEY REFERENCES nodes(pk) ON DELETE CASCADE,
+    revision INTEGER NOT NULL
+  ) STRICT;
+  CREATE INDEX IF NOT EXISTS media_refs_source_idx ON media_refs(original_url, board_pk);
+
   CREATE TABLE IF NOT EXISTS board_operations (
     pk INTEGER PRIMARY KEY,
     board_pk INTEGER NOT NULL REFERENCES boards(pk) ON DELETE CASCADE,
@@ -120,6 +127,9 @@ const SCHEMA_SQL = `
   ) STRICT, WITHOUT ROWID;
 
   CREATE INDEX IF NOT EXISTS nodes_board_order_idx ON nodes(board_pk, z_order);
+  CREATE INDEX IF NOT EXISTS nodes_viewport_geometry_idx
+    ON nodes(board_pk, pk, x, y, width, height, external_id, kind, z_order);
+  CREATE INDEX IF NOT EXISTS connections_viewport_idx ON connections(board_pk, pk);
   CREATE INDEX IF NOT EXISTS connections_board_from_idx ON connections(board_pk, from_id);
   CREATE INDEX IF NOT EXISTS connections_board_to_idx ON connections(board_pk, to_id);
   CREATE INDEX IF NOT EXISTS board_operations_board_created_idx ON board_operations(board_pk, created_at);
@@ -129,12 +139,22 @@ const SCHEMA_SQL = `
 
 function configureDatabase(db) {
   db.exec("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA synchronous=NORMAL; PRAGMA temp_store=MEMORY;");
+  // Bound the pager cache in KiB. Dense viewport queries otherwise repeatedly
+  // evict geometry/index pages from SQLite's default 2 MiB cache.
+  db.exec("PRAGMA cache_size=-32768;");
   if (typeof db.enableDefensive === "function") db.enableDefensive(true);
   return db;
 }
 
 function initializeSchema(db) {
   db.exec(SCHEMA_SQL);
+  const boardColumns = new Set(
+    db.prepare("PRAGMA table_info(boards)").all().map((row) => String(row.name)),
+  );
+  if (!boardColumns.has("project_id")) {
+    db.exec("ALTER TABLE boards ADD COLUMN project_id TEXT");
+  }
+  db.exec("CREATE INDEX IF NOT EXISTS boards_project_updated_idx ON boards(project_id, updated_at DESC, pk DESC)");
   const previewColumns = new Set(
     db.prepare("PRAGMA table_info(node_previews)").all().map((row) => String(row.name)),
   );

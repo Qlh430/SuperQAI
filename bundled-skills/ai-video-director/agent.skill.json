@@ -1,0 +1,160 @@
+{
+  "format": "canvas-agent-skill/v1",
+  "mode": "procedure",
+  "exposure": "manual",
+  "allowImplicitInvocation": false,
+  "limits": {
+    "maxRounds": 12,
+    "maxToolCalls": 16
+  },
+  "stages": [
+    {
+      "id": "script",
+      "label": "脚本阶段",
+      "whenAny": [
+        "脚本",
+        "故事",
+        "剧情",
+        "创意方向",
+        "核心表达",
+        "因果链",
+        "情绪曲线",
+        "视觉母题",
+        "跑通",
+        "跑一下",
+        "改写",
+        "评审"
+      ],
+      "whenNone": [
+        "分镜",
+        "主镜头",
+        "镜头表",
+        "图片提示词",
+        "视频提示词",
+        "剪辑",
+        "粗剪",
+        "复盘",
+        "风格测试",
+        "视觉连续性"
+      ],
+      "mustRead": [
+        "references/script-and-story.md"
+      ],
+      "tools": [
+        "create_text_node",
+        "update_node"
+      ],
+      "deliverable": {
+        "code": "ai-video-director-script",
+        "label": "AI 视频导演 · 脚本阶段",
+        "requireCanvasTextNode": true,
+        "rules": [
+          {
+            "key": "confirmed_inputs",
+            "label": "已确认输入、暂定假设和待确认项",
+            "groups": [
+              ["已确认输入"],
+              ["暂定假设"],
+              ["待确认项", "待确认"]
+            ]
+          },
+          {
+            "key": "nine_part_foundation",
+            "label": "九项脚本骨架",
+            "groups": [
+              ["九项脚本骨架"]
+            ]
+          },
+          {
+            "key": "core_expression",
+            "label": "一句话核心表达",
+            "groups": [
+              ["核心表达"]
+            ]
+          },
+          {
+            "key": "story_engine_and_causality",
+            "label": "故事发动机与因果链",
+            "groups": [
+              ["故事发动机"],
+              ["因果链"]
+            ]
+          },
+          {
+            "key": "timed_script_table",
+            "label": "带段落时间的脚本表（行动、可见变化、声音、功能动机、段落任务）",
+            "groups": [
+              ["段落时间", "时间"],
+              ["行动"],
+              ["可见变化"],
+              ["声音"],
+              ["功能动机"],
+              ["段落任务"]
+            ],
+            "requiresTable": true
+          },
+          {
+            "key": "audio_visual_division",
+            "label": "视听分工",
+            "groups": [
+              ["视听分工"]
+            ]
+          },
+          {
+            "key": "emotion_and_motif",
+            "label": "情绪曲线与视觉母题变化",
+            "groups": [
+              ["情绪曲线"],
+              ["视觉母题"]
+            ]
+          },
+          {
+            "key": "opening_climax_ending",
+            "label": "开头、高潮和结尾闭环说明",
+            "groups": [
+              ["开头"],
+              ["高潮"],
+              ["结尾"],
+              ["闭环"]
+            ]
+          },
+          {
+            "key": "delete_test_and_feasibility",
+            "label": "删除测试与可执行性检查",
+            "groups": [
+              ["删除测试"],
+              ["可执行性"]
+            ]
+          },
+          {
+            "key": "script_status",
+            "label": "脚本确认结论",
+            "groups": [
+              ["脚本确认结论", "确认结论", "已批准并锁定", "有条件批准", "需要修改", "暂时阻塞"]
+            ]
+          },
+          {
+            "key": "stage_handoff",
+            "label": "唯一的阶段交接问题",
+            "groups": [
+              ["阶段交接", "交接", "下一阶段", "是否满意", "请确认"]
+            ],
+            "requiresQuestion": true,
+            "messageAllowed": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "general",
+      "label": "通用文字阶段",
+      "always": true,
+      "mustRead": [],
+      "tools": [
+        "create_text_node",
+        "update_node"
+      ],
+      "deliverable": null
+    }
+  ]
+}

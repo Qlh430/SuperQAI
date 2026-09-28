@@ -4,6 +4,7 @@ const capabilities = require("../canvas-agent-capabilities");
 assert.equal(capabilities.getCapability("node.text.create")?.tool?.name, "create_text_node");
 assert.equal(capabilities.getCapability("image.generate-to-gallery")?.tool?.name, "generate_image_to_gallery");
 assert.equal(capabilities.getCapability("image.existing-node-choice")?.tool?.name, "request_image_node_choice");
+assert.equal(capabilities.getCapability("design.brief.request")?.tool?.name, "request_design_brief");
 assert.equal(capabilities.getCapability("canvas.node.focus")?.tool?.name, "focus_canvas_nodes");
 assert.equal(capabilities.getCapability("canvas.node.organize")?.tool?.name, "organize_canvas_nodes");
 assert.equal(capabilities.getCapability("image.crop")?.tool?.name, "crop_canvas_image");
@@ -42,8 +43,13 @@ assert.equal(textTools.length, 1);
 assert.equal(textTools[0].type, "function");
 assert.equal(textTools[0].strict, true);
 assert.equal(textTools[0].parameters.additionalProperties, false);
+assert.equal(textTools[0].parameters.properties.title.type[1], "null");
+assert.equal(textTools[0].parameters.required.includes("title"), true);
+assert.equal(textTools[0].parameters.required.includes("x"), true);
+assert.equal(textTools[0].parameters.required.includes("y"), true);
 
 const updateChanges = capabilities.getCapabilityByToolName("update_node").tool.inputSchema.properties.changes.properties;
+assert.match(updateChanges.resolution.description, /2K.*[“"]2[”"]/, "Agent schema must explain the canonical 2K value");
 ["comfy_mode", "comfy_resolution", "comfy_padding", "comfy_qwen_angle"].forEach((field) => {
   assert.ok(updateChanges[field], `update_node must expose ${field}`);
 });
@@ -70,6 +76,7 @@ nodeArrayTools.forEach((name) => {
   "create_image_node",
   "generate_image_to_gallery",
   "request_image_node_choice",
+  "request_design_brief",
   "create_llm_node",
   "create_comfy_node",
   "create_video_node",
@@ -97,6 +104,12 @@ nodeArrayTools.forEach((name) => {
   "run_canvas_node",
   "delete_nodes",
   "activate_canvas_skill",
+  "read_skill_reference",
 ].forEach((name) => assert.ok(capabilities.getCapabilityByToolName(name), `${name} must be available`));
+
+assert.equal(capabilities.getCapability("skill.reference.read")?.tool?.name, "read_skill_reference");
+assert.equal(capabilities.getRisk("read_skill_reference", { skill_id: "poster-design", path: "references/a.md" }), "safe");
+const skillReferenceSchema = capabilities.getCapabilityByToolName("read_skill_reference").tool.inputSchema;
+assert.ok(skillReferenceSchema.required.includes("path"), "reading a skill reference should require an explicit path");
 
 console.log("Canvas agent capability registry checks passed.");

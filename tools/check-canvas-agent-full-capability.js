@@ -30,13 +30,17 @@ assert.match(source, /const CanvasAgentCanvasApi\s*=\s*Object\.freeze/);
   "runNode",
   "generateImageToGallery",
   "requestImageNodeChoice",
+  "requestDesignBrief",
   "deleteNodes",
+  "director3dApplyAnimation",
   "scheduleCheckpoint",
 ].forEach((name) => assert.match(source, new RegExp(`\\b${name}:`), `${name} must be exposed`));
 
 assert.match(source, /function createCanvasOperationGuard/);
 assert.match(source, /function generateAgentCanvasImageToGallery/);
+assert.match(source, /function applyAgentCanvasDirector3d/);
 assert.match(source, /function requestAgentImageNodeChoice/);
+assert.match(source, /function requestAgentDesignBrief/);
 assert.match(source, /function focusAgentCanvasNodesInViewport/);
 assert.match(source, /function focusAgentCanvasNodes/);
 assert.match(source, /function organizeAgentCanvasNodes/);

@@ -1,8 +1,10 @@
 (function initCanvasSceneRules(root, factory) {
-  const api = factory();
+  const geometryRules = typeof module === "object" && module.exports
+    ? require("./canvas-virtualization-rules") : root.CanvasVirtualizationRules;
+  const api = factory(geometryRules);
   if (typeof module === "object" && module.exports) module.exports = api;
   if (root) root.CanvasSceneRules = api;
-})(typeof globalThis !== "undefined" ? globalThis : this, function createCanvasSceneRules() {
+})(typeof globalThis !== "undefined" ? globalThis : this, function createCanvasSceneRules(geometryRules) {
   function finite(value, fallback = 0) {
     const number = Number(value);
     return Number.isFinite(number) ? number : fallback;
@@ -24,8 +26,11 @@
   function normalizeVisualNode(row = {}, index = 0) {
     const x = finite(row.x);
     const y = finite(row.y);
-    const width = Math.max(1, finite(row.width, 1));
-    const height = Math.max(1, finite(row.height, 1));
+    // A saved zero means automatic DOM sizing, not a one-pixel image. Share
+    // defaults with the detailed renderer when a dense viewport uses sprites.
+    const fallback = geometryRules.getDefaultNodeSize(row.kind);
+    const width = finite(row.width) > 0 ? finite(row.width) : fallback.width;
+    const height = finite(row.height) > 0 ? finite(row.height) : fallback.height;
     return {
       id: String(row.id ?? row.external_id ?? `scene-${index}`),
       kind: String(row.kind || "image"),
@@ -48,7 +53,10 @@
   }
 
   function exactGeometryKey(node) {
-    return `${node.x}\u0000${node.y}\u0000${node.width}\u0000${node.height}`;
+    // Different aspect-ratio images can share an envelope while exposing
+    // different areas. Only identical image sources can occlude a duplicate.
+    const imageKey = ["image", "upload"].includes(node.kind) ? node.previewSource : "";
+    return `${node.x}\u0000${node.y}\u0000${node.width}\u0000${node.height}\u0000${imageKey}`;
   }
 
   function selectVisibleSprites(rows, options = {}) {
@@ -60,13 +68,22 @@
       .filter((node) => node.id && intersects(node, bounds))
       .sort((left, right) => right.zOrder - left.zOrder || right._index - left._index);
     const retained = [];
-    const exactTop = new Set();
+    const exactTop = new Map();
+    const occludedStacks = [];
     const subpixelTop = new Set();
 
     for (const node of candidates) {
       const geometryKey = exactGeometryKey(node);
-      if (exactTop.has(geometryKey)) continue;
-      exactTop.add(geometryKey);
+      const top = exactTop.get(geometryKey);
+      if (top) {
+        if (!top.stack) {
+          top.stack = { node: top.node, members: [] };
+          occludedStacks.push(top.stack);
+        }
+        top.stack.members.push([node.id, node.zOrder, node.title]);
+        continue;
+      }
+      exactTop.set(geometryKey, { node });
       const projectedWidth = node.width * scale;
       const projectedHeight = node.height * scale;
       if (projectedWidth < 1 && projectedHeight < 1) {
@@ -90,6 +107,9 @@
       .map((node) => node.id);
     return {
       visualNodes: retained.map(({ _index, ...node }) => node),
+      // Hidden copies share geometry/source, but their identities must survive
+      // culling so edits can reveal the next layer before a server round trip.
+      occludedStacks: occludedStacks.map(({ node: { _index, ...node }, members }) => ({ node, members })),
       texturedNodeIds,
     };
   }

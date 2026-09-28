@@ -72,6 +72,7 @@
       )));
       this.models = new Map();
       this.modelBytes = new Map();
+      this.revisions = new Map();
       this.connections = new Map();
       this.connectionBytes = new Map();
       this.connectionsByNode = new Map();
@@ -79,6 +80,7 @@
       this.mounted = new Map();
       this.mountedLevels = new Map();
       this.pinned = new Set();
+      this.deletedNodeIds = new Set();
       this.pendingOperations = new Map();
       this.accessOrder = new Map();
       this.estimatedBytes = 0;
@@ -120,16 +122,23 @@
       return model;
     }
 
+    getRevision(id) {
+      return this.revisions.get(String(id)) || 0;
+    }
+
     values() {
       return [...this.models.values()];
     }
 
     upsert(model, { fallbackId } = {}) {
+      const requestedId = String(model?.id ?? fallbackId ?? "");
+      if (requestedId && this.deletedNodeIds.has(requestedId)) return null;
       const next = normalizeModel(model, fallbackId);
       const previousBytes = this.modelBytes.get(next.id) || 0;
       const bytes = this.estimate(next);
       this.models.set(next.id, next);
       this.modelBytes.set(next.id, bytes);
+      this.revisions.set(next.id, (this.revisions.get(next.id) || 0) + 1);
       this.estimatedBytes += bytes - previousBytes;
       this.index.upsert(next.id, this.rules.getNodeRect(next));
       this.touch(next.id);
@@ -147,6 +156,7 @@
       this.models.delete(key);
       this.estimatedBytes -= this.modelBytes.get(key) || 0;
       this.modelBytes.delete(key);
+      this.revisions.delete(key);
       this.index.remove(key);
       this.accessOrder.delete(key);
       return true;
@@ -232,15 +242,45 @@
       return ids ? [...ids].map((id) => this.connections.get(id)).filter(Boolean) : [];
     }
 
+    getVisualNodeId(visualNode) {
+      return String(Array.isArray(visualNode) ? visualNode[0] : visualNode?.id || "");
+    }
+
+    withoutDeletedSceneNodes(page) {
+      const nextPage = cloneSerializable(page) || {};
+      const visualNodes = (Array.isArray(nextPage.visualNodes) ? nextPage.visualNodes : [])
+        .filter((visualNode) => !this.deletedNodeIds.has(this.getVisualNodeId(visualNode)));
+      const visualNodeIds = new Set(
+        visualNodes.map((visualNode) => this.getVisualNodeId(visualNode)).filter(Boolean),
+      );
+      nextPage.visualNodes = visualNodes;
+      if (Array.isArray(nextPage.texturedNodeIds)) {
+        nextPage.texturedNodeIds = nextPage.texturedNodeIds
+          .map((nodeId) => String(nodeId))
+          .filter((nodeId) => visualNodeIds.has(nodeId));
+      }
+      if (Number.isFinite(Number(nextPage.visualNodeCount))) {
+        nextPage.visualNodeCount = visualNodes.length;
+      }
+      return nextPage;
+    }
+
+    pruneDeletedSceneNodes() {
+      if (!this.scenePage || this.scenePage.mode !== "scene") return;
+      this.scenePage = this.withoutDeletedSceneNodes(this.scenePage);
+    }
+
     applyViewportPage(page = {}) {
       const generation = String(page.generation ?? "0");
       if (
         this.activeGeneration !== null
         && generationNumber(generation) < generationNumber(this.activeGeneration)
       ) return false;
+      const pageBoardRevision = Number(page.boardRevision);
+      if (Number.isFinite(pageBoardRevision) && pageBoardRevision < this.boardRevision) return false;
       this.activeGeneration = generation;
-      if (Number.isFinite(Number(page.boardRevision))) {
-        this.boardRevision = Number(page.boardRevision);
+      if (Number.isFinite(pageBoardRevision)) {
+        this.boardRevision = pageBoardRevision;
       }
       if (page.mode === "lod") {
         this.scenePage = null;
@@ -250,13 +290,35 @@
       }
       if (page.mode === "scene") {
         this.lodPage = null;
-        this.scenePage = cloneSerializable(page);
+        this.scenePage = this.withoutDeletedSceneNodes(page);
         if (page.bounds) this.rememberCoverage(page.bounds, page.truncated);
         return true;
       }
       this.lodPage = null;
       this.scenePage = null;
-      (Array.isArray(page.nodes) ? page.nodes : []).forEach((model) => this.upsert(model));
+    const pendingNodeOperations = new Map();
+    [...this.pendingOperations.values()]
+      .filter((operation) => String(operation.type || "").startsWith("node."))
+      .forEach((operation) => {
+        pendingNodeOperations.set(String(operation.entityId || ""), operation);
+      });
+
+    (Array.isArray(page.nodes) ? page.nodes : []).forEach((model) => {
+      const id = String(model?.id || "");
+      const pendingOperation = pendingNodeOperations.get(id);
+      if (this.deletedNodeIds.has(id)) {
+        this.removeResidentModel(id);
+        return;
+      }
+      if (!pendingOperation) {
+        this.upsert(model);
+        return;
+      }
+
+      if (pendingOperation.type === "node.delete") {
+        this.removeResidentModel(id);
+      }
+    });
       const incomingConnectionIds = new Set(
         (Array.isArray(page.connections) ? page.connections : []).map((item) => String(item?.id || "")),
       );
@@ -297,8 +359,14 @@
       next.operationId = operationId;
       next.entityId = String(next.entityId || "");
       this.pendingOperations.set(operationId, next);
-      if (next.type === "node.upsert" && next.after) this.upsert(next.after);
-      else if (next.type === "node.delete") this.removeResidentModel(next.entityId);
+      if (next.type === "node.upsert" && next.after) {
+        this.deletedNodeIds.delete(next.entityId);
+        this.upsert(next.after);
+      } else if (next.type === "node.delete") {
+        this.deletedNodeIds.add(next.entityId);
+        this.removeResidentModel(next.entityId);
+        this.pruneDeletedSceneNodes();
+      }
       else if (next.type === "connection.upsert" && next.after) this.upsertConnections([next.after]);
       else if (next.type === "connection.delete") this.removeConnection(next.entityId);
       return next;
@@ -326,6 +394,39 @@
         this.pendingOperations.delete(operationId);
       }
       this.evict();
+    }
+
+    /**
+     * Applies a batch the server already persisted, on behalf of a client that
+     * was not the author. The operations never enter `pendingOperations` —
+     * they are already stored, and re-uploading them would only create a
+     * revision conflict for the receiving client's next local save.
+     */
+    applyCommitted(operations = []) {
+      let applied = 0;
+      for (const raw of Array.isArray(operations) ? operations : []) {
+        const operation = cloneSerializable(raw) || {};
+        const type = String(operation.type || "");
+        const entityId = String(operation.entityId || operation.after?.id || "");
+        if (type === "node.upsert" && operation.after) {
+          this.deletedNodeIds.delete(entityId);
+          this.upsert({ ...operation.after, id: String(operation.after.id || entityId) });
+          applied += 1;
+        } else if (type === "node.delete" && entityId) {
+          this.deletedNodeIds.add(entityId);
+          this.removeResidentModel(entityId);
+          this.pruneDeletedSceneNodes();
+          applied += 1;
+        } else if (type === "connection.upsert" && operation.after) {
+          this.upsertConnections([operation.after]);
+          applied += 1;
+        } else if (type === "connection.delete" && entityId) {
+          this.removeConnection(entityId);
+          applied += 1;
+        }
+      }
+      this.evict();
+      return applied;
     }
 
     pin(id) {
@@ -395,12 +496,14 @@
     clear() {
       this.models.clear();
       this.modelBytes.clear();
+      this.revisions.clear();
       this.connections.clear();
       this.connectionBytes.clear();
       this.connectionsByNode.clear();
       this.index.clear();
       this.clearMounted();
       this.pinned.clear();
+      this.deletedNodeIds.clear();
       this.pendingOperations.clear();
       this.accessOrder.clear();
       this.loadedRects = [];

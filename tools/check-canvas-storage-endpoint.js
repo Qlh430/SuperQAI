@@ -87,9 +87,12 @@ async function waitFor(port, pathname, predicate, diagnostics) {
       ...process.env,
       PORT: String(port),
       HOST: "127.0.0.1",
+      AI_OS_DATA_DIR: directory,
+      AI_OS_SYSTEM_DB_FILE: path.join(directory, "system.sqlite"),
       CANVAS_DB_FILE: databaseFile,
       CANVAS_LEGACY_FILE: legacyFile,
       CANVAS_BACKUP_DIR: backupDirectory,
+      AI_OS_AUTH_DISABLED: "1",
       CANVAS_AGENT_USE_SETTINGS_PROVIDERS: "false",
       CANVAS_AGENT_ROUTE_HISTORY_ENABLED: "false",
     },
@@ -143,7 +146,7 @@ async function waitFor(port, pathname, predicate, diagnostics) {
       method: "POST",
       body: { baseRevision: 0, operations: [{ operationId: "bad", type: "unknown" }] },
     });
-    assert.equal(malformed.status, 400);
+    assert.equal(malformed.status, 400, JSON.stringify(malformed.data));
 
     const applied = await requestJson(port, "/api/canvas/boards/new-endpoint/operations", {
       method: "POST",

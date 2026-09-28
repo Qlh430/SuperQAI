@@ -1,0 +1,205 @@
+#aiOsStartupGate {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  color: #172033;
+  background:
+    radial-gradient(circle at 16% 10%, rgba(61, 132, 226, 0.18), transparent 34%),
+    radial-gradient(circle at 88% 88%, rgba(17, 166, 160, 0.14), transparent 38%),
+    #eef3f8;
+  opacity: 1;
+  transition: opacity 220ms ease, visibility 220ms ease;
+}
+
+#aiOsStartupGate[hidden] {
+  display: none;
+}
+
+html[data-ai-os-dev-refresh="true"] #aiOsStartupGate {
+  display: none;
+}
+
+#aiOsStartupGate.is-complete {
+  visibility: hidden;
+  opacity: 0;
+}
+
+#aiOsStartupGate.is-dev-reload {
+  inset: 14px auto auto 50%;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  display: block;
+  overflow: visible;
+  pointer-events: none;
+  background: transparent;
+  transform: translateX(-50%);
+}
+
+#aiOsStartupGate.is-dev-reload .ai-os-startup-panel {
+  width: auto;
+  padding: 9px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.34);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 10px 28px rgba(30, 41, 59, 0.16);
+}
+
+#aiOsStartupGate.is-dev-reload .ai-os-startup-brand,
+#aiOsStartupGate.is-dev-reload .ai-os-startup-detail,
+#aiOsStartupGate.is-dev-reload .ai-os-startup-track,
+#aiOsStartupGate.is-dev-reload .ai-os-startup-foot {
+  display: none;
+}
+
+#aiOsStartupGate.is-dev-reload .ai-os-startup-heading {
+  gap: 10px;
+}
+
+#aiOsStartupGate.is-dev-reload .ai-os-startup-heading strong {
+  font-size: 12px;
+  font-weight: 650;
+}
+
+#aiOsStartupGate.is-dev-reload .ai-os-startup-spinner {
+  width: 14px;
+  height: 14px;
+  border-width: 2px;
+}
+
+.ai-os-startup-panel {
+  width: min(480px, calc(100vw - 48px));
+  padding: 38px 40px 34px;
+}
+
+.ai-os-startup-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 34px;
+}
+
+.ai-os-startup-brand-mark {
+  display: grid;
+  width: 50px;
+  height: 50px;
+  place-items: center;
+  border-radius: 15px;
+  color: #fff;
+  font: 700 28px/1 Georgia, serif;
+  background: linear-gradient(145deg, #246ad6, #188f9b);
+  box-shadow: 0 13px 32px rgba(36, 106, 214, 0.24);
+}
+
+.ai-os-startup-brand strong,
+.ai-os-startup-brand span {
+  display: block;
+}
+
+.ai-os-startup-brand strong {
+  font-size: 21px;
+  letter-spacing: 0;
+}
+
+.ai-os-startup-brand span {
+  margin-top: 3px;
+  color: #63748a;
+  font-size: 12px;
+}
+
+.ai-os-startup-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.ai-os-startup-heading strong {
+  font-size: 17px;
+}
+
+.ai-os-startup-spinner {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+  border: 2px solid #c4d3e5;
+  border-top-color: #246ad6;
+  border-radius: 50%;
+  animation: ai-os-startup-spin 760ms linear infinite;
+}
+
+.ai-os-startup-detail {
+  min-height: 22px;
+  margin: 10px 0 18px;
+  color: #63748a;
+  font-size: 13px;
+}
+
+.ai-os-startup-track {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #d7e2ef;
+}
+
+.ai-os-startup-progress {
+  width: 6%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #246ad6, #16a4a5);
+  transition: width 220ms ease;
+}
+
+.ai-os-startup-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  min-height: 34px;
+  margin-top: 14px;
+  color: #8190a3;
+  font-size: 11px;
+}
+
+.ai-os-startup-foot button {
+  display: none;
+  border: 0;
+  border-radius: 9px;
+  padding: 8px 12px;
+  color: #fff;
+  font: 700 12px/1 "Segoe UI", "Microsoft YaHei UI", sans-serif;
+  background: #246ad6;
+  cursor: pointer;
+}
+
+#aiOsStartupGate.is-slow .ai-os-startup-foot button,
+#aiOsStartupGate.has-error .ai-os-startup-foot button,
+#aiOsStartupGate.is-degraded .ai-os-startup-foot button {
+  display: inline-flex;
+}
+
+#aiOsStartupGate.is-degraded .ai-os-startup-spinner {
+  border-color: #e7cf9b;
+  border-top-color: #c28a20;
+}
+
+#aiOsStartupGate.has-error .ai-os-startup-spinner {
+  border-color: #e5a49a;
+  border-top-color: #c84f3d;
+  animation-duration: 1.4s;
+}
+
+@keyframes ai-os-startup-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 560px) {
+  .ai-os-startup-panel {
+    padding: 30px 24px 26px;
+  }
+}

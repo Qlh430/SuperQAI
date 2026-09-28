@@ -43,8 +43,17 @@ function createThumbnailStore({ outputDir, dataFile, maxBytes = DEFAULT_MAX_BYTE
   fs.mkdirSync(thumbnailsDir, { recursive: true });
   fs.mkdirSync(path.dirname(resolvedDataFile), { recursive: true });
   let registry = readRegistry(resolvedDataFile);
+  const thumbnailSources = new Map();
+  function indexThumbnails() {
+    thumbnailSources.clear();
+    for (const [source, item] of Object.entries(registry)) {
+      if (item?.thumbnailUrl?.startsWith("/output/thumbnails/") && !item.lightweight) thumbnailSources.set(item.thumbnailUrl, source);
+    }
+  }
+  indexThumbnails();
 
   function writeRegistry() {
+    indexThumbnails();
     const temporary = `${resolvedDataFile}.tmp`;
     fs.writeFileSync(temporary, JSON.stringify(registry, null, 2));
     fs.renameSync(temporary, resolvedDataFile);
@@ -85,11 +94,12 @@ function createThumbnailStore({ outputDir, dataFile, maxBytes = DEFAULT_MAX_BYTE
     return { ...item };
   }
 
-  function save({ source, buffer, mimeType, width = 0, height = 0, lightweight = false }) {
+  function save({ source, buffer, mimeType, width = 0, height = 0, lightweight = false, maxSide = 0 }) {
     const normalized = normalizeSource(source);
     const dimensions = {
       width: Math.max(0, Number(width) || 0),
       height: Math.max(0, Number(height) || 0),
+      ...(maxSide > 0 ? { maxSide: Number(maxSide) } : {}),
     };
     if (lightweight) {
       return persist(normalized, {
@@ -118,9 +128,27 @@ function createThumbnailStore({ outputDir, dataFile, maxBytes = DEFAULT_MAX_BYTE
     });
   }
 
+  function remove(source) {
+    let normalized;
+    try {
+      normalized = normalizeSource(source);
+    } catch {
+      return false;
+    }
+    const item = registry[normalized];
+    if (!item) return false;
+    delete registry[normalized];
+    const filePath = item.lightweight ? "" : resolveUrlPath(item.thumbnailUrl);
+    if (filePath && fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    writeRegistry();
+    return true;
+  }
+
   return {
+    sourceForThumbnail: (url) => thumbnailSources.get(String(url)) || null,
     lookup,
     save,
+    remove,
     resolveUrlPath,
   };
 }

@@ -99,9 +99,7 @@ async function installImageRoutes(page) {
 }
 
 async function openBoard(page, boardId) {
-  await page.locator("#infiniteCanvas").waitFor({ state: "visible", timeout: 30_000 });
-  await page.evaluate(() => document.querySelector(".canvas-start-gate")?.classList.add("is-dismissed"));
-  await page.locator("#canvasHistoryButton").click();
+  await page.locator("#canvasLibraryScreen").waitFor({ state: "visible", timeout: 30_000 });
   await page.locator(`[data-board-id="${boardId}"]`).click({ timeout: 15_000 });
   await page.locator("#canvasBoardLoading").waitFor({ state: "hidden", timeout: 30_000 });
   await page.waitForFunction((id) => (
@@ -135,8 +133,8 @@ async function waitForThumbnail(page, nodeId) {
   }, nodeId, { timeout: 15_000 });
 }
 
-async function sampleUpgrade(page, { nodeId = NODE_ID, duration = 1_500, start }) {
-  return page.evaluate(async ({ id, waitMs, startSource }) => {
+async function sampleUpgrade(page, { nodeId = NODE_ID, duration = 1_500, scale = 2.17, start }) {
+  return page.evaluate(async ({ id, waitMs, nextScale, startSource }) => {
     const current = () => document.querySelector(
       `#canvasPlane .canvas-node[data-id="${id}"] img[data-canvas-original-src]`,
     );
@@ -169,7 +167,7 @@ async function sampleUpgrade(page, { nodeId = NODE_ID, duration = 1_500, start }
       const nodeY = Number(node?.dataset.y || 0);
       const width = Number(node?.dataset.renderedWidth || node?.dataset.width || 420);
       const height = Number(node?.dataset.renderedHeight || node?.dataset.height || 420);
-      canvasState.scale = 2.17;
+      canvasState.scale = nextScale;
       canvasState.x = viewport.clientWidth / 2 - (nodeX + width / 2) * canvasState.scale;
       canvasState.y = viewport.clientHeight / 2 - (nodeY + height / 2) * canvasState.scale;
       scheduleCanvasTransform();
@@ -178,16 +176,26 @@ async function sampleUpgrade(page, { nodeId = NODE_ID, duration = 1_500, start }
     clearInterval(timer);
     observer.disconnect();
     const final = current();
+    const plane = document.querySelector("#canvasPlane");
     return {
       samples,
       observerRecords,
       emptySamples: samples.filter((item) => item.mounted && !item.hasSrc).length,
       finalQuality: final?.dataset.imageQuality || "",
       finalRequestedQuality: final?.dataset.requestedQuality || "",
+      finalPaintQuality: final?.dataset.imagePaintQuality || "",
       finalSrc: final?.getAttribute("src") || "",
+      finalCurrentSrc: final?.currentSrc || "",
       finalNaturalWidth: Number(final?.naturalWidth || 0),
+      finalNaturalHeight: Number(final?.naturalHeight || 0),
+      finalClientWidth: Number(final?.clientWidth || 0),
+      finalClientHeight: Number(final?.clientHeight || 0),
+      finalScreenWidth: Number(final?.getBoundingClientRect?.().width || 0),
+      finalScreenHeight: Number(final?.getBoundingClientRect?.().height || 0),
+      canvasRasterRefreshEpoch: Number(plane?.dataset.rasterRefreshEpoch || 0),
+      canvasRasterState: plane?.dataset.rasterState || "",
     };
-  }, { id: nodeId, waitMs: duration, startSource: start });
+  }, { id: nodeId, waitMs: duration, nextScale: scale, startSource: start });
 }
 
 async function resetVisibleThumbnail(page, source) {
@@ -204,6 +212,57 @@ async function resetVisibleThumbnail(page, source) {
   await waitForThumbnail(page, NODE_ID);
 }
 
+async function measureVisibleImageSharpness(page, nodeId) {
+  const box = await page.locator(
+    `#canvasPlane .canvas-node[data-id="${nodeId}"] img[data-canvas-original-src]`,
+  ).boundingBox();
+  assert.ok(box, `Canvas image is not visible: ${nodeId}`);
+  const viewport = page.viewportSize();
+  const visibleLeft = Math.max(0, box.x);
+  const visibleTop = Math.max(0, box.y);
+  const visibleRight = Math.min(viewport.width, box.x + box.width);
+  const visibleBottom = Math.min(viewport.height, box.y + box.height);
+  const size = Math.floor(Math.min(512, visibleRight - visibleLeft, visibleBottom - visibleTop));
+  assert.ok(size >= 64, `Canvas image has no measurable visible area: ${nodeId}`);
+  const screenshot = await page.screenshot({
+    clip: {
+      x: visibleLeft + (visibleRight - visibleLeft - size) / 2,
+      y: visibleTop + (visibleBottom - visibleTop - size) / 2,
+      width: size,
+      height: size,
+    },
+  });
+  return page.evaluate(async ({ pngBase64 }) => {
+    const sample = new Image();
+    sample.src = `data:image/png;base64,${pngBase64}`;
+    await sample.decode();
+    const canvas = document.createElement("canvas");
+    canvas.width = sample.naturalWidth;
+    canvas.height = sample.naturalHeight;
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    context.drawImage(sample, 0, 0);
+    const { data, width, height } = context.getImageData(0, 0, canvas.width, canvas.height);
+    let energy = 0;
+    let samples = 0;
+    const luma = (offset) => data[offset] * 0.2126 + data[offset + 1] * 0.7152 + data[offset + 2] * 0.0722;
+    for (let y = 1; y < height - 1; y += 2) {
+      for (let x = 1; x < width - 1; x += 2) {
+        const offset = (y * width + x) * 4;
+        const center = luma(offset);
+        energy += Math.abs(
+          4 * center
+          - luma(offset - 4)
+          - luma(offset + 4)
+          - luma(offset - width * 4)
+          - luma(offset + width * 4),
+        );
+        samples += 1;
+      }
+    }
+    return samples ? energy / samples : 0;
+  }, { pngBase64: screenshot.toString("base64") });
+}
+
 async function runControlled(page, appUrl) {
   await installImageRoutes(page);
   await page.goto(appUrl, { waitUntil: "networkidle", timeout: 30_000 });
@@ -214,7 +273,10 @@ async function runControlled(page, appUrl) {
   const upgraded = await sampleUpgrade(page, { start: "zoom", duration: 1_500 });
   assert.equal(upgraded.emptySamples, 0, `upgrade exposed ${upgraded.emptySamples} mounted samples without src`);
   assert.equal(upgraded.finalQuality, "original");
+  assert.equal(upgraded.finalPaintQuality, "original");
   assert.equal(upgraded.finalNaturalWidth, 1600);
+  assert.ok(upgraded.canvasRasterRefreshEpoch > 0, "stationary original upgrade did not refresh the canvas raster");
+  assert.equal(upgraded.canvasRasterState, "ready");
 
   await resetVisibleThumbnail(page, FAIL_PATH);
   const failedPromise = page.evaluate((id) => {
@@ -275,7 +337,8 @@ async function runControlled(page, appUrl) {
 async function runLive(page, appUrl, boardId) {
   await page.goto(appUrl, { waitUntil: "networkidle", timeout: 30_000 });
   await openBoard(page, boardId);
-  const targetId = await page.evaluate(() => {
+  const requestedNodeId = String(process.env.CANVAS_IMAGE_ATOMIC_NODE_ID || "").trim();
+  const targetId = requestedNodeId || await page.evaluate(() => {
     const model = serializeCanvasBoard().nodes.find((node) => (
       node?.kind === "image" && String(node.imageSrc || "").trim()
     ));
@@ -284,10 +347,43 @@ async function runLive(page, appUrl, boardId) {
   assert.ok(targetId, `Live canvas has no image node: ${boardId}`);
   await centerNodeAtScale(page, targetId, 0.55);
   await waitForThumbnail(page, targetId);
-  const result = await sampleUpgrade(page, { nodeId: targetId, start: "zoom", duration: 2_000 });
+  const scale = Number(process.env.CANVAS_IMAGE_ATOMIC_SCALE || 5);
+  const result = await sampleUpgrade(page, { nodeId: targetId, start: "zoom", duration: 2_000, scale });
   assert.equal(result.emptySamples, 0);
   assert.equal(result.finalQuality, "original");
+  assert.equal(result.finalPaintQuality, "original");
   assert.ok(result.finalNaturalWidth > 0);
+  assert.ok(result.canvasRasterRefreshEpoch > 0);
+  assert.equal(result.canvasRasterState, "ready");
+  const stationarySharpness = await measureVisibleImageSharpness(page, targetId);
+  await page.evaluate(async () => {
+    canvasState.x += 1;
+    applyCanvasTransformNow();
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  });
+  const movedSharpness = await measureVisibleImageSharpness(page, targetId);
+  assert.ok(
+    stationarySharpness >= movedSharpness * 0.95,
+    `stationary zoom remained blurrier than a one-pixel nudge (${stationarySharpness} < ${movedSharpness})`,
+  );
+  console.log("Live canvas image diagnostics:", JSON.stringify({
+    boardId,
+    targetId,
+    scale,
+    finalQuality: result.finalQuality,
+    finalPaintQuality: result.finalPaintQuality,
+    finalSrc: result.finalSrc,
+    finalNaturalWidth: result.finalNaturalWidth,
+    finalNaturalHeight: result.finalNaturalHeight,
+    finalClientWidth: result.finalClientWidth,
+    finalClientHeight: result.finalClientHeight,
+    finalScreenWidth: result.finalScreenWidth,
+    finalScreenHeight: result.finalScreenHeight,
+    canvasRasterRefreshEpoch: result.canvasRasterRefreshEpoch,
+    canvasRasterState: result.canvasRasterState,
+    stationarySharpness,
+    movedSharpness,
+  }, null, 2));
 }
 
 (async () => {

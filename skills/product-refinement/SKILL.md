@@ -6,7 +6,7 @@ canvas:
   category: ecommerce
   icon: wand-sparkles
   required_context: image
-  triggers: [产品精修, 商品精修, 背景优化, 光线优化, 质感优化]
+  triggers: [产品精修, 商品精修, 精修, 背景优化, 光线优化, 质感优化]
   capabilities: [node.image.create, node.gallery.create, node.update, node.connect, node.arrange, node.run]
 ---
 
