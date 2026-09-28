@@ -277,4 +277,4 @@ npm run check:comfyui-process
 
 后续构建指定新目录，例如 `npm run desktop:build -- --output dist/AI-OS-Portable-20260911`。已有目录不会被覆盖。部署、迁移及回退详见 [打包和迁移说明](打包和迁移说明.md)。
 
-正式更新发布在 GitHub 仓库 `Qlh430/SuperQAI` 的公开 Releases。源码可以放在另一个私有仓库，但用于下载更新的 `Qlh430/SuperQAI` 必须保持公开。每个 Release 必须上传版本化便携包、运行时包、`ai-os-update.json`、`ai-os-components.json`，以及组件清单列出的全部组件 ZIP；Release 标签必须与 `package.json` 的版本完全一致。构建器会把组件清单写入 Portable 和 Runtime，缺少清单的旧版本首次升级完整 Runtime，安装新版本后才能进行组件增量更新。更新器优先使用 GitHub API Asset 下载地址，再回退到下载页地址。后续版本先执行 `npm version --no-git-tag-version patch`，再运行 `npm run desktop:release`。构建器只接受空 `data`，并拒绝覆盖已有输出。
+正式更新发布在 GitHub 仓库 `Qlh430/SuperQAI` 的公开 Releases。源码可以放在另一个私有仓库，但用于下载更新的 `Qlh430/SuperQAI` 必须保持公开。每个 Release 必须上传版本化便携包、运行时包、`ai-os-update.json`、`ai-os-components.json`，以及组件清单列出的全部组件 ZIP；Release 标签必须与 `package.json` 的版本完全一致。构建器会把组件清单写入 Portable 和 Runtime，缺少清单的旧版本首次升级完整 Runtime，安装新版本后才能进行组件增量更新。更新器优先使用 GitHub API Asset 下载地址，再回退到下载页地址。后续版本先执行 `npm version --no-git-tag-version patch`，再运行 `npm run desktop:release`。构建器只接受空 `data`，并拒绝覆盖已有输出。完整步骤、资产清单、校验命令和错误处理见 [GitHub 发布流程](docs/GitHub发布流程.md)。
