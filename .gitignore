@@ -1,0 +1,20 @@
+# Runtime and generated files
+AI-OS-Portable-1.0.5-win-x64/.ai-runtime/
+AI-OS-Portable-1.0.5-win-x64/data/
+AI-OS-Portable-1.0.5-win-x64/versions/
+AI-OS-Portable-1.0.5-win-x64/*.exe
+AI-OS-Portable-1.0.5-win-x64/*.json
+
+# Frontend dependencies and build output
+neon-workbench/node_modules/
+neon-workbench/dist/
+neon-workbench/.vite/
+neon-workbench/*.tsbuildinfo
+neon-workbench/.design/deploy-backups/
+neon-workbench/acceptance/*.png
+neon-workbench/acceptance/*.json
+
+# Local screenshots and temporary files
+*.log
+*.tmp
+codex-clipboard-*
