@@ -11,8 +11,18 @@ neon-workbench/dist/
 neon-workbench/.vite/
 neon-workbench/*.tsbuildinfo
 neon-workbench/.design/deploy-backups/
+neon-workbench/.design/**/screenshots/
+neon-workbench/.design/**/*.png
 neon-workbench/acceptance/*.png
 neon-workbench/acceptance/*.json
+
+# Generated design exports and local review captures
+.design/deploy-backups/
+.design/**/screenshots/
+*.png
+*.jpg
+*.jpeg
+*.webp
 
 # Local screenshots and temporary files
 *.log
