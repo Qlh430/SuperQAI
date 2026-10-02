@@ -14,7 +14,7 @@ const Sidebar = React.forwardRef<HTMLDivElement, SidebarProps>(
       ref={ref}
       data-collapsed={collapsed}
       className={cn(
-        "flex h-full flex-col border-r border-border bg-background",
+        "flex h-full min-h-0 flex-col border-r border-border bg-background",
         "transition-[width] duration-200",
         collapsed ? "w-16" : "w-60",
         className
@@ -42,7 +42,7 @@ const SidebarContent = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTM
   ({ className, ...props }, ref) => (
     <div
       ref={ref}
-      className={cn("flex flex-1 flex-col gap-1 overflow-y-auto p-2", className)}
+      className={cn("flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto p-2 [&>*]:shrink-0", className)}
       {...props}
     />
   )
@@ -65,14 +65,15 @@ interface SidebarItemProps extends React.HTMLAttributes<HTMLButtonElement> {
   label: string
   active?: boolean
   collapsed?: boolean
+  count?: number
 }
 
 const SidebarItem = React.forwardRef<HTMLButtonElement, SidebarItemProps>(
-  ({ className, icon, label, active, collapsed, ...props }, ref) => (
+  ({ className, icon, label, active, collapsed, count, ...props }, ref) => (
     <button
       ref={ref}
       className={cn(
-        "flex w-full items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+        "flex min-h-11 w-full items-center gap-2.5 rounded-[0.625rem] px-2.5 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
         active
           ? "bg-primary/10 text-primary"
           : "text-muted-foreground hover:bg-accent hover:text-foreground",
@@ -83,6 +84,7 @@ const SidebarItem = React.forwardRef<HTMLButtonElement, SidebarItemProps>(
     >
       {icon && <span className="shrink-0 [&>svg]:h-4 [&>svg]:w-4">{icon}</span>}
       {!collapsed && <span className="truncate">{label}</span>}
+      {!collapsed && count !== undefined && <span className="ml-auto text-xs tabular-nums text-muted-foreground">{count}</span>}
     </button>
   )
 )

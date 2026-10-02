@@ -1,0 +1,501 @@
+/* Shared Neon surface pass for the legacy canvas engine. Behaviour and node
+   geometry stay in the engine; this file only normalizes public surfaces. */
+#canvasEditorScreen {
+  --canvas-neon-bg: var(--neon-background, #0f0f0f);
+  --canvas-neon-card: var(--neon-card, #1a1a1a);
+  --canvas-neon-popover: var(--neon-popover, #1f1f1f);
+  --canvas-neon-border: var(--neon-border, #2a2a2a);
+  --canvas-neon-text: var(--neon-foreground, #fff);
+  --canvas-neon-muted: var(--neon-muted-fg, #888);
+  --canvas-neon-primary: var(--neon-primary, #00ff41);
+  --canvas-neon-danger: var(--neon-destructive, #ff0041);
+}
+
+#canvasEditorScreen,
+#canvasEditorScreen * {
+  scrollbar-color: color-mix(in srgb, var(--canvas-neon-primary) 62%, var(--canvas-neon-muted)) transparent;
+  scrollbar-width: thin;
+}
+
+#canvasEditorScreen::-webkit-scrollbar,
+#canvasEditorScreen *::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+#canvasEditorScreen::-webkit-scrollbar-track,
+#canvasEditorScreen *::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+#canvasEditorScreen::-webkit-scrollbar-thumb,
+#canvasEditorScreen *::-webkit-scrollbar-thumb {
+  border: 2px solid var(--canvas-neon-bg);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--canvas-neon-primary) 62%, var(--canvas-neon-muted));
+  box-shadow: 0 0 8px color-mix(in srgb, var(--canvas-neon-primary) 18%, transparent);
+}
+
+#canvasEditorScreen::-webkit-scrollbar-thumb:hover,
+#canvasEditorScreen *::-webkit-scrollbar-thumb:hover {
+  background: var(--canvas-neon-primary);
+}
+
+#canvasEditorScreen .canvas-editor-navigation,
+#canvasEditorScreen .canvas-actions,
+#canvasEditorScreen .canvas-status,
+#canvasEditorScreen .canvas-image-toolbar,
+#canvasEditorScreen .canvas-mask-toolbar,
+#canvasEditorScreen .canvas-grid-editor-toolbar {
+  border-color: var(--canvas-neon-border);
+  background: color-mix(in srgb, var(--canvas-neon-card) 94%, transparent);
+  color: var(--canvas-neon-text);
+  box-shadow: var(--neon-shadow-lg, 0 10px 15px rgba(0, 0, 0, .7));
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+}
+
+#canvasEditorScreen .canvas-editor-navigation .text-action,
+#canvasEditorScreen .canvas-actions .text-action,
+#canvasEditorScreen .canvas-image-toolbar button,
+#canvasEditorScreen .canvas-mask-toolbar button,
+#canvasEditorScreen .canvas-grid-editor-toolbar button {
+  color: var(--canvas-neon-muted);
+}
+
+#canvasEditorScreen .canvas-editor-navigation .text-action:hover,
+#canvasEditorScreen .canvas-actions .text-action:hover:not(:disabled),
+#canvasEditorScreen .canvas-image-toolbar button:hover,
+#canvasEditorScreen .canvas-mask-toolbar button:hover,
+#canvasEditorScreen .canvas-grid-editor-toolbar button:hover {
+  color: var(--canvas-neon-text);
+  background: rgba(0, 255, 65, .10);
+}
+
+#canvasEditorScreen .canvas-actions .text-action.primary-dark,
+#canvasEditorScreen .canvas-actions .text-action.primary-dark:hover:not(:disabled),
+#canvasEditorScreen .canvas-node-run,
+#canvasEditorScreen .canvas-comfy-run,
+#canvasEditorScreen .canvas-h3-run,
+#canvasEditorScreen .canvas-agent-send {
+  color: #0a0a0a;
+  background: var(--canvas-neon-primary);
+  border-color: var(--canvas-neon-primary);
+  box-shadow: 0 0 10px rgba(0, 255, 65, .22);
+}
+
+#canvasEditorScreen .canvas-node:not(.canvas-node-frameless),
+#canvasEditorScreen .canvas-node-gallery,
+#canvasEditorScreen .canvas-node-group {
+  border-color: var(--canvas-neon-border);
+  background: var(--canvas-neon-card);
+  color: var(--canvas-neon-text);
+  box-shadow: var(--neon-shadow-md, 0 4px 6px rgba(0, 0, 0, .6));
+}
+
+#canvasEditorScreen .canvas-node.is-selected,
+#canvasEditorScreen .canvas-node:focus-within {
+  border-color: var(--canvas-neon-primary);
+  box-shadow: 0 0 0 1px var(--canvas-neon-primary), 0 0 18px rgba(0, 255, 65, .18);
+}
+
+#canvasEditorScreen .canvas-node-bar,
+#canvasEditorScreen .canvas-node-footer,
+#canvasEditorScreen .canvas-h3-footer,
+#canvasEditorScreen .canvas-gallery-container-footer {
+  border-color: var(--canvas-neon-border);
+  background: color-mix(in srgb, var(--canvas-neon-card) 94%, #000 6%);
+}
+
+#canvasEditorScreen .canvas-node-title,
+#canvasEditorScreen .canvas-node-heading,
+#canvasEditorScreen .canvas-node-bar .canvas-node-title {
+  color: var(--canvas-neon-text);
+}
+
+#canvasEditorScreen .canvas-node-subtitle,
+#canvasEditorScreen .canvas-node-meta,
+#canvasEditorScreen .canvas-node-bar-status {
+  color: var(--canvas-neon-muted);
+}
+
+#canvasEditorScreen .canvas-ref-index {
+  background: var(--canvas-neon-primary) !important;
+  color: #081008 !important;
+  box-shadow: 0 0 12px color-mix(in srgb, var(--canvas-neon-primary) 24%, transparent);
+}
+
+#canvasEditorScreen .canvas-ref-label {
+  border: 1px solid var(--canvas-neon-border);
+  background: color-mix(in srgb, var(--canvas-neon-card) 92%, transparent) !important;
+  color: var(--canvas-neon-muted) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, .28);
+}
+
+#canvasEditorScreen .canvas-note-palette {
+  border: 1px solid var(--canvas-neon-border);
+  background: var(--canvas-neon-popover) !important;
+  box-shadow: var(--neon-shadow-lg, 0 14px 32px rgba(0, 0, 0, .6));
+}
+
+#canvasEditorScreen .canvas-note-swatch.is-active {
+  box-shadow: 0 0 0 2px var(--canvas-neon-popover), 0 0 0 3px var(--canvas-neon-primary);
+}
+
+#canvasEditorScreen .canvas-node-menu,
+#canvasEditorScreen .canvas-context-menu,
+#canvasEditorScreen .canvas-board-menu,
+#canvasEditorScreen .canvas-connect-menu,
+#canvasEditorScreen .canvas-image-menu,
+#canvasEditorScreen .canvas-agent-popover,
+#canvasEditorScreen .canvas-grid-editor-popover,
+#canvasEditorScreen .canvas-h3-mention-menu {
+  border: 1px solid var(--canvas-neon-border);
+  border-radius: var(--neon-radius-lg, 12px);
+  background: var(--canvas-neon-popover);
+  color: var(--canvas-neon-text);
+  box-shadow: var(--neon-shadow-xl, 0 20px 25px rgba(0, 0, 0, .8));
+}
+
+#canvasEditorScreen .canvas-node-menu button:hover,
+#canvasEditorScreen .canvas-context-menu button:hover,
+#canvasEditorScreen .canvas-board-menu button:hover,
+#canvasEditorScreen .canvas-connect-menu button:hover,
+#canvasEditorScreen .canvas-image-menu button:hover {
+  background: rgba(0, 255, 65, .10);
+  color: var(--canvas-neon-text);
+}
+
+/* The create/connect menus keep legacy icon tokens unless each control is
+   normalized explicitly. Keep the menu hierarchy compact and use the same
+   Neon green action material as the workbench toolbar. */
+#canvasEditorScreen .canvas-node-menu:not(.canvas-image-menu),
+#canvasEditorScreen .canvas-connect-menu {
+  width: 248px;
+  padding: 10px;
+  border-color: var(--canvas-neon-border) !important;
+  background: var(--canvas-neon-popover) !important;
+  color: var(--canvas-neon-text) !important;
+}
+
+#canvasEditorScreen .canvas-node-menu:not(.canvas-image-menu) button,
+#canvasEditorScreen .canvas-connect-menu button {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--canvas-neon-text) !important;
+  font-size: 14px;
+  font-weight: 650;
+  letter-spacing: -.01em;
+  text-align: left;
+}
+
+#canvasEditorScreen .canvas-node-menu:not(.canvas-image-menu) button:hover,
+#canvasEditorScreen .canvas-node-menu:not(.canvas-image-menu) button:focus-visible,
+#canvasEditorScreen .canvas-connect-menu button:hover,
+#canvasEditorScreen .canvas-connect-menu button:focus-visible {
+  background: color-mix(in srgb, var(--canvas-neon-primary) 12%, transparent) !important;
+  color: var(--canvas-neon-text) !important;
+  outline: none;
+}
+
+#canvasEditorScreen .canvas-menu-icon {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  display: grid;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--canvas-neon-primary) 22%, var(--canvas-neon-border));
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--canvas-neon-primary) 8%, var(--canvas-neon-card)) !important;
+  color: var(--canvas-neon-primary) !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .025), 0 4px 12px rgba(0, 0, 0, .22);
+}
+
+#canvasEditorScreen .canvas-menu-icon svg {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor !important;
+}
+
+#canvasEditorScreen .canvas-node-menu:not(.canvas-image-menu) button:hover .canvas-menu-icon,
+#canvasEditorScreen .canvas-node-menu:not(.canvas-image-menu) button:focus-visible .canvas-menu-icon,
+#canvasEditorScreen .canvas-connect-menu button:hover .canvas-menu-icon,
+#canvasEditorScreen .canvas-connect-menu button:focus-visible .canvas-menu-icon {
+  border-color: var(--canvas-neon-primary);
+  background: var(--canvas-neon-primary) !important;
+  color: #081008 !important;
+  box-shadow: 0 0 14px color-mix(in srgb, var(--canvas-neon-primary) 28%, transparent);
+}
+
+#canvasEditorScreen .canvas-menu-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+#canvasEditorScreen .canvas-menu-group + .canvas-menu-group {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid color-mix(in srgb, var(--canvas-neon-border) 88%, transparent);
+}
+
+#canvasEditorScreen .canvas-menu-group-label {
+  padding: 3px 10px 5px;
+  color: var(--canvas-neon-muted) !important;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: .10em;
+  text-transform: uppercase;
+  user-select: none;
+}
+
+#canvasEditorScreen .canvas-node-status[data-state="failed"],
+#canvasEditorScreen .canvas-h3-status[data-state="failed"] {
+  color: var(--canvas-neon-danger);
+}
+
+#canvasEditorScreen input:focus-visible,
+#canvasEditorScreen select:focus-visible,
+#canvasEditorScreen textarea:focus-visible,
+#canvasEditorScreen button:focus-visible {
+  outline: 2px solid var(--canvas-neon-primary);
+  outline-offset: 2px;
+}
+
+#canvasEditorScreen .canvas-agent-panel {
+  border-left: 1px solid var(--canvas-neon-border);
+  background: var(--canvas-neon-bg);
+  color: var(--canvas-neon-text);
+  box-shadow: var(--neon-shadow-xl, 0 20px 25px rgba(0, 0, 0, .8));
+}
+
+#canvasEditorScreen .canvas-agent-header,
+#canvasEditorScreen .canvas-agent-form,
+#canvasEditorScreen .canvas-agent-form-footer {
+  border-color: var(--canvas-neon-border);
+  background: var(--canvas-neon-card);
+}
+
+#canvasEditorScreen .canvas-agent-messages {
+  background: var(--canvas-neon-bg);
+}
+
+#canvasEditorScreen .canvas-agent-form textarea,
+#canvasEditorScreen .canvas-agent-brief-field :is(select, input) {
+  border-color: var(--canvas-neon-border);
+  color: var(--canvas-neon-text);
+  background: var(--neon-input, var(--canvas-neon-card));
+}
+
+#canvasEditorScreen .canvas-agent-form textarea:focus,
+#canvasEditorScreen .canvas-agent-brief-field :is(select, input):focus {
+  border-color: var(--canvas-neon-primary);
+  box-shadow: 0 0 0 3px rgba(0, 255, 65, .12);
+}
+
+#canvasEditorScreen .canvas-agent-live-status > i,
+#canvasEditorScreen .canvas-agent-tool-step.is-running .canvas-agent-tool-icon {
+  background: var(--canvas-neon-primary);
+  color: #0a0a0a;
+}
+
+#canvasEditorScreen .canvas-agent-tool-step.is-success .canvas-agent-tool-status {
+  color: var(--neon-primary, #00ff41);
+}
+
+#canvasEditorScreen .canvas-agent-tool-step.is-error .canvas-agent-tool-status {
+  color: var(--canvas-neon-danger);
+}
+
+@media (max-width: 900px) {
+  #canvasEditorScreen .canvas-editor-navigation,
+  #canvasEditorScreen .canvas-actions {
+    max-width: calc(100vw - 24px);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  #canvasEditorScreen .canvas-editor-navigation::-webkit-scrollbar,
+  #canvasEditorScreen .canvas-actions::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@media (max-width: 520px) {
+  #canvasEditorScreen .canvas-editor-navigation,
+  #canvasEditorScreen .canvas-actions {
+    top: 8px;
+    gap: 2px;
+    padding: 2px;
+  }
+
+  #canvasEditorScreen .canvas-editor-navigation .text-action,
+  #canvasEditorScreen .canvas-actions .text-action {
+    min-height: 32px;
+    padding-inline: 8px;
+    font-size: 12px;
+  }
+
+  #canvasEditorScreen .canvas-status {
+    bottom: 8px;
+    max-width: calc(100vw - 24px);
+    overflow: hidden;
+    white-space: nowrap;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Neon migration batch: canvas asset drawer, model picker and node internals
+   These controls are still rendered by the host canvas engine, so the scope
+   stays on the canvas surface and reuses the host's Neon semantic tokens.
+--------------------------------------------------------------------------- */
+#canvasEditorScreen .canvas-asset-library {
+  color: var(--canvas-neon-text);
+  background: color-mix(in srgb, var(--canvas-neon-card) 96%, transparent);
+  border-color: var(--canvas-neon-border);
+  border-radius: var(--neon-radius-lg, 16px);
+  box-shadow: var(--neon-shadow-xl, 0 20px 25px rgba(0, 0, 0, .8));
+  backdrop-filter: blur(18px) saturate(120%);
+}
+#canvasEditorScreen .canvas-asset-header,
+#canvasEditorScreen .canvas-asset-toolbar,
+#canvasEditorScreen .canvas-asset-status {
+  color: var(--canvas-neon-text);
+}
+#canvasEditorScreen .canvas-asset-header p,
+#canvasEditorScreen .canvas-asset-header span,
+#canvasEditorScreen .canvas-asset-status,
+#canvasEditorScreen .canvas-asset-scopes button,
+#canvasEditorScreen .canvas-asset-kinds button,
+#canvasEditorScreen .canvas-asset-card-body > span {
+  color: var(--canvas-neon-muted);
+}
+#canvasEditorScreen .canvas-asset-header h2,
+#canvasEditorScreen .canvas-asset-card-body > strong {
+  color: var(--canvas-neon-text);
+}
+#canvasEditorScreen .canvas-asset-icon-button,
+#canvasEditorScreen .canvas-asset-search,
+#canvasEditorScreen .canvas-asset-kinds,
+#canvasEditorScreen .canvas-asset-card,
+#canvasEditorScreen .canvas-asset-card-actions button,
+#canvasEditorScreen .canvas-asset-load-more {
+  border-color: var(--canvas-neon-border);
+  background: var(--neon-input, var(--canvas-neon-card));
+  color: var(--canvas-neon-text);
+}
+#canvasEditorScreen .canvas-asset-search:focus-within {
+  border-color: var(--canvas-neon-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--canvas-neon-primary) 16%, transparent);
+}
+#canvasEditorScreen .canvas-asset-scopes button:hover,
+#canvasEditorScreen .canvas-asset-scopes button.is-active,
+#canvasEditorScreen .canvas-asset-kinds button:hover,
+#canvasEditorScreen .canvas-asset-kinds button.is-active {
+  color: var(--canvas-neon-text);
+  border-color: color-mix(in srgb, var(--canvas-neon-primary) 48%, var(--canvas-neon-border));
+  background: color-mix(in srgb, var(--canvas-neon-primary) 12%, var(--canvas-neon-card));
+}
+#canvasEditorScreen .canvas-asset-scopes button.is-active {
+  color: var(--canvas-neon-primary);
+}
+#canvasEditorScreen .canvas-asset-kinds button.is-active {
+  box-shadow: none;
+}
+#canvasEditorScreen .canvas-asset-preview {
+  color: var(--canvas-neon-muted);
+  background: color-mix(in srgb, var(--canvas-neon-primary) 7%, var(--canvas-neon-bg));
+}
+#canvasEditorScreen .canvas-asset-card:hover,
+#canvasEditorScreen .canvas-asset-card:focus-visible,
+#canvasEditorScreen .canvas-asset-card.is-selected {
+  border-color: var(--canvas-neon-primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--canvas-neon-primary) 18%, transparent);
+}
+#canvasEditorScreen .canvas-asset-card-actions button:first-child,
+#canvasEditorScreen .canvas-asset-import {
+  color: #0a0a0a;
+  border-color: var(--canvas-neon-primary);
+  background: var(--canvas-neon-primary);
+}
+#canvasEditorScreen .canvas-asset-card-actions button.is-danger {
+  color: var(--canvas-neon-danger);
+}
+#canvasEditorScreen .canvas-asset-empty {
+  color: var(--canvas-neon-muted);
+  border-color: var(--canvas-neon-border);
+}
+
+#canvasEditorScreen .image-model-picker {
+  color: var(--canvas-neon-text);
+}
+#canvasEditorScreen .image-model-picker .image-model-picker-trigger,
+#canvasEditorScreen .image-model-picker .image-model-picker-popover,
+#canvasEditorScreen .image-model-picker .image-model-provider-group,
+#canvasEditorScreen .image-model-picker .image-model-picker-row {
+  border-color: var(--canvas-neon-border);
+  background: var(--canvas-neon-card);
+  color: var(--canvas-neon-text);
+}
+#canvasEditorScreen .image-model-picker .image-model-picker-trigger,
+#canvasEditorScreen .image-model-picker .image-model-filter {
+  border: 1px solid var(--canvas-neon-border);
+  border-radius: var(--neon-radius-sm, 8px);
+  background: var(--neon-input, var(--canvas-neon-card));
+  color: var(--canvas-neon-text);
+}
+#canvasEditorScreen .image-model-picker .image-model-picker-popover {
+  box-shadow: var(--neon-shadow-xl, 0 20px 25px rgba(0, 0, 0, .8));
+}
+#canvasEditorScreen .image-model-picker button:hover,
+#canvasEditorScreen .image-model-picker button.active,
+#canvasEditorScreen .image-model-picker .image-model-picker-row:hover {
+  border-color: color-mix(in srgb, var(--canvas-neon-primary) 48%, var(--canvas-neon-border));
+  background: color-mix(in srgb, var(--canvas-neon-primary) 12%, var(--canvas-neon-card));
+}
+#canvasEditorScreen .image-model-picker [data-state="ready"] {
+  color: var(--canvas-neon-primary);
+}
+
+#canvasEditorScreen :is(.canvas-comfy-controls, .canvas-midjourney-controls, .canvas-h3-controls, .canvas-node-controls) {
+  gap: var(--neon-space-2, 8px);
+}
+#canvasEditorScreen :is(.canvas-comfy-field, .canvas-h3-field) {
+  gap: 4px;
+}
+#canvasEditorScreen :is(.canvas-comfy-field, .canvas-h3-field) > label,
+#canvasEditorScreen :is(.canvas-comfy-hint, .canvas-loop-hint, .canvas-h3-status) {
+  color: var(--canvas-neon-muted);
+}
+#canvasEditorScreen :is(.canvas-comfy-field select, .canvas-midjourney-operation, .canvas-midjourney-model, .canvas-comfy-mode, .canvas-comfy-resolution, .canvas-midjourney-prompt-input) {
+  min-height: 34px;
+  border: 1px solid var(--canvas-neon-border);
+  border-radius: var(--neon-radius-sm, 8px);
+  background: var(--neon-input, var(--canvas-neon-card));
+  color: var(--canvas-neon-text);
+}
+#canvasEditorScreen :is(.canvas-midjourney-prompt-input) {
+  padding: 8px 10px;
+}
+#canvasEditorScreen :is(.canvas-comfy-field select, .canvas-midjourney-operation, .canvas-midjourney-model, .canvas-comfy-mode, .canvas-comfy-resolution, .canvas-midjourney-prompt-input):focus {
+  border-color: var(--canvas-neon-primary);
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--canvas-neon-primary) 14%, transparent);
+}
+#canvasEditorScreen :is(.canvas-loop-hint, .canvas-comfy-input-summary, .canvas-midjourney-reference) {
+  padding: 8px;
+  border: 1px solid var(--canvas-neon-border);
+  border-radius: var(--neon-radius-sm, 8px);
+  background: color-mix(in srgb, var(--canvas-neon-primary) 5%, var(--canvas-neon-card));
+  color: var(--canvas-neon-muted);
+}
+#canvasEditorScreen :is(.canvas-midjourney-run, .canvas-comfy-run) {
+  min-height: 34px;
+  border-radius: var(--neon-radius-sm, 8px);
+}

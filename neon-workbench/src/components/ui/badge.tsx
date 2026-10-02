@@ -23,7 +23,7 @@ const badgeVariants = cva(
         outline: "border border-border text-foreground bg-transparent",
       },
       size: {
-        sm: "h-4 gap-1 px-1.5 text-[10px] uppercase tracking-wide",
+        sm: "h-4 gap-1 px-1.5 text-[0.625rem] uppercase tracking-wide",
         default: "h-5 gap-1.5 px-2 text-xs",
         lg: "h-6 gap-1.5 px-2.5 text-xs",
       },

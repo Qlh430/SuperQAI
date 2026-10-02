@@ -17,8 +17,19 @@ neon-workbench/acceptance/*.png
 neon-workbench/acceptance/*.json
 
 # Generated design exports and local review captures
+.design/*before*
+.design/full-review-*/repair-source.mjs
+.design/full-review-*/better-design-rules.md
 .design/deploy-backups/
+.design/startup-review-*/native-portable*/
+.design/startup-review-*/report.json
 .design/**/screenshots/
+.design/full-review-*/before/
+.design/full-review-*/after/
+.design/full-review-*/after-final/
+.design/full-review-*/better-design-spacing-*.json
+.design/full-review-*/better-design-comprehension-*.json
+.design/full-review-*/design-fixes-report.json
 *.png
 *.jpg
 *.jpeg

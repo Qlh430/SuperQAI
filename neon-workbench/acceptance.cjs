@@ -240,7 +240,7 @@ let browser
   await page.goto("http://127.0.0.1:3199/", { waitUntil: "domcontentloaded" })
   await page.waitForTimeout(600)
   const login = await page.evaluate(() => ({ auth: document.documentElement.dataset.aiAuth, frame: Boolean(document.getElementById("aiOsNeonFrame")), literalNewline: document.body.innerText.includes("\\n"), newCssLoaded: [...document.styleSheets].some(sheet => sheet.href?.includes("neon-workbench")) }))
-  const report = { date: "2026-09-30", evidence: "独立页面使用模拟 API；真实运行时仅验证未登录入口。", results, stress, checks, errors, login, interactions: "项目创建、回收站、模拟生图与历史保存、模拟对话、返回概览、移动导航、设置六个子页、移动端编辑弹窗、素材共享已执行", requests }
+  const report = { date: new Date().toISOString(), evidence: "独立页面使用模拟 API；真实运行时仅验证未登录入口。", results, stress, checks, errors, login, interactions: "项目创建、回收站、模拟生图与历史保存、模拟对话、返回概览、移动导航、设置六个子页、移动端编辑弹窗、素材共享已执行", requests }
   fs.writeFileSync(path.join(output, "report.json"), JSON.stringify(report, null, 2))
   console.log(JSON.stringify({ errors, overflow: results.filter(r => r.overflow.length), login, screenshots: results.length }, null, 2))
   await browser.close()

@@ -1,5 +1,19 @@
 # 项目接力入口
 
+## 最新接力状态（2026-10-02）
+
+- 侧栏已合并：账户和展开/收起导航位于同一滚动区域，无中间分隔线；侧栏与正文滚动条均使用官方中性令牌混色，移除绿色及发光。873×646 专项检查、四个规定宽度及模拟流程验收通过，补充记录见本轮设计审查报告。
+- 桌面首启浅色渐变已修正：之前只覆盖网页遮罩，遗漏 `desktop/startup.html` 本地启动窗口。本次新增 `neon-workbench/design-sources/desktop-startup.html` 和 `startup-overlay.css`，由 `deploy.mjs` 备份并部署，并修改两个原生窗口初始底色为官方背景的 sRGB 色值。`node startup-acceptance.cjs` 使用真实打包 exe、隔离数据目录和独立端口验证本地首帧及进入认证页；报告见 `.design/startup-review-20261002/DESIGN_REVIEW.md`。已运行中的桌面主进程需从托盘完全退出后再打开，单独刷新网页不会重新创建本地启动窗口。
+- 当前已核实项目根目录为 `D:\codex项目\AI-OS-Portable-1.0.5-win-x64`。下文 2026-10-01 的 E 盘路径是历史记录，不用于本次部署。
+- 实际运行时为项目根下的 `AI-OS-Portable-1.0.5-win-x64/.ai-runtime/versions/1.0.5-win-x64/resources/app`。修改运行时仍须先备份，并只通过 `neon-workbench/deploy.mjs` 部署。
+- Better Design MCP 本轮已连接，实际取得规则、Navigation/Dialogs 原则，并执行文案可理解性与 DOM 间距检查。最终公开 HTTPS dashboard receipt 未取得；仍有经人工判读的工具提示，不能声称全部自动通过。
+- 正式本轮审查报告：`.design/full-review-20261002/DESIGN_REVIEW.md`。截图、文案和 DOM 捕获在该目录的 `before/`、`after/`、`after-final/`；原始工具结果保留本机，已排除提交。
+- 修正包含素材范围占位移除、自然媒体比例、标题换行、44px 常规触控区域、等待回复时继续输入与停止保留草稿、密钥传递、协议选项去重、更新状态推送及中文错误、网络失败和损坏响应提示、768px 项目目录名称与登录输入尺寸。
+- 采用最新 `PRODUCT.md` 和 `INFORMATION_ARCHITECTURE.md` 的布局契约：在线生图/AI 对话保留工作台主导航和右侧内容；仅无限画布为宿主全屏空间。旧版全屏创作描述不得反向作为新布局参考。
+- 已验证构建、备份部署、模拟页面流程、宿主桥接、画布列表和本轮专项修正；以本轮报告及最新运行结果为准。
+- 当前仍无已验证的真实登录会话。真实服务商生图/对话、素材权限、真实画布编辑和保存、首次强制改密、主机真实更新/重启、即梦登录和本地权重下载继续待验收，不能宣布整个产品重构结束。
+- 本轮源码、必要验证脚本及审查报告已整理为本地提交范围，提交记录以 `git log` 为准；未推送。历史草稿保留本机。不要使用 `git add .`；提交源码与报告时排除截图、DOM 数据、运行时、依赖、构建和部署备份。
+
 ## 当前项目状态（2026-10-01）
 
 - 当前项目根目录是 `E:\CODEX项目\AI-OS-Portable-1.0.5-win-x64`；该目录现已初始化为独立 Git 仓库，分支 `main`。
@@ -40,7 +54,7 @@
 
 详细记录见 `.design/neon-workbench/DESIGN_REVIEW.md`，报告见 `neon-workbench/acceptance/`。
 
-真实登录、真实服务商生成、真实画布读写、首次强制改密的运行验收尚未完成。Better Design MCP 未连接，未执行其截图与最终 VALID 审核。
+真实登录、真实服务商生成、真实画布读写、首次强制改密的运行验收尚未完成。Better Design MCP 本轮已执行规则、文案和间距检查，但没有公开 HTTPS 地址，未执行最终 VALID dashboard 审核。
 
 ## 后续待完成
 

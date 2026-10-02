@@ -2,7 +2,7 @@
 
 ## 设计来源
 
-使用 Better Design Neon 官方注册表中的组件和全局令牌作为唯一视觉基线。Better Design MCP 在当前环境未连接，因此不得声称完成 MCP 自动审查；代码以已取得的官方 Neon 文件为准。
+使用 Better Design Neon 官方注册表中的组件和全局令牌作为唯一视觉基线。2026-10-02 本轮已连接 Better Design MCP，执行规则、可理解性与 DOM 间距检查；代码仍以已取得的官方 Neon 文件为准。原始结果及人工判读见 `.design/full-review-20261002/DESIGN_REVIEW.md`，没有公开 HTTPS 的最终 dashboard receipt。
 
 ## 当前执行状态（2026-10-01）
 
@@ -42,5 +42,5 @@
 
 - 模拟页面和桥接验收：已通过。
 - 真实登录会话下的业务与视觉验收：未完成。
-- Better Design MCP 动态审查：未完成，当前不能声称已执行 `inspect-spacing`、`check-comprehension` 或最终有效性审查。
+- Better Design MCP 动态审查：本轮已执行 `inspect-spacing` 和 `check-comprehension`，仍有保留的原始提示；最终公开 HTTPS 有效性审查尚未执行，不得标记为 VALID。
 - 发现页面结构仍依赖旧实现时，必须按本规范重建结构，再迁移数据和行为，不能继续叠加覆盖样式。

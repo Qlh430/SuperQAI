@@ -50,7 +50,7 @@
       frame = document.createElement("iframe");
       frame.id = "aiOsNeonFrame";
       frame.title = "AI OS Neon 工作台";
-      frame.src = "./neon-workbench.html?v=20260930-independent";
+      frame.src = "./neon-workbench.html?v=20261002-neon-ui";
       frame.style.cssText = "position:fixed;inset:0;width:100%;height:100%;border:0;z-index:9999;background:oklch(0.145 0.01 264)";
       document.body.appendChild(frame);
     }

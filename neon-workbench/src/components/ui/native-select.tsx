@@ -18,10 +18,10 @@ const NativeSelect = React.forwardRef<HTMLSelectElement, NativeSelectProps>(
           className={cn(
             formFieldBase,
             formFieldSingleLine,
-            "appearance-none cursor-pointer pr-9",
+            "appearance-none cursor-pointer pr-9 min-h-11",
             "[&>option]:bg-popover [&>option]:text-popover-foreground",
             error &&
-              "border-destructive focus-visible:border-destructive focus-visible:[box-shadow:inset_0_1px_2px_oklch(0_0_0_/_0.4),0_0_0_3px_oklch(0.62_0.23_25_/_0.2)]",
+              "border-destructive focus-visible:border-destructive focus-visible:[box-shadow:inset_0_0.0625rem_0.125rem_oklch(0_0_0_/_0.4),0_0_0_0.1875rem_oklch(0.62_0.23_25_/_0.2)]",
           )}
           {...props}
         >

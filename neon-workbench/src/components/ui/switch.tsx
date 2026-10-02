@@ -13,24 +13,24 @@ const Switch = React.forwardRef<
   <SwitchPrimitive.Root
     ref={ref}
     className={cn(
-      "peer inline-flex h-[22px] w-[40px] shrink-0 cursor-pointer items-center rounded-full border border-border",
-      "bg-input [box-shadow:inset_0_1px_2px_oklch(0_0_0_/_0.4)]",
+      "peer relative inline-flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-lg",
+      "before:absolute before:h-[1.375rem] before:w-[2.5rem] before:rounded-full before:border before:border-border before:bg-input before:shadow-inset",
       "transition-[background,box-shadow,border-color] duration-200",
       "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
       "data-disabled:cursor-not-allowed data-disabled:opacity-50",
-      "data-checked:[background:var(--neon-gradient)] data-checked:border-transparent",
-      "data-checked:[box-shadow:var(--shadow-neon)]",
+      "data-checked:before:[background:var(--neon-gradient)] data-checked:before:border-transparent",
+      "data-checked:before:[box-shadow:var(--shadow-neon)]",
       className
     )}
     {...props}
   >
     <SwitchPrimitive.Thumb
       className={cn(
-        "pointer-events-none block h-[16px] w-[16px] rounded-full bg-background",
-        "[box-shadow:0_1px_2px_oklch(0_0_0_/_0.5)]",
+        "pointer-events-none absolute left-[0.25rem] block h-[1rem] w-[1rem] rounded-full bg-background",
+        "[box-shadow:0_0.0625rem_0.125rem_oklch(0_0_0_/_0.5)]",
         "transition-transform duration-200",
-        "data-checked:translate-x-[20px]",
-        "data-unchecked:translate-x-0.5"
+        "data-checked:translate-x-[1.25rem]",
+        "data-unchecked:translate-x-0",
       )}
     />
   </SwitchPrimitive.Root>

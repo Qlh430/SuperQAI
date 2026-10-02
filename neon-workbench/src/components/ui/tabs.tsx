@@ -21,7 +21,7 @@ function TabsList({ className, ...props }: TabsPrimitive.List.Props) {
   return (
     <TabsPrimitive.List
       className={cn(
-        "inline-flex h-10 items-center justify-center rounded-[12px] bg-input p-1 text-muted-foreground [box-shadow:var(--shadow-inset)]",
+        "inline-flex h-11 items-center justify-center rounded-[0.75rem] bg-input p-1 text-muted-foreground [box-shadow:var(--shadow-inset)]",
         className
       )}
       {...props}
@@ -34,7 +34,7 @@ function TabsTrigger({ className, ...props }: TabsPrimitive.Tab.Props) {
   return (
     <TabsPrimitive.Tab
       className={cn(
-        "relative inline-flex items-center justify-center whitespace-nowrap rounded-[9px] px-3 py-1.5 text-sm font-medium",
+        "relative inline-flex min-h-11 items-center justify-center whitespace-nowrap rounded-[0.5625rem] px-3 py-1.5 text-sm font-medium",
         "text-muted-foreground transition-[color,background,box-shadow] duration-150",
         "hover:text-foreground",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",

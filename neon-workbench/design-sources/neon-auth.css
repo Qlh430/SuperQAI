@@ -1,0 +1,165 @@
+/* AI OS Neon authentication surface.
+   Loaded after the legacy shell styles so auth remains part of the host flow
+   while sharing the same Neon tokens as the independent workbench. */
+html[data-ai-auth="pending"],
+html[data-ai-auth="login"] {
+  --os-cloud: var(--neon-background);
+  --os-ink: var(--neon-foreground);
+  --os-muted: var(--neon-muted-fg);
+  --os-line: var(--neon-border);
+  --os-accent: var(--neon-primary);
+  --os-accent-soft: rgba(0, 255, 65, 0.14);
+}
+
+html[data-ai-auth="pending"] body,
+html[data-ai-auth="login"] body {
+  background: var(--neon-background);
+  color: var(--neon-foreground);
+}
+
+html[data-ai-auth="login"] body::before {
+  background: radial-gradient(circle at 50% 18%, rgba(0, 255, 65, 0.09), transparent 36%), var(--neon-background);
+}
+
+/* The startup gate appears before the login surface. Keep that transition
+   aligned with Neon instead of exposing the legacy blue/teal gradient. */
+html[data-ai-auth="pending"] body::before,
+html[data-ai-auth="pending"] #aiOsStartupGate,
+html[data-ai-auth="login"] #aiOsStartupGate {
+  background: var(--neon-background);
+}
+
+#aiOsStartupGate {
+  color: var(--neon-foreground);
+}
+
+#aiOsStartupGate .ai-os-startup-brand-mark {
+  color: var(--neon-primary-fg);
+  background: var(--neon-primary);
+  box-shadow: var(--neon-glow-subtle);
+}
+
+#aiOsStartupGate .ai-os-startup-brand span,
+#aiOsStartupGate .ai-os-startup-detail {
+  color: var(--neon-muted-fg);
+}
+
+#aiOsStartupGate .ai-os-startup-spinner {
+  border-color: var(--neon-border);
+  border-top-color: var(--neon-primary);
+}
+
+#aiOsStartupGate .ai-os-startup-track {
+  background: var(--neon-muted);
+}
+
+#aiOsStartupGate .ai-os-startup-progress {
+  background: var(--neon-primary);
+}
+
+#aiOsStartupGate .ai-os-startup-foot {
+  color: var(--neon-muted-fg);
+}
+
+#aiOsStartupGate .ai-os-startup-foot button {
+  color: var(--neon-primary-fg);
+  background: var(--neon-primary);
+}
+
+html[data-ai-auth="pending"] .ai-os-auth-aurora {
+  display: none;
+}
+
+html[data-ai-auth="pending"] body::after,
+html[data-ai-auth="login"] body::after {
+  opacity: 0.08;
+}
+
+.ai-os-auth-gate {
+  color: var(--neon-foreground);
+  background: rgba(15, 15, 15, 0.82);
+}
+
+.ai-os-auth-aurora {
+  width: min(55vw, 620px);
+  background: radial-gradient(circle, rgba(0, 255, 65, 0.16), transparent 68%);
+  filter: blur(36px);
+}
+
+.ai-os-auth-card {
+  width: min(420px, calc(100vw - 32px));
+  padding: var(--neon-spacing-8);
+  border: 1px solid var(--neon-border);
+  border-radius: var(--neon-radius-xl);
+  background: rgba(26, 26, 26, 0.94);
+  box-shadow: var(--neon-shadow-xl), var(--neon-glow-subtle);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.ai-os-auth-brand strong,
+.ai-os-auth-copy h1 {
+  color: var(--neon-foreground);
+}
+
+.ai-os-auth-brand span:not(.ai-os-brand-mark),
+.ai-os-auth-copy > p:last-child,
+.ai-os-auth-status,
+.ai-os-auth-form small {
+  color: var(--neon-muted-fg);
+}
+
+.ai-os-brand-mark {
+  color: var(--neon-primary-fg);
+  background: var(--neon-primary);
+  box-shadow: var(--neon-glow-subtle);
+}
+
+.ai-os-eyebrow {
+  color: var(--neon-primary);
+}
+
+.ai-os-auth-form label {
+  color: var(--neon-foreground);
+}
+
+.ai-os-auth-form input {
+  min-height: 2.75rem;
+  border-color: var(--neon-border);
+  border-radius: var(--neon-radius-md);
+  color: var(--neon-foreground);
+  background: var(--neon-input);
+}
+
+.ai-os-auth-form input:focus {
+  border-color: var(--neon-ring);
+  background: var(--neon-input);
+  box-shadow: 0 0 0 3px var(--os-accent-soft);
+}
+
+.ai-os-auth-form > button {
+  border-radius: var(--neon-radius-md);
+  color: var(--neon-primary-fg);
+  background: var(--neon-primary);
+  box-shadow: var(--neon-glow-subtle);
+}
+
+.ai-os-auth-form > button:hover {
+  filter: brightness(1.08);
+}
+
+.ai-os-auth-error {
+  color: var(--neon-destructive);
+  background: rgba(255, 0, 65, 0.12);
+}
+
+.ai-os-auth-status > span:first-child {
+  background: var(--neon-primary);
+  box-shadow: 0 0 0 4px rgba(0, 255, 65, 0.1);
+}
+
+@media (max-width: 520px) {
+  .ai-os-auth-card {
+    padding: var(--neon-spacing-6);
+  }
+}

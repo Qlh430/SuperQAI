@@ -18,7 +18,7 @@ const buttonVariants = cva(
   [
     "inline-flex items-center justify-center gap-2 whitespace-nowrap",
     "text-sm font-semibold leading-none tracking-[-0.01em]",
-    "rounded-[10px] cursor-pointer select-none",
+    "rounded-[0.625rem] cursor-pointer select-none",
     "transition-[background,box-shadow,transform,color,border-color] duration-150",
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
     "disabled:pointer-events-none disabled:opacity-50",
@@ -55,10 +55,10 @@ const buttonVariants = cva(
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {
-        sm: "h-8 px-3 text-xs rounded-[8px]",
-        default: "h-9 px-4",
-        lg: "h-11 px-6 rounded-[12px]",
-        icon: "h-9 w-9",
+        sm: "h-11 px-3 text-xs rounded-[0.5rem]",
+        default: "h-11 px-4",
+        lg: "h-11 px-6 rounded-[0.75rem]",
+        icon: "h-11 w-11",
       },
     },
     defaultVariants: {
