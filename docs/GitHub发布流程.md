@@ -371,3 +371,39 @@ $mismatch = @($localMap.Keys | Where-Object {
 - Release 地址：`https://github.com/Qlh430/SuperQAI/releases/tag/v1.0.5`
 
 本次远程资产与本地资产文件名、大小完全一致，Portable、Runtime、组件清单和更新索引均上传成功。
+
+## 16. 本次 2.0.1 发布记录
+
+- GitHub 仓库：`Qlh430/SuperQAI`
+- 源码分支：`main`
+- 源码提交：`e6b761367ac19175aa3851ee682af01ea18e2c67`
+- 版本标签：`v2.0.1`
+- Release 状态：正式版、Latest、非草稿、非预发布
+- 上传资产：52 个
+- Portable：`AI-OS-Portable-2.0.1-win-x64.zip`，477,455,311 字节
+- Runtime：`AI-OS-Runtime-2.0.1-win-x64.zip`，477,295,704 字节
+- Runtime SHA-256：`899552517a4cbf33a250a430bf7f3cdc44ce641d75a331440f49e35671b7e2de`
+- 组件清单 SHA-256：`99c1c0cae5fce03ae2362f47b620cb6e30968af7e9c7bc741ead7ca494d84430`
+- Release 地址：`https://github.com/Qlh430/SuperQAI/releases/tag/v2.0.1`
+
+本次远程资产与本地资产文件名、大小完全一致。
+
+### 本次同步的源码变更
+
+1. `release: AI OS 2.0.1`：把当前运行版本（Neon 独立工作台、画布分组、Qwen-Image2.1
+   图片生成节点、内联裁剪与扩图、音频生成、文件导入与文档阅读）合入 `main`，
+   并把根 `package.json` 与 `package-lock.json` 升到 `2.0.1`。
+2. `fix: ship PDF cmaps and standard fonts in portable runtime`：`canvas-pdf-cmaps` 与
+   `canvas-pdf-fonts` 由 `neon-workbench/deploy.mjs` 从 `pdfjs-dist` 生成并写入运行目录，
+   但发布构建只按 `tools/portable-package-manifest.js` 的目录清单打包，此前会把这两份
+   资产漏在包外。现已在清单中加入这两个目录（并同步更新
+   `tools/check-portable-runtime-manifest.js`、`tools/check-canvas-agent-server.js` 的断言），
+   使 Portable 与 Runtime 包内的文档阅读能力与运行中的版本一致。
+
+### 打包时依赖的本地文件
+
+以下文件被 `.gitignore` 排除，但发布构建需要它们在源码根目录存在：
+
+- `assets/models/background-removal/ben2-base-1.0.0.onnx`（约 213 MB，`assets` 目录整体入包）
+- `node_modules`（`node_modules/electron/dist` 作为运行时外壳，`sharp`、`undici`、
+  `onnxruntime-node` 作为生产依赖）
