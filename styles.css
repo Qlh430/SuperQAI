@@ -5638,7 +5638,7 @@ input,
   --line-strong: rgba(255, 255, 255, 0.16);
   --soft: rgba(255, 255, 255, 0.07);
   --field: rgba(118, 118, 128, 0.14);
-  --accent: #409cff;
+  --accent: var(--primary);
   --accent-dark: #78b8ff;
   --accent-soft: rgba(64, 156, 255, 0.15);
   --shadow: 0 22px 58px rgba(0, 0, 0, 0.32);
@@ -12556,7 +12556,7 @@ select,
   min-height: 64px;
   margin: 18px auto 0;
   padding: 0 2px 14px;
-  border-bottom: 1px solid rgba(32, 32, 32, 0.08);
+  border-bottom: 1px solid var(--border);
   box-shadow: none;
 }
 
@@ -12581,10 +12581,10 @@ select,
 #imageView > .image-workspace > .history-panel {
   height: calc(100vh - 132px);
   max-height: calc(100vh - 132px);
-  border: 1px solid rgba(32, 32, 32, 0.08);
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.92);
-  box-shadow: 0 14px 46px rgba(32, 32, 32, 0.06);
+  border: 1px solid var(--border);
+  border-radius: var(--neon-radius-card);
+  background: var(--card);
+  box-shadow: none;
 }
 
 #imageView .image-control {
@@ -12603,7 +12603,7 @@ select,
 
 #imageView .block-label,
 #imageView .history-head {
-  color: #6f7785;
+  color: var(--muted-foreground);
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0;
@@ -12613,18 +12613,18 @@ select,
 #imageView #imagePrompt {
   min-height: 176px;
   padding: 16px;
-  border-radius: 12px;
-  border-color: rgba(32, 32, 32, 0.1);
-  background: #fbfbfa;
-  color: #202020;
+  border-radius: var(--neon-radius-control);
+  border-color: var(--border);
+  background: var(--input);
+  color: var(--foreground);
   font-size: 15px;
   line-height: 1.7;
   resize: vertical;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  box-shadow: none;
 }
 
 #imageView #imagePrompt::placeholder {
-  color: #9298a3;
+  color: var(--muted-foreground);
 }
 
 #imageView .reference-grid {
@@ -12634,42 +12634,40 @@ select,
 
 #imageView .reference-slot {
   height: 104px;
-  border-radius: 12px;
-  border-color: rgba(32, 32, 32, 0.12);
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.85), rgba(246, 247, 248, 0.88)),
-    #f7f7f6;
+  border-radius: var(--neon-radius-control);
+  border-color: var(--border);
+  background: var(--secondary);
 }
 
 #imageView .reference-slot span {
-  color: #202020;
+  color: var(--foreground);
   font-size: 22px;
   font-weight: 640;
 }
 
 #imageView .reference-slot strong {
-  color: #6b7280;
+  color: var(--muted-foreground);
   font-size: 12px;
   font-weight: 650;
 }
 
 #imageView .reference-slot:hover,
 #imageView .reference-slot.drag-over {
-  border-color: rgba(255, 199, 43, 0.86);
-  background: #fffaf0;
+  border-color: var(--ring);
+  background: var(--accent);
 }
 
 #imageView .control-card {
   padding: 14px;
-  border-radius: 12px;
-  background: #f7f7f5;
+  border-radius: var(--neon-radius-control);
+  background: var(--card);
   box-shadow: none;
 }
 
 #imageView .control-card label,
 #imageView .size-row,
 #imageView .remember-line {
-  color: #6f7785;
+  color: var(--muted-foreground);
   font-size: 12px;
 }
 
@@ -12687,7 +12685,7 @@ select,
   align-items: center;
   gap: 8px;
   margin-top: -4px;
-  color: #6f7785;
+  color: var(--muted-foreground);
   font-size: 12px;
 }
 
@@ -12721,11 +12719,11 @@ select,
 }
 
 #imageView .image-custom-size-field.is-invalid .custom-size-number {
-  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.12);
+  box-shadow: none;
 }
 
 #imageView .image-custom-size-field.is-invalid small {
-  color: #ef4444;
+  color: var(--destructive);
 }
 
 .canvas-node.canvas-resolution-hidden .canvas-node-controls {
@@ -12784,10 +12782,10 @@ select,
 #imageView input {
   min-height: 42px;
   height: 42px;
-  border-radius: 10px;
-  border-color: rgba(32, 32, 32, 0.12);
-  background-color: #ffffff;
-  color: #202020;
+  border-radius: var(--neon-radius-control);
+  border-color: var(--border);
+  background-color: var(--input);
+  color: var(--foreground);
   font-size: 14px;
   font-weight: 650;
 }
@@ -12805,29 +12803,29 @@ select,
 #imageView #generateButton {
   min-height: 50px;
   margin-top: auto;
-  border-radius: 12px;
-  background: #ffca28;
-  color: #181714;
+  border-radius: var(--neon-radius-control);
+  background: var(--primary);
+  color: var(--primary-foreground);
   font-size: 15px;
   font-weight: 780;
   letter-spacing: 0;
-  box-shadow: 0 10px 22px rgba(32, 32, 32, 0.1);
+  box-shadow: none;
 }
 
 #imageView #generateButton span {
-  color: #181714;
+  color: var(--primary-foreground);
 }
 
 #imageView #generateButton:hover:not(:disabled) {
-  background: #f3bc14;
-  color: #181714;
+  background: color-mix(in srgb, var(--primary) 90%, var(--background));
+  color: var(--primary-foreground);
   transform: translateY(-1px);
 }
 
 #imageView .status-line {
   min-height: 18px;
   margin: 0;
-  color: #7d8490;
+  color: var(--muted-foreground);
   font-size: 12px;
 }
 
@@ -12847,15 +12845,15 @@ select,
   gap: 12px;
   align-content: start;
   padding: 16px;
-  border: 1px solid rgba(32, 32, 32, 0.08);
-  border-radius: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--neon-radius-control);
   overflow: auto;
-  background-color: #fafafa;
+  background-color: var(--background);
   background-image:
-    linear-gradient(45deg, rgba(32, 32, 32, 0.025) 25%, transparent 25%),
-    linear-gradient(-45deg, rgba(32, 32, 32, 0.025) 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, rgba(32, 32, 32, 0.025) 75%),
-    linear-gradient(-45deg, transparent 75%, rgba(32, 32, 32, 0.025) 75%);
+    linear-gradient(45deg, var(--border) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--border) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--border) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--border) 75%);
   background-position: 0 0, 0 8px, 8px -8px, -8px 0;
   background-size: 16px 16px;
 }
@@ -12868,15 +12866,15 @@ select,
   display: grid;
   place-content: center;
   gap: 10px;
-  border: 1px dashed rgba(32, 32, 32, 0.14);
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.78);
-  color: #8c929c;
+  border: 1px dashed var(--border);
+  border-radius: var(--neon-radius-control);
+  background: var(--card);
+  color: var(--muted-foreground);
   text-align: center;
 }
 
 #imageView .empty-state span {
-  color: #202020;
+  color: var(--foreground);
   font-size: 16px;
   font-weight: 740;
   letter-spacing: 0;
@@ -12894,15 +12892,15 @@ select,
   right: 24px;
   width: 34px;
   height: 34px;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 8px 24px rgba(32, 32, 32, 0.08);
+  border-radius: var(--neon-radius-control);
+  background: var(--card);
+  box-shadow: none;
 }
 
 #imageView .image-card {
   max-width: 100%;
   overflow: hidden;
-  border-radius: 12px;
+  border-radius: var(--neon-radius-control);
   background: transparent;
   box-shadow: none;
 }
@@ -12933,12 +12931,12 @@ select,
   min-height: 34px;
   padding: 0 12px;
   border: 1px solid var(--line-strong);
-  border-radius: 10px;
+  border-radius: var(--neon-radius-control);
   display: inline-flex;
   align-items: center;
   background: color-mix(in srgb, var(--panel) 88%, transparent);
   color: var(--ink);
-  box-shadow: 0 8px 24px rgba(32, 32, 32, 0.12);
+  box-shadow: none;
   backdrop-filter: blur(12px);
   pointer-events: auto;
 }
@@ -12982,14 +12980,14 @@ select,
 #imageView .history-head button {
   min-height: 28px;
   padding: 0 8px;
-  border-radius: 8px;
-  color: #8c929c;
+  border-radius: var(--neon-radius-control);
+  color: var(--muted-foreground);
   font-size: 12px;
 }
 
 #imageView .history-head button:hover {
-  background: rgba(32, 32, 32, 0.06);
-  color: #202020;
+  background: var(--border);
+  color: var(--foreground);
 }
 
 #imageView .image-history {
@@ -13000,15 +12998,15 @@ select,
 
 #imageView .history-thumb {
   width: 100%;
-  border-radius: 12px;
-  border-color: rgba(32, 32, 32, 0.09);
-  background: #ffffff;
-  box-shadow: 0 8px 20px rgba(32, 32, 32, 0.045);
+  border-radius: var(--neon-radius-control);
+  border-color: var(--border);
+  background: var(--input);
+  box-shadow: none;
 }
 
 #imageView .history-thumb:hover {
-  border-color: rgba(255, 202, 40, 0.9);
-  box-shadow: 0 12px 24px rgba(32, 32, 32, 0.08);
+  border-color: var(--ring);
+  box-shadow: none;
 }
 
 #imageView .history-thumb img {
@@ -13018,14 +13016,14 @@ select,
 
 #imageView .history-thumb p {
   padding: 9px 10px 10px;
-  color: #4f5662;
+  color: var(--muted-foreground);
   font-size: 12px;
   line-height: 1.45;
 }
 
 #imageView .history-chat {
-  border-radius: 12px;
-  background: #f7f7f5;
+  border-radius: var(--neon-radius-control);
+  background: var(--card);
 }
 
 @media (max-width: 1280px) {
@@ -13068,7 +13066,7 @@ select,
 }
 
 :root[data-theme="dark"] #imageView .studio-header {
-  border-bottom-color: rgba(255, 255, 255, 0.08);
+  border-bottom-color: var(--card);
 }
 
 :root[data-theme="dark"] #imageView .image-control,
@@ -13076,32 +13074,32 @@ select,
 :root[data-theme="dark"] #imageView > .image-workspace > .history-panel,
 :root[data-theme="dark"] #imageView .image-card,
 :root[data-theme="dark"] #imageView .history-thumb {
-  border-color: rgba(255, 255, 255, 0.09);
-  background: rgba(24, 24, 25, 0.92);
+  border-color: var(--card);
+  background: var(--card);
 }
 
 :root[data-theme="dark"] #imageView #imagePrompt,
 :root[data-theme="dark"] #imageView .control-card,
 :root[data-theme="dark"] #imageView .history-chat,
 :root[data-theme="dark"] #imageView .preview-frame {
-  background-color: #111214;
-  color: #f4f4f4;
+  background-color: var(--input);
+  color: var(--foreground);
 }
 
 :root[data-theme="dark"] #imageView .empty-state,
 :root[data-theme="dark"] #imageView .reference-slot {
-  border-color: rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.04);
+  border-color: var(--card);
+  background: var(--card);
 }
 
 :root[data-theme="dark"] #imageView .empty-state span,
 :root[data-theme="dark"] #imageView .reference-slot span,
 :root[data-theme="dark"] #imageView .history-head button:hover {
-  color: #f4f4f4;
+  color: var(--foreground);
 }
 
 :root[data-theme="dark"] #imageView .history-thumb p {
-  color: rgba(244, 244, 244, 0.72);
+  color: var(--muted-foreground);
 }
 
 /* Keep the online image workspace inside the visible app shell. */
@@ -13797,8 +13795,8 @@ body:has(#recordsView.active) {
 
 .image-model-picker-trigger:hover,
 .image-model-picker.is-open .image-model-picker-trigger {
-  border-color: color-mix(in srgb, #2684ff 54%, var(--line-strong));
-  box-shadow: 0 0 0 3px color-mix(in srgb, #2684ff 13%, transparent);
+  border-color: color-mix(in srgb, var(--primary) 54%, var(--line-strong));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 13%, transparent);
 }
 
 .image-model-trigger-copy,
@@ -13855,7 +13853,7 @@ body:has(#recordsView.active) {
 .image-model-health-dot[data-state="healthy"] { background: #34c759; box-shadow: 0 0 0 3px rgba(52, 199, 89, .14); }
 .image-model-health-dot[data-state="warning"] { background: #ff9f0a; box-shadow: 0 0 0 3px rgba(255, 159, 10, .14); }
 .image-model-health-dot[data-state="danger"] { background: #ff453a; box-shadow: 0 0 0 3px rgba(255, 69, 58, .14); }
-.image-model-health-dot[data-state="auto"] { background: #2684ff; box-shadow: 0 0 0 3px rgba(38, 132, 255, .14); }
+.image-model-health-dot[data-state="auto"] { background: var(--primary); box-shadow: 0 0 0 3px rgba(38, 132, 255, .14); }
 
 .image-model-picker-popover {
   position: fixed;
@@ -13956,7 +13954,7 @@ body:has(#recordsView.active) {
 }
 
 .image-model-picker-filters button:hover { background: color-mix(in srgb, var(--ink) 6%, transparent); }
-.image-model-picker-filters button.active { background: #2684ff; color: #fff; }
+.image-model-picker-filters button.active { background: var(--primary); color: #fff; }
 
 .image-model-picker-list {
   min-height: 0;
@@ -13975,16 +13973,16 @@ body:has(#recordsView.active) {
   align-items: center;
   gap: 8px;
   padding: 7px 9px;
-  border: 1px solid color-mix(in srgb, #2684ff 24%, transparent);
+  border: 1px solid color-mix(in srgb, var(--primary) 24%, transparent);
   border-radius: 12px;
-  background: color-mix(in srgb, #2684ff 8%, transparent);
+  background: color-mix(in srgb, var(--primary) 8%, transparent);
   color: var(--ink);
   text-align: left;
 }
 
 .image-model-picker-auto[aria-selected="true"] {
-  border-color: #2684ff;
-  background: color-mix(in srgb, #2684ff 14%, transparent);
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
 }
 
 .image-model-provider-group { margin-top: 7px; }
@@ -14019,7 +14017,7 @@ body:has(#recordsView.active) {
 }
 
 .image-model-picker-row:hover { background: color-mix(in srgb, var(--ink) 5%, transparent); }
-.image-model-picker-row[aria-selected="true"] { background: color-mix(in srgb, #2684ff 10%, transparent); }
+.image-model-picker-row[aria-selected="true"] { background: color-mix(in srgb, var(--primary) 10%, transparent); }
 
 .image-model-picker-choice {
   min-width: 0;
@@ -14065,7 +14063,7 @@ body:has(#recordsView.active) {
   padding: 0 10px;
   border: 0;
   border-radius: 8px;
-  background: color-mix(in srgb, #2684ff 11%, transparent);
+  background: color-mix(in srgb, var(--primary) 11%, transparent);
   color: #1672e8;
   font-size: 10px;
   font-weight: 750;
@@ -19919,7 +19917,7 @@ body:has(#recordsView.active) {
   --cutout-line: var(--line, rgba(63, 80, 105, 0.16));
   --cutout-line-strong: var(--line-strong, rgba(63, 80, 105, 0.26));
   --cutout-track: color-mix(in srgb, var(--cutout-ink) 17%, transparent);
-  --cutout-accent: var(--accent, #2f80ed);
+  --cutout-accent: var(--accent, var(--primary));
   /* 弹窗底色拆成「不透明底 + 一层面板色」，浏览器检查会拿这两个值核对文字对比度。 */
   --cutout-surface-base: var(--bg, #eef3f8);
   --cutout-surface-tint: var(--panel, rgba(255, 255, 255, 0.92));

@@ -507,14 +507,11 @@
 
     function appearanceMarkup() {
       const preference = state.preferences;
-      const themeNames = { light: "浅色", dark: "深色", system: "自动" };
       const scaleNames = { 0.75: "更多空间", 1: "标准", 1.25: "较大文字", 1.5: "大文字", 1.75: "更大文字" };
       const scalePercentages = { 0.75: "75%", 1: "100%", 1.25: "125%", 1.5: "150%", 1.75: "175%" };
       return `<section class="settings-page" data-settings-section="appearance">
         <header><p>APPEARANCE</p><h2>外观</h2><span>你的显示偏好只保存在当前账号。</span></header>
-        <div class="settings-theme-grid" role="radiogroup" aria-label="界面主题">
-          ${THEMES.map((theme) => `<button type="button" data-settings-theme="${theme}" role="radio" aria-checked="${preference.appearance.theme === theme}" class="${preference.appearance.theme === theme ? "active" : ""}"><span class="settings-theme-preview ${theme}"><i></i><b></b></span><strong>${themeNames[theme]}</strong></button>`).join("")}
-        </div>
+        <div class="settings-neon-lock" role="status"><span class="settings-neon-lock-mark">✦</span><div><strong>Neon 统一视觉</strong><small>所有页面、画布和工作区使用同一套设计系统。</small></div></div>
         <article class="settings-card">
           <div class="settings-row"><div><strong>界面缩放</strong><span>调整菜单、窗口与设置内容的显示大小。</span></div></div>
           <div class="settings-scale-grid" role="radiogroup" aria-label="界面缩放">${SCALES.map((scale) => `<button type="button" data-settings-scale="${scale}" role="radio" aria-checked="${preference.appearance.scale === scale}" class="${preference.appearance.scale === scale ? "active" : ""}"><span class="settings-scale-preview" style="--scale-preview:${scale}"><span class="settings-scale-sample"><span class="settings-scale-sample-dots"><i></i><i></i><i></i></span><span class="settings-scale-sample-title">文字</span><span class="settings-scale-sample-lines"><i></i><i></i></span></span></span><strong>${scaleNames[scale]}</strong><span>${scalePercentages[scale]}</span></button>`).join("")}</div>

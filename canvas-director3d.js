@@ -1883,7 +1883,7 @@
         context.fill();
       }
       if (entry.selected) {
-        context.strokeStyle = options.accent || "#d5ff40";
+        context.strokeStyle = options.accent || "#00ff41";
         context.lineWidth = 1.6;
         context.stroke();
       } else if (entry.outline) {

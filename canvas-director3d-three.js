@@ -242,7 +242,7 @@
       canvasEl.height = height;
       const ctx = canvasEl.getContext("2d");
       const selected = getSelectedId() === item.id;
-      ctx.fillStyle = selected ? "rgba(213,255,64,0.94)" : "rgba(12,14,18,0.74)";
+      ctx.fillStyle = selected ? "rgba(0,255,65,0.94)" : "rgba(12,14,18,0.74)";
       ctx.beginPath();
       ctx.roundRect(0, 0, width, height, height / 2);
       ctx.fill();

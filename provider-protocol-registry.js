@@ -18,13 +18,14 @@ const PROTOCOL_ALIASES = Object.freeze({
   google: "gemini",
   midjourney: "midjourney",
   "apimart-midjourney": "midjourney",
+  "audio.speech": "audio-speech",
 });
 
 // Platform protocols own the connection: Base URL, authentication and model
 // discovery. Model profiles own only the API request and response shape. The
 // runtime IDs below are retained so existing saved configurations keep working.
 const COMPATIBLE_MODEL_PROTOCOLS = Object.freeze({
-  openai: ["openai", "openai-responses", "openai-images", "video-adapter", "audio-adapter"],
+  openai: ["openai", "openai-responses", "openai-images", "video-adapter", "audio-adapter", "audio-speech"],
   anthropic: ["anthropic"],
   gemini: ["gemini"],
   // `apimart` remains listed for old saved model profiles. New Midjourney
@@ -251,6 +252,18 @@ const DEFINITIONS = Object.freeze({
     summary: "现有音频服务兼容层。",
     categories: ["audio"],
     adapterId: "audio-adapter",
+  },
+  "audio-speech": {
+    id: "audio-speech",
+    label: "OpenAI 兼容语音合成",
+    modelLabel: "OpenAI 兼容语音合成",
+    displayGroup: "音频",
+    platformVisible: false,
+    modelVisible: true,
+    summary: "使用已配置的声音，将文本合成为音频文件。",
+    categories: ["audio"],
+    adapterId: "audio-adapter",
+    operationCatalog: [{ id: "audio.generate", intent: "audio.generate", label: "语音合成", method: "POST", path: "/v1/audio/speech", parameters: ["voice", "response_format", "speed", "instructions"] }],
   },
   "cli:jimeng": {
     id: "cli:jimeng",

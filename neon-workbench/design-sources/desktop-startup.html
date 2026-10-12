@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>正在启动 AI OS</title>
+    <!-- Inlined by deploy.mjs from the workbench tokens, before first paint. -->
+    <style id="neon-startup-tokens">/* __NEON_STARTUP_TOKENS__ */</style>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: "Segoe UI", "Microsoft YaHei UI", sans-serif;
+        background: var(--background);
+        color: var(--foreground);
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background: var(--background);
+      }
+      main { width: 100%; max-width: 486px; padding: 42px 46px 36px; }
+      .brand { display: flex; align-items: center; gap: 14px; margin-bottom: 34px; }
+      .mark {
+        width: 48px;
+        height: 48px;
+        display: grid;
+        place-items: center;
+        border-radius: var(--radius);
+        color: var(--primary-foreground);
+        font: 700 27px/1 Georgia, serif;
+        background: var(--primary);
+      }
+      .brand strong { display: block; font-size: 20px; letter-spacing: 0; }
+      .brand small { display: block; margin-top: 4px; color: var(--muted-foreground); font-size: 12px; }
+      .status-row { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+      #status { margin: 0; font-size: 16px; font-weight: 700; }
+      .spinner {
+        width: 20px;
+        height: 20px;
+        flex: 0 0 auto;
+        border: 2px solid var(--secondary);
+        border-top-color: var(--primary);
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+      #detail { min-height: 22px; margin: 10px 0 18px; color: var(--muted-foreground); font-size: 13px; }
+      .track { height: 6px; overflow: hidden; border-radius: 999px; background: var(--secondary); }
+      #progress { width: 4%; height: 100%; border-radius: inherit; background: var(--primary); transition: width 220ms ease; }
+      footer { display: flex; justify-content: space-between; gap: 16px; margin-top: 14px; color: var(--muted-foreground); font-size: 11px; }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      @media (max-width: 520px) { main { padding: 32px; } }
+      @media (prefers-reduced-motion: reduce) { .spinner { animation: none; } #progress { transition: none; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="brand">
+        <span class="mark" aria-hidden="true">∞</span>
+        <div><strong>AI OS</strong><small>本地创作工作台</small></div>
+      </div>
+      <div class="status-row">
+        <p id="status" role="status" aria-live="polite">正在启动 AI OS</p>
+        <span class="spinner" aria-hidden="true"></span>
+      </div>
+      <p id="detail">正在准备启动环境，请稍候…</p>
+      <div class="track" aria-hidden="true"><div id="progress"></div></div>
+      <footer><span>数据只保留在本机</span><span id="hint">首次启动可能需要几秒</span></footer>
+    </main>
+  </body>
+</html>

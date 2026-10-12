@@ -10,12 +10,17 @@
     const requestedAspectRatio = options.aspectRatio || node.dataset.minimaxH3AspectRatio || "16:9";
     return {
       prompt: options.prompt ?? node.querySelector(".canvas-h3-prompt")?.value ?? node.dataset.minimaxH3Prompt ?? "",
+      modelId: options.modelId ?? node.dataset.minimaxH3Model ?? "minimax-h3",
       aspectRatio: Object.hasOwn(aspectRatios, requestedAspectRatio) ? requestedAspectRatio : "16:9",
       megapixels: Number(options.megapixels ?? node.dataset.minimaxH3Megapixels ?? 0.6) === 1 ? 1 : 0.6,
-      steps: Number(options.steps ?? node.dataset.minimaxH3Steps ?? 4) === 8 ? 8 : 4,
+      // The deployed H3 workflow is the 8-step distilled graph, so 8 is the
+      // matching default; the 4-step option stays for a faster draft.
+      steps: Number(options.steps ?? node.dataset.minimaxH3Steps ?? 8) === 4 ? 4 : 8,
       duration: Math.max(5, Math.min(15, Number(options.duration ?? node.dataset.minimaxH3Duration ?? 12) || 12)),
       refImageSize: options.refImageSize || node.dataset.minimaxH3RefImageSize || "match",
-      seed: options.seed ?? node.dataset.minimaxH3Seed ?? "",
+      // 种子不再提供界面入口：新建、恢复与复制一律回到随机，已保存的具体种子不再沿用。
+      seed: "",
+      mode: options.mode ?? node.dataset.minimaxH3Mode ?? "reference",
     };
   }
 
@@ -23,6 +28,7 @@
     const document = context.document || globalThis.document;
     const {
       CANVAS_GENERATION_FAMILIES,
+      MINIMAX_H3_LOCAL_MODELS,
       MINIMAX_H3_ASPECT_RATIOS,
       closeCanvasH3MentionMenu,
       createCanvasH3Number,
@@ -52,12 +58,14 @@
     const previous = normalizePrevious(node, options, context);
     node.innerHTML = "";
     node.dataset.minimaxH3Prompt = String(previous.prompt || "");
+    node.dataset.minimaxH3Model = String(previous.modelId || "minimax-h3");
     node.dataset.minimaxH3AspectRatio = previous.aspectRatio;
     node.dataset.minimaxH3Megapixels = String(previous.megapixels);
     node.dataset.minimaxH3Steps = String(previous.steps);
     node.dataset.minimaxH3Duration = String(previous.duration);
     node.dataset.minimaxH3RefImageSize = previous.refImageSize;
     node.dataset.minimaxH3Seed = String(previous.seed ?? "");
+    node.dataset.minimaxH3Mode = String(previous.mode || "reference");
 
     const inputPort = createCanvasPort("input");
     const outputPort = createCanvasPort("output");
@@ -101,6 +109,10 @@
 
     const controls = document.createElement("div");
     controls.className = "canvas-h3-controls";
+    const modelChoices = (Array.isArray(MINIMAX_H3_LOCAL_MODELS) && MINIMAX_H3_LOCAL_MODELS.length
+      ? MINIMAX_H3_LOCAL_MODELS
+      : [["minimax-h3", "MiniMax H3"]]);
+    const model = createCanvasH3Select("模型", modelChoices, previous.modelId, "minimaxH3Model", node);
     const aspectRatio = createCanvasH3Select("画幅", [
       ["1:1", "1:1 方形"],
       ["2:3", "2:3 竖版照片"],
@@ -128,7 +140,54 @@
     ], previous.refImageSize, "minimaxH3RefImageSize", node);
     const duration = createCanvasH3Number("时长（秒）", previous.duration, 5, 15, 1, "minimaxH3Duration", node);
     const seed = createCanvasH3Number("种子（留空随机）", previous.seed, 0, Number.MAX_SAFE_INTEGER, 1, "minimaxH3Seed", node, true);
-    controls.append(aspectRatio, megapixels, steps, refImageSize, duration, seed);
+    // 生成方式：全能参考走多样参考工作流，文生视频/首帧/首尾帧走文图首尾帧工作流。
+    const modeSwitch = document.createElement("div");
+    modeSwitch.className = "canvas-h3-mode-switch";
+    modeSwitch.setAttribute("role", "radiogroup");
+    modeSwitch.setAttribute("aria-label", "生成方式");
+    const H3_MODE_OPTIONS = [
+      ["reference", "全能参考"],
+      ["text", "文生视频"],
+      ["first", "首帧"],
+      ["last", "首尾帧"],
+    ];
+    const syncModeSwitch = () => {
+      const current = node.dataset.minimaxH3Mode || "reference";
+      modeSwitch.querySelectorAll("[data-h3-mode]").forEach((button) => {
+        const active = button.dataset.h3Mode === current;
+        button.classList.toggle("is-active", active);
+        button.setAttribute("aria-checked", String(active));
+        button.tabIndex = active ? 0 : -1;
+      });
+    };
+    H3_MODE_OPTIONS.forEach(([value, label]) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "canvas-h3-mode";
+      button.dataset.h3Mode = value;
+      button.setAttribute("role", "radio");
+      button.setAttribute("aria-checked", "false");
+      button.textContent = label;
+      button.addEventListener("click", () => {
+        if (node.dataset.minimaxH3Mode === value) return;
+        node.dataset.minimaxH3Mode = value;
+        syncModeSwitch();
+        node.dispatchEvent(new CustomEvent("canvas-h3-mode-change", { bubbles: true, detail: { node, mode: value } }));
+        scheduleCanvasSave?.();
+      });
+      modeSwitch.append(button);
+    });
+    syncModeSwitch();
+    // 操作区按 data-h3-param 分组：模型留在底排，视频参数进弹层，
+    // 参考图与种子只保留取值字段。
+    model.dataset.h3Param = "model";
+    aspectRatio.dataset.h3Param = "aspectRatio";
+    megapixels.dataset.h3Param = "megapixels";
+    steps.dataset.h3Param = "steps";
+    refImageSize.dataset.h3Param = "refImageSize";
+    duration.dataset.h3Param = "duration";
+    seed.dataset.h3Param = "seed";
+    controls.append(model, aspectRatio, megapixels, steps, refImageSize, duration, seed, modeSwitch);
     [aspectRatio, megapixels].forEach((field) => {
       field.querySelector("select")?.addEventListener("change", () => updateCanvasH3ResolutionHint(node));
     });

@@ -1,7 +1,7 @@
 "use strict";
 
 const { inferModelConfiguration, normalizeProviderBaseUrl } = require("./provider-model-rules");
-const { presentTestResult } = require("./provider-test-result");
+const { presentTestResult, safeImageSource } = require("./provider-test-result");
 const { analyzeProviderAgentCoverage } = require("./provider-agent-coverage");
 
 const TEST_INTENTS = Object.freeze({
@@ -10,6 +10,8 @@ const TEST_INTENTS = Object.freeze({
   "/api/providers/test-video": "video.generate",
   "/api/providers/test-audio": "audio.generate",
   "/api/providers/test-vision": "llm.chat.vision",
+  "/api/providers/test-image-edit": "image.edit",
+  "/api/providers/test-tools": "llm.tools",
 });
 
 const STATIC_PROVIDER_PATHS = new Set([
@@ -22,6 +24,8 @@ const STATIC_PROVIDER_PATHS = new Set([
   "/api/providers/models",
   "/api/providers/agent-coverage",
   "/api/providers/agent-settings",
+  "/api/providers/generate-audio",
+  "/api/providers/audio-models",
   ...Object.keys(TEST_INTENTS),
   "/api/protocols",
   "/api/protocols/custom",
@@ -61,6 +65,53 @@ const SENSITIVE_KEYS = new Set([
 
 function httpError(code, message, statusCode = 400, details = {}) {
   return Object.assign(new Error(message), { code, statusCode, ...details });
+}
+
+function diagnosticErrorMessage(error) {
+  const messages = {
+    UPSTREAM_AUTH: "上游拒绝了身份验证，请检查密钥是否正确、是否过期，以及模型访问权限。",
+    UPSTREAM_RATE_LIMIT: "上游请求过于频繁，请稍后重试或检查服务限额。",
+    UPSTREAM_QUOTA_EXHAUSTED: "上游账户余额或额度不足，请检查账户余额和模型额度。",
+    UPSTREAM_TIMEOUT: "等待上游响应超时，请检查 API 地址、网络线路或服务状态。",
+    UPSTREAM_TASK_FAILED: "上游生成任务失败，请检查提示词、模型权限和平台任务记录。",
+    REQUEST_ABORTED: "已停止等待，请查看平台任务记录确认任务状态。",
+    invalid_provider_model: "尚未选择测试模型，请填写有效的模型 ID。",
+    provider_model_not_found: "当前草稿没有此模型，请重新选择后测试。",
+  };
+  if (messages[error?.code]) return messages[error.code];
+  const reason = String(error?.safeMessage || error?.message || "");
+  if (/[\u3400-\u9fff]/.test(reason)) return /请/.test(reason) ? reason : `${reason}请检查模型设置与服务状态。`;
+  return "模型测试失败，请检查 API 地址、密钥、模型协议和参数后重试。";
+}
+
+function prepareDiagnosticInput(raw, intent) {
+  const input = raw && typeof raw === "object" && !Array.isArray(raw) ? { ...raw } : { prompt: "请回复测试成功" };
+  if (["llm.chat.vision", "image.edit"].includes(intent)) {
+    const images = Array.isArray(input.inputImages) ? input.inputImages : [];
+    const messageImages = (Array.isArray(input.messages) ? input.messages : [])
+      .flatMap(message => Array.isArray(message?.content) ? message.content : [])
+      .map(part => part?.image_url?.url || part?.image_url || (part?.type === "input_image" ? part.image_url || part.url : ""))
+      .filter(Boolean);
+    const references = intent === "image.edit" ? images : [...images, ...messageImages];
+    if (!references.length) throw httpError("provider_test_reference_required", "此能力需要真实图片素材，请添加测试参考图。");
+    if (references.some(image => !safeImageSource(image) || !String(image).startsWith("data:image/"))) {
+      throw httpError("provider_test_reference_invalid", "图片素材格式无效，请使用 PNG、JPEG、WebP、GIF 或 AVIF 图片重新上传。");
+    }
+    if (intent === "llm.chat.vision" && images.length) {
+      const messages = Array.isArray(input.messages) && input.messages.length ? input.messages.map(message => ({ ...message })) : [{ role: "user", content: String(input.prompt || "请描述参考图") }];
+      const index = messages.findLastIndex(message => message.role === "user");
+      if (index < 0) messages.push({ role: "user", content: [] });
+      const target = messages[index < 0 ? messages.length - 1 : index];
+      target.content = [...(Array.isArray(target.content) ? target.content : [{ type: "text", text: String(target.content || input.prompt || "请描述参考图") }]), ...images.filter(image => !messageImages.includes(image)).map(image => ({ type: "image_url", image_url: { url: image } }))];
+      input.messages = messages;
+    }
+  }
+  if (intent === "llm.tools") {
+    if (!Array.isArray(input.tools) || !input.tools.length) input.tools = [{ type: "function", function: { name: "ping", description: "执行一次测试工具调用", parameters: { type: "object", properties: {}, additionalProperties: false } } }];
+    input.prompt ||= "请调用 ping 工具完成测试。";
+    input.toolChoice ||= "required";
+  }
+  return input;
 }
 
 function requestPath(req) {
@@ -117,12 +168,20 @@ function enabledProviderIdFromPath(pathname) {
   catch { return ""; }
 }
 
+function secretProviderIdFromPath(pathname) {
+  const match = pathname.match(/^\/api\/providers\/([^/]+)\/secret$/);
+  if (!match) return "";
+  try { return decodeURIComponent(match[1]); }
+  catch { return ""; }
+}
+
 function isRecognizedPath(pathname) {
   return STATIC_PROVIDER_PATHS.has(pathname)
     || JIMENG_PATHS.has(pathname)
     || /^\/api\/protocols\/custom\/[^/]+$/.test(pathname)
     || Boolean(providerIdFromPath(pathname))
     || Boolean(enabledProviderIdFromPath(pathname))
+    || Boolean(secretProviderIdFromPath(pathname))
     || pathname === "/api/settings/providers/key";
 }
 
@@ -173,6 +232,7 @@ function createProviderHttpApi({
   readCatalogRevision = () => 0,
   assertAvailable = () => true,
   agentModelSettings = null,
+  persistGeneratedAudio = null,
 } = {}) {
   if (!store || typeof store.listPublic !== "function" || typeof store.reveal !== "function") {
     throw new TypeError("Provider HTTP API requires a compatible Provider Store.");
@@ -230,7 +290,8 @@ function createProviderHttpApi({
     }
     const merged = { ...(stored || {}), ...(draft || {}), id: providerId || draft?.id };
     merged.protocol = registry.platformProtocolId?.(merged.protocol || merged.providerProtocol) || merged.protocol || merged.providerProtocol;
-    if (!draft?.apiKey || isMaskedSecret(draft.apiKey)) merged.apiKey = stored?.apiKey || "";
+    if (draft?.clearApiKey === true) merged.apiKey = "";
+    else if (!Object.hasOwn(draft || {}, "apiKey") || isMaskedSecret(draft.apiKey)) merged.apiKey = stored?.apiKey || "";
     if (!draft?.walletKey || isMaskedSecret(draft.walletKey)) merged.walletKey = stored?.walletKey || "";
     merged.apiKey = String(merged.apiKey || "").trim();
     merged.walletKey = String(merged.walletKey || "").trim();
@@ -248,48 +309,6 @@ function createProviderHttpApi({
     const model = (provider.models || []).find((item) => item.id === id);
     if (!model) throw httpError("provider_model_not_found", "Provider model was not found.", 404);
     return model;
-  }
-
-  function validateProviderTestResult(result, intent) {
-    const llmIntent = String(intent || "").startsWith("llm.");
-    if (llmIntent) {
-      const meaningful = value => {
-        if (typeof value === "string") return Boolean(value.trim());
-        if (Array.isArray(value)) return value.some(meaningful);
-        if (!value || typeof value !== "object") return false;
-        return ["text", "content", "output", "response", "answer"].some(key => meaningful(value[key]))
-          || Boolean(value.message && typeof value.message === "object" && meaningful(value.message));
-      };
-      const toolCalls = Array.isArray(result?.toolCalls) ? result.toolCalls : Array.isArray(result?.tool_calls) ? result.tool_calls : [];
-      const hasChoices = Array.isArray(result?.choices) && result.choices.some(choice => meaningful(choice));
-      const hasCandidates = Array.isArray(result?.candidates) && result.candidates.some(candidate => meaningful(candidate));
-      if (!meaningful(result) && !hasChoices && !hasCandidates && !toolCalls.length) {
-        throw httpError("provider_test_invalid_response", "上游已响应，但没有返回可用的 LLM 内容；请检查模型协议和模型 ID。", 502);
-      }
-      return;
-    }
-    if (String(intent || "").startsWith("image.")) {
-      const imageLeafKeys = new Set(["url", "image_url", "imageUrl", "imageURL", "fileUrl", "fileURL", "outputUrl", "b64_json", "b64", "image_base64", "imageBase64"]);
-      const imageContainerKeys = new Set(["data", "images", "image", "result", "results", "output", "outputs", "response"]);
-      const hasImageValue = (value, key = "") => {
-        if (typeof value === "string") {
-          const text = value.trim();
-          if (!text) return false;
-          return imageLeafKeys.has(key) || /^https?:\/\/|^data:image\//i.test(text);
-        }
-        if (Array.isArray(value)) return value.some(item => hasImageValue(item, key));
-        if (!value || typeof value !== "object") return false;
-        if (["task_id", "taskId"].some(name => String(value[name] || "").trim())) return true;
-        return Object.entries(value).some(([entryKey, entryValue]) => (
-          imageLeafKeys.has(entryKey) || imageContainerKeys.has(entryKey)
-            ? hasImageValue(entryValue, entryKey)
-            : (entryValue && typeof entryValue === "object" && hasImageValue(entryValue, entryKey))
-        ));
-      };
-      if (!hasImageValue(result)) {
-        throw httpError("provider_test_invalid_response", "上游已响应，但没有返回图片或任务编号；请检查图片模型协议和模型 ID。", 502);
-      }
-    }
   }
 
   function requireJimengCli() {
@@ -334,20 +353,79 @@ function createProviderHttpApi({
   async function handle(req, res) {
     const pathname = requestPath(req);
     if (!isRecognizedPath(pathname)) return false;
+    const secretProviderId = secretProviderIdFromPath(pathname);
+    if (secretProviderId) res.setHeader("Cache-Control", "no-store");
     let auth;
     let payload = {};
     let secrets = [];
+    let testStarted = 0;
     try {
       if (pathname === "/api/settings/providers/key") {
         auth = await authorize(req);
         publicSend(res, 410, { error: "Provider keys are no longer returned to browsers.", code: "provider_key_reveal_removed" });
         return true;
       }
-      auth = await authorize(req);
+      auth = ["/api/providers/generate-audio", "/api/providers/audio-models"].includes(pathname) ? await requireSignedIn(req) : await authorize(req);
       availabilityCheck();
+      if (secretProviderId && req.method === "POST") {
+        const provider = revealProvider(secretProviderId);
+        sendJson(res, 200, { apiKey: String(provider.apiKey || "") });
+        return true;
+      }
       if (!["GET", "DELETE"].includes(String(req.method || "").toUpperCase())) {
         payload = await readJson(req);
         secrets = [payload?.apiKey, payload?.walletKey, payload?.provider?.apiKey, payload?.provider?.walletKey].filter(Boolean);
+      }
+
+      if (pathname === "/api/providers/audio-models" && req.method === "GET") {
+        const models = [];
+        for (const provider of store.listPublic()) {
+          if (provider.enabled === false) continue;
+          for (const configuration of provider.models || []) {
+            const model = (registry.inferModelConfiguration || inferModelConfiguration)(configuration, provider);
+            if (!model.capabilities?.includes("audio.generate")) continue;
+            const parameterOverrides = sanitizeForBrowser(configuration.metadata?.parameterOverrides || {});
+            models.push({
+              id: `custom:${provider.id}:${Buffer.from(model.id).toString("base64url")}`,
+              providerId: provider.id, providerName: provider.name, modelId: model.id,
+              displayName: configuration.displayName || model.id,
+              capabilities: [...model.capabilities], modelProtocol: model.protocol || configuration.modelProtocol,
+              metadata: { parameterOverrides: { ...parameterOverrides } }, parameterOverrides,
+            });
+          }
+        }
+        publicSend(res, 200, { models, revision: Math.max(0, Number(readCatalogRevision()) || 0) });
+        return true;
+      }
+      if (pathname === "/api/providers/generate-audio" && req.method === "POST") {
+        if (["provider", "apiKey", "walletKey", "baseUrl", "protocol", "options"].some(key => Object.hasOwn(payload, key))) throw httpError("invalid_audio_input", "音频生成只能使用已保存的服务和模型配置。");
+        if (!String(payload.providerId || "").trim()) throw httpError("invalid_audio_input", "请先选择已保存的音频服务。");
+        const provider = revealProvider(payload.providerId);
+        secrets.push(provider.apiKey, provider.walletKey);
+        if (provider.enabled === false) throw httpError("provider_disabled", "此服务已停用，请选择其他音频模型。", 403);
+        const model = (provider.models || []).find(item => item.id === String(payload.modelId || "").trim());
+        if (!model) throw httpError("provider_model_not_found", "所选音频模型已移除，请重新选择。", 404);
+        if (!model.capabilities?.includes("audio.generate")) throw httpError("audio_capability_missing", "所选模型不支持音频生成。");
+        const prompt = String(payload.prompt || payload.input?.prompt || "").trim();
+        if (!prompt) throw httpError("invalid_audio_input", "请先输入要生成的音频内容。");
+        if (prompt.length > 4096) throw httpError("invalid_audio_input", "音频文本不能超过 4096 个字符。");
+        if (payload.reference_audio || payload.input?.reference_audio || payload.input?.inputAudio) throw httpError("audio_reference_unsupported", "当前音频协议尚不支持参考音频。");
+        const parameters = payload.parameters || payload.params || {};
+        if (!parameters || typeof parameters !== "object" || Array.isArray(parameters)) throw httpError("invalid_audio_input", "音频参数必须是有效的配置对象。");
+        const forbidden = new Set(["model", "intent", "input", "prompt", "apiKey", "api_key", "baseUrl", "authorization", "reference_audio", "url", "provider"]);
+        if (Object.keys(parameters).some(key => forbidden.has(key))) throw httpError("invalid_audio_input", "音频参数不能覆盖模型或连接配置。");
+        const result = await engine.execute(provider, model, "audio.generate", { prompt }, parameters);
+        const presented = presentTestResult(result, "audio.generate", 0, secrets);
+        if (presented.status !== "succeeded" || !presented.audios.length) throw httpError("audio_generation_failed", presented.status === "pending" ? "上游返回了未完成的音频任务，请在服务平台查询任务，避免重复提交。" : "音频生成没有返回可播放的文件，请检查模型协议、权限和参数。", 502);
+        let url = presented.audios[0];
+        const contentType = url.match(/^data:([^;]+);base64,/)?.[1] || "audio/mpeg";
+        if (typeof persistGeneratedAudio === "function" && url.startsWith("data:")) {
+          const persisted = await persistGeneratedAudio({ data: Buffer.from(url.split(",")[1], "base64"), contentType, auth });
+          url = typeof persisted === "string" ? persisted : persisted?.url;
+          if (!url) throw httpError("audio_save_failed", "音频已生成，但文件保存失败，请勿重复提交。", 500);
+        }
+        sendJson(res, 200, { audio: { url, contentType, modelId: model.id, providerId: provider.id } });
+        return true;
       }
 
       if (pathname === "/api/jimeng-cli/status" && req.method === "GET") {
@@ -405,9 +483,9 @@ function createProviderHttpApi({
       const enabledProviderId = enabledProviderIdFromPath(pathname);
       if (enabledProviderId && req.method === "POST") {
         const provider = store.setEnabled(enabledProviderId, Boolean(payload.enabled));
-        catalogChanged();
+        const catalogRevision = catalogChanged();
         audit(auth, "provider.enabled_changed", enabledProviderId, ["enabled"]);
-        publicSend(res, 200, { provider });
+        publicSend(res, 200, { provider, catalogRevision });
         return true;
       }
       const providerId = providerIdFromPath(pathname);
@@ -419,9 +497,9 @@ function createProviderHttpApi({
       }
       if (providerId && req.method === "DELETE") {
         if (!store.remove(providerId)) throw httpError("provider_not_found", "Provider was not found.", 404);
-        catalogChanged();
+        const catalogRevision = catalogChanged();
         audit(auth, "provider.deleted", providerId, ["id"]);
-        publicSend(res, 200, { ok: true, providerId });
+        publicSend(res, 200, { ok: true, providerId, catalogRevision });
         return true;
       }
       if (pathname === "/api/providers/reorder" && req.method === "POST") {
@@ -463,7 +541,7 @@ function createProviderHttpApi({
       if (pathname === "/api/providers/verify-protocol" && req.method === "POST") {
         const provider = mergeDraftProvider(payload, { validateModels: false });
         secrets.push(provider.apiKey, provider.walletKey);
-        const verified = await engine.verifyProtocol(provider, payload.options || {});
+        const verified = await engine.verifyProtocol(provider, { ...(payload.options || {}), suggestAlternatives: true });
         publicSend(res, 200, { ...verified, baseUrl: provider.baseUrl }, secrets);
         return true;
       }
@@ -516,25 +594,37 @@ function createProviderHttpApi({
         return true;
       }
       if (Object.hasOwn(TEST_INTENTS, pathname) && req.method === "POST") {
+        testStarted = Date.now();
         const provider = mergeDraftProvider(payload);
         const model = modelFor(provider, payload.modelId);
         const intent = TEST_INTENTS[pathname];
         if (Array.isArray(model.capabilities) && !model.capabilities.includes(intent)) {
-          throw httpError("provider_model_capability_missing", `The selected model does not support ${intent}.`);
+          throw httpError("provider_model_capability_missing", "所选模型未配置此测试能力，请先检查模型的能力标签。");
         }
         secrets.push(provider.apiKey, provider.walletKey);
-        const started = Date.now();
-        const result = await engine.execute(provider, model, intent, payload.input || { prompt: "ping" }, payload.params || {}, payload.options || {});
-        validateProviderTestResult(result, intent);
-        const test = presentTestResult(result, intent, Date.now() - started, secrets);
-        if (intent.startsWith("image.") && ["invalid", "failed"].includes(test.status)) {
-          throw httpError("provider_test_invalid_response", test.status === "failed"
-            ? "图片任务生成失败，请检查提示词、模型权限或平台任务记录。"
-            : "上游未返回可预览的图片或有效任务编号，请检查模型协议。", 502);
+        const input = prepareDiagnosticInput(payload.input, intent);
+        let submittedTask = null;
+        let result;
+        try {
+          result = await engine.execute(provider, model, intent, input, payload.params || {}, {
+            ...(payload.options || {}),
+            onTaskSubmitted: task => { submittedTask = task; },
+          });
+        } catch (error) {
+          if (error?.code === "UPSTREAM_TASK_PENDING" && submittedTask?.taskId) {
+            result = { task_id: submittedTask.taskId, status: "pending" };
+          } else {
+            if (submittedTask?.taskId) error.diagnosticTaskId = submittedTask.taskId;
+            throw error;
+          }
         }
-        // Diagnostic redaction truncates strings. Keep the whitelisted test
-        // presentation separate so replies and base64 images remain usable.
-        sendJson(res, 200, { result: sanitizeForBrowser(result, secrets), test });
+        const test = presentTestResult(result, intent, Date.now() - testStarted, secrets);
+        if (["invalid", "failed"].includes(test.status)) {
+          throw httpError(test.code || "provider_test_invalid_response", test.message, 502, { test });
+        }
+        // Only the presentation contract may cross the diagnostic boundary.
+        // Raw upstream data can contain credentials in encoded media URLs.
+        sendJson(res, 200, { test });
         return true;
       }
       if (pathname === "/api/protocols" && req.method === "GET") {
@@ -565,9 +655,20 @@ function createProviderHttpApi({
       return true;
     } catch (error) {
       const status = responseStatus(error, pathname);
+      const diagnostic = Object.hasOwn(TEST_INTENTS, pathname) || pathname === "/api/providers/verify-protocol";
+      const audioError = ["/api/providers/generate-audio", "/api/providers/audio-models"].includes(pathname);
+      const message = diagnostic ? diagnosticErrorMessage(error)
+        : audioError && error?.code === "provider_not_found" ? "所选音频服务已移除，请重新选择。"
+          : audioError && !/[\u4e00-\u9fff]/.test(error?.safeMessage || error?.message || "") ? "音频服务请求失败，请检查登录、连接配置和使用权限。"
+            : error?.safeMessage || error?.message || "Provider request failed.";
+      const test = Object.hasOwn(TEST_INTENTS, pathname) ? error?.test || {
+        ...presentTestResult(error?.diagnosticTaskId ? { task_id: error.diagnosticTaskId } : {}, TEST_INTENTS[pathname], testStarted ? Date.now() - testStarted : 0, secrets),
+        status: "failed", message: redactText(message, secrets), code: String(error?.code || "provider_request_failed"),
+      } : null;
       publicSend(res, status, {
-        error: redactText(error?.safeMessage || error?.message || "Provider request failed.", secrets),
+        error: redactText(message, secrets),
         code: String(error?.code || "provider_request_failed"),
+        ...(test ? { test } : {}),
         ...(status === 503 ? { recoverable: true } : {}),
       }, secrets);
       return true;

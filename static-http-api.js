@@ -83,25 +83,64 @@ function createStaticHttpApi({
     return matches[0]?.candidate || "";
   }
 
-  function serveOutput(urlPath, res) {
+  function serveFile(req, res, filePath, stats, headers) {
+    const total = stats.size;
+    const rangeHeader = String(req?.headers?.range || "");
+    const ifRange = String(req?.headers?.["if-range"] || "");
+    const modified = Math.floor(stats.mtimeMs / 1000) * 1000;
+    // Weak ETags cannot validate If-Range. A mismatch requests the whole file.
+    const rangeAllowed = !ifRange || (!ifRange.startsWith('"') && !ifRange.startsWith('W/')
+      && Date.parse(ifRange) >= modified);
+    const match = rangeAllowed ? /^bytes=(\d*)-(\d*)$/.exec(rangeHeader) : null;
+    let start = 0;
+    let end = total - 1;
+    let partial = false;
+    if (match && (match[1] || match[2])) {
+      partial = true;
+      if (match[1]) {
+        start = Number(match[1]);
+        end = match[2] ? Math.min(Number(match[2]), end) : end;
+      } else {
+        const suffix = Number(match[2]);
+        start = suffix > 0 ? Math.max(0, total - suffix) : total;
+      }
+      if (total === 0 || start >= total || end < start) {
+        res.writeHead(416, { ...headers, "Accept-Ranges": "bytes", "Content-Range": `bytes */${total}`, "Content-Length": 0 });
+        res.end();
+        return;
+      }
+    }
+    res.writeHead(partial ? 206 : 200, {
+      ...headers,
+      "Accept-Ranges": "bytes",
+      "Content-Length": partial ? end - start + 1 : total,
+      ...(partial ? { "Content-Range": `bytes ${start}-${end}/${total}` } : {}),
+    });
+    if (total === 0) { res.end(); return; }
+    const stream = fs.createReadStream(filePath, { start, end });
+    stream.on("error", () => res.destroy());
+    res.on("close", () => stream.destroy());
+    stream.pipe(res);
+  }
+
+  function serveOutput(urlPath, res, req = {}) {
     const filePath = resolveOutputPath(urlPath);
     if (!filePath) {
       sendJson(res, 403, { error: "Forbidden" });
       return;
     }
 
-    fs.readFile(filePath, (error, content) => {
-      if (error) {
+    fs.stat(filePath, (error, stats) => {
+      if (error || !stats.isFile()) {
         sendJson(res, 404, { error: "Not found" });
         return;
       }
       const ext = path.extname(filePath);
-      res.writeHead(200, {
+      serveFile(req, res, filePath, stats, {
         "Content-Type": mimeTypes[ext] || "application/octet-stream",
         "Cache-Control": "private, no-store",
         Vary: "Cookie",
       });
-      res.end(content);
     });
   }
 
@@ -164,6 +203,16 @@ function createStaticHttpApi({
         return;
       }
 
+      if (/^(video|audio)\//.test(mimeTypes[ext] || "")) {
+        serveFile(req, res, filePath, stats, {
+          "Content-Type": mimeTypes[ext],
+          "Cache-Control": cacheControl,
+          ETag: etag,
+          "Last-Modified": lastModified,
+        });
+        return;
+      }
+
       fs.readFile(filePath, (error, content) => {
         if (error) {
           sendJson(res, 404, { error: "Not found" });
@@ -193,7 +242,7 @@ function createStaticHttpApi({
         sendJson(res, 405, { error: "Method not allowed" });
         return true;
       }
-      serveOutput(requestPath, res);
+      serveOutput(requestPath, res, req);
     } catch (error) {
       sendAuthError(res, error);
     }

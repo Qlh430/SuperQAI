@@ -279,7 +279,7 @@ async function createStartupWindow() {
     frame: false,
     title: "正在启动 AI OS",
     icon: path.join(__dirname, "icon.ico"),
-    backgroundColor: "#eef3f8",
+    backgroundColor: "#080a0e",
     webPreferences: {
       sandbox: true,
       contextIsolation: true,
@@ -356,7 +356,7 @@ async function createWindow({ startupError = "" } = {}) {
     show: false,
     title: "AI OS",
     icon: path.join(__dirname, "icon.ico"),
-    backgroundColor: "#dbe8f4",
+    backgroundColor: "#080a0e",
     autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),

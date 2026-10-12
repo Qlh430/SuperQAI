@@ -1059,6 +1059,19 @@ function createProtocolEngine({ registry = createProtocolRegistry(), fetchImpl, 
       if (isQuotaRejection(response.status, payload)) {
         throw errorForStatus(response.status, text, provider, model);
       }
+      // Keep application failures and asynchronous submission evidence through
+      // parsing. A successful HTTP response alone is not a completed generation.
+      const diagnosticPayload = Array.isArray(payload?.data)
+        ? payload.data.find(item => item && typeof item === "object" && (item.task_id || item.taskId || item.status || item.state || item.error)) || payload
+        : payload?.data && typeof payload.data === "object" ? payload.data : payload;
+      const diagnosticState = String(diagnosticPayload?.status || diagnosticPayload?.state || payload?.status || payload?.state || "").toLowerCase();
+      const diagnosticCode = Number(diagnosticPayload?.code ?? diagnosticPayload?.statusCode ?? payload?.code ?? payload?.statusCode ?? 0);
+      if (payload?.error || diagnosticPayload?.error || payload?.success === false || diagnosticPayload?.success === false
+        || (Number.isFinite(diagnosticCode) && diagnosticCode !== 0 && !(diagnosticCode >= 200 && diagnosticCode < 300))
+        || ["failed", "fail", "failure", "error", "cancelled", "canceled", "violation", "rejected"].includes(diagnosticState)) {
+        throw new ProtocolEngineError({ code: "UPSTREAM_TASK_FAILED", providerId: String(provider?.id || ""), modelId: modelIdOf(model), retryable: false,
+          safeMessage: "上游返回了失败结果，请检查模型权限、请求参数和平台任务记录。" });
+      }
       const wrappedPayload = payload?.data
         && !Array.isArray(payload.data)
         && typeof payload.data === "object"
@@ -1067,7 +1080,10 @@ function createProtocolEngine({ registry = createProtocolRegistry(), fetchImpl, 
         ? payload.data
         : payload;
       const parsed = parseResult(request.parse, request.parse === "openai-image" ? payload : wrappedPayload);
-      if (Object.hasOwn(parsed, "data")) return parsed;
+      if (Object.hasOwn(parsed, "data")) {
+        const taskId = diagnosticPayload?.task_id || diagnosticPayload?.taskId || diagnosticPayload?.task?.id || payload?.task_id || payload?.taskId || payload?.task?.id;
+        return { ...parsed, ...(taskId ? { task_id: String(taskId) } : {}), ...(diagnosticState ? { status: diagnosticState } : {}) };
+      }
       return {
         text: parsed.text,
         usage: parsed.usage,

@@ -3,6 +3,7 @@
 const { joinProtocolUrl } = require("./provider-protocol-registry");
 const { providerHasHost, imageResolution, serializedImages, normalizeImageResultData } = require("./media-image-contract");
 const { isQuotaRejection } = require("./provider-response-errors");
+const MidjourneyParameterRules = require("./midjourney-parameter-rules");
 
 function providerBaseUrl(provider) {
   return String(provider?.baseUrl || "").trim()
@@ -23,8 +24,7 @@ function upstreamModelId(model) {
 }
 
 function isMidjourneyModel(model) {
-  const protocol = String(model?.protocol || model?.modelProtocol || "").trim().toLowerCase();
-  return protocol === "midjourney" || protocol === "apimart-midjourney" || /midjourney|^mj(?:[-_]|$)/i.test(modelId(model));
+  return MidjourneyParameterRules.isMidjourney(model);
 }
 
 // Midjourney hands work to three different endpoints: imagine takes a prompt
@@ -45,17 +45,18 @@ function midjourneyOperation(params = {}) {
   return "imagine";
 }
 
-function midjourneyRequestBody(operation, prompt, params = {}, images = []) {
+function midjourneyRequestBody(operation, prompt, params = {}, images = [], model = {}) {
   const size = normalizeApimartSize(params.size);
-  const extra = Object.fromEntries(
-    ["version", "niji", "speed", "style", "stylize", "hd"]
-      .filter((key) => params[key] !== undefined)
-      .map((key) => [key, params[key]]),
-  );
+  // Shared with the browser: typed values are checked before any paid POST;
+  // unsupported old options cannot leak through metadata defaults or params.
+  const validationValues = operation === "blend"
+    ? { ...params, ...Object.fromEntries(["quality", "raw", "stylize", "chaos", "weird", "iw", "seed", "tile", "draft", "hd", "stop", "repeat"].map(key => [key, ""])) }
+    : params;
+  const extra = MidjourneyParameterRules.payload(model, validationValues, { hasImages: images.length > 0 });
   if (operation === "blend") {
     return {
       size,
-      ...(params.speed !== undefined ? { speed: params.speed } : {}),
+      ...(extra.speed !== undefined ? { speed: extra.speed } : {}),
       image_urls: images,
     };
   }
@@ -159,7 +160,7 @@ async function responseJson(response) {
     });
   }
   const serviceCode = Number(data?.code || data?.statusCode || 0);
-  if (!response.ok || (serviceCode && ![0, 200].includes(serviceCode)) || data?.success === false) {
+  if (!response.ok || (serviceCode && !(serviceCode >= 200 && serviceCode < 300)) || data?.success === false) {
     const message = String(data?.error?.message || data?.error || data?.message || `${response.status} ${response.statusText}`);
     throw Object.assign(new Error(message), {
       code: errorCodeForStatus(response.ok ? serviceCode || 400 : response.status),
@@ -332,7 +333,9 @@ function createMediaProtocolAdapters({ wait = defaultWait, maxPolls = 150, execu
       const baseUrl = providerBaseUrl(provider);
       const images = await serializedImages(input);
       if (intent === "image.edit" && !images.length) throw Object.assign(new Error("Image edit requires at least one prepared reference image."), { code: "UPSTREAM_PROTOCOL", retryable: false });
-      const midjourney = isMidjourneyModel(model);
+      const parameterModel = { ...model, providerProtocol: model?.providerProtocol || provider?.protocol || provider?.providerProtocol,
+        providerHost: model?.providerHost || providerBaseUrl(provider) };
+      const midjourney = isMidjourneyModel(parameterModel);
       const apib = providerHasHost(provider, "apib.ai") && !midjourney;
       const midjourneyMode = midjourney ? midjourneyOperation(params) : "";
       const midjourneyImages = midjourney ? images.slice(0, 4) : images;
@@ -343,7 +346,7 @@ function createMediaProtocolAdapters({ wait = defaultWait, maxPolls = 150, execu
         fetch,
         joinProtocolUrl(baseUrl, midjourney ? MIDJOURNEY_ENDPOINTS[midjourneyMode] : "/v1/images/generations"),
         provider,
-        midjourney ? midjourneyRequestBody(midjourneyMode, String(input.prompt || ""), params, midjourneyImages) : {
+        midjourney ? midjourneyRequestBody(midjourneyMode, String(input.prompt || ""), params, midjourneyImages, parameterModel) : {
           model: upstreamModelId(model),
           prompt: String(input.prompt || ""),
           n: Math.max(1, Math.min(4, Number(params.n || 1))),
@@ -418,6 +421,45 @@ function createMediaProtocolAdapters({ wait = defaultWait, maxPolls = 150, execu
         ...input,
         ...params,
       }, options);
+    },
+  };
+
+  const audio = {
+    async execute(request) {
+      const { provider, model, intent, input = {}, params = {}, options = {}, fetch } = request;
+      if (intent !== "audio.generate") throw new Error("音频协议不支持当前生成能力。");
+      if (!["audio-speech", "audio.speech"].includes(String(model.protocol || model.modelProtocol))) return generic.execute(request);
+      if (input.reference_audio || input.inputAudio) throw new Error("当前语音合成协议不支持参考音频。");
+      const voice = typeof params.voice === "string" ? params.voice.trim() : "";
+      if (!voice) throw Object.assign(new Error("请在模型配置或生成参数中填写此服务支持的声音 ID。"), { code: "UPSTREAM_PROTOCOL", retryable: false });
+      const format = String(params.response_format || "mp3");
+      if (!["mp3", "opus", "aac", "flac", "wav", "pcm"].includes(format)) throw new Error("所选音频格式不受语音合成协议支持。");
+      if (format === "pcm") throw new Error("原始 PCM 没有可播放的文件头，请选择 WAV 或其他音频格式。");
+      const body = { model: upstreamModelId(model), input: String(input.prompt || ""), voice, response_format: format };
+      if (params.speed !== undefined) {
+        const speed = Number(params.speed);
+        if (!Number.isFinite(speed) || speed < 0.25 || speed > 4) throw new Error("语速必须在 0.25 到 4 之间。");
+        body.speed = speed;
+      }
+      if (params.instructions !== undefined && !/^tts-1(?:-hd)?$/.test(upstreamModelId(model))) body.instructions = String(params.instructions);
+      const response = await fetch(joinProtocolUrl(providerBaseUrl(provider), "/v1/audio/speech"), {
+        method: "POST", headers: headersFor(provider), body: JSON.stringify(body), signal: options.signal,
+        outbound: {
+          mode: provider?.networkMode || provider?.metadata?.networkMode || provider?.metadata?.legacyNetworkMode || "auto",
+          requestClass: "billable", purpose: "model-execution", providerId: String(provider?.id || ""),
+        },
+      });
+      const contentType = String(response.headers.get("content-type") || "").split(";")[0].toLowerCase();
+      if (!response.ok || /json/.test(contentType)) return responseJson(response);
+      const types = { mp3: "audio/mpeg", opus: "audio/ogg", aac: "audio/aac", flac: "audio/flac", wav: "audio/wav" };
+      if (contentType && !/^audio\/(?:mpeg|mp3|wav|x-wav|ogg|opus|aac|flac)$/.test(contentType) && contentType !== "application/octet-stream") throw new Error("语音接口没有返回可播放的音频文件。");
+      const limit = 23 * 1024 * 1024;
+      const chunks = []; let length = 0;
+      if (Number(response.headers.get("content-length")) > limit) { await response.body?.cancel(); throw new Error("返回的音频文件超过 24 MB，请缩短文本。"); }
+      for await (const chunk of response.body) { length += chunk.length; if (length > limit) throw new Error("返回的音频文件超过 24 MB，请缩短文本。"); chunks.push(Buffer.from(chunk)); }
+      if (!length) throw new Error("语音接口返回了空音频文件。");
+      const mime = /^audio\//.test(contentType) ? contentType : types[format];
+      return { audio_base64: Buffer.concat(chunks).toString("base64"), mime_type: mime };
     },
   };
 
@@ -529,7 +571,7 @@ function createMediaProtocolAdapters({ wait = defaultWait, maxPolls = 150, execu
     comfyui,
     runninghub: generic,
     "video-adapter": generic,
-    "audio-adapter": generic,
+    "audio-adapter": audio,
     "jimeng-cli": jimengCli,
   });
 }

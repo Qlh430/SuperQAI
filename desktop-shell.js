@@ -237,6 +237,8 @@
     clearAppImmersive();
     state.manager?.closeAll();
     state.activeWindowId = null;
+    state.inlineAppId = null;
+    state.inlineRevision = (state.inlineRevision || 0) + 1;
     shellNodes.forEach((node) => { node.hidden = true; });
     state.manager = window.AiOsWindowManager.createWindowManager({
       storage: localStorage,
@@ -381,6 +383,11 @@
   function openApp(appId, params) {
     if (!state.session || !state.manager || !state.runtime) return null;
     if (appId === "launcher") { toggleLaunchpad(); return null; }
+    if (["canvas", "shared", "settings", "records", "accounts"].includes(appId) && el("#aiOsInlineWorkspace")) {
+      state.manager.getSnapshot().windows.filter((item) => ["canvas", "shared", "settings"].includes(item.appId)).forEach((item) => closeWindow(item.id));
+      showInlineApp(appId);
+      return null;
+    }
     const manifest = state.runtime.listVisible().find((app) => app.id === appId);
     if (!manifest) { toast("你没有权限打开此应用。"); return null; }
     if (!bridgeIsReady() && !getLegacyView(appId)) {
@@ -400,6 +407,7 @@
       renderWindows(state.manager.getSnapshot());
       mountWindow(windowState, params);
       focusWindow(windowState.id);
+      if (["image", "chat"].includes(appId)) setAppImmersive(appId, true);
       void prepareAppComponents(appId, windowState.id);
       if (wasActive) emitLaunchParams(appId);
       return windowState;
@@ -407,6 +415,10 @@
   }
 
   function toggleDockApp(appId) {
+    if (["canvas", "shared", "settings", "records", "accounts"].includes(appId) && el("#aiOsInlineWorkspace")) {
+      openApp(appId);
+      return null;
+    }
     const existing = state.manager?.getSnapshot().windows.find((item) => item.appId === appId);
     if (!existing) return openApp(appId);
     if (!existing.minimized && state.activeWindowId === existing.id && state.manager.isReachable(existing.id)) {
@@ -494,8 +506,9 @@
         shellNodes.set(windowState.id, node);
         layer.appendChild(node);
       }
-      node.hidden = windowState.minimized;
+      node.hidden = windowState.minimized || (el("#aiOsInlineWorkspace") && ["canvas", "shared", "settings", "records", "accounts"].includes(windowState.appId));
       node.dataset.windowId = windowState.id;
+      node.dataset.appId = windowState.appId;
       node.style.transform = `translate(${windowState.x}px, ${windowState.y}px)`;
       node.style.width = `${windowState.width}px`;
       node.style.height = `${windowState.height}px`;
@@ -550,7 +563,7 @@
       button.addEventListener("click", (event) => {
       event.stopPropagation();
       const id = node.dataset.windowId;
-      if (button.dataset.windowAction === "close") closeWindow(id);
+      if (button.dataset.windowAction === "close") { if (node.classList.contains("is-immersive")) { clearAppImmersive(id); state.manager?.minimize(id); } else closeWindow(id); }
       if (button.dataset.windowAction === "minimize") state.manager?.minimize(id);
       if (button.dataset.windowAction === "maximize") state.manager?.toggleMaximize(id);
       });
@@ -664,21 +677,92 @@
   function syncDesktopHome(snapshot) {
     const home = el("#aiOsDesktopHome");
     if (!home) return;
-    const hasVisibleWindow = (snapshot?.windows || []).some((windowState) => !windowState.minimized);
+    const hasVisibleWindow = (snapshot?.windows || []).some((windowState) => !windowState.minimized && !["canvas", "shared", "settings", "records", "accounts"].includes(windowState.appId));
     home.hidden = hasVisibleWindow;
+  }
+
+  async function showInlineApp(appId) {
+    const overview = el("#aiOsHomeOverview");
+    const workspace = el("#aiOsInlineWorkspace");
+    if (!overview || !workspace || !state.runtime) return;
+    if (!state.runtime.listVisible().some((app) => app.id === appId)) {
+      toast("你没有权限打开此页面。");
+      return;
+    }
+    const revision = (state.inlineRevision || 0) + 1;
+    state.inlineRevision = revision;
+    const runtime = state.runtime;
+    const previous = state.inlineAppId;
+    if (previous && previous !== appId) {
+      try { runtime.deactivate(previous); } catch {}
+    }
+    overview.hidden = true;
+    workspace.hidden = false;
+    workspace.dataset.appId = appId;
+    workspace.setAttribute("aria-busy", "true");
+    document.querySelectorAll(".ai-os-home-nav").forEach((item) => {
+      const active = item.dataset.homeApp === appId;
+      item.classList.toggle("is-active", active);
+      if (active) item.setAttribute("aria-current", "page");
+      else item.removeAttribute("aria-current");
+    });
+    try {
+      const result = await window.AiOsModuleLoader?.ensure?.(APP_COMPONENT_DEPENDENCIES[appId] || []);
+      if (revision !== state.inlineRevision || runtime !== state.runtime) return;
+      if (result?.ok === false) throw new Error("页面组件加载失败，请重试。");
+      const record = runtime.mount(appId, { instanceId: `inline-${appId}`, container: workspace });
+      if (!record?.node) throw new Error("页面内容尚未准备好，请重试。");
+      workspace.replaceChildren(record.node);
+      record.node.classList.add(`neon-page-${appId}`);
+      const pageLabels = { canvas: "项目", shared: "素材", records: "历史记录", settings: "设置", accounts: "账户" };
+      const pageChrome = document.createElement("header");
+      pageChrome.className = "neon-page-chrome";
+      pageChrome.innerHTML = `<button type="button" class="neon-page-back" aria-label="返回首页"><i data-lucide="arrow-left" aria-hidden="true"></i><span>返回首页</span></button><span class="neon-page-location">${pageLabels[appId] || "工作区"}</span>`;
+      workspace.prepend(pageChrome);
+      window.lucide?.createIcons?.({ attrs: { "aria-hidden": "true", "stroke-width": 1.8 } });
+      record.container = workspace;
+      record.node.hidden = false;
+      state.inlineAppId = appId;
+      if (appId === "canvas") launchParams.set(appId, { screen: "library" });
+      runtime.activate(appId);
+      if (appId === "settings") {
+        // The settings factory exists only after its module has loaded.
+        const settingsApp = ensureSettingsApp();
+        if (!settingsApp) throw new Error("设置组件尚未准备好，请重试。");
+        await settingsApp.initialize?.();
+        if (revision === state.inlineRevision) await settingsApp.load?.();
+      }
+    } catch (error) {
+      if (revision !== state.inlineRevision) return;
+      toast(error.message || "页面加载失败，请重试。");
+      const notice = document.createElement("div");
+      notice.className = "ai-os-inline-error";
+      notice.setAttribute("role", "alert");
+      const message = document.createElement("p");
+      message.textContent = error.message || "页面加载失败。";
+      const retry = document.createElement("button");
+      retry.type = "button";
+      retry.textContent = "重新加载";
+      retry.addEventListener("click", () => showInlineApp(appId));
+      notice.append(message, retry);
+      workspace.append(notice);
+    } finally {
+      if (revision === state.inlineRevision) workspace.removeAttribute("aria-busy");
+    }
   }
 
   function renderDesktopHome() {
     const host = el("#aiOsDesktopHomeApps");
     if (!host || !state.runtime) return;
-    host.innerHTML = state.runtime.listVisible().map((app) => {
-      const meta = HOME_APP_META[app.id] || { summary: "打开应用" };
-      return `<button class="ai-os-home-app" type="button" data-home-app="${app.id}" aria-label="打开${app.label}"><span class="ai-os-home-app-icon" aria-hidden="true"><i data-lucide="${manifestFor(app.id).icon}"></i></span><span class="ai-os-home-app-copy"><strong>${app.label}</strong><small>${meta.summary}</small></span><i class="ai-os-home-app-arrow" data-lucide="arrow-up-right" aria-hidden="true"></i></button>`;
-    }).join("");
+    state.manager?.getSnapshot().windows.filter((item) => ["canvas", "shared", "settings", "records", "accounts"].includes(item.appId)).forEach((item) => closeWindow(item.id));
+    const apps = state.runtime.listVisible();
+    const appButton = (app, extra = "") => `<button class="neon-home-card ${extra}" type="button" data-home-app="${app.id}" aria-label="打开${app.label}"><span class="neon-home-card-icon" aria-hidden="true"><i data-lucide="${manifestFor(app.id).icon}"></i></span><span class="neon-home-card-copy"><strong>${app.label}</strong><small>${(HOME_APP_META[app.id] || { summary: "打开应用" }).summary}</small></span><i class="neon-home-card-arrow" data-lucide="arrow-up-right" aria-hidden="true"></i></button>`;
+    const quick = apps.filter((app) => ["image", "chat", "records", "shared"].includes(app.id));
+    const admin = apps.filter((app) => ["accounts", "settings"].includes(app.id));
+    host.innerHTML = `<div class="neon-app-shell"><aside class="neon-sidebar"><div class="neon-brand"><span class="neon-brand-mark" aria-hidden="true">∞</span><strong>AI OS</strong></div><button class="neon-create-button" type="button" data-home-app="canvas"><i data-lucide="plus" aria-hidden="true"></i><span>新建项目</span></button><nav class="neon-primary-nav" aria-label="主导航"><p>工作空间</p><button class="ai-os-home-nav neon-nav-item is-active" type="button" data-home-app="home" aria-current="page"><i data-lucide="house" aria-hidden="true"></i><span>首页</span></button><button class="ai-os-home-nav neon-nav-item" type="button" data-home-app="canvas"><i data-lucide="workflow" aria-hidden="true"></i><span>项目</span></button><button class="ai-os-home-nav neon-nav-item" type="button" data-home-app="shared"><i data-lucide="folder-open" aria-hidden="true"></i><span>素材</span></button><p>创作工具</p><button class="ai-os-home-nav neon-nav-item" type="button" data-home-app="image"><i data-lucide="image-plus" aria-hidden="true"></i><span>AI 生图</span></button><button class="ai-os-home-nav neon-nav-item" type="button" data-home-app="chat"><i data-lucide="message-square" aria-hidden="true"></i><span>AI 对话</span></button><button class="ai-os-home-nav neon-nav-item" type="button" data-home-app="records"><i data-lucide="history" aria-hidden="true"></i><span>历史记录</span></button><p>管理</p><button class="ai-os-home-nav neon-nav-item" type="button" data-home-app="settings"><i data-lucide="settings-2" aria-hidden="true"></i><span>设置</span></button><button class="ai-os-home-nav neon-nav-item" type="button" data-home-app="accounts"><i data-lucide="users" aria-hidden="true"></i><span>账户</span></button></nav><div class="neon-sidebar-user"><span>${state.session?.user?.displayName || "本机用户"}</span><small>本地创作工作台</small></div></aside><main class="neon-main"><div id="aiOsHomeOverview" class="neon-home-page"><header class="neon-page-header"><span>工作台</span><h1 id="aiOsDesktopHomeTitle">开始你的创作</h1><p>从一个项目开始，所有画布、素材和生成结果都会在这里持续保存。</p></header><button class="neon-start-card" type="button" data-home-app="canvas"><span class="neon-start-icon"><i data-lucide="plus" aria-hidden="true"></i></span><strong>新建画布项目</strong><small>进入无限画布开始创作</small></button><section class="neon-home-section"><div class="neon-section-heading"><h2>快速开始</h2><span>选择一个创作工具</span></div><div class="neon-home-grid">${quick.map((app) => appButton(app)).join("")}</div></section><section class="neon-home-section"><div class="neon-section-heading"><h2>最近项目</h2><button type="button" data-home-app="canvas">查看全部</button></div><div class="neon-empty-state"><i data-lucide="folder-plus" aria-hidden="true"></i><strong>最近还没有项目</strong><small>新建画布后，项目会显示在这里</small></div></section><div class="neon-admin-grid">${admin.map((app) => appButton(app)).join("")}</div></div><div id="aiOsInlineWorkspace" class="ai-os-inline-workspace" hidden></div></main></div>`;
     window.lucide?.createIcons?.({ attrs: { "aria-hidden": "true", "stroke-width": 1.8 } });
     syncDesktopHome(state.manager?.getSnapshot());
   }
-
   function renderLaunchpad() {
     const launchpad = el("#aiOsLaunchpad");
     if (!launchpad || !state.runtime) return;
@@ -739,6 +823,18 @@
   }
 
   function bindEvents() {
+    document.addEventListener("click", (event) => {
+      const pageBack = event.target.closest?.(".neon-page-back");
+      if (pageBack) { event.preventDefault(); event.stopImmediatePropagation(); const overview = el("#aiOsHomeOverview"); const workspace = el("#aiOsInlineWorkspace"); if (overview && workspace) { workspace.hidden = true; overview.hidden = false; workspace.replaceChildren(); state.inlineAppId = null; document.querySelectorAll(".ai-os-home-nav").forEach((item) => { const active = item.dataset.homeApp === "home"; item.classList.toggle("is-active", active); if (active) item.setAttribute("aria-current", "page"); else item.removeAttribute("aria-current"); }); } return; }
+      const nav = event.target.closest?.(".ai-os-home-nav[data-home-app]");
+      const legacyButton = event.target.closest?.("[data-ai-app]");
+      const appId = nav?.dataset.homeApp || legacyButton?.dataset.aiApp;
+      if (!appId || !["home", "canvas", "shared", "image", "chat", "records", "settings", "accounts"].includes(appId)) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      if (nav) document.querySelectorAll(".ai-os-home-nav").forEach((item) => item.classList.toggle("is-active", item === nav));
+      if (appId === "home") { const overview = el("#aiOsHomeOverview"); const workspace = el("#aiOsInlineWorkspace"); if (overview && workspace) { workspace.hidden = true; overview.hidden = false; } } else if (["canvas", "shared", "settings", "records", "accounts"].includes(appId)) showInlineApp(appId); else openApp(appId);
+    }, true);
     window.addEventListener("ai-os-legacy-workbench-ready", () => {
       state.bridgeReady = true;
       if (state.session) {
@@ -766,7 +862,12 @@
     });
     el("#aiOsDesktopHomeApps")?.addEventListener("click", (event) => {
       const button = event.target.closest("[data-home-app]");
-      if (button) openApp(button.dataset.homeApp);
+      if (button) {
+        const nav = button.closest(".ai-os-home-nav");
+        if (nav) document.querySelectorAll(".ai-os-home-nav").forEach((item) => item.classList.toggle("is-active", item === nav));
+        if (["canvas", "shared", "settings"].includes(button.dataset.homeApp)) showInlineApp(button.dataset.homeApp);
+        else openApp(button.dataset.homeApp);
+      }
     });
     document.querySelectorAll("[data-ai-app]").forEach((button) => button.addEventListener("click", () => toggleDockApp(button.dataset.aiApp)));
     el("#aiOsUserMenu")?.addEventListener("click", () => { el("#aiOsUserPopover").hidden = !el("#aiOsUserPopover").hidden; });
@@ -815,6 +916,7 @@
     minimizeApp,
     closeApp,
     setAppImmersive,
+    openInlineApp: showInlineApp,
     setSession: activateSession,
     updateSessionUser,
     toast,
@@ -826,3 +928,6 @@
   setInterval(updateClock, 30_000);
   loadSession();
 })();
+
+
+

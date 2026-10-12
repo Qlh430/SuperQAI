@@ -390,6 +390,8 @@ const getComfyWorkflowTaskService = createLazyValue(() => createComfyWorkflowTas
     runninghubOutpaint: RUNNINGHUB_OUTPAINT_WORKFLOW_FILE,
     flux2KleinEdit: FLUX2_KLEIN_EDIT_WORKFLOW_FILE,
     qwenEditAngle: QWEN_EDIT_ANGLE_WORKFLOW_FILE,
+    qwenImage21Edit: WORKFLOW_DIR + "/qwen-image21-edit.json",
+    qwenImage21Generate: WORKFLOW_DIR + "/qwen-image21-generate.json",
     removeBackground: BACKGROUND_REMOVAL_WORKFLOW_FILE,
   },
   comfyClient: getComfyClient(),
@@ -567,6 +569,12 @@ const getImageGenerationService = createLazyValue(() => createImageGenerationSer
   isAmbiguousSubmissionError,
 }));
 const createProviderHttpApiComponent = () => createProviderHttpApi({
+  /* NEON_AUDIO_OUTPUT_PERSISTENCE_START */
+  persistGeneratedAudio: require("../audio-output-persistence").createAudioOutputPersistence({
+    outputDir: OUTPUT_DIR, fs, crypto,
+    registerMedia: (userId, saved, contentType) => assetLibrary.registerMedia(userId, saved, contentType, { source: "generated" }),
+  }),
+  /* NEON_AUDIO_OUTPUT_PERSISTENCE_END */
   store: providerStore,
   registry: providerProtocolRegistry,
   engine: providerProtocolEngine,
@@ -849,6 +857,7 @@ const createMediaGenerationHttpApiComponent = () => {
       generateVideo: getMediaProviderBridge().generateVideo,
       getDefaultProviderId: () => getComfyService().configuration().config.providerId,
     }),
+    handleQwenImage21: getComfyWorkflowTaskService().handleQwenImage21,
     handleUpscale: getComfyWorkflowTaskService().handleUpscale,
     handleUpscaleStatus: getComfyWorkflowTaskService().handleUpscaleStatus,
   });

@@ -5,11 +5,13 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
-  const THEMES = Object.freeze(["light", "dark", "system"]);
+  // Neon is the single supported visual language. The legacy values are
+  // normalized to Neon so existing preference files migrate safely.
+  const THEMES = Object.freeze(["neon"]);
   const SCALES = Object.freeze([0.75, 1, 1.25, 1.5, 1.75]);
   const ANIMATIONS = Object.freeze(["full", "reduced"]);
   const DEFAULT_PREFERENCES = Object.freeze({
-    appearance: Object.freeze({ theme: "system", scale: 1, animations: "full" }),
+    appearance: Object.freeze({ theme: "neon", scale: 1, animations: "full" }),
   });
 
   function normalizeScale(value) {
@@ -17,8 +19,10 @@
     return SCALES.includes(scale) ? scale : 1;
   }
 
-  function resolveTheme(mode, media) {
-    return mode === "system" && media?.matches ? "dark" : mode === "dark" ? "dark" : "light";
+  function resolveTheme() {
+    // Keep the DOM contract on dark for the existing shell selectors while
+    // Neon tokens provide the actual palette.
+    return "dark";
   }
 
   function normalizePreferences(value = {}, fallback = DEFAULT_PREFERENCES) {
@@ -26,11 +30,11 @@
     const base = fallback && typeof fallback === "object" && !Array.isArray(fallback)
       ? fallback
       : DEFAULT_PREFERENCES;
-    const theme = String(source.appearance?.theme ?? base.appearance?.theme ?? "system");
+    const theme = String(source.appearance?.theme ?? base.appearance?.theme ?? "neon");
     const animations = String(source.appearance?.animations ?? base.appearance?.animations ?? "full");
     return {
       appearance: {
-        theme: THEMES.includes(theme) ? theme : "system",
+        theme: "neon",
         scale: normalizeScale(source.appearance?.scale ?? base.appearance?.scale ?? 1),
         animations: ANIMATIONS.includes(animations) ? animations : "full",
       },
@@ -59,7 +63,7 @@
     const query = media || (typeof matchMedia === "function" ? matchMedia("(prefers-color-scheme: dark)") : { matches: false });
     const theme = resolveTheme(preferences.appearance.theme, query);
     const scale = preferences.appearance.scale;
-    target.dataset.themeMode = preferences.appearance.theme;
+    target.dataset.themeMode = "neon";
     target.dataset.theme = theme;
     target.dataset.animations = preferences.appearance.animations;
     target.dataset.uiScale = String(scale);

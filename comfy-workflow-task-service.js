@@ -66,6 +66,284 @@ function createComfyWorkflowTaskService({
     return workflowFiles.ttp;
   }
 
+  // Qwen-image2.1 的「图像编辑 / 生图」两份模板和别的 ComfyUI 模板放在同一目录。
+  // 组合根优先传入显式映射；兼容旧运行时时再从已有模板目录推导。
+  function qwenImage21Files() {
+    const directory = workflowFiles.qwenEditAngle ? path.dirname(workflowFiles.qwenEditAngle) : "";
+    return {
+      directory,
+      edit: workflowFiles.qwenImage21Edit || path.join(directory, "qwen-image21-edit.json"),
+      generate: workflowFiles.qwenImage21Generate || path.join(directory, "qwen-image21-generate.json"),
+    };
+  }
+
+  // 整合工作流里 8 个参考图槽位。TextEncodeQwenImage21.images.image_N 与提示词
+  // 增强器的 图片N 共用同一组 LoadImage → ImageScaleToTotalPixels，注入时两边一起改，
+  // 没用到的槽位整段删掉，模型只看到真正上传的素材。
+  const QWEN_IMAGE21_REFERENCE_LIMIT = 8;
+  // 编辑模板里增强器（565）的参考图输入名来自工作流导出：第一张是「图片」，
+  // 其余依次是「图片2」…「图片8」；写成「图片1」会让 ComfyUI 报
+  // enhance_prompt() got an unexpected keyword argument 图片1。
+  const QWEN_IMAGE21_EDIT = Object.freeze({
+    encoder: "497",
+    enhancer: "565",
+    prompt: "571",
+    seed: "502",
+    resolution: "13",
+    // 取样用的尺寸开关（UI 里叫「自定义尺寸」）：false 时取样跟着参考图尺寸走
+    // （模板里第一张参考图固定预缩放到 1.5 MP，于是出图就是 928×1664），
+    // true 时用 EmptyLatentImage(479)，宽高来自 ResolutionSelector(13)——
+    // 也就是应用面板上选的比例 + 分辨率。
+    sizeSwitch: "482",
+    save: "487",
+    slots: Object.freeze([
+      Object.freeze({ load: "475", scale: "532", encoderKey: "images.image_1", enhancerKey: "\u56fe\u7247" }),
+      Object.freeze({ load: "505", scale: "551", encoderKey: "images.image_2", enhancerKey: "\u56fe\u72472" }),
+      Object.freeze({ load: "507", scale: "552", encoderKey: "images.image_3", enhancerKey: "\u56fe\u72473" }),
+      Object.freeze({ load: "506", scale: "554", encoderKey: "images.image_4", enhancerKey: "\u56fe\u72474" }),
+      Object.freeze({ load: "541", scale: "553", encoderKey: "images.image_5", enhancerKey: "\u56fe\u72475" }),
+      Object.freeze({ load: "542", scale: "557", encoderKey: "images.image_6", enhancerKey: "\u56fe\u72476" }),
+      Object.freeze({ load: "543", scale: "556", encoderKey: "images.image_7", enhancerKey: "\u56fe\u72477" }),
+      Object.freeze({ load: "544", scale: "555", encoderKey: "images.image_8", enhancerKey: "\u56fe\u72478" }),
+    ]),
+  });
+  const QWEN_IMAGE21_GENERATE = Object.freeze({
+    encoder: "522",
+    prompt: "517",
+    seed: "524",
+    resolution: "512",
+    save: "508",
+  });
+
+  function isQwenImage21EditMode(mode) {
+    return String(mode || "") === "edit";
+  }
+
+  function applyQwenImage21References(workflow, uploadedNames) {
+    const encoder = workflow[QWEN_IMAGE21_EDIT.encoder];
+    const enhancer = workflow[QWEN_IMAGE21_EDIT.enhancer];
+    if (!encoder?.inputs || !enhancer?.inputs) {
+      throw new Error("Qwen-image2.1 编辑模板缺少文本编码或提示词增强节点。");
+    }
+    let used = 0;
+    QWEN_IMAGE21_EDIT.slots.forEach((slot, index) => {
+      const name = uploadedNames[index];
+      if (!name) {
+        delete workflow[slot.load];
+        delete workflow[slot.scale];
+        delete encoder.inputs[slot.encoderKey];
+        delete enhancer.inputs[slot.enhancerKey];
+        return;
+      }
+      const load = workflow[slot.load];
+      const scale = workflow[slot.scale];
+      if (!load?.inputs || !scale?.inputs) {
+        throw new Error(`Qwen-image2.1 编辑模板缺少第 ${index + 1} 个参考图节点。`);
+      }
+      load.inputs.image = name;
+      scale.inputs.image = [slot.load, 0];
+      encoder.inputs[slot.encoderKey] = [slot.scale, 0];
+      enhancer.inputs[slot.enhancerKey] = [slot.scale, 0];
+      used += 1;
+    });
+    return used;
+  }
+
+  // 模板里的种子走一片 Seed (rgthree) 节点，KSampler 用连线读取；
+  // 直接写 KSampler 会切断这条连线，所以只改种子节点自己的值。
+  function applyQwenImage21Seed(workflow, seed, seedNodeId) {
+    const node = workflow[seedNodeId];
+    if (node?.inputs && Object.prototype.hasOwnProperty.call(node.inputs, "seed")) {
+      node.inputs.seed = seed;
+      return true;
+    }
+    return false;
+  }
+
+  function applyQwenImage21Resolution(workflow, nodeId, aspectRatio, megapixels) {
+    const node = workflow[nodeId];
+    if (!node?.inputs) return false;
+    if (aspectRatio) node.inputs.aspect_ratio = String(aspectRatio);
+    const pixels = Number(megapixels);
+    if (Number.isFinite(pixels) && pixels > 0) node.inputs.megapixels = Math.min(16, Math.max(0.1, pixels));
+    return true;
+  }
+
+  // 编辑模板默认跟着参考图的尺寸取样；应用面板上选了比例/分辨率，就把工作流自带的
+  // 「自定义尺寸」开关打开，让出图尺寸等于用户选的那一档（不改任何连线）。
+  function applyQwenImage21CustomSize(workflow, enabled = true) {
+    const node = workflow[QWEN_IMAGE21_EDIT.sizeSwitch];
+    if (!node?.inputs || !Object.prototype.hasOwnProperty.call(node.inputs, "switch")) return false;
+    node.inputs.switch = Boolean(enabled);
+    return true;
+  }
+
+  async function handleQwenImage21(req, res) {
+    try {
+      const files = qwenImage21Files();
+      const payload = await readJson(req);
+      const images = (Array.isArray(payload.images) ? payload.images : [payload.image])
+        .map((item) => (typeof item === "string" ? item : item?.url || item?.value || ""))
+        .filter(Boolean);
+      if (images.length > QWEN_IMAGE21_REFERENCE_LIMIT) {
+        sendJson(res, 400, { error: `Qwen-image2.1 最多支持 ${QWEN_IMAGE21_REFERENCE_LIMIT} 张参考图。` });
+        return;
+      }
+      const mode = images.length ? "edit" : "generate";
+      const workflowFile = isQwenImage21EditMode(mode) ? files.edit : files.generate;
+      if (!fs.existsSync(workflowFile)) {
+        sendJson(res, 500, { error: `缺少 Qwen-image2.1 ${mode === "edit" ? "图像编辑" : "生图"}工作流模板。` });
+        return;
+      }
+
+      cleanupWorkflowTasks();
+      const taskId = crypto.randomUUID();
+      mediaTaskService.set(taskId, {
+        id: taskId,
+        status: "queued",
+        progress: 5,
+        message: "任务已创建，准备提交 ComfyUI...",
+        created_at: now(),
+        updated_at: now(),
+        images: [],
+        comfy_mode: mode,
+      });
+
+      runQwenImage21Task(taskId, { ...payload, images }, mode).catch((error) => {
+        updateWorkflowTask(taskId, {
+          status: "failed",
+          progress: 0,
+          message: `Qwen-image2.1 ${mode === "edit" ? "图像编辑" : "生图"}失败：${formatErrorMessage(error)}`,
+          error: formatErrorMessage(error),
+        });
+      });
+
+      sendJson(res, 202, { task_id: taskId, mode });
+    } catch (error) {
+      sendJson(res, 500, { error: formatErrorMessage(error) });
+    }
+  }
+
+  async function runQwenImage21Task(taskId, payload, mode) {
+    const edit = isQwenImage21EditMode(mode);
+    const files = qwenImage21Files();
+    const workflowFile = edit ? files.edit : files.generate;
+    const comfyUrl = comfyClient.normalizeUrl(payload.comfy_url);
+    const uploadToken = makeUploadToken(taskId);
+
+    const names = [];
+    if (edit) {
+      updateWorkflowTask(taskId, { status: "running", progress: 10, message: "正在上传参考图到 ComfyUI..." });
+      const sources = payload.images || [];
+      for (const [index, source] of sources.entries()) {
+        const provided = Array.isArray(payload.names) ? payload.names[index] : "";
+        const uploaded = await comfyClient.uploadDataUrl(
+          comfyUrl,
+          source,
+          makeUploadFilename(provided || `qwen_image21_reference_${index + 1}.png`, `${uploadToken}_${index + 1}`),
+        );
+        names.push(uploaded.name);
+      }
+    } else {
+      updateWorkflowTask(taskId, { status: "running", progress: 10, message: "正在准备 Qwen-image2.1 生图工作流..." });
+    }
+
+    const workflow = JSON.parse(fs.readFileSync(workflowFile, "utf8"));
+    const seed = Number(payload.seed || crypto.randomInt(1, 2147483647));
+    const prompt = String(payload.prompt || "").trim();
+
+    updateWorkflowTask(taskId, { progress: 22, message: "正在准备 Qwen-image2.1 工作流..." });
+    if (edit) {
+      if (!workflow[QWEN_IMAGE21_EDIT.prompt]?.inputs) {
+        throw new Error("Unsupported Qwen-image2.1 edit workflow: prompt node 571 was not found.");
+      }
+      workflow[QWEN_IMAGE21_EDIT.prompt].inputs.value = prompt;
+      applyQwenImage21References(workflow, names);
+      applyQwenImage21Seed(workflow, seed, QWEN_IMAGE21_EDIT.seed);
+      const sized = applyQwenImage21Resolution(workflow, QWEN_IMAGE21_EDIT.resolution, payload.aspect_ratio, payload.megapixels);
+      // 只有真的带上了尺寸参数，才把取样尺寸从「跟随参考图」切到「自定义尺寸」；
+      // 不带尺寸的调用仍按模板默认走参考图尺寸。
+      const hasSize = Boolean(payload.aspect_ratio) || Number(payload.megapixels) > 0;
+      if (sized && hasSize) applyQwenImage21CustomSize(workflow, true);
+      const outputPrefix = `qwen_image21_edit_${now()}`;
+      if (workflow[QWEN_IMAGE21_EDIT.save]?.inputs) workflow[QWEN_IMAGE21_EDIT.save].inputs.filename_prefix = outputPrefix;
+      updateWorkflowTask(taskId, {
+        progress: 30,
+        message: "正在提交 Qwen-image2.1 图像编辑队列...",
+        reference_count: names.length,
+        seed,
+        input: names[0] || "",
+      });
+      const promptId = await comfyClient.submitPrompt(comfyUrl, workflow);
+      updateWorkflowTask(taskId, {
+        progress: 38,
+        message: "ComfyUI 已接收 Qwen-image2.1 图像编辑任务，正在处理...",
+        prompt_id: promptId,
+      });
+      const history = await comfyClient.waitForHistory(comfyUrl, promptId, (status) => updateWorkflowTask(taskId, {
+        ...status,
+        message: status.message || "ComfyUI 正在处理 Qwen-image2.1 图像编辑...",
+      }));
+      updateWorkflowTask(taskId, { progress: 94, message: "ComfyUI 已完成，正在保存 Qwen-image2.1 结果..." });
+      const images = await comfyClient.saveHistoryImages(
+        comfyUrl,
+        history,
+        `qwen_image21_edit_${now()}_`,
+        [QWEN_IMAGE21_EDIT.save],
+        { strictPreferred: true, lastOnly: true, filenamePrefix: outputPrefix },
+      );
+      if (!images.length) throw new Error("ComfyUI 完成，但没有找到 Qwen-image2.1 编辑结果。");
+      updateWorkflowTask(taskId, {
+        status: "success",
+        progress: 100,
+        message: "Qwen-image2.1 图像编辑完成。",
+        images,
+        comfy: comfyUrl,
+      });
+      return;
+    }
+
+    if (!workflow[QWEN_IMAGE21_GENERATE.prompt]?.inputs) {
+      throw new Error("Unsupported Qwen-image2.1 generate workflow: prompt node 517 was not found.");
+    }
+    workflow[QWEN_IMAGE21_GENERATE.prompt].inputs.value = prompt;
+    applyQwenImage21Seed(workflow, seed, QWEN_IMAGE21_GENERATE.seed);
+    applyQwenImage21Resolution(workflow, QWEN_IMAGE21_GENERATE.resolution, payload.aspect_ratio, payload.megapixels);
+    const outputPrefix = `qwen_image21_${now()}`;
+    if (workflow[QWEN_IMAGE21_GENERATE.save]?.inputs) workflow[QWEN_IMAGE21_GENERATE.save].inputs.filename_prefix = outputPrefix;
+    updateWorkflowTask(taskId, {
+      progress: 30,
+      message: "正在提交 Qwen-image2.1 生图队列...",
+      seed,
+    });
+    const promptId = await comfyClient.submitPrompt(comfyUrl, workflow);
+    updateWorkflowTask(taskId, {
+      progress: 38,
+      message: "ComfyUI 已接收 Qwen-image2.1 生图任务，正在处理...",
+      prompt_id: promptId,
+    });
+    const history = await comfyClient.waitForHistory(comfyUrl, promptId, (status) => updateWorkflowTask(taskId, {
+      ...status,
+      message: status.message || "ComfyUI 正在处理 Qwen-image2.1 生图...",
+    }));
+    updateWorkflowTask(taskId, { progress: 94, message: "ComfyUI 已完成，正在保存 Qwen-image2.1 结果..." });
+    const images = await comfyClient.saveHistoryImages(
+      comfyUrl,
+      history,
+      `qwen_image21_${now()}_`,
+      [QWEN_IMAGE21_GENERATE.save],
+      { strictPreferred: true, lastOnly: true, filenamePrefix: outputPrefix },
+    );
+    if (!images.length) throw new Error("ComfyUI 完成，但没有找到 Qwen-image2.1 生图结果。");
+    updateWorkflowTask(taskId, {
+      status: "success",
+      progress: 100,
+      message: "Qwen-image2.1 生图完成。",
+      images,
+      comfy: comfyUrl,
+    });
+  }
+
   async function handleUpscale(req, res, workflowType = "ttp") {
     try {
       const workflowFile = getWorkflowFile(workflowType);
@@ -682,8 +960,16 @@ function createComfyWorkflowTaskService({
   return Object.freeze({
     handleUpscale,
     handleUpscaleStatus,
+    handleQwenImage21,
     runTask,
+    runQwenImage21Task,
     getWorkflowFile,
+    qwenImage21Files,
+    applyQwenImage21References,
+    applyQwenImage21Seed,
+    applyQwenImage21Resolution,
+    applyQwenImage21CustomSize,
+    QWEN_IMAGE21_REFERENCE_LIMIT,
     normalizeOutpaintPadding,
     makeUploadToken,
     makeUploadFilename,

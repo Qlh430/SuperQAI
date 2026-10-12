@@ -1,0 +1,214 @@
+{
+  "508": {
+    "inputs": {
+      "filename_prefix": "QW21-20261010173140",
+      "images": [
+        "520",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "保存图像"
+    }
+  },
+  "512": {
+    "inputs": {
+      "aspect_ratio": "9:16 (Portrait Widescreen)",
+      "megapixels": 1.5,
+      "multiple": 32
+    },
+    "class_type": "ResolutionSelector",
+    "_meta": {
+      "title": "分辨率选择器"
+    }
+  },
+  "514": {
+    "inputs": {
+      "width": [
+        "512",
+        0
+      ],
+      "height": [
+        "512",
+        1
+      ],
+      "batch_size": 1
+    },
+    "class_type": "EmptyLatentImage",
+    "_meta": {
+      "title": "空Latent图像"
+    }
+  },
+  "515": {
+    "inputs": {
+      "seed": [
+        "524",
+        0
+      ],
+      "steps": 30,
+      "cfg": 1,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "denoise": 1,
+      "model": [
+        "523",
+        0
+      ],
+      "positive": [
+        "522",
+        0
+      ],
+      "negative": [
+        "522",
+        1
+      ],
+      "latent_image": [
+        "514",
+        0
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "K采样器"
+    }
+  },
+  "517": {
+    "inputs": {
+      "value": "一位年轻亚洲少女身着精致繁复的古典汉服，真丝交领上襦绣着淡粉樱花纹样，肩披银线织就的云纹霞帔，胸前悬挂和田玉璎珞项圈，些许发丝随风飞散，她抬起手轻抚鬓角的发丝，露出甜美的笑容，侧面肖像，白皙的皮肤，真实的皮肤质感，毛孔可见，柔和的阳光，背光"
+    },
+    "class_type": "PrimitiveStringMultiline",
+    "_meta": {
+      "title": "提示词"
+    }
+  },
+  "518": {
+    "inputs": {
+      "clip_name": "qwen3vl_8b_int8_convrot.safetensors",
+      "type": "qwen_image",
+      "device": "default"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": "加载CLIP"
+    }
+  },
+  "519": {
+    "inputs": {
+      "vae_name": "qwen_image_2.1_vae_bf16.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "加载VAE"
+    }
+  },
+  "520": {
+    "inputs": {
+      "samples": [
+        "515",
+        0
+      ],
+      "vae": [
+        "519",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE解码"
+    }
+  },
+  "522": {
+    "inputs": {
+      "prompt": [
+        "582",
+        0
+      ],
+      "negative_prompt": "",
+      "resolution": 0,
+      "clip": [
+        "518",
+        0
+      ]
+    },
+    "class_type": "TextEncodeQwenImage21",
+    "_meta": {
+      "title": "文本编码 Qwen 图像 2.1"
+    }
+  },
+  "523": {
+    "inputs": {
+      "unet_name": "Qwen\\qwen_image_2.1_int8_convrot.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "UNet加载器"
+    }
+  },
+  "524": {
+    "inputs": {
+      "seed": -1
+    },
+    "class_type": "Seed (rgthree)",
+    "_meta": {
+      "title": "Seed (rgthree)"
+    }
+  },
+  "582": {
+    "inputs": {
+      "text": "画面呈现为一幅七夕传统节日主题的中国风海报，整体采用横向长卷式构图，背景是深青灰色的夜空与璀璨星空。画面上方悬挂一轮巨大的满月，呈暖白色与淡金色，表面有细腻的云纹肌理和发光晕圈；月亮右侧及周围散布着大小不一的星辰，包括多处十字星芒点缀。画面中段横跨一座巨大的鹊桥，由无数黑色、灰褐色和棕色的喜鹊紧密排列搭成，鸟身相互交错形成拱形桥面，桥梁从左侧山坡延伸至右侧山坡，成为牛郎织女相会的核心通道。桥上站立着两位古装人物：左侧为牛郎，一位年轻成年男性，肤色较浅，黑发束起并戴冠饰，身着深青色长袍，衣摆飘逸，正面向右侧女子，姿态专注；右侧为织女，一位年轻成年女性，身材纤细，黑发高盘并装饰繁复发簪与流苏，身着粉紫色与淡粉色汉服，袖口宽大，裙摆拖曳在桥边，侧身面向男子，二人隔桥相望，神情温柔静默。远景中可见朦胧的山峦、云雾和古代楼阁剪影，营造出仙境般的中秋夜氛围。整张图色彩以冷色调为主，搭配暖月、鹊群和服饰亮色形成对比，光影柔和，细节丰富，具有浓厚的国风浪漫意境。",
+      "use_edited_text": false,
+      "input_text": [
+        "583",
+        0
+      ]
+    },
+    "class_type": "TE_text_display",
+    "_meta": {
+      "title": "TE MAN TEXT文本展示"
+    }
+  },
+  "583": {
+    "inputs": {
+      "输入提示词": [
+        "517",
+        0
+      ],
+      "任务模式": "文生图",
+      "输出语言": "中文",
+      "增强方式": "本地官方PE",
+      "api_key": "",
+      "api_base_url": "",
+      "model": "",
+      "文生图PE模型": "qwen3.5_9b_qwen_image_2.1_pe_t2i.int8_convrot.safetensors",
+      "图生图PE模型": "qwen3.5_9b_qwen_image_2.1_pe_i2i.int8_convrot.safetensors",
+      "主模型": "Q35-4B-G-UD\\Qwen3.5-4B-UD-Q6_K_XL.gguf",
+      "mmproj": "Q35-4B-G-UD\\mmproj-Qwen3.5-4B-BF16.gguf",
+      "最大生成token": 4096,
+      "上下文长度": 8192,
+      "seed": 666,
+      "生成后自动卸载模型": true,
+      "启用思考": false
+    },
+    "class_type": "TE_Qwen_Image_2_1_Prompt_Enhancer",
+    "_meta": {
+      "title": "TE MAN Qwen Image 2.1 AI提示词增强(本地orAPI)"
+    }
+  },
+  "649": {
+    "inputs": {
+      "attention": "kitchen_int8",
+      "step_cache": "te_predictor",
+      "reuse_threshold": 0.06,
+      "start_percent": 0,
+      "end_percent": 0,
+      "predictor_error_limit": 0.08,
+      "verbose": true
+    },
+    "class_type": "TESpeedQwenImage21",
+    "_meta": {
+      "title": "TE-Speed Qwen Image 2.1"
+    }
+  }
+}

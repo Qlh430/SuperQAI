@@ -77,7 +77,7 @@ function inferModelConfiguration(model = {}, provider = {}) {
       else if (apimartTransport) protocol = "openai-images";
       else protocol = "openai";
     } else if (type === "video") protocol = ["comfyui", "runninghub"].includes(siteProtocol) ? siteProtocol : "video-adapter";
-    else if (type === "audio") protocol = "audio-adapter";
+    else if (type === "audio") protocol = /^tts-1(?:-hd)?$|^gpt-4o-mini-tts(?:-\d{4}-\d{2}-\d{2})?$/.test(id.toLowerCase()) && ["openai", "openai-compatible", "apimart"].includes(siteProtocol) ? "audio-speech" : "audio-adapter";
     else if (["anthropic", "gemini", "openai-responses"].includes(siteProtocol)) protocol = siteProtocol;
     else if (host === "api.anthropic.com") protocol = "anthropic";
     else if (host === "generativelanguage.googleapis.com") protocol = "gemini";

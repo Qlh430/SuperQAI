@@ -1,0 +1,145 @@
+/* Node history reuses the canvas Neon semantic tokens and Flora 16px shell. */
+.flora-generation-history-panel,
+.flora-generation-history-preview {
+  box-sizing: border-box;
+  padding: 16px;
+  border: 1px solid var(--canvas-neon-border, var(--neon-border));
+  border-radius: 16px;
+  background: var(--canvas-neon-popover, var(--neon-popover));
+  color: var(--canvas-neon-text, var(--neon-foreground));
+  font: 400 14px/1.5 var(--neon-font-sans, Inter, "PingFang SC", "Microsoft YaHei", sans-serif);
+  box-shadow: var(--neon-shadow-lg);
+}
+.flora-generation-history-panel {
+  width: min(760px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.flora-generation-history-panel::backdrop,
+.flora-generation-history-preview::backdrop {
+  background: color-mix(in srgb, var(--canvas-neon-bg, var(--neon-background)) 80%, transparent);
+}
+.flora-generation-history-header { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
+.flora-generation-history-title { flex: 1; min-width: 0; font-size: 16px; font-weight: 600; }
+.flora-generation-history-count,
+.flora-generation-history-details,
+.flora-generation-history-note { color: var(--canvas-neon-muted, var(--neon-muted-fg)); font-size: 12px; }
+.flora-generation-history-note { margin-top: 12px; }
+.flora-generation-history-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.flora-generation-history-card { min-width: 0; overflow: hidden; border: 1px solid var(--canvas-neon-border, var(--neon-border)); border-radius: 16px; background: var(--canvas-neon-card, var(--neon-card)); }
+.flora-generation-history-card[data-current="true"] { border-color: var(--canvas-neon-primary, var(--neon-primary)); }
+.flora-generation-history-action,
+.flora-generation-history-badge,
+.flora-generation-history-choice {
+  box-sizing: border-box;
+  min-width: 44px;
+  min-height: 44px;
+  margin: 0;
+  padding: 8px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--canvas-neon-text, var(--neon-foreground));
+  font: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.flora-generation-history-action { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 44px; }
+.flora-generation-history-action:hover,
+.flora-generation-history-choice:hover { background: color-mix(in srgb, var(--canvas-neon-primary, var(--neon-primary)) 8%, var(--canvas-neon-popover, var(--neon-popover))); }
+.flora-generation-history-action[data-destructive="true"]:hover { color: var(--canvas-neon-danger, var(--neon-destructive)); }
+.flora-generation-history-action:disabled { opacity: .5; cursor: wait; }
+.flora-generation-history-action:focus-visible,
+.flora-generation-history-choice:focus-visible,
+.flora-generation-history-badge:focus-visible { outline: 2px solid var(--canvas-neon-primary, var(--neon-ring)); outline-offset: 2px; box-shadow: none; }
+.flora-generation-history-action svg,
+.flora-generation-history-badge svg,
+.flora-generation-history-media > svg { width: 16px; height: 16px; flex-shrink: 0; }
+.flora-generation-history-choice { display: flex; flex-direction: column; width: 100%; align-items: stretch; text-align: left; border-radius: 16px 16px 0 0; }
+.flora-generation-history-choice[aria-pressed="true"] { color: var(--canvas-neon-primary, var(--neon-primary)); }
+.flora-generation-history-media { position: relative; display: grid; place-items: center; width: 100%; min-width: 0; overflow: hidden; aspect-ratio: 1; border-radius: 12px; background: var(--canvas-neon-bg, var(--neon-background)); color: var(--canvas-neon-text, var(--neon-foreground)); }
+.flora-generation-history-media img,
+.flora-generation-history-media video {
+  /* Fill the frame as an absolutely positioned replaced element. Sizing the
+     raw replaced box with height:100% inside the centred grid left it at its
+     intrinsic height, which cropped every preview taller than the frame. */
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  object-position: center;
+  transform-origin: center center;
+  will-change: transform;
+}
+
+/* Fullscreen preview: the picture handles its own zoom and pan. */
+.flora-generation-history-preview-content > .flora-generation-history-media {
+  touch-action: none;
+}
+
+.flora-generation-history-preview-content > .flora-generation-history-media.is-zoomed {
+  cursor: grab;
+}
+
+.flora-generation-history-preview-content > .flora-generation-history-media.is-zoomed:active {
+  cursor: grabbing;
+}
+.flora-generation-history-media.is-audio audio { display: none; }
+.flora-generation-history-media.is-video > svg { position: absolute; z-index: 1; right: 8px; bottom: 8px; }
+.flora-generation-history-media.is-audio > svg { width: 32px; height: 32px; }
+.flora-generation-history-text { align-self: stretch; box-sizing: border-box; width: 100%; padding: 12px; overflow: auto; text-align: left; white-space: pre-wrap; overflow-wrap: anywhere; }
+.flora-generation-history-caption { margin-top: 8px; font-size: 12px; }
+.flora-generation-history-current { font-size: 12px; }
+.flora-generation-history-current[hidden],
+.flora-generation-history-badge[hidden] { display: none !important; }
+.flora-generation-history-actions { display: flex; justify-content: flex-end; gap: 4px; padding: 4px; border-top: 1px solid var(--canvas-neon-border, var(--neon-border)); }
+.flora-generation-history-empty { grid-column: 1/-1; padding: 32px 16px; color: var(--canvas-neon-muted, var(--neon-muted-fg)); text-align: center; }
+.flora-generation-history-status:empty { display: none; }
+.flora-generation-history-status { margin-top: 12px; overflow-wrap: anywhere; }
+.flora-generation-history-error { padding: 12px; font-size: 12px; color: var(--canvas-neon-danger, var(--neon-destructive)); }
+#canvasEditorScreen .flora-generation-history-badge {
+  position: absolute;
+  z-index: 8;
+  top: 12px;
+  right: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 44px;
+  min-height: 44px;
+  border-color: var(--canvas-neon-border, var(--neon-border));
+  background: color-mix(in srgb, var(--canvas-neon-card, var(--neon-card)) 94%, transparent);
+  color: var(--canvas-neon-text, var(--neon-foreground));
+  pointer-events: auto;
+  transform-origin: right top;
+  transform: scale(var(--collab-inverse-scale, 1));
+  font: 500 14px/1 var(--neon-font-sans, Inter, "PingFang SC", "Microsoft YaHei", sans-serif);
+  opacity: 0;
+  visibility: hidden;
+}
+#canvasEditorScreen .canvas-node:is(.is-selected, .selected, :focus-within) .flora-generation-history-badge { opacity: 1; visibility: visible; }
+#canvasEditorScreen .flora-generation-history-badge:hover { background: color-mix(in srgb, var(--canvas-neon-primary, var(--neon-primary)) 8%, var(--canvas-neon-popover, var(--neon-popover))); }
+.flora-generation-history-preview { width: calc(100vw - 32px); max-width: none; height: calc(100dvh - 32px); max-height: none; overflow: hidden; }
+.flora-generation-history-preview-content { display: flex; flex-direction: column; width: 100%; height: 100%; min-height: 0; background: var(--canvas-neon-popover, var(--neon-popover)); color: var(--canvas-neon-text, var(--neon-foreground)); }
+.flora-generation-history-preview-content:fullscreen { box-sizing: border-box; padding: 16px; }
+.flora-generation-history-preview-content > .flora-generation-history-media { flex: 1; min-height: 0; aspect-ratio: auto; }
+.flora-generation-history-preview-content > .flora-generation-history-media audio { width: min(100%, 480px); }
+.flora-generation-history-playback { position: absolute; right: 8px; bottom: 8px; left: 8px; display: flex; align-items: center; gap: 8px; padding: 4px; border: 1px solid var(--canvas-neon-border, var(--neon-border)); border-radius: 16px; background: color-mix(in srgb, var(--canvas-neon-card, var(--neon-card)) 94%, transparent); }
+.flora-generation-history-playback input { flex: 1; min-width: 0; min-height: 44px; margin: 0; accent-color: var(--canvas-neon-primary, var(--neon-primary)); cursor: pointer; }
+.flora-generation-history-playback input:focus-visible { outline: 2px solid var(--canvas-neon-primary, var(--neon-ring)); outline-offset: 2px; }
+.flora-generation-history-playback time { flex: 0 0 auto; padding-right: 8px; color: var(--canvas-neon-muted, var(--neon-muted-fg)); font-size: 12px; font-variant-numeric: tabular-nums; }
+.flora-generation-history-details { flex: 0 0 auto; max-height: 24%; overflow: auto; margin-top: 12px; overflow-wrap: anywhere; }
+.flora-generation-history-prompt { white-space: pre-wrap; }
+@media (max-width: 767px) {
+  .flora-generation-history-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .flora-generation-history-panel,
+  .flora-generation-history-preview { padding: 12px; }
+  .flora-generation-history-actions { justify-content: space-between; gap: 0; }
+}
+@media (max-width: 359px) { .flora-generation-history-grid { grid-template-columns: minmax(0, 1fr); } }

@@ -2,6 +2,10 @@
 
 const path = require("node:path");
 
+// 首尾帧等模式使用同一工作流目录下的另一份模板；缺少模板时给出中文错误。
+const H3_FRAMES_WORKFLOW_NAME = "minimax-h3-video-frames.json";
+const H3_FRAMES_MODES = ["text", "first", "last"];
+
 function createMinimaxH3TaskService({
   mediaTaskService,
   updateTask,
@@ -48,6 +52,9 @@ function createMinimaxH3TaskService({
     try {
       const payload = await readJson(req);
       const result = await generateVideo({
+        mode: payload.mode,
+        // 媒体桥只转发固定的参数键，生成方式通过 params 原样带到 ComfyUI 适配器。
+        params: { mode: payload.mode },
         prompt: payload.prompt,
         images: payload.images,
         videos: payload.videos,
@@ -68,8 +75,9 @@ function createMinimaxH3TaskService({
   }
 
   async function executeComfyVideoProvider({ provider, input = {}, params = {} } = {}) {
-    if (!fs.existsSync(workflowFile)) throw new Error("MiniMax H3 workflow file is missing.");
+    if (!fs.existsSync(workflowFile)) throw new Error("MiniMax H3 工作流文件不存在，请检查工作流配置。");
     const normalized = normalizeRequest({
+      mode: params.mode,
       prompt: input.prompt,
       images: input.images,
       videos: input.videos,
@@ -132,7 +140,12 @@ function createMinimaxH3TaskService({
     }
 
     const seed = Number.isSafeInteger(request.seed) ? request.seed : crypto.randomInt(1, 2147483647);
-    const workflowTemplate = JSON.parse(fs.readFileSync(workflowFile, "utf8"));
+    const framesMode = H3_FRAMES_MODES.includes(String(request.mode || ""));
+    const templatePath = framesMode ? path.join(path.dirname(workflowFile), H3_FRAMES_WORKFLOW_NAME) : workflowFile;
+    if (framesMode && !fs.existsSync(templatePath)) {
+      throw new Error(`MiniMax H3 首尾帧工作流模板缺失：${H3_FRAMES_WORKFLOW_NAME}，请重新部署后再试。`);
+    }
+    const workflowTemplate = JSON.parse(fs.readFileSync(templatePath, "utf8"));
     const outputPrefix = `video/minimax_h3_${now()}_${taskId.slice(0, 8)}`;
     const workflow = prepareWorkflow(workflowTemplate, {
       ...request,
@@ -141,6 +154,11 @@ function createMinimaxH3TaskService({
       videos: uploaded.videos,
       audios: uploaded.audios,
     }, outputPrefix);
+
+    const outputIds = Object.entries(workflow)
+      .filter(([, node]) => node?.class_type === "SaveVideo")
+      .map(([id]) => id);
+    if (!outputIds.length) throw new Error("MiniMax H3 工作流缺少保存视频的节点，请检查工作流配置。");
 
     updateTask(taskId, { progress: 30, message: "正在提交 MiniMax H3 工作流...", seed });
     const promptId = await comfyClient.submitPrompt(comfyUrl, workflow);
@@ -155,10 +173,10 @@ function createMinimaxH3TaskService({
       message: status.message || "MiniMax H3 正在生成视频，可能需要几分钟...",
     }));
     updateTask(taskId, { progress: 94, message: "视频生成完成，正在保存到本地..." });
-    const videos = await comfyClient.saveHistoryVideos(comfyUrl, history, `minimax_h3_${now()}_`, ["230"]);
+    const videos = await comfyClient.saveHistoryVideos(comfyUrl, history, `minimax_h3_${now()}_`, outputIds);
     if (!videos.length) {
-      const observed = Object.keys(history?.outputs || {}).join(", ") || "none";
-      throw new Error(`ComfyUI completed, but no video output was found. Observed output nodes: ${observed}.`);
+      const observed = Object.keys(history?.outputs || {}).join("、") || "无";
+      throw new Error(`ComfyUI 已完成，但未找到可保存的视频。保存节点：${outputIds.join("、")}；返回节点：${observed}。`);
     }
 
     updateTask(taskId, {

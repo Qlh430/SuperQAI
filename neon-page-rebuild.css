@@ -1,0 +1,1132 @@
+/* Neon page rebuild v1: new management shell, not a patch of the legacy window UI. */
+:root {
+  --rebuild-sidebar: 248px;
+  --rebuild-space: 24px;
+  --rebuild-control: 40px;
+  --rebuild-radius: 12px;
+}
+#aiOsDesktopHome,
+#aiOsDesktopHomeApps {
+  background: var(--neon-background) !important;
+}
+#aiOsDesktopHomeApps {
+  display: grid !important;
+  grid-template-columns: var(--rebuild-sidebar) minmax(0,1fr) !important;
+  min-height: 100dvh !important;
+}
+.ai-os-home-sidebar {
+  width: var(--rebuild-sidebar) !important;
+  min-height: 100dvh !important;
+  padding: 28px 18px 20px !important;
+  background: var(--neon-background) !important;
+  border-right: 1px solid var(--neon-border) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 24px !important;
+}
+.ai-os-home-sidebar-brand { display:flex; align-items:center; gap:10px; padding:0 10px; color:var(--neon-foreground); font-size:18px; }
+.ai-os-home-mark { color:var(--neon-primary); font-size:24px; line-height:1; }
+.ai-os-home-create { min-height:44px !important; border:0 !important; border-radius:var(--rebuild-radius) !important; background:var(--neon-primary) !important; color:var(--neon-primary-foreground) !important; font-weight:700 !important; }
+.ai-os-home-nav-list { display:flex !important; flex-direction:column !important; gap:4px !important; }
+.ai-os-home-nav-group { margin:12px 10px 6px !important; color:var(--neon-muted-foreground) !important; font-size:11px !important; font-weight:700 !important; letter-spacing:.04em !important; }
+.ai-os-home-nav { min-height:40px !important; width:100% !important; padding:0 12px !important; border:0 !important; border-radius:10px !important; background:transparent !important; color:var(--neon-muted-foreground) !important; display:flex !important; align-items:center !important; gap:12px !important; text-align:left !important; font-size:14px !important; }
+.ai-os-home-nav svg { width:17px !important; height:17px !important; flex:0 0 auto !important; }
+.ai-os-home-nav:hover { color:var(--neon-foreground) !important; background:var(--neon-card) !important; }
+.ai-os-home-nav.is-active { color:var(--neon-foreground) !important; background:color-mix(in srgb,var(--neon-primary) 16%,var(--neon-background)) !important; box-shadow:inset 2px 0 var(--neon-primary) !important; }
+.ai-os-home-account-side { margin-top:auto; padding:12px; border:1px solid var(--neon-border); border-radius:var(--rebuild-radius); color:var(--neon-foreground); font-size:13px; }
+.ai-os-home-sidebar-foot { color:var(--neon-muted-foreground); font-size:11px; padding:0 10px; }
+.ai-os-home-content { min-width:0 !important; padding:48px clamp(24px,5vw,80px) 64px !important; background:var(--neon-background) !important; }
+.ai-os-home-content-head { max-width:960px !important; margin:0 auto 32px !important; }
+.ai-os-home-kicker { color:var(--neon-primary) !important; font-size:12px !important; font-weight:700 !important; letter-spacing:.08em !important; }
+.ai-os-home-content-head h2 { margin:8px 0 12px !important; color:var(--neon-foreground) !important; font-size:clamp(32px,4vw,48px) !important; line-height:1.05 !important; }
+.ai-os-home-content-head p { color:var(--neon-muted-foreground) !important; font-size:15px !important; }
+.ai-os-home-create-hero { width:100% !important; max-width:960px !important; min-height:148px !important; margin:0 auto 36px !important; border:1px dashed var(--neon-border) !important; border-radius:var(--rebuild-radius) !important; background:linear-gradient(100deg,color-mix(in srgb,var(--neon-primary) 8%,var(--neon-card)),var(--neon-card)) !important; color:var(--neon-foreground) !important; display:grid !important; place-items:center !important; align-content:center !important; gap:8px !important; }
+.ai-os-home-create-icon { display:grid; place-items:center; width:48px; height:48px; border-radius:14px; background:var(--neon-primary); color:var(--neon-primary-foreground); }
+.ai-os-home-create-icon svg { width:24px; }
+.ai-os-home-section,.ai-os-home-admin { max-width:960px !important; margin:0 auto 28px !important; }
+.ai-os-home-section-head { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:12px; }
+.ai-os-home-section-head h3 { color:var(--neon-foreground) !important; font-size:16px !important; }
+.ai-os-home-section-head span,.ai-os-home-section-head button { color:var(--neon-muted-foreground) !important; font-size:12px !important; }
+.ai-os-home-quick { display:grid !important; grid-template-columns:repeat(4,minmax(0,1fr)) !important; gap:12px !important; }
+.ai-os-home-app,.ai-os-home-admin-card { min-height:92px !important; padding:16px !important; border:1px solid var(--neon-border) !important; border-radius:var(--rebuild-radius) !important; background:var(--neon-card) !important; color:var(--neon-foreground) !important; display:flex !important; align-items:center !important; gap:12px !important; text-align:left !important; }
+.ai-os-home-app:hover { border-color:var(--neon-primary) !important; background:color-mix(in srgb,var(--neon-primary) 8%,var(--neon-card)) !important; }
+.ai-os-home-app-icon { width:34px; height:34px; display:grid; place-items:center; border:1px solid var(--neon-border); color:var(--neon-foreground); }
+.ai-os-home-app-copy { display:grid; gap:4px; min-width:0; }
+.ai-os-home-app-copy strong { font-size:14px; }
+.ai-os-home-app-copy small { color:var(--neon-muted-foreground); font-size:11px; }
+.ai-os-home-app-arrow { margin-left:auto; color:var(--neon-muted-foreground); }
+.ai-os-home-recent-empty { min-height:148px; border:1px solid var(--neon-border); border-radius:var(--rebuild-radius); background:var(--neon-card); display:grid; place-items:center; align-content:center; gap:8px; color:var(--neon-muted-foreground); }
+.ai-os-home-recent-empty svg { color:var(--neon-primary); }
+.ai-os-home-admin { display:grid !important; grid-template-columns:repeat(2,minmax(0,1fr)) !important; gap:12px !important; }
+.ai-os-inline-workspace { min-width:0 !important; max-width:1120px !important; margin:0 auto !important; }
+.ai-os-inline-workspace > * { width:100% !important; max-width:none !important; margin:0 !important; background:transparent !important; color:var(--neon-foreground) !important; }
+.ai-os-inline-workspace input,.ai-os-inline-workspace select,.ai-os-inline-workspace textarea { background:var(--neon-input) !important; color:var(--neon-foreground) !important; border:1px solid var(--neon-border) !important; border-radius:var(--rebuild-radius) !important; }
+.ai-os-inline-workspace button { border-radius:var(--rebuild-radius) !important; }
+.ai-os-inline-workspace [class*="card"],.ai-os-inline-workspace [class*="panel"],.ai-os-inline-workspace [class*="section"] { border-color:var(--neon-border) !important; box-shadow:none !important; }
+@media (max-width:900px){#aiOsDesktopHomeApps{grid-template-columns:196px minmax(0,1fr) !important}.ai-os-home-sidebar{width:196px !important}.ai-os-home-content{padding:32px 24px 48px !important}.ai-os-home-quick{grid-template-columns:repeat(2,minmax(0,1fr)) !important}}
+@media (max-width:640px){#aiOsDesktopHomeApps{display:block !important}.ai-os-home-sidebar{width:100% !important; min-height:0 !important; padding:16px !important}.ai-os-home-nav-list{display:grid !important; grid-template-columns:repeat(2,1fr) !important}.ai-os-home-sidebar-foot,.ai-os-home-account-side{display:none !important}.ai-os-home-content{padding:28px 16px 40px !important}.ai-os-home-quick,.ai-os-home-admin{grid-template-columns:1fr !important}}/* Page surfaces: every management module inherits one reading measure and one hierarchy. */
+.ai-os-inline-workspace > .canvas-library,
+.ai-os-inline-workspace > .asset-library,
+.ai-os-inline-workspace > .history-view,
+.ai-os-inline-workspace > .settings-provider,
+.ai-os-inline-workspace > .account-management,
+.ai-os-inline-workspace > [data-page-root] {
+  min-height:0 !important;
+  padding:0 !important;
+}
+.ai-os-inline-workspace :is(h1,h2,h3) { color:var(--neon-foreground) !important; letter-spacing:-.02em; }
+.ai-os-inline-workspace :is(p,.description,.subtitle,.helper-text,.muted) { color:var(--neon-muted-foreground) !important; }
+.ai-os-inline-workspace :is(button,[role="button"]) { min-height:var(--rebuild-control); border:1px solid var(--neon-border); background:var(--neon-card); color:var(--neon-foreground); }
+.ai-os-inline-workspace :is(button,[role="button"]):hover { border-color:var(--neon-primary); background:color-mix(in srgb,var(--neon-primary) 8%,var(--neon-card)); }
+.ai-os-inline-workspace :is(button.primary,.primary,[data-variant="primary"]) { border-color:transparent; background:var(--neon-primary); color:var(--neon-primary-foreground); }
+.ai-os-inline-workspace :is(.tabs,.tab-list,[role="tablist"]) { border-bottom:1px solid var(--neon-border) !important; gap:4px !important; }
+.ai-os-inline-workspace :is(.tab,[role="tab"]) { border:0 !important; border-bottom:2px solid transparent !important; background:transparent !important; color:var(--neon-muted-foreground) !important; border-radius:0 !important; }
+.ai-os-inline-workspace :is(.tab.active,.tab[aria-selected="true"],[role="tab"][aria-selected="true"]) { color:var(--neon-foreground) !important; border-bottom-color:var(--neon-primary) !important; }
+.ai-os-inline-workspace :is(.list,.grid,.table-wrap,.content-panel,.settings-panel,.account-panel) { background:var(--neon-card) !important; border:1px solid var(--neon-border) !important; border-radius:var(--rebuild-radius) !important; }
+.ai-os-inline-workspace :is(.empty,.empty-state) { min-height:220px !important; background:var(--neon-card) !important; border:1px dashed var(--neon-border) !important; color:var(--neon-muted-foreground) !important; }
+.ai-os-inline-workspace :is(.badge,.tag,.status) { border-radius:999px !important; background:color-mix(in srgb,var(--neon-primary) 14%,var(--neon-card)) !important; color:var(--neon-foreground) !important; border:1px solid color-mix(in srgb,var(--neon-primary) 42%,var(--neon-border)) !important; }
+/* Settings has its own navigation: retain one secondary level, remove the old nested window feel. */
+.ai-os-inline-workspace .settings-provider { display:grid !important; grid-template-columns:minmax(180px,220px) minmax(0,1fr) !important; gap:24px !important; }
+.ai-os-inline-workspace .settings-provider-sidebar { background:transparent !important; border:0 !important; }
+.ai-os-inline-workspace .settings-provider-editor { min-width:0 !important; background:transparent !important; }
+@media(max-width:760px){.ai-os-inline-workspace .settings-provider{grid-template-columns:1fr !important}.ai-os-inline-workspace .settings-provider-sidebar{display:flex !important; overflow:auto !important}}.neon-page-chrome { display:flex; align-items:center; gap:14px; min-height:40px; margin-bottom:24px; border-bottom:1px solid var(--neon-border); }
+.neon-page-back { display:inline-flex; align-items:center; gap:8px; min-height:32px !important; padding:0 10px !important; border:0 !important; background:transparent !important; color:var(--neon-muted-foreground) !important; font-size:12px !important; }
+.neon-page-back:hover { color:var(--neon-foreground) !important; background:var(--neon-card) !important; }
+.neon-page-back svg { width:15px; height:15px; }
+.neon-page-location { color:var(--neon-foreground); font-size:13px; font-weight:700; }/* Actual DOM rebuild: these rules belong to the new shell only. */
+.neon-app-shell{display:grid;grid-template-columns:248px minmax(0,1fr);min-height:100dvh;background:var(--neon-background);color:var(--neon-foreground)}
+.neon-sidebar{display:flex;flex-direction:column;gap:24px;padding:28px 18px 20px;border-right:1px solid var(--neon-border);background:var(--neon-background)}
+.neon-brand{display:flex;align-items:center;gap:10px;padding:0 10px;font-size:18px}.neon-brand-mark{color:var(--neon-primary);font-size:25px}.neon-create-button{height:44px;border:0;border-radius:10px;background:var(--neon-primary);color:var(--neon-primary-foreground);font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px}.neon-primary-nav{display:flex;flex-direction:column;gap:4px}.neon-primary-nav p{margin:10px 10px 6px;color:var(--neon-muted-foreground);font-size:11px;font-weight:700}.neon-nav-item{height:40px;border:0;border-radius:10px;background:transparent;color:var(--neon-muted-foreground);display:flex;align-items:center;gap:12px;padding:0 12px;text-align:left;font-size:14px}.neon-nav-item:hover{background:var(--neon-card);color:var(--neon-foreground)}.neon-nav-item.is-active{background:color-mix(in srgb,var(--neon-primary) 16%,var(--neon-background));box-shadow:inset 2px 0 var(--neon-primary);color:var(--neon-foreground)}.neon-nav-item svg{width:17px;height:17px}.neon-sidebar-user{margin-top:auto;border:1px solid var(--neon-border);border-radius:10px;padding:12px;display:grid;gap:5px;font-size:13px}.neon-sidebar-user small{color:var(--neon-muted-foreground);font-size:11px}.neon-main{min-width:0;padding:52px clamp(24px,5vw,80px) 64px}.neon-home-page{max-width:960px;margin:0 auto}.neon-page-header>span{color:var(--neon-primary);font-size:12px;font-weight:700;letter-spacing:.08em}.neon-page-header h1{margin:8px 0 12px;font-size:clamp(34px,4vw,50px);line-height:1.05}.neon-page-header p{margin:0;color:var(--neon-muted-foreground);font-size:15px}.neon-start-card{width:100%;min-height:148px;margin:34px 0;border:1px dashed var(--neon-border);border-radius:12px;background:linear-gradient(100deg,color-mix(in srgb,var(--neon-primary) 8%,var(--neon-card)),var(--neon-card));color:var(--neon-foreground);display:grid;place-items:center;align-content:center;gap:8px}.neon-start-icon{width:48px;height:48px;border-radius:14px;background:var(--neon-primary);color:var(--neon-primary-foreground);display:grid;place-items:center}.neon-home-section{margin:0 0 30px}.neon-section-heading{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}.neon-section-heading h2{font-size:16px}.neon-section-heading span,.neon-section-heading button{color:var(--neon-muted-foreground);font-size:12px}.neon-home-grid,.neon-admin-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.neon-admin-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.neon-home-card{min-height:92px;padding:16px;border:1px solid var(--neon-border);border-radius:12px;background:var(--neon-card);color:var(--neon-foreground);display:flex;align-items:center;gap:12px;text-align:left}.neon-home-card:hover{border-color:var(--neon-primary);background:color-mix(in srgb,var(--neon-primary) 8%,var(--neon-card))}.neon-home-card-icon{width:34px;height:34px;border:1px solid var(--neon-border);display:grid;place-items:center}.neon-home-card-copy{display:grid;gap:4px}.neon-home-card-copy small{color:var(--neon-muted-foreground);font-size:11px}.neon-home-card-arrow{margin-left:auto;color:var(--neon-muted-foreground)}.neon-empty-state{min-height:148px;border:1px solid var(--neon-border);border-radius:12px;background:var(--neon-card);display:grid;place-items:center;align-content:center;gap:8px;color:var(--neon-muted-foreground)}.neon-empty-state svg{color:var(--neon-primary)}
+@media(max-width:760px){.neon-app-shell{display:block}.neon-sidebar{min-height:0;padding:16px}.neon-sidebar-user{display:none}.neon-primary-nav{display:grid;grid-template-columns:repeat(2,1fr)}.neon-main{padding:28px 16px 40px}.neon-home-grid,.neon-admin-grid{grid-template-columns:1fr}}
+/* Neon primary is the active navigation state; legacy dark-green active fills are forbidden. */
+.neon-nav-item.is-active{background:var(--neon-primary) !important;color:var(--neon-primary-foreground) !important;box-shadow:none !important}
+.neon-nav-item.is-active svg{color:var(--neon-primary-foreground) !important}
+/* Projects page redesign: horizontal scope bar and card grid, no legacy secondary sidebar. */
+.neon-page-canvas .canvas-library-screen{padding:0 !important;background:transparent !important}
+.neon-page-canvas .canvas-board-card{padding:0 !important;background:transparent !important;border:0 !important;box-shadow:none !important}
+.neon-page-canvas .canvas-board-head{display:flex !important;align-items:flex-end !important;justify-content:space-between !important;gap:24px !important;padding:0 0 24px !important;border-bottom:1px solid var(--neon-border) !important}
+.neon-page-canvas .canvas-board-head strong{font-size:28px !important;color:var(--neon-foreground) !important}
+.neon-page-canvas .canvas-board-head p{color:var(--neon-muted-foreground) !important}
+.neon-page-canvas .canvas-board-tools{display:flex !important;gap:8px !important}
+.neon-page-canvas .canvas-board-tools button{height:40px !important;border:1px solid var(--neon-border) !important;border-radius:10px !important;background:var(--neon-card) !important;color:var(--neon-foreground) !important}
+.neon-page-canvas .canvas-board-tools #canvasBoardNew{background:var(--neon-primary) !important;color:var(--neon-primary-foreground) !important;border-color:transparent !important}
+.neon-page-canvas .canvas-gallery-shell{display:block !important;background:transparent !important;border:0 !important}
+.neon-page-canvas .canvas-gallery-sidebar{display:flex !important;align-items:center !important;gap:6px !important;width:auto !important;padding:20px 0 12px !important;background:transparent !important;border:0 !important;overflow:auto !important}
+.neon-page-canvas .canvas-gallery-nav-title{display:none !important}
+.neon-page-canvas .canvas-gallery-project-list,.neon-page-canvas .canvas-project-title{display:none !important}
+.neon-page-canvas .canvas-gallery-nav-item{height:36px !important;padding:0 12px !important;border:1px solid var(--neon-border) !important;border-radius:999px !important;background:transparent !important;color:var(--neon-muted-foreground) !important;white-space:nowrap !important}
+.neon-page-canvas .canvas-gallery-nav-item.is-active{background:var(--neon-primary) !important;border-color:var(--neon-primary) !important;color:var(--neon-primary-foreground) !important}
+.neon-page-canvas .canvas-gallery-main{display:block !important;padding:0 !important}
+.neon-page-canvas .canvas-board-search{display:block !important;margin:0 0 18px !important}
+.neon-page-canvas .canvas-board-search span{display:block !important;margin-bottom:7px !important;color:var(--neon-muted-foreground) !important;font-size:12px !important}
+.neon-page-canvas .canvas-board-search input{width:100% !important;height:44px !important;border:1px solid var(--neon-border) !important;border-radius:10px !important;background:var(--neon-input) !important;color:var(--neon-foreground) !important}
+.neon-page-canvas .canvas-gallery-breadcrumb{margin:0 0 12px !important;color:var(--neon-muted-foreground) !important;font-size:12px !important}
+.neon-page-canvas .canvas-board-list{display:grid !important;grid-template-columns:repeat(auto-fill,minmax(220px,1fr)) !important;gap:14px !important;padding:0 !important;background:transparent !important}
+.neon-page-canvas .canvas-board-item{min-height:220px !important;padding:0 !important;border:1px solid var(--neon-border) !important;border-radius:12px !important;background:var(--neon-card) !important;color:var(--neon-foreground) !important;overflow:hidden !important;display:flex !important;flex-direction:column !important;align-items:stretch !important}
+.neon-page-canvas .canvas-board-item:hover,.neon-page-canvas .canvas-board-item.active{border-color:var(--neon-primary) !important;background:color-mix(in srgb,var(--neon-primary) 6%,var(--neon-card)) !important}
+.neon-page-canvas .canvas-board-item .canvas-board-preview{height:124px !important;background:var(--neon-input) !important;border:0 !important;border-bottom:1px solid var(--neon-border) !important}
+.neon-page-canvas .canvas-board-item>strong,.neon-page-canvas .canvas-board-item>span,.neon-page-canvas .canvas-board-item>small{margin:0 14px !important}.neon-page-canvas .canvas-board-item>strong{margin-top:14px !important}.neon-page-canvas .canvas-board-item>span,.neon-page-canvas .canvas-board-item>small{margin-top:6px !important;color:var(--neon-muted-foreground) !important}.neon-page-canvas .canvas-board-action{top:10px !important}/* Detach the new shell from the retired outer two-column host. */
+#aiOsDesktopHomeApps{display:block !important;width:100% !important;height:100% !important;min-width:0 !important;background:var(--neon-background) !important}
+#aiOsDesktopHomeApps>.neon-app-shell{width:100% !important;min-height:100dvh !important}
+#aiOsInlineWorkspace{background:var(--neon-background) !important;color:var(--neon-foreground) !important;overflow:auto !important}
+#aiOsInlineWorkspace>.tool-view,#aiOsInlineWorkspace>.canvas-library-screen,#aiOsInlineWorkspace>.asset-library,#aiOsInlineWorkspace>section{background:var(--neon-background) !important;color:var(--neon-foreground) !important;border:0 !important;box-shadow:none !important}
+.neon-page-shared .canvas-asset-library,.neon-page-shared .canvas-asset-library *{box-sizing:border-box}
+.neon-page-shared .canvas-asset-library{display:grid !important;grid-template-columns:220px minmax(0,1fr) !important;gap:24px !important;padding:0 !important;background:transparent !important;border:0 !important}
+.neon-page-shared .canvas-asset-library-header,.neon-page-shared .canvas-asset-header{background:transparent !important;border:0 !important}
+.neon-page-shared .canvas-asset-library-nav,.neon-page-shared .canvas-asset-scopes{background:var(--neon-card) !important;border:1px solid var(--neon-border) !important;border-radius:12px !important}
+.neon-page-shared .canvas-asset-main,.neon-page-shared .canvas-asset-content{min-width:0 !important;background:transparent !important}
+.neon-page-shared .canvas-asset-grid{display:grid !important;grid-template-columns:repeat(auto-fill,minmax(220px,1fr)) !important;gap:14px !important}
+@media(max-width:760px){#aiOsDesktopHomeApps>.neon-app-shell{display:block !important}.neon-page-shared .canvas-asset-library{display:block !important}.neon-page-shared .canvas-asset-library-nav{margin-bottom:16px !important}}/* Remaining management pages use the same new frame, without legacy window backgrounds. */
+:is(.neon-page-records,.neon-page-settings,.neon-page-accounts){display:block !important;min-width:0 !important;min-height:100% !important;padding:0 !important;background:var(--neon-background) !important;color:var(--neon-foreground) !important}
+:is(.neon-page-records,.neon-page-settings,.neon-page-accounts) :is(.window,.panel,.settings-window,.account-window,.history-window){background:transparent !important;border:0 !important;box-shadow:none !important;border-radius:0 !important}
+.neon-page-records :is(.history-list,.history-grid,.record-list){display:grid !important;grid-template-columns:repeat(auto-fill,minmax(240px,1fr)) !important;gap:14px !important;background:transparent !important}
+.neon-page-records :is(.history-item,.record-item,.history-card){border:1px solid var(--neon-border) !important;border-radius:12px !important;background:var(--neon-card) !important;box-shadow:none !important}
+.neon-page-settings .settings-provider,.neon-page-accounts .account-management{width:100% !important;max-width:100% !important;background:transparent !important}
+.neon-page-settings :is(.settings-provider-sidebar,.settings-sidebar){background:var(--neon-card) !important;border:1px solid var(--neon-border) !important;border-radius:12px !important}
+.neon-page-settings :is(.settings-provider-editor,.settings-editor){background:transparent !important;border:0 !important}
+.neon-page-accounts :is(.account-list,.account-detail,.account-panel){background:var(--neon-card) !important;border:1px solid var(--neon-border) !important;border-radius:12px !important;box-shadow:none !important}
+
+/* Canvas gallery v2: standalone Neon library surface. */
+:is(.neon-page-canvas, #canvasView) .neon-canvas-library {
+  display: block !important;
+  min-height: 100% !important;
+  padding: 0 !important;
+  background: var(--neon-background) !important;
+  color: var(--neon-foreground) !important;
+}
+:is(.neon-page-canvas, #canvasView) .neon-canvas-library[hidden] { display: none !important; }
+:is(.neon-page-canvas, #canvasView) .neon-canvas-library .canvas-board-card {
+  display: block !important;
+  max-width: 1180px !important;
+  margin: 0 auto !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+:is(.neon-page-canvas, #canvasView) .neon-canvas-library .canvas-board-head {
+  display: flex !important;
+  align-items: flex-end !important;
+  justify-content: space-between !important;
+  gap: 32px !important;
+  padding: 4px 0 28px !important;
+  border-bottom: 1px solid var(--neon-border) !important;
+}
+:is(.neon-page-canvas, #canvasView) .canvas-board-heading { min-width: 0 !important; display: grid !important; gap: 8px !important; }
+:is(.neon-page-canvas, #canvasView) .canvas-board-eyebrow { color: var(--neon-primary) !important; font-size: 11px !important; font-weight: 700 !important; letter-spacing: .12em !important; text-transform: uppercase !important; }
+:is(.neon-page-canvas, #canvasView) .canvas-board-head strong { display: block !important; margin: 0 !important; color: var(--neon-foreground) !important; font-size: clamp(30px, 4vw, 46px) !important; line-height: 1.05 !important; letter-spacing: -.04em !important; }
+:is(.neon-page-canvas, #canvasView) .canvas-board-summary { display: flex !important; align-items: center !important; gap: 8px !important; color: var(--neon-muted-foreground) !important; font-size: 13px !important; }
+:is(.neon-page-canvas, #canvasView) .canvas-board-separator { color: var(--neon-border) !important; }
+:is(.neon-page-canvas, #canvasView) .canvas-board-head p { margin: 0 !important; color: var(--neon-muted-foreground) !important; font-size: 14px !important; line-height: 1.6 !important; }
+:is(.neon-page-canvas, #canvasView) .canvas-board-tools { display: flex !important; align-items: center !important; gap: 8px !important; flex: 0 0 auto !important; }
+:is(.neon-page-canvas, #canvasView) .canvas-board-tools button { height: 40px !important; min-width: 40px !important; padding: 0 12px !important; border: 1px solid var(--neon-border) !important; border-radius: 10px !important; background: var(--neon-card) !important; color: var(--neon-foreground) !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; gap: 8px !important; }
+:is(.neon-page-canvas, #canvasView) .canvas-board-tools button:hover { border-color: var(--neon-primary) !important; background: color-mix(in srgb, var(--neon-primary) 8%, var(--neon-card)) !important; }
+:is(.neon-page-canvas, #canvasView) .canvas-board-tools #canvasBoardNew { border-color: transparent !important; background: var(--neon-primary) !important; color: var(--neon-primary-foreground) !important; font-weight: 700 !important; }
+:is(.neon-page-canvas, #canvasView) .canvas-board-tools svg { width: 16px !important; height: 16px !important; }
+:is(.neon-page-canvas, #canvasView) .canvas-gallery-shell { display: block !important; height: auto !important; background: transparent !important; border: 0 !important; }
+:is(.neon-page-canvas, #canvasView) .canvas-gallery-toolbar { display: grid !important; grid-template-columns: minmax(0, 1fr) 220px !important; gap: 12px !important; align-items: start !important; padding: 20px 0 18px !important; }
+:is(.neon-page-canvas, #canvasView) .canvas-gallery-sidebar { display: flex !important; align-items: center !important; gap: 6px !important; width: auto !important; padding: 0 !important; background: transparent !important; border: 0 !important; overflow: auto !important; }
+:is(.neon-page-canvas, #canvasView) .canvas-gallery-nav-item { height: 36px !important; padding: 0 12px !important; border: 1px solid var(--neon-border) !important; border-radius: 999px !important; background: transparent !important; color: var(--neon-muted-foreground) !important; display: inline-flex !important; align-items: center !important; gap: 7px !important; white-space: nowrap !important; font-size: 12px !important; }
+:is(.neon-page-canvas, #canvasView) .canvas-gallery-nav-item:hover { border-color: var(--neon-primary) !important; color: var(--neon-foreground) !important; background: var(--neon-card) !important; }
+:is(.neon-page-canvas, #canvasView) .canvas-gallery-nav-item.is-active { border-color: var(--neon-primary) !important; background: var(--neon-primary) !important; color: var(--neon-primary-foreground) !important; }
+:is(.neon-page-canvas, #canvasView) .canvas-gallery-nav-item svg { width: 14px !important; height: 14px !important; }
+:is(.neon-page-canvas, #canvasView) .canvas-gallery-nav-item b { font-size: 10px !important; font-weight: 700 !important; opacity: .7 !important; }
+:is(.neon-page-canvas, #canvasView) .canvas-gallery-project-filter { min-width: 0 !important; padding: 8px 10px !important; border: 1px solid var(--neon-border) !important; border-radius: 10px !important; background: var(--neon-card) !important; }
+:is(.neon-page-canvas, #canvasView) .canvas-gallery-project-label { display: flex !important; align-items: center !important; justify-content: space-between !important; margin-bottom: 6px !important; color: var(--neon-muted-foreground) !important; font-size: 11px !important; font-weight: 700 !important; }
+:is(.neon-page-canvas, #canvasView) .canvas-gallery-project-label button { width: 24px !important; height: 24px !important; padding: 0 !important; border: 0 !important; background: transparent !important; color: var(--neon-muted-foreground) !important; display: grid !important; place-items: center !important; }
+:is(.neon-page-canvas, #canvasView) .canvas-gallery-project-label button:hover { color: var(--neon-primary) !important; }
+:is(.neon-page-canvas, #canvasView) .canvas-gallery-project-list { display: flex !important; gap: 4px !important; min-width: 0 !important; overflow: auto !important; padding: 0 !important; background: transparent !important; }
+:is(.neon-page-canvas, #canvasView) .canvas-gallery-project-list button { height: 26px !important; max-width: 180px !important; padding: 0 8px !important; border: 0 !important; border-radius: 6px !important; background: transparent !important; color: var(--neon-muted-foreground) !important; font-size: 11px !important; white-space: nowrap !important; }
+:is(.neon-page-canvas, #canvasView) .canvas-gallery-project-list button:hover,
+:is(.neon-page-canvas, #canvasView) .canvas-gallery-project-list button.is-active { background: color-mix(in srgb, var(--neon-primary) 14%, var(--neon-card)) !important; color: var(--neon-foreground) !important; }
+:is(.neon-page-canvas, #canvasView) .canvas-gallery-main { display: block !important; min-width: 0 !important; padding: 0 !important; background: transparent !important; }
+:is(.neon-page-canvas, #canvasView) .canvas-gallery-controls { display: flex !important; align-items: center !important; justify-content: space-between !important; gap: 14px !important; margin-bottom: 14px !important; }
+:is(.neon-page-canvas, #canvasView) .canvas-board-search { position: relative !important; display: flex !important; align-items: center !important; flex: 1 !important; max-width: 420px !important; margin: 0 !important; }
+:is(.neon-page-canvas, #canvasView) .canvas-board-search svg { position: absolute !important; left: 13px !important; width: 16px !important; height: 16px !important; color: var(--neon-muted-foreground) !important; pointer-events: none !important; }
+:is(.neon-page-canvas, #canvasView) .canvas-board-search input { width: 100% !important; height: 42px !important; padding: 0 14px 0 40px !important; border: 1px solid var(--neon-border) !important; border-radius: 10px !important; background: var(--neon-input) !important; color: var(--neon-foreground) !important; font-size: 13px !important; outline: none !important; }
+:is(.neon-page-canvas, #canvasView) .canvas-board-search input:focus { border-color: var(--neon-primary) !important; box-shadow: 0 0 0 3px color-mix(in srgb, var(--neon-primary) 15%, transparent) !important; }
+:is(.neon-page-canvas, #canvasView) .canvas-gallery-view-meta { color: var(--neon-muted-foreground) !important; font-size: 12px !important; }
+:is(.neon-page-canvas, #canvasView) .canvas-board-list { display: grid !important; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)) !important; gap: 14px !important; min-height: 160px !important; padding: 0 !important; background: transparent !important; overflow: visible !important; }
+:is(.neon-page-canvas, #canvasView) .canvas-board-item { position: relative !important; min-height: 230px !important; margin: 0 !important; padding: 0 !important; overflow: hidden !important; border: 1px solid var(--neon-border) !important; border-radius: 12px !important; background: var(--neon-card) !important; color: var(--neon-foreground) !important; display: flex !important; flex-direction: column !important; align-items: stretch !important; text-align: left !important; transition: border-color .16s ease, transform .16s ease, background .16s ease !important; }
+:is(.neon-page-canvas, #canvasView) .canvas-board-item:hover { border-color: var(--neon-primary) !important; background: color-mix(in srgb, var(--neon-primary) 6%, var(--neon-card)) !important; transform: translateY(-2px) !important; }
+:is(.neon-page-canvas, #canvasView) .canvas-board-item.active { border-color: var(--neon-primary) !important; box-shadow: 0 0 0 1px var(--neon-primary) !important; }
+:is(.neon-page-canvas, #canvasView) .canvas-board-item .canvas-board-preview { height: 132px !important; flex: 0 0 132px !important; background: var(--neon-input) !important; border: 0 !important; border-bottom: 1px solid var(--neon-border) !important; }
+:is(.neon-page-canvas, #canvasView) .canvas-board-preview-empty { height: 100% !important; display: grid !important; place-items: center !important; padding: 20px !important; color: var(--neon-muted-foreground) !important; font-size: 12px !important; text-align: center !important; background: linear-gradient(135deg, color-mix(in srgb, var(--neon-primary) 8%, var(--neon-input)), var(--neon-input)) !important; }
+:is(.neon-page-canvas, #canvasView) .canvas-board-item > strong { margin: 14px 14px 0 !important; color: var(--neon-foreground) !important; font-size: 14px !important; font-weight: 700 !important; line-height: 1.35 !important; }
+:is(.neon-page-canvas, #canvasView) .canvas-board-item > span,
+:is(.neon-page-canvas, #canvasView) .canvas-board-item > small { margin: 6px 14px 0 !important; color: var(--neon-muted-foreground) !important; font-size: 11px !important; line-height: 1.35 !important; }
+:is(.neon-page-canvas, #canvasView) .canvas-board-item .canvas-board-project-badge { order: 4 !important; margin-top: auto !important; padding-bottom: 12px !important; color: var(--neon-primary) !important; font-size: 10px !important; }
+:is(.neon-page-canvas, #canvasView) .canvas-board-item .canvas-board-action,
+:is(.neon-page-canvas, #canvasView) .canvas-board-item .canvas-board-restore { z-index: 2 !important; top: 10px !important; width: 28px !important; height: 28px !important; border: 1px solid var(--neon-border) !important; border-radius: 7px !important; background: color-mix(in srgb, var(--neon-background) 80%, transparent) !important; color: var(--neon-foreground) !important; display: grid !important; place-items: center !important; }
+:is(.neon-page-canvas, #canvasView) .canvas-board-item .canvas-board-action[hidden],
+:is(.neon-page-canvas, #canvasView) .canvas-board-item .canvas-board-restore[hidden] { display: none !important; }
+:is(.neon-page-canvas, #canvasView) .canvas-board-item .canvas-board-action:hover,
+:is(.neon-page-canvas, #canvasView) .canvas-board-item .canvas-board-restore:hover { border-color: var(--neon-primary) !important; color: var(--neon-primary) !important; background: var(--neon-card) !important; }
+:is(.neon-page-canvas, #canvasView) .canvas-board-empty { grid-column: 1 / -1 !important; min-height: 220px !important; padding: 32px !important; border: 1px dashed var(--neon-border) !important; border-radius: 12px !important; background: var(--neon-card) !important; color: var(--neon-muted-foreground) !important; display: grid !important; place-items: center !important; text-align: center !important; font-size: 14px !important; }
+@media (max-width: 840px) {
+  :is(.neon-page-canvas, #canvasView) .canvas-gallery-toolbar { grid-template-columns: 1fr !important; }
+  :is(.neon-page-canvas, #canvasView) .canvas-gallery-project-filter { overflow: hidden !important; }
+  :is(.neon-page-canvas, #canvasView) .canvas-gallery-project-list { padding-bottom: 2px !important; }
+}
+@media (max-width: 640px) {
+  :is(.neon-page-canvas, #canvasView) .neon-canvas-library .canvas-board-head { align-items: flex-start !important; flex-direction: column !important; gap: 18px !important; }
+  :is(.neon-page-canvas, #canvasView) .canvas-board-tools { width: 100% !important; }
+  :is(.neon-page-canvas, #canvasView) .canvas-board-tools #canvasBoardNew { flex: 1 !important; }
+  :is(.neon-page-canvas, #canvasView) .canvas-gallery-sidebar { padding-bottom: 2px !important; }
+  :is(.neon-page-canvas, #canvasView) .canvas-gallery-controls { align-items: stretch !important; flex-direction: column !important; }
+  :is(.neon-page-canvas, #canvasView) .canvas-board-search { max-width: none !important; }
+  :is(.neon-page-canvas, #canvasView) .canvas-board-list { grid-template-columns: 1fr !important; }
+}
+
+:is(.neon-page-canvas, #canvasView) .canvas-board-item:focus-visible { outline: 2px solid var(--neon-primary) !important; outline-offset: 3px !important; }
+:is(.neon-page-canvas, #canvasView) .canvas-board-item .canvas-board-action,
+:is(.neon-page-canvas, #canvasView) .canvas-board-item .canvas-board-restore { appearance: none !important; cursor: pointer !important; padding: 0 !important; }
+:is(.neon-page-canvas, #canvasView) .canvas-board-item .canvas-board-restore { display: inline-flex !important; align-items: center !important; justify-content: center !important; gap: 5px !important; width: auto !important; min-width: 64px !important; padding: 0 8px !important; top: auto !important; right: 10px !important; bottom: 10px !important; }
+:is(.neon-page-canvas, #canvasView) .canvas-board-item .canvas-board-restore[hidden] { display: none !important; }
+:is(.neon-page-canvas, #canvasView) .canvas-board-preview-empty { display: flex !important; flex-direction: column !important; align-items: center !important; justify-content: center !important; gap: 8px !important; }
+:is(.neon-page-canvas, #canvasView) .canvas-board-preview-empty svg { width: 20px !important; height: 20px !important; color: var(--neon-primary) !important; }
+\n/* Canvas editor surface repair: keep the immersive engine in Neon tokens. */
+#neonEngineSurface { background: var(--neon-background, #0c0c0b) !important; color: var(--neon-foreground, #f5f6f0) !important; }
+#neonEngineSurface {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 2147483000 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+body.canvas-surface-open .ai-os-menu-bar,
+body.canvas-surface-open #aiOsWindowLayer,
+body.canvas-surface-open #aiOsDesktopHome,
+body.canvas-surface-open #aiOsLaunchpad {
+  display: none !important;
+}
+#neonEngineSurface .canvas-workbench-back { background: var(--neon-card, #171817) !important; border: 1px solid var(--neon-border, #2b2d29) !important; color: var(--neon-foreground, #f5f6f0) !important; border-radius: 8px !important; padding: 8px 14px !important; }
+#neonEngineSurface .canvas-workbench-back:hover { border-color: var(--neon-primary, #d5ff40) !important; color: var(--neon-primary, #d5ff40) !important; }
+#neonEngineSurface #canvasView { background: var(--neon-background, #0c0c0b) !important; color: var(--neon-foreground, #f5f6f0) !important; }
+#neonEngineSurface #canvasEditorScreen,
+#neonEngineSurface #canvasEditorScreen .canvas-workspace,
+#neonEngineSurface #canvasEditorScreen .canvas-editor-screen,
+#neonEngineSurface #canvasEditorScreen .infinite-canvas { background-color: var(--neon-background, #0c0c0b) !important; color: var(--neon-foreground, #f5f6f0) !important; }
+#neonEngineSurface #canvasEditorScreen .canvas-editor-navigation,
+#neonEngineSurface #canvasEditorScreen .canvas-actions,
+#neonEngineSurface #canvasEditorScreen .canvas-status { background: color-mix(in srgb, var(--neon-card, #171817) 92%, transparent) !important; border-color: var(--neon-border, #2b2d29) !important; color: var(--neon-muted-foreground, #aeb2a7) !important; box-shadow: 0 12px 30px rgba(0,0,0,.28) !important; }
+#neonEngineSurface #canvasEditorScreen .canvas-actions .text-action,
+#neonEngineSurface #canvasEditorScreen .canvas-editor-navigation .text-action { color: var(--neon-foreground, #f5f6f0) !important; }
+#neonEngineSurface #canvasEditorScreen .canvas-actions .text-action:disabled { opacity: .46 !important; color: var(--neon-muted-foreground, #aeb2a7) !important; background: transparent !important; border-color: transparent !important; }
+#neonEngineSurface #canvasEditorScreen .canvas-actions .text-action.primary-dark,
+#neonEngineSurface #canvasEditorScreen .canvas-actions .text-action.primary-dark:disabled { background: var(--neon-primary, #d5ff40) !important; color: var(--neon-primary-foreground, #0c0c0b) !important; opacity: 1 !important; }
+#neonEngineSurface #canvasEditorScreen .canvas-board-loading:not([hidden]) { background: rgba(12,12,11,.72) !important; }
+#neonEngineSurface #canvasEditorScreen .canvas-board-loading-card { background: var(--neon-card, #171817) !important; border: 1px solid var(--neon-border, #2b2d29) !important; color: var(--neon-foreground, #f5f6f0) !important; box-shadow: 0 20px 60px rgba(0,0,0,.45) !important; }
+#neonEngineSurface #canvasEditorScreen .canvas-board-loading-card :is(strong,span,small) { color: inherit !important; }
+#neonEngineSurface #canvasEditorScreen .canvas-board-loading-detail { color: var(--neon-muted-foreground, #aeb2a7) !important; }
+#neonEngineSurface #canvasEditorScreen .canvas-status span:first-child { color: var(--neon-primary, #d5ff40) !important; }
+
+/* Canvas editor geometry reset: remove legacy top chrome offsets. */
+#neonEngineSurface > #canvasView,
+#neonEngineSurface #canvasView,
+#neonEngineSurface #canvasView.active,
+#neonEngineSurface .canvas-workspace,
+#neonEngineSurface #canvasEditorScreen,
+#neonEngineSurface .canvas-editor-screen,
+#neonEngineSurface .infinite-canvas {
+  position: relative !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  width: 100% !important;
+  max-width: none !important;
+}
+#neonEngineSurface .canvas-workspace {
+  flex: 1 1 auto !important;
+  overflow: hidden !important;
+}
+
+/* The canvas is the full-screen workspace. Keep navigation as a floating escape hatch,
+   never as a layout row that pushes the canvas down. */
+#neonEngineSurface .canvas-editor-navigation {
+  display: none !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  max-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  overflow: hidden !important;
+}
+#neonEngineSurface > .canvas-workbench-back {
+  position: fixed !important;
+  top: 16px !important;
+  left: 16px !important;
+  z-index: 2147483002 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  min-height: 34px !important;
+  margin: 0 !important;
+  padding: 0 12px !important;
+  background: color-mix(in srgb, var(--neon-card, #171817) 92%, transparent) !important;
+  backdrop-filter: blur(12px) !important;
+}
+
+/* Full canvas QA pass: restore readable Neon semantics across legacy canvas markup. */
+#neonEngineSurface,
+#neonEngineSurface #canvasView,
+#neonEngineSurface #canvasEditorScreen,
+#neonEngineSurface .canvas-workspace {
+  --ink: var(--neon-foreground, #f5f6f0) !important;
+  --muted: var(--neon-muted-foreground, #aeb2a7) !important;
+  --panel: var(--neon-card, #171817) !important;
+  --soft: var(--neon-secondary, #242522) !important;
+  --field: var(--neon-input, #111210) !important;
+  --line: var(--neon-border, #34382d) !important;
+  --line-strong: color-mix(in srgb, var(--neon-border, #34382d) 160%, white 8%) !important;
+  --accent: var(--neon-primary, #d5ff40) !important;
+  --primary: var(--neon-primary, #d5ff40) !important;
+  --os-shadow-color: rgba(0, 0, 0, .44) !important;
+  font-family: var(--neon-font-sans, Inter, "PingFang SC", "Microsoft YaHei", sans-serif) !important;
+}
+
+/* Nodes must remain readable on the dark canvas, including legacy hard-coded light rules. */
+#neonEngineSurface #canvasPlane .canvas-node,
+#neonEngineSurface #canvasPlane .canvas-node:not(.canvas-node-frameless),
+#neonEngineSurface #canvasPlane .canvas-node-gallery,
+#neonEngineSurface #canvasPlane .canvas-node-group {
+  color: var(--neon-foreground, #f5f6f0) !important;
+  background: var(--neon-card, #171817) !important;
+  border: 1px solid var(--neon-border, #34382d) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 18px 48px rgba(0,0,0,.34) !important;
+}
+#neonEngineSurface #canvasPlane .canvas-node.is-selected,
+#neonEngineSurface #canvasPlane .canvas-node.selected {
+  border-color: var(--neon-primary, #d5ff40) !important;
+  outline: 2px solid color-mix(in srgb, var(--neon-primary, #d5ff40) 48%, transparent) !important;
+  box-shadow: 0 0 0 1px var(--neon-primary, #d5ff40), 0 18px 48px rgba(0,0,0,.42) !important;
+}
+#neonEngineSurface #canvasPlane .canvas-node-bar {
+  min-height: 40px !important;
+  color: var(--neon-foreground, #f5f6f0) !important;
+  background: var(--neon-card, #171817) !important;
+  border-color: var(--neon-border, #34382d) !important;
+  border-radius: 16px 16px 0 0 !important;
+}
+#neonEngineSurface #canvasPlane .canvas-node-bar button {
+  background: var(--neon-secondary, #242522) !important;
+  color: var(--neon-foreground, #f5f6f0) !important;
+}
+#neonEngineSurface #canvasPlane .canvas-node-prompt,
+#neonEngineSurface #canvasPlane .canvas-text,
+#neonEngineSurface #canvasPlane .canvas-node-model,
+#neonEngineSurface #canvasPlane .canvas-node-size,
+#neonEngineSurface #canvasPlane .canvas-node-resolution,
+#neonEngineSurface #canvasPlane .canvas-ref-text {
+  color: var(--neon-foreground, #f5f6f0) !important;
+  background: var(--neon-input, #111210) !important;
+  border-color: var(--neon-border, #34382d) !important;
+}
+#neonEngineSurface #canvasPlane .canvas-node-prompt::placeholder,
+#neonEngineSurface #canvasPlane .canvas-text .canvas-text-placeholder {
+  color: var(--neon-muted-foreground, #aeb2a7) !important;
+  opacity: 1 !important;
+}
+#neonEngineSurface #canvasPlane .canvas-node-run,
+#neonEngineSurface #canvasPlane .canvas-node-download {
+  color: var(--neon-primary-foreground, #0c0c0b) !important;
+  background: var(--neon-primary, #d5ff40) !important;
+}
+#neonEngineSurface #canvasPlane .canvas-image-upload,
+#neonEngineSurface #canvasPlane .canvas-node-result {
+  background: var(--neon-input, #111210) !important;
+  border-color: var(--neon-border, #34382d) !important;
+  color: var(--neon-muted-foreground, #aeb2a7) !important;
+}
+
+/* Compact HUD: controls float above the canvas without creating a layout strip. */
+#neonEngineSurface #canvasEditorScreen .canvas-actions {
+  position: fixed !important;
+  top: 16px !important;
+  right: 16px !important;
+  left: auto !important;
+  z-index: 2147483001 !important;
+  height: 40px !important;
+  min-height: 40px !important;
+  padding: 3px !important;
+  background: color-mix(in srgb, var(--neon-card, #171817) 92%, transparent) !important;
+  border: 1px solid var(--neon-border, #34382d) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 12px 32px rgba(0,0,0,.3) !important;
+  backdrop-filter: blur(14px) !important;
+}
+#neonEngineSurface #canvasEditorScreen .canvas-actions .text-action {
+  color: var(--neon-foreground, #f5f6f0) !important;
+  min-height: 32px !important;
+  border-radius: 8px !important;
+}
+#neonEngineSurface #canvasEditorScreen .canvas-actions .text-action:hover,
+#neonEngineSurface #canvasEditorScreen .canvas-actions .text-action:focus-visible {
+  color: var(--neon-foreground, #f5f6f0) !important;
+  background: color-mix(in srgb, var(--neon-primary, #d5ff40) 14%, transparent) !important;
+}
+
+/* Agent panel: dark Neon surface, readable copy, and a stable composer. */
+#neonEngineSurface .canvas-agent-panel {
+  --agent-width: 380px !important;
+  --agent-panel-width: 380px !important;
+  --agent-surface: #171817 !important;
+  --agent-surface-muted: #111210 !important;
+  --agent-line: #34382d !important;
+  --agent-accent: #d5ff40 !important;
+  --agent-accent-strong: #b8e22f !important;
+  color: var(--neon-foreground, #f5f6f0) !important;
+  background: #171817 !important;
+  border-left: 1px solid #34382d !important;
+  box-shadow: -24px 0 60px rgba(0,0,0,.44) !important;
+}
+
+/* Agent 面板从功能栏下方开始：功能栏固定在视口 top 16 + 高 40，这里留 8px 间隙，
+   面板顶边不再被常驻功能栏压住；高度同步减去这段，底边仍在工作区底部。 */
+#neonEngineSurface .canvas-workspace .canvas-agent-panel {
+  top: 64px !important;
+  height: calc(100% - 64px) !important;
+}
+#neonEngineSurface .canvas-agent-header,
+#neonEngineSurface .canvas-agent-messages {
+  color: var(--neon-foreground, #f5f6f0) !important;
+  background: #171817 !important;
+  border-color: #34382d !important;
+}
+#neonEngineSurface .canvas-agent-messages { background: #111210 !important; }
+#neonEngineSurface .canvas-agent-identity strong,
+#neonEngineSurface .canvas-agent-welcome p,
+#neonEngineSurface .canvas-agent-message,
+#neonEngineSurface .canvas-agent-form textarea {
+  color: var(--neon-foreground, #f5f6f0) !important;
+}
+#neonEngineSurface .canvas-agent-identity small,
+#neonEngineSurface .canvas-agent-welcome small,
+#neonEngineSurface .canvas-agent-run-actions > span,
+#neonEngineSurface .canvas-agent-status,
+#neonEngineSurface .canvas-agent-form button {
+  color: var(--neon-muted-foreground, #aeb2a7) !important;
+}
+#neonEngineSurface .canvas-agent-welcome-orb,
+#neonEngineSurface .canvas-agent-orb {
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--neon-primary, #d5ff40) 12%, transparent), 0 7px 18px rgba(0,0,0,.35) !important;
+}
+#neonEngineSurface .canvas-agent-form {
+  margin: 0 12px 12px !important;
+  background: #171817 !important;
+  border-color: #34382d !important;
+  box-shadow: 0 14px 34px rgba(0,0,0,.34) !important;
+}
+#neonEngineSurface .canvas-agent-form:focus-within {
+  border-color: var(--neon-primary, #d5ff40) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--neon-primary, #d5ff40) 16%, transparent), 0 14px 34px rgba(0,0,0,.34) !important;
+}
+#neonEngineSurface .canvas-agent-form textarea {
+  background: #111210 !important;
+  border-radius: 10px !important;
+}
+#neonEngineSurface .canvas-agent-form textarea::placeholder { color: #85887e !important; opacity: 1 !important; }
+#neonEngineSurface .canvas-agent-form-footer { border-color: #34382d !important; }
+#neonEngineSurface .canvas-agent-send {
+  color: #0c0c0b !important;
+  background: var(--neon-primary, #d5ff40) !important;
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--neon-primary, #d5ff40) 22%, transparent) !important;
+}
+#neonEngineSurface .canvas-agent-popover {
+  color: var(--neon-foreground, #f5f6f0) !important;
+  background: #20221e !important;
+  border-color: #34382d !important;
+}
+
+@media (max-width: 760px) {
+  #neonEngineSurface .canvas-agent-panel {
+    width: min(100vw, 380px) !important;
+  }
+  #neonEngineSurface #canvasEditorScreen .canvas-actions {
+    right: 12px !important;
+    top: 12px !important;
+    max-width: calc(100vw - 24px) !important;
+    overflow-x: auto !important;
+  }
+}
+
+/* Canvas asset library search repair: one stable Neon field inside the floating panel. */
+#neonEngineSurface .canvas-asset-library {
+  top: 64px !important;
+  right: 16px !important;
+  bottom: 16px !important;
+  width: min(440px, calc(100vw - 32px)) !important;
+  color: var(--neon-foreground, #f5f6f0) !important;
+  background: color-mix(in srgb, var(--neon-card, #171817) 96%, transparent) !important;
+  border: 1px solid var(--neon-border, #34382d) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, .46) !important;
+  backdrop-filter: blur(18px) saturate(130%) !important;
+}
+#neonEngineSurface .canvas-asset-header {
+  padding: 16px 16px 12px !important;
+}
+#neonEngineSurface .canvas-asset-header p {
+  color: var(--neon-primary, #d5ff40) !important;
+}
+#neonEngineSurface .canvas-asset-header h2 {
+  color: var(--neon-foreground, #f5f6f0) !important;
+}
+#neonEngineSurface .canvas-asset-header span,
+#neonEngineSurface .canvas-asset-status {
+  color: var(--neon-muted-foreground, #aeb2a7) !important;
+}
+#neonEngineSurface .canvas-asset-toolbar {
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  gap: 8px !important;
+  padding: 0 16px 12px !important;
+}
+#neonEngineSurface .canvas-asset-search {
+  min-width: 0 !important;
+  width: 100% !important;
+  height: 40px !important;
+  gap: 8px !important;
+  padding: 0 11px !important;
+  border: 1px solid var(--neon-border, #34382d) !important;
+  border-radius: 10px !important;
+  background: var(--neon-input, #111210) !important;
+  color: var(--neon-foreground, #f5f6f0) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.025) !important;
+}
+#neonEngineSurface .canvas-asset-search:focus-within {
+  border-color: var(--neon-primary, #d5ff40) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--neon-primary, #d5ff40) 16%, transparent) !important;
+}
+#neonEngineSurface .canvas-asset-search svg {
+  flex: 0 0 auto !important;
+  width: 16px !important;
+  height: 16px !important;
+  color: var(--neon-muted-foreground, #aeb2a7) !important;
+}
+#neonEngineSurface .canvas-asset-search input {
+  min-width: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  padding: 0 !important;
+  border: 0 !important;
+  outline: 0 !important;
+  background: transparent !important;
+  color: var(--neon-foreground, #f5f6f0) !important;
+  caret-color: var(--neon-primary, #d5ff40) !important;
+  font-size: 13px !important;
+  line-height: 1 !important;
+  color-scheme: dark !important;
+}
+#neonEngineSurface .canvas-asset-search input::placeholder {
+  color: var(--neon-muted-foreground, #85887e) !important;
+  opacity: 1 !important;
+}
+#neonEngineSurface .canvas-asset-search input::-webkit-search-cancel-button {
+  width: 14px !important;
+  height: 14px !important;
+  margin-left: 6px !important;
+  opacity: .72 !important;
+  filter: invert(1) grayscale(1) !important;
+  cursor: pointer !important;
+}
+#neonEngineSurface .canvas-asset-import {
+  height: 40px !important;
+  border-radius: 10px !important;
+  color: var(--neon-primary-foreground, #0c0c0b) !important;
+  background: var(--neon-primary, #d5ff40) !important;
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--neon-primary, #d5ff40) 20%, transparent) !important;
+}
+#neonEngineSurface .canvas-asset-scopes,
+#neonEngineSurface .canvas-asset-kinds {
+  border-color: var(--neon-border, #34382d) !important;
+  background: var(--neon-input, #111210) !important;
+}
+#neonEngineSurface .canvas-asset-scopes button,
+#neonEngineSurface .canvas-asset-kinds button {
+  color: var(--neon-muted-foreground, #aeb2a7) !important;
+}
+#neonEngineSurface .canvas-asset-scopes button:hover,
+#neonEngineSurface .canvas-asset-scopes button.is-active {
+  color: var(--neon-foreground, #f5f6f0) !important;
+  background: color-mix(in srgb, var(--neon-primary, #d5ff40) 12%, transparent) !important;
+  border-color: color-mix(in srgb, var(--neon-primary, #d5ff40) 42%, transparent) !important;
+}
+#neonEngineSurface .canvas-asset-kinds button.is-active {
+  color: var(--neon-primary-foreground, #0c0c0b) !important;
+  background: var(--neon-primary, #d5ff40) !important;
+  box-shadow: none !important;
+}
+#neonEngineSurface .canvas-asset-grid {
+  scrollbar-color: var(--neon-border, #34382d) transparent !important;
+}
+@media (max-width: 760px) {
+  #neonEngineSurface .canvas-asset-library {
+    top: 60px !important;
+    right: 12px !important;
+    bottom: 12px !important;
+    width: calc(100vw - 24px) !important;
+  }
+  #neonEngineSurface .canvas-asset-toolbar {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+  #neonEngineSurface .canvas-asset-import {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+}
+
+/* Clear-canvas confirmation: bring the destructive action dialog into the same Neon surface system. */
+#neonEngineSurface #canvasEditorScreen .canvas-confirm-panel {
+  z-index: 2147483100 !important;
+  padding: 24px !important;
+  background: rgba(5, 6, 8, .72) !important;
+  backdrop-filter: blur(8px) saturate(112%) !important;
+  -webkit-backdrop-filter: blur(8px) saturate(112%) !important;
+}
+#neonEngineSurface #canvasEditorScreen .canvas-confirm-card {
+  width: min(480px, calc(100vw - 40px)) !important;
+  padding: 24px !important;
+  border: 1px solid var(--neon-border, #34382d) !important;
+  border-radius: 16px !important;
+  background: var(--neon-card, #171817) !important;
+  color: var(--neon-foreground, #f5f6f0) !important;
+  box-shadow: 0 24px 72px rgba(0, 0, 0, .62) !important;
+}
+#neonEngineSurface #canvasEditorScreen .canvas-confirm-card .canvas-name-head strong {
+  color: var(--neon-foreground, #f5f6f0) !important;
+  font-size: 18px !important;
+  font-weight: 650 !important;
+  line-height: 1.4 !important;
+}
+#neonEngineSurface #canvasEditorScreen .canvas-confirm-card .canvas-name-head p {
+  max-width: 46ch !important;
+  margin-top: 8px !important;
+  color: var(--neon-muted-foreground, #aeb2a7) !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  line-height: 1.65 !important;
+}
+#neonEngineSurface #canvasEditorScreen .canvas-confirm-card .canvas-name-head button {
+  width: 36px !important;
+  height: 36px !important;
+  flex: 0 0 auto !important;
+  border: 1px solid transparent !important;
+  border-radius: 10px !important;
+  background: transparent !important;
+  color: var(--neon-muted-foreground, #aeb2a7) !important;
+  font-size: 20px !important;
+}
+#neonEngineSurface #canvasEditorScreen .canvas-confirm-card .canvas-name-head button:hover,
+#neonEngineSurface #canvasEditorScreen .canvas-confirm-card .canvas-name-head button:focus-visible {
+  border-color: var(--neon-border, #34382d) !important;
+  background: var(--neon-secondary, #242522) !important;
+  color: var(--neon-foreground, #f5f6f0) !important;
+  outline: 2px solid var(--neon-primary, #d5ff40) !important;
+  outline-offset: 2px !important;
+}
+#neonEngineSurface #canvasEditorScreen .canvas-confirm-card .canvas-name-actions {
+  gap: 8px !important;
+  margin-top: 20px !important;
+}
+#neonEngineSurface #canvasEditorScreen .canvas-confirm-card .canvas-name-actions button {
+  min-width: 88px !important;
+  height: 40px !important;
+  border: 1px solid var(--neon-border, #34382d) !important;
+  border-radius: 10px !important;
+  background: var(--neon-secondary, #242522) !important;
+  color: var(--neon-foreground, #f5f6f0) !important;
+  font-size: 13px !important;
+  font-weight: 550 !important;
+}
+#neonEngineSurface #canvasEditorScreen .canvas-confirm-card .canvas-name-actions button:hover {
+  border-color: color-mix(in srgb, var(--neon-primary, #d5ff40) 48%, var(--neon-border, #34382d)) !important;
+  background: color-mix(in srgb, var(--neon-primary, #d5ff40) 10%, var(--neon-secondary, #242522)) !important;
+}
+#neonEngineSurface #canvasEditorScreen .canvas-confirm-card .canvas-name-actions .primary-dark {
+  border-color: var(--neon-destructive, #e5484d) !important;
+  background: var(--neon-destructive, #e5484d) !important;
+  color: #fff !important;
+  font-weight: 650 !important;
+  box-shadow: none !important;
+}
+#neonEngineSurface #canvasEditorScreen .canvas-confirm-card .canvas-name-actions .primary-dark:hover {
+  border-color: color-mix(in srgb, var(--neon-destructive, #e5484d) 84%, black) !important;
+  background: color-mix(in srgb, var(--neon-destructive, #e5484d) 84%, black) !important;
+}
+#neonEngineSurface #canvasEditorScreen .canvas-confirm-card :is(button:focus-visible) {
+  outline: 2px solid var(--neon-primary, #d5ff40) !important;
+  outline-offset: 2px !important;
+}
+@media (max-width: 520px) {
+  #neonEngineSurface #canvasEditorScreen .canvas-confirm-panel { padding: 16px !important; }
+  #neonEngineSurface #canvasEditorScreen .canvas-confirm-card { padding: 20px !important; }
+  #neonEngineSurface #canvasEditorScreen .canvas-confirm-card .canvas-name-actions button { flex: 1 1 0 !important; }
+}
+
+/* Asset library results: responsive masonry with one shared column width and natural media ratios. */
+#neonEngineSurface .canvas-asset-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)) !important;
+  align-items: start !important;
+  gap: 12px !important;
+  padding: 0 16px 18px !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+}
+#neonEngineSurface .canvas-asset-card {
+  min-width: 0 !important;
+  height: auto !important;
+  align-self: start !important;
+  overflow: hidden !important;
+  border: 1px solid var(--neon-border, #34382d) !important;
+  border-radius: 12px !important;
+  background: var(--neon-card, #171817) !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,.22) !important;
+}
+#neonEngineSurface .canvas-asset-preview {
+  aspect-ratio: auto !important;
+  height: auto !important;
+  min-height: 104px !important;
+  overflow: hidden !important;
+  background: var(--neon-input, #111210) !important;
+}
+#neonEngineSurface .canvas-asset-preview img,
+#neonEngineSurface .canvas-asset-preview video {
+  width: 100% !important;
+  height: auto !important;
+  min-height: 104px !important;
+  max-height: 260px !important;
+  display: block !important;
+  object-fit: contain !important;
+  background: var(--neon-input, #111210) !important;
+}
+#neonEngineSurface .canvas-asset-preview.is-video video {
+  aspect-ratio: 16 / 10 !important;
+  object-fit: cover !important;
+}
+#neonEngineSurface .canvas-asset-preview.is-audio {
+  min-height: 120px !important;
+  display: grid !important;
+  place-items: center !important;
+}
+#neonEngineSurface .canvas-asset-audio-art {
+  width: 52px !important;
+  height: 52px !important;
+  border-radius: 14px !important;
+  color: var(--neon-primary-foreground, #0c0c0b) !important;
+  background: var(--neon-primary, #d5ff40) !important;
+}
+#neonEngineSurface .canvas-asset-card-body {
+  min-width: 0 !important;
+  padding: 10px !important;
+  background: var(--neon-card, #171817) !important;
+}
+#neonEngineSurface .canvas-asset-card-body > strong {
+  color: var(--neon-foreground, #f5f6f0) !important;
+  font-size: 12px !important;
+  line-height: 1.35 !important;
+}
+#neonEngineSurface .canvas-asset-card-body > span {
+  margin-top: 4px !important;
+  color: var(--neon-muted-foreground, #aeb2a7) !important;
+  font-size: 10px !important;
+}
+#neonEngineSurface .canvas-asset-card-actions {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 5px !important;
+  margin-top: 8px !important;
+}
+#neonEngineSurface .canvas-asset-card-actions button {
+  min-width: 0 !important;
+  min-height: 28px !important;
+  padding: 0 8px !important;
+  border: 1px solid var(--neon-border, #34382d) !important;
+  border-radius: 8px !important;
+  background: var(--neon-secondary, #242522) !important;
+  color: var(--neon-muted-foreground, #aeb2a7) !important;
+  font-size: 10px !important;
+}
+#neonEngineSurface .canvas-asset-card-actions button:first-child {
+  color: var(--neon-primary-foreground, #0c0c0b) !important;
+  border-color: var(--neon-primary, #d5ff40) !important;
+  background: var(--neon-primary, #d5ff40) !important;
+}
+#neonEngineSurface .canvas-asset-card-actions button:hover,
+#neonEngineSurface .canvas-asset-card-actions button:focus-visible,
+#neonEngineSurface .canvas-asset-card.is-selected {
+  border-color: var(--neon-primary, #d5ff40) !important;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--neon-primary, #d5ff40) 18%, transparent) !important;
+}
+#neonEngineSurface .canvas-asset-empty {
+  grid-column: 1 / -1 !important;
+  min-height: 180px !important;
+  color: var(--neon-muted-foreground, #aeb2a7) !important;
+  background: var(--neon-input, #111210) !important;
+  border-color: var(--neon-border, #34382d) !important;
+}
+@media (min-width: 1080px) {
+  #neonEngineSurface .canvas-asset-grid { grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)) !important; }
+}
+@media (max-width: 520px) {
+  #neonEngineSurface .canvas-asset-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px !important; padding-inline: 12px !important; }
+  #neonEngineSurface .canvas-asset-card-body { padding: 8px !important; }
+  #neonEngineSurface .canvas-asset-card-actions button { flex: 1 1 auto !important; }
+}
+
+/* Asset library masonry correction: CSS columns avoid grid row stretching and media overlap. */
+#neonEngineSurface .canvas-asset-grid {
+  display: block !important;
+  column-width: 156px !important;
+  column-count: auto !important;
+  column-gap: 12px !important;
+  padding: 0 16px 18px !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+}
+#neonEngineSurface .canvas-asset-card {
+  display: inline-block !important;
+  width: 100% !important;
+  height: auto !important;
+  margin: 0 0 12px !important;
+  vertical-align: top !important;
+  break-inside: avoid !important;
+  page-break-inside: avoid !important;
+  overflow: hidden !important;
+}
+#neonEngineSurface .canvas-asset-preview,
+#neonEngineSurface .canvas-asset-preview img,
+#neonEngineSurface .canvas-asset-preview video {
+  position: relative !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+}
+#neonEngineSurface .canvas-asset-preview img {
+  aspect-ratio: auto !important;
+  object-fit: contain !important;
+}
+#neonEngineSurface .canvas-asset-preview video {
+  aspect-ratio: 16 / 10 !important;
+  height: auto !important;
+  object-fit: cover !important;
+}
+#neonEngineSurface .canvas-asset-empty {
+  display: flex !important;
+  width: 100% !important;
+  min-height: 180px !important;
+  break-inside: avoid !important;
+}
+@media (min-width: 1080px) {
+  #neonEngineSurface .canvas-asset-grid { column-width: 172px !important; }
+}
+@media (max-width: 520px) {
+  #neonEngineSurface .canvas-asset-grid {
+    column-width: auto !important;
+    column-count: 2 !important;
+    column-gap: 8px !important;
+    padding-inline: 12px !important;
+  }
+  #neonEngineSurface .canvas-asset-card { margin-bottom: 8px !important; }
+}
+
+/* Final asset library layout correction: fixed search geometry and deterministic two-column masonry. */
+#neonEngineSurface .canvas-asset-toolbar {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) 76px !important;
+  align-items: center !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  padding: 0 16px 12px !important;
+}
+#neonEngineSurface .canvas-asset-search {
+  position: relative !important;
+  display: flex !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  height: 40px !important;
+  box-sizing: border-box !important;
+  padding: 0 34px 0 11px !important;
+  overflow: hidden !important;
+}
+#neonEngineSurface .canvas-asset-search input {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  width: auto !important;
+  height: 100% !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+#neonEngineSurface .canvas-asset-search input::-webkit-search-cancel-button {
+  position: absolute !important;
+  right: 10px !important;
+  width: 14px !important;
+  height: 14px !important;
+}
+#neonEngineSurface .canvas-asset-import {
+  width: 76px !important;
+  min-width: 76px !important;
+  justify-content: center !important;
+  padding-inline: 8px !important;
+  white-space: nowrap !important;
+}
+
+#neonEngineSurface .canvas-asset-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  grid-auto-flow: row !important;
+  grid-auto-rows: auto !important;
+  align-items: start !important;
+  gap: 10px !important;
+  padding: 0 16px 18px !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+}
+#neonEngineSurface .canvas-asset-card {
+  display: block !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  height: auto !important;
+  margin: 0 !important;
+  align-self: start !important;
+  overflow: hidden !important;
+  break-inside: auto !important;
+}
+#neonEngineSurface .canvas-asset-preview {
+  display: block !important;
+  width: 100% !important;
+  height: auto !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+  line-height: 0 !important;
+}
+#neonEngineSurface .canvas-asset-preview img {
+  display: block !important;
+  width: 100% !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  aspect-ratio: auto !important;
+  object-fit: contain !important;
+}
+#neonEngineSurface .canvas-asset-preview video {
+  display: block !important;
+  width: 100% !important;
+  height: auto !important;
+  min-height: 0 !important;
+  aspect-ratio: 16 / 10 !important;
+  object-fit: cover !important;
+}
+#neonEngineSurface .canvas-asset-preview.is-audio {
+  min-height: 112px !important;
+  display: grid !important;
+  place-items: center !important;
+}
+#neonEngineSurface .canvas-asset-card-body {
+  display: block !important;
+  height: auto !important;
+  min-height: 0 !important;
+}
+@media (max-width: 520px) {
+  #neonEngineSurface .canvas-asset-toolbar {
+    grid-template-columns: minmax(0, 1fr) 72px !important;
+    padding-inline: 12px !important;
+  }
+  #neonEngineSurface .canvas-asset-import {
+    width: 72px !important;
+    min-width: 72px !important;
+  }
+  #neonEngineSurface .canvas-asset-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    padding-inline: 12px !important;
+  }
+}
+
+/* Definitive asset library reset: remove the inherited inner search shell and use two explicit masonry columns. */
+#neonEngineSurface .canvas-asset-search {
+  border: 0 !important;
+  outline: 1px solid var(--neon-border, #34382d) !important;
+  outline-offset: -1px !important;
+  box-shadow: none !important;
+  background: var(--neon-input, #111210) !important;
+}
+#neonEngineSurface .canvas-asset-search:focus-within {
+  outline: 2px solid var(--neon-primary, #d5ff40) !important;
+  outline-offset: -2px !important;
+  box-shadow: none !important;
+}
+#neonEngineSurface .canvas-asset-toolbar,
+#neonEngineSurface .canvas-asset-search,
+#neonEngineSurface .canvas-asset-search input {
+  box-sizing: border-box !important;
+}
+#neonEngineSurface .canvas-asset-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  grid-template-rows: none !important;
+  grid-auto-flow: row !important;
+  grid-auto-rows: max-content !important;
+  align-items: start !important;
+  gap: 10px !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+}
+#neonEngineSurface .canvas-asset-card {
+  position: relative !important;
+  display: block !important;
+  width: 100% !important;
+  height: max-content !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+  align-self: start !important;
+}
+#neonEngineSurface .canvas-asset-preview {
+  position: relative !important;
+  display: block !important;
+  width: 100% !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  aspect-ratio: auto !important;
+  overflow: hidden !important;
+}
+#neonEngineSurface .canvas-asset-preview img {
+  position: relative !important;
+  display: block !important;
+  width: 100% !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  object-fit: contain !important;
+}
+#neonEngineSurface .canvas-asset-card-body {
+  position: relative !important;
+  display: block !important;
+  width: 100% !important;
+  height: max-content !important;
+  min-height: 0 !important;
+  overflow: visible !important;
+}
+#neonEngineSurface .canvas-asset-card-body > strong,
+#neonEngineSurface .canvas-asset-card-body > span {
+  position: relative !important;
+}
+@media (max-width: 520px) {
+  #neonEngineSurface .canvas-asset-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    grid-auto-rows: max-content !important;
+  }
+}
+
+/* Search field final correction: no nested shell, one border, and a real clear affordance inside the field. */
+#neonEngineSurface .canvas-asset-toolbar {
+  grid-template-columns: minmax(0, 1fr) 76px !important;
+  gap: 8px !important;
+}
+#neonEngineSurface .canvas-asset-search {
+  border: 1px solid var(--neon-border, #34382d) !important;
+  outline: none !important;
+  box-shadow: none !important;
+  padding: 0 34px 0 11px !important;
+  border-radius: 10px !important;
+  background: var(--neon-input, #111210) !important;
+}
+#neonEngineSurface .canvas-asset-search:focus-within {
+  border-color: var(--neon-primary, #d5ff40) !important;
+  outline: 2px solid color-mix(in srgb, var(--neon-primary, #d5ff40) 22%, transparent) !important;
+  outline-offset: 0 !important;
+}
+#neonEngineSurface .canvas-asset-search input {
+  position: static !important;
+  flex: 1 1 auto !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+#neonEngineSurface .canvas-asset-search input::-webkit-search-cancel-button {
+  position: static !important;
+  width: 14px !important;
+  height: 14px !important;
+  margin: 0 0 0 6px !important;
+}
+#neonEngineSurface .canvas-asset-search::after {
+  content: "" !important;
+  display: none !important;
+}

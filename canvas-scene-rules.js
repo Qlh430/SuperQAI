@@ -41,6 +41,7 @@
       zOrder: Math.trunc(finite(row.zOrder ?? row.z_order, index)),
       previewSource: String(row.previewSource ?? row.preview_source ?? row.source ?? ""),
       title: String(row.title || "").trim().slice(0, 120),
+      nodeLabelId: String(row.nodeLabelId || ""),
       _index: index,
     };
   }
@@ -80,7 +81,7 @@
           top.stack = { node: top.node, members: [] };
           occludedStacks.push(top.stack);
         }
-        top.stack.members.push([node.id, node.zOrder, node.title]);
+        top.stack.members.push([node.id, node.zOrder, node.title, node.nodeLabelId]);
         continue;
       }
       exactTop.set(geometryKey, { node });

@@ -12,6 +12,7 @@ function createMediaGenerationHttpApi({
   handleApiVideo,
   handleApiVideoResume,
   handleMinimaxH3Video,
+  handleQwenImage21,
   handleUpscale,
   handleUpscaleStatus,
 } = {}) {
@@ -19,6 +20,7 @@ function createMediaGenerationHttpApi({
     handleApiVideo,
     handleApiVideoResume,
     handleMinimaxH3Video,
+    handleQwenImage21,
     handleUpscale,
     handleUpscaleStatus,
   })) {
@@ -41,6 +43,11 @@ function createMediaGenerationHttpApi({
 
     if (req.method === "POST" && pathname === "/api/minimax-h3-video") {
       await handleMinimaxH3Video(req, res);
+      return true;
+    }
+
+    if (req.method === "POST" && pathname === "/api/qwen-image21") {
+      await handleQwenImage21(req, res);
       return true;
     }
 

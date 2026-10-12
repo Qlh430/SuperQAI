@@ -56,15 +56,15 @@
     return labels.length ? labels.join("/") : "";
   }
 
-  function normalizeCatalog(models) {
+  function normalizeCatalog(models, modelKind = "image") {
     return (Array.isArray(models) ? models : []).flatMap((model, index) => {
       const capabilities = unique(model?.capabilities);
-      if (!capabilities.some((value) => value === "image.generate" || value === "generation")) return [];
+      if (modelKind !== "text" && !capabilities.some((value) => value === "image.generate" || value === "generation")) return [];
       const id = String(model?.id || "").trim();
       if (!id) return [];
       const providerName = String(model?.providerName || "未命名 API").trim() || "未命名 API";
       const health = healthFor(model?.state);
-      const badges = [
+      const badges = modelKind === "text" ? ["文字", capabilities.includes("llm.chat.vision") ? "视觉理解" : ""].filter(Boolean) : [
         "文生图",
         capabilities.some((value) => value === "image.edit" || value === "edit") ? "图片编辑" : "",
         resolutionBadge(model?.resolutions),
@@ -113,11 +113,11 @@
       || left.providerName.localeCompare(right.providerName, "zh-CN"));
   }
 
-  function filterModels(models, query) {
+  function filterModels(models, query, getDisplayName) {
     const tokens = String(query || "").trim().toLowerCase().split(/\s+/).filter(Boolean);
     if (!tokens.length) return [...(Array.isArray(models) ? models : [])];
     return (Array.isArray(models) ? models : []).filter((model) => {
-      const haystack = [model.primaryName, model.displayName, model.modelId, model.providerName, ...model.badges]
+      const haystack = [getDisplayName?.(model), model.primaryName, model.displayName, model.modelId, model.providerName, ...model.badges]
         .join(" ").toLowerCase();
       return tokens.every((token) => haystack.includes(token));
     });
@@ -205,6 +205,8 @@
     const select = options.select;
     const document = options.document || select?.ownerDocument;
     if (!select || !document) throw new TypeError("Image model picker requires a select element.");
+    const modelKind = options.modelKind === "text" ? "text" : "image";
+    const modelLabel = modelKind === "text" ? "文字模型" : "图片模型";
     const storage = options.storage || document.defaultView?.localStorage;
     const scope = () => String(options.getScope?.() || "anonymous");
     const mount = options.mount || createElement(document, "div");
@@ -233,7 +235,7 @@
     const popover = createElement(document, "div", "image-model-picker-popover");
     popover.hidden = true;
     popover.setAttribute("role", "dialog");
-    popover.setAttribute("aria-label", "选择图片模型");
+    popover.setAttribute("aria-label", `选择${modelLabel}`);
     const toolbar = createElement(document, "div", "image-model-picker-toolbar");
     const searchWrap = createElement(document, "label", "image-model-picker-search");
     const searchIcon = createElement(document, "span", "", "⌕");
@@ -271,13 +273,29 @@
 
     let models = [];
     let activeFilter = "recommended";
+    let flora = false;
     const collapsed = new Set();
+
+    const floraHeader = createElement(document, "div", "flora-model-picker-heading");
+    popover.prepend(floraHeader);
+
+    function lucideIcon(name, className = "") {
+      const element = createElement(document, "i", className);
+      element.dataset.lucide = name;
+      element.setAttribute("aria-hidden", "true");
+      return element;
+    }
+
+    function renderIcons() {
+      if (flora) document.defaultView?.lucide?.createIcons?.({ attrs: { "aria-hidden": "true", "stroke-width": 1.8 } });
+    }
 
     function preferences() {
       return readPreferences(storage, scope(), models);
     }
 
     function selectedModel() {
+      if (select.dataset.catalogUnavailable === "true") return null;
       return models.find((model) => model.id === select.value) || models[0] || null;
     }
 
@@ -290,15 +308,26 @@
       const presentation = isAutomatic()
         ? getModelPresentation(null)
         : getModelPresentation(model);
+      if (!isAutomatic() && model && options.getDisplayName) presentation.primaryText = options.getDisplayName(model) || presentation.primaryText;
+      if (!isAutomatic() && model && options.getVariants) {
+        const variant = options.getVariants(model).find(item => item.key === options.getVariant?.());
+        if (variant) presentation.primaryText = variant.label;
+      }
+      if (select.dataset.catalogUnavailable === "true") {
+        presentation.primaryText = "请重新选择模型";
+        presentation.secondaryText = "原模型已移除或能力不匹配";
+      }
       triggerTitle.textContent = presentation.primaryText;
       triggerMeta.textContent = isAutomatic()
         ? `${model?.providerName || ""}${model ? " · 当前推荐" : ""}`
         : presentation.secondaryText || presentation.badges.join(" · ");
       triggerStatus.dataset.state = isAutomatic() ? "auto" : presentation.health.tone;
       trigger.title = `${triggerTitle.textContent}${triggerMeta.textContent ? ` · ${triggerMeta.textContent}` : ""}`;
+      trigger.setAttribute("aria-label", `选择${modelLabel}，当前：${triggerTitle.textContent}`);
+      floraHeader.textContent = `选择模型：${triggerTitle.textContent}`;
     }
 
-    function choose(selectionId) {
+    function choose(selectionId, variant) {
       if (selectionId === "__auto__") {
         const recommended = [...models].sort(compareModels)[0] || null;
         if (recommended) select.value = recommended.id;
@@ -308,37 +337,49 @@
         select.dataset.modelSelection = "exact";
         recordRecent(storage, scope(), selectionId, models);
       }
+      if (variant) options.onVariantSelect?.(models.find(model => model.id === selectionId), variant);
       const EventConstructor = document.defaultView?.Event || globalThis.Event;
       select.dispatchEvent(new EventConstructor("change", { bubbles: true }));
       renderTrigger();
       closePopover();
+      if (flora) trigger.focus();
       options.onSelect?.({ mode: isAutomatic() ? "auto" : "exact", model: selectedModel() });
     }
 
-    function createModelRow(model) {
+    function createModelRow(model, variant) {
       const row = createElement(document, "div", "image-model-picker-row");
       row.dataset.modelId = model.id;
+      if (variant) row.dataset.modelVariant = variant.key;
       row.setAttribute("role", "option");
-      row.setAttribute("aria-selected", String(!isAutomatic() && select.value === model.id));
+      row.setAttribute("aria-selected", String(!isAutomatic() && select.value === model.id && (!variant || options.getVariant?.() === variant.key)));
       const chooseButton = createElement(document, "button", "image-model-picker-choice");
       chooseButton.type = "button";
       const status = createElement(document, "i", "image-model-health-dot");
       status.dataset.state = model.health.tone;
       const copy = createElement(document, "span");
-      const title = createElement(document, "strong", "", model.primaryName);
+      const title = createElement(document, "strong", "", variant?.label || options.getDisplayName?.(model) || model.primaryName);
       const detail = createElement(document, "small", "", [model.badges.join(" · "), model.health.label].filter(Boolean).join(" · "));
       copy.append(title, detail);
-      chooseButton.append(status, copy);
-      chooseButton.addEventListener("click", () => choose(model.id));
+      if (flora) {
+        detail.remove();
+        chooseButton.append(copy);
+      } else chooseButton.append(status, copy);
+      chooseButton.addEventListener("click", () => choose(model.id, variant));
       const favorite = createElement(document, "button", "image-model-favorite", preferences().favorites.includes(model.id) ? "★" : "☆");
       favorite.type = "button";
       favorite.setAttribute("aria-label", "收藏模型");
       favorite.setAttribute("aria-pressed", String(preferences().favorites.includes(model.id)));
+      if (flora) {
+        favorite.textContent = "";
+        favorite.append(lucideIcon("star"));
+        favorite.title = "收藏模型";
+      }
       favorite.addEventListener("click", () => {
         toggleFavorite(storage, scope(), model.id, models);
         renderList();
       });
-      row.append(chooseButton, favorite);
+      row.append(chooseButton);
+      if (!flora) row.append(favorite);
       return row;
     }
 
@@ -349,13 +390,17 @@
       row.dataset.modelId = "__auto__";
       row.setAttribute("role", "option");
       row.setAttribute("aria-selected", String(isAutomatic()));
-      const mark = createElement(document, "span", "", "✨");
+      const mark = flora ? lucideIcon("sparkles", "flora-model-option-icon") : createElement(document, "span", "", "✨");
       const copy = createElement(document, "span");
       copy.append(
         createElement(document, "strong", "", "自动选择（推荐）"),
         createElement(document, "small", "", recommended ? `当前推荐 ${recommended.primaryName} · ${recommended.providerName}` : "按健康状态自动选择"),
       );
-      row.append(mark, copy);
+      if (flora) {
+        copy.querySelector("strong").textContent = "自动选择";
+        copy.querySelector("small").remove();
+        row.append(copy);
+      } else row.append(mark, copy);
       row.addEventListener("click", () => choose("__auto__"));
       return row;
     }
@@ -363,7 +408,11 @@
     function renderList() {
       list.replaceChildren();
       const prefs = preferences();
-      const queried = filterModels(modelsForFilter(models, activeFilter, prefs), search.value);
+      const candidates = modelsForFilter(models, flora ? "all" : activeFilter, prefs);
+      const available = options.getDisplayModels?.(candidates, select.value) || candidates;
+      const query = search.value.trim().toLowerCase();
+      const directMatches = new Set(filterModels(available, query, options.getDisplayName).map(model => model.id));
+      const queried = available.filter(model => directMatches.has(model.id) || (options.getVariants?.(model) || []).some(variant => variant.label.toLowerCase().includes(query)));
       if (!search.value.trim() && ["recommended", "all"].includes(activeFilter)) list.append(createAutoRow());
       const groups = groupModels(queried);
       for (const group of groups) {
@@ -374,15 +423,21 @@
         groupButton.setAttribute("aria-expanded", String(!collapsed.has(group.providerId)));
         const name = createElement(document, "strong", "", group.providerName);
         const count = createElement(document, "span", "", `${group.models.length} 个模型`);
-        const chevron = createElement(document, "b", "", collapsed.has(group.providerId) ? "›" : "⌄");
+        const chevron = flora ? lucideIcon(collapsed.has(group.providerId) ? "chevron-right" : "chevron-down") : createElement(document, "b", "", collapsed.has(group.providerId) ? "›" : "⌄");
         groupButton.append(name, count, chevron);
         const rows = createElement(document, "div", "image-model-provider-models");
         rows.hidden = collapsed.has(group.providerId);
-        group.models.forEach((model) => rows.append(createModelRow(model)));
+        group.models.forEach((model) => {
+          const variants = options.getVariants?.(model) || [];
+          if (variants.length) variants.filter(variant => directMatches.has(model.id) || variant.label.toLowerCase().includes(query)).forEach(variant => rows.append(createModelRow(model, variant)));
+          else rows.append(createModelRow(model));
+        });
         groupButton.addEventListener("click", () => {
           if (collapsed.has(group.providerId)) collapsed.delete(group.providerId);
           else collapsed.add(group.providerId);
           renderList();
+          if (flora) Array.from(list.children).find(section => section.dataset.providerId === group.providerId)
+            ?.querySelector(".image-model-provider-heading")?.focus();
         });
         section.append(groupButton, rows);
         list.append(section);
@@ -391,11 +446,17 @@
         const empty = createElement(document, "div", "image-model-picker-empty");
         empty.append(
           createElement(document, "strong", "", activeFilter === "favorites" ? "还没有收藏模型" : "没有匹配的模型"),
-          createElement(document, "span", "", "可切换筛选或搜索 API 站点名称"),
+          createElement(document, "span", "", flora ? models.length ? "换个模型或服务商名称搜索" : `请在API设置中添加${modelLabel}` : "可切换筛选或搜索 API 站点名称"),
         );
         list.append(empty);
       }
       summary.textContent = `${queried.length} 个模型 · ${groups.length} 个站点`;
+      const displayModels = options.getDisplayModels?.(models, select.value) || models;
+      const choiceCount = displayModels.reduce((count, model) => count + Math.max(1, (options.getVariants?.(model) || []).length), 0);
+      searchWrap.hidden = flora && choiceCount <= 8;
+      toolbar.classList.toggle("is-compact", flora && choiceCount <= 8);
+      renderIcons();
+      if (flora) positionPopover();
     }
 
     function positionPopover() {
@@ -408,6 +469,22 @@
       const viewportWidth = physicalViewportWidth / systemScale;
       const viewportHeight = physicalViewportHeight / systemScale;
       const physicalTriggerRect = trigger.getBoundingClientRect();
+      if (flora) {
+        popover.style.transform = "none";
+        popover.style.position = "fixed";
+        popover.style.right = "auto";
+        popover.style.bottom = "auto";
+        popover.style.height = "auto";
+        popover.style.width = `${Math.min(440, physicalViewportWidth - 32)}px`;
+        popover.style.maxHeight = `${Math.min(560, physicalViewportHeight - 32)}px`;
+        const height = popover.getBoundingClientRect().height;
+        const above = physicalTriggerRect.top - height - 8;
+        const below = physicalTriggerRect.bottom + 8;
+        const top = above >= 16 ? above : below + height <= physicalViewportHeight - 16 ? below : Math.max(16, physicalViewportHeight - height - 16);
+        popover.style.left = `${Math.max(16, Math.min(physicalTriggerRect.left, physicalViewportWidth - popover.offsetWidth - 16))}px`;
+        popover.style.top = `${top}px`;
+        return;
+      }
       const triggerRect = {
         top: physicalTriggerRect.top / systemScale,
         right: physicalTriggerRect.right / systemScale,
@@ -449,24 +526,36 @@
     }
 
     function openPopover() {
+      if (flora) {
+        const portal = mount.closest("dialog[open]") || document.getElementById("canvasEditorScreen") || document.body;
+        if (popover.parentElement !== portal) portal.append(popover);
+      }
       popover.hidden = false;
       trigger.setAttribute("aria-expanded", "true");
       mount.classList.add("is-open");
       clippingSurface?.classList.add("is-model-picker-open");
       renderList();
       positionPopover();
-      requestAnimationFrame(() => search.focus());
+      requestAnimationFrame(() => {
+        if (popover.hidden || !popover.isConnected) return;
+        if (flora) {
+          const choices = visibleFloraChoices();
+          const selected = choices.find((button) => button.getAttribute("aria-selected") === "true" || button.closest('[aria-selected="true"]'));
+          (selected || choices[0] || close).focus();
+        }
+        else search.focus();
+      });
     }
 
     function closePopover() {
-      popover.hidden = true;
+      if (!popover.hidden) popover.hidden = true;
       trigger.setAttribute("aria-expanded", "false");
-      mount.classList.remove("is-open");
-      clippingSurface?.classList.remove("is-model-picker-open");
+      if (mount.classList.contains("is-open")) mount.classList.remove("is-open");
+      if (clippingSurface?.classList.contains("is-model-picker-open")) clippingSurface.classList.remove("is-model-picker-open");
     }
 
     trigger.addEventListener("click", () => popover.hidden ? openPopover() : closePopover());
-    close.addEventListener("click", closePopover);
+    close.addEventListener("click", () => { closePopover(); if (flora) trigger.focus(); });
     search.addEventListener("input", renderList);
     filters.addEventListener("click", (event) => {
       const button = event.target.closest("[data-model-filter]");
@@ -494,9 +583,50 @@
     document.defaultView?.addEventListener("ai-os-preferences-applied", positionPopover);
     document.addEventListener("scroll", positionPopover, true);
 
+    function visibleFloraChoices() {
+      return Array.from(popover.querySelectorAll(".image-model-picker-auto, .image-model-picker-choice"))
+        .filter((button) => !button.disabled && button.getClientRects().length > 0);
+    }
+
+    popover.addEventListener("keydown", (event) => {
+      if (!flora || !["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key) || event.target === search) return;
+      const choices = visibleFloraChoices();
+      if (!choices.length) return;
+      event.preventDefault();
+      const index = choices.indexOf(document.activeElement);
+      const next = event.key === "Home" ? 0 : event.key === "End" ? choices.length - 1
+        : (index + (event.key === "ArrowDown" ? 1 : -1) + choices.length) % choices.length;
+      choices[next].focus();
+    });
+
+    function setPresentation(value) {
+      const next = value === "flora";
+      if (next === flora) return;
+      closePopover();
+      flora = next;
+      mount.classList.toggle("is-flora", flora);
+      popover.classList.toggle("flora-generator-model-popover", flora);
+      const portal = flora ? document.getElementById("canvasEditorScreen") : document.body;
+      (portal || document.body).append(popover);
+      triggerChevron.replaceChildren();
+      if (flora) triggerChevron.append(lucideIcon("chevron-down"));
+      else triggerChevron.textContent = "⌄";
+      close.replaceChildren();
+      if (flora) close.append(lucideIcon("x"));
+      else close.textContent = "×";
+      searchIcon.replaceChildren();
+      if (flora) searchIcon.append(lucideIcon("search"));
+      else searchIcon.textContent = "⌕";
+      close.title = "关闭模型选择";
+      search.setAttribute("aria-label", `搜索${modelLabel}或服务商`);
+      renderTrigger();
+      renderList();
+      renderIcons();
+    }
+
     function setModels(nextModels) {
-      models = normalizeCatalog(nextModels);
-      if (!models.some((model) => model.id === select.value) && models[0]) select.value = models[0].id;
+      models = normalizeCatalog(nextModels, modelKind);
+      if (select.dataset.catalogUnavailable !== "true" && !models.some((model) => model.id === select.value) && models[0]) select.value = models[0].id;
       renderTrigger();
       if (!popover.hidden) renderList();
     }
@@ -521,7 +651,7 @@
     }
 
     setModels(options.models || []);
-    return Object.freeze({ setModels, refresh, open: openPopover, close: closePopover, choose, destroy, mount });
+    return Object.freeze({ setModels, refresh, open: openPopover, close: closePopover, choose, destroy, mount, setPresentation, reposition: positionPopover });
   }
 
   return Object.freeze({

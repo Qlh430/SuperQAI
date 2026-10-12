@@ -1,0 +1,878 @@
+/* Existing runtime components consume the official Neon semantic contract. */
+:root, :root[data-theme], [data-canvas-theme] {
+  color-scheme: dark;
+  --neon-bg: var(--background);
+  --neon-text: var(--foreground);
+  --neon-surface: var(--card);
+  --neon-surface-2: var(--popover);
+  --neon-surface-3: var(--secondary);
+  --neon-muted: var(--muted-foreground);
+  --neon-faint: var(--muted-foreground);
+  --neon-line: var(--border);
+  --neon-line-strong: oklch(1 0 0 / .16);
+  --neon-accent: var(--primary);
+  --neon-accent-soft: color-mix(in srgb, var(--primary) 12%, transparent);
+  --neon-danger: var(--destructive);
+  --neon-success: var(--chart-2);
+  --neon-radius-md: var(--radius);
+  --neon-shadow-sm: var(--shadow-sm);
+  --neon-shadow-md: var(--shadow-lg);
+  --neon-font-sans: var(--font-sans), "PingFang SC", "Microsoft YaHei", sans-serif;
+  --neon-focus: 0 0 0 3px var(--ring);
+  --os-text: var(--foreground);
+  --os-ink: var(--foreground);
+  --os-muted-text: var(--muted-foreground);
+  --os-muted: var(--muted-foreground);
+  --os-accent: var(--primary);
+  --os-border: var(--border);
+  --os-border-strong: oklch(1 0 0 / .16);
+  --os-line: var(--border);
+  --os-window-bg: var(--card);
+  --os-surface-bg: var(--card);
+  --os-sidebar-bg: var(--background);
+  --os-field-bg: var(--input);
+  --os-menu-bg: var(--popover);
+  --os-dock-bg: var(--card);
+  --os-hover-bg: var(--accent);
+  --os-selected-bg: color-mix(in srgb, var(--primary) 12%, transparent);
+  --palette-canvas: var(--background);
+  --palette-surface: var(--card);
+  --palette-surface-raised: var(--popover);
+  --palette-surface-soft: var(--secondary);
+  --palette-surface-strong: var(--accent);
+  --palette-border: var(--border);
+  --palette-border-strong: oklch(1 0 0 / .16);
+  --palette-text: var(--foreground);
+  --palette-muted: var(--muted-foreground);
+  --palette-faint: var(--muted-foreground);
+  --palette-accent: var(--primary);
+  --palette-action: var(--primary);
+  --palette-on-accent: var(--primary-foreground);
+  --palette-on-action: var(--primary-foreground);
+  --palette-danger: var(--destructive);
+  --palette-success: var(--chart-2);
+}
+body::before { background: var(--background) !important; }
+body::after { opacity: 0 !important; }
+.ai-os-auth-aurora { display: none; }
+:is(.ai-os-home-app[data-home-app] .ai-os-home-app-icon, .ai-os-launchpad-grid svg) {
+  color: var(--foreground) !important;
+  background: var(--secondary) !important;
+}
+.ai-os-home-app[data-home-app="canvas"] .ai-os-home-app-icon {
+  color: var(--primary-foreground) !important;
+  background: var(--neon-gradient) !important;
+}
+:is(.primary-action,.ai-os-auth-form > button,.primary-button,.button-primary,#generateButton) {
+  color: var(--primary-foreground) !important;
+  background: var(--neon-gradient) !important;
+  box-shadow: var(--shadow-neon);
+}
+:is(input,select,textarea) { background: var(--input); border-color: var(--border); }
+:is(.settings-neon-lock,.ai-os-home-mark) { color: var(--primary); background: var(--neon-accent-soft); border-color: var(--ring); }
+button:hover { transform: none !important; }
+@media (hover:hover) and (pointer:fine) {
+  :is(.primary-action,.ai-os-auth-form > button,.primary-button,.button-primary,#generateButton):hover:not(:disabled) {
+    background: var(--neon-gradient-hover) !important;
+    box-shadow: var(--shadow-neon-hover);
+  }
+}
+
+/* Official Neon component treatment for the desktop shell and identity flow. */
+.ai-os-auth-card,
+.ai-os-home-panel,
+.ai-os-app-window,
+.ai-os-primary-window,
+.ai-os-companion-window {
+  background: var(--card) !important;
+  color: var(--card-foreground) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius) !important;
+  box-shadow: var(--shadow-lg) !important;
+}
+.ai-os-auth-card { width: min(430px, calc(100vw - 32px)); padding: 32px; }
+.ai-os-auth-copy h1 { color: var(--primary) !important; font-family: var(--font-sans); }
+.ai-os-auth-form input,
+.ai-os-auth-form select,
+.ai-os-auth-form textarea,
+.settings-search,
+.settings-provider-fields input,
+.settings-provider-fields select {
+  color: var(--foreground) !important;
+  background: var(--input) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-md) !important;
+}
+.ai-os-auth-form input:focus,
+.ai-os-auth-form select:focus,
+.ai-os-auth-form textarea:focus,
+:is(input,select,textarea):focus-visible { box-shadow: 0 0 0 3px var(--ring) !important; }
+.ai-os-auth-form > button,
+.settings-save-button,
+.primary-action,
+.primary-button,
+.button-primary {
+  min-height: 44px;
+  color: var(--primary-foreground) !important;
+  background: var(--neon-gradient) !important;
+  border: 0 !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: var(--shadow-button) !important;
+}
+.ai-os-home-grid { gap: 12px !important; }
+.ai-os-home-app {
+  color: var(--card-foreground) !important;
+  background: var(--secondary) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+.ai-os-home-app:hover,
+.ai-os-home-app:focus-visible {
+  background: var(--accent) !important;
+  border-color: var(--ring) !important;
+  box-shadow: var(--shadow-neon-hover) !important;
+}
+.ai-os-home-app[data-home-app="canvas"] { border-color: var(--ring) !important; }
+.ai-os-home-app-icon {
+  color: var(--primary-foreground) !important;
+  background: var(--primary) !important;
+  border-radius: var(--radius-md) !important;
+}
+.ai-os-menu-bar,
+.ai-os-app-titlebar,
+.ai-os-window-chrome,
+.ai-os-companion-titlebar,
+.ai-os-dock {
+  color: var(--foreground) !important;
+  background: var(--background) !important;
+  border-color: var(--border) !important;
+}
+.ai-os-dock { box-shadow: var(--shadow-md) !important; border-radius: var(--radius-lg) !important; }
+.ai-os-dock button.active { color: var(--primary-foreground) !important; background: var(--primary) !important; }
+
+/* Canvas and tool surfaces consume the same official Neon roles. */
+:is(.stage,.tool-view,.infinite-canvas,.canvas-editor,.canvas-workspace) {
+  color: var(--foreground) !important;
+  background: var(--background) !important;
+}
+:is(.canvas-editor-navigation,.canvas-status,.canvas-node-bar,.canvas-group-bar,
+  .image-control,.upscale-control,.history-panel,.chat-panel,.chat-composer,
+  .settings-card,.settings-section-card,.record-card,.control-card,.preview-panel) {
+  color: var(--card-foreground) !important;
+  background: var(--card) !important;
+  border-color: var(--border) !important;
+  box-shadow: var(--shadow-sm);
+}
+:is(.canvas-node:not(.canvas-node-frameless),.canvas-node-gallery,.canvas-node-group) {
+  color: var(--card-foreground) !important;
+  background: var(--card) !important;
+  border-color: var(--border) !important;
+  border-radius: var(--radius) !important;
+  box-shadow: var(--shadow-md);
+}
+:is(.canvas-node:hover,.canvas-node.selected,.canvas-node.is-selected) {
+  border-color: var(--ring) !important;
+  box-shadow: var(--shadow-neon) !important;
+}
+:is(.canvas-node-menu,.canvas-connect-menu,.canvas-board-menu,.canvas-board-modal,
+  .canvas-grid-editor-popover,.canvas-agent-popover,.canvas-mask-dialog,.canvas-crop-workbench-panel) {
+  color: var(--popover-foreground) !important;
+  background: var(--popover) !important;
+  border-color: var(--border) !important;
+  border-radius: var(--radius) !important;
+  box-shadow: var(--shadow-popover) !important;
+}
+:is(.canvas-node-menu button,.canvas-connect-menu button,.canvas-board-menu button):hover {
+  color: var(--accent-foreground) !important;
+  background: var(--accent) !important;
+}
+:is(.empty-state,.canvas-empty-state) { color: var(--muted-foreground) !important; }
+:is(.empty-state svg,.canvas-empty-state svg) { color: var(--primary) !important; }
+
+/* Startup/loading gate: same Neon language as every reachable page. */
+#aiOsStartupGate {
+  color: var(--foreground, oklch(0.97 0.005 250));
+  background:
+    radial-gradient(circle at 18% 12%, color-mix(in oklab, var(--primary, oklch(0.86 0.22 145)) 10%, transparent), transparent 34%),
+    radial-gradient(circle at 86% 86%, color-mix(in oklab, var(--primary, oklch(0.86 0.22 145)) 7%, transparent), transparent 38%),
+    var(--background, oklch(0.145 0.01 264));
+}
+#aiOsStartupGate .ai-os-startup-panel {
+  width: min(520px, calc(100vw - 48px));
+  padding: 36px 38px 32px;
+  border: 1px solid var(--border, oklch(1 0 0 / .09));
+  border-radius: var(--radius, .75rem);
+  background: color-mix(in oklab, var(--card, oklch(.18 .012 264)) 94%, transparent);
+  box-shadow: var(--shadow-xl, 0 24px 70px rgba(0,0,0,.42));
+}
+#aiOsStartupGate .ai-os-startup-brand-mark {
+  color: var(--primary-foreground, oklch(.15 .01 264));
+  background: var(--primary, oklch(.86 .22 145));
+  box-shadow: 0 0 28px color-mix(in oklab, var(--primary, oklch(.86 .22 145)) 24%, transparent);
+}
+#aiOsStartupGate .ai-os-startup-brand span,
+#aiOsStartupGate .ai-os-startup-detail,
+#aiOsStartupGate .ai-os-startup-foot { color: var(--muted-foreground, oklch(.66 .012 258)); }
+#aiOsStartupGate .ai-os-startup-spinner { border-color: color-mix(in oklab, var(--muted-foreground, oklch(.66 .012 258)) 28%, transparent); border-top-color: var(--primary, oklch(.86 .22 145)); }
+#aiOsStartupGate .ai-os-startup-track { background: var(--secondary, oklch(.22 .014 264)); }
+#aiOsStartupGate .ai-os-startup-progress { background: var(--neon-gradient, linear-gradient(90deg, oklch(.86 .22 145), oklch(.66 .17 150))); }
+#aiOsStartupGate .ai-os-startup-foot button { color: var(--primary-foreground, oklch(.15 .01 264)); background: var(--primary, oklch(.86 .22 145)); }
+#aiOsStartupGate.is-dev-reload .ai-os-startup-panel { background: var(--card, oklch(.18 .012 264)); border-color: var(--border, oklch(1 0 0 / .09)); box-shadow: var(--shadow-lg, 0 16px 40px rgba(0,0,0,.34)); }
+#aiOsStartupGate.is-degraded .ai-os-startup-spinner,
+#aiOsStartupGate.has-error .ai-os-startup-spinner { border-color: color-mix(in oklab, var(--destructive, oklch(.62 .23 25)) 28%, transparent); border-top-color: var(--destructive, oklch(.62 .23 25)); }
+@media (max-width: 560px) { #aiOsStartupGate .ai-os-startup-panel { padding: 28px 24px 26px; } }
+
+/* Canvas project library / board picker, mounted before the actual canvas. */
+.canvas-library-screen,
+.canvas-library-screen .canvas-board-card,
+.canvas-library-screen .canvas-gallery-sidebar,
+.canvas-library-screen .canvas-gallery-panel,
+.canvas-library-screen .canvas-gallery-list,
+.canvas-library-screen .canvas-gallery-card,
+.canvas-library-screen .canvas-list-panel,
+.canvas-library-screen .canvas-project-card,
+.canvas-library-screen .canvas-board-list {
+  color: var(--foreground, oklch(.97 .005 250));
+  background: var(--card, oklch(.18 .012 264));
+  border-color: var(--border, oklch(1 0 0 / .09));
+}
+.canvas-library-screen {
+  background: var(--background, oklch(.145 .01 264));
+  border: 1px solid var(--border, oklch(1 0 0 / .09));
+  box-shadow: var(--shadow-xl, 0 24px 70px rgba(0,0,0,.42));
+}
+.canvas-library-screen input,
+.canvas-library-screen select,
+.canvas-library-screen textarea,
+.canvas-library-screen .search-input {
+  color: var(--foreground, oklch(.97 .005 250));
+  background: var(--input, oklch(.2 .012 264));
+  border-color: var(--border, oklch(1 0 0 / .09));
+}
+.canvas-library-screen button,
+.canvas-library-screen .canvas-board-card,
+.canvas-library-screen .canvas-gallery-card,
+.canvas-library-screen .canvas-project-card { color: var(--foreground, oklch(.97 .005 250)); }
+.canvas-library-screen button:hover,
+.canvas-library-screen .canvas-board-card:hover,
+.canvas-library-screen .canvas-gallery-card:hover,
+.canvas-library-screen .canvas-project-card:hover,
+.canvas-library-screen [aria-selected="true"] {
+  color: var(--primary-foreground, oklch(.15 .01 264));
+  background: var(--primary, oklch(.86 .22 145));
+}
+.ai-os-app-window.is-focused { background: var(--background, oklch(.145 .01 264)); }
+.canvas-library-screen .canvas-board-card { background: var(--card, oklch(.18 .012 264)) !important; }
+.canvas-library-screen .canvas-gallery-sidebar { background: var(--secondary, oklch(.22 .014 264)) !important; }
+.ai-os-app-window,
+.ai-os-app-window.is-focused,
+.ai-os-app-window.is-immersive { background: var(--background, oklch(.145 .01 264)) !important; color: var(--foreground, oklch(.97 .005 250)); }
+
+/* Dynamic canvas panels and dialogs. */
+#canvasAgentPanel,
+#canvasAssetLibraryPanel,
+.canvas-agent-panel,
+.canvas-asset-library-panel,
+.canvas-mask-dialog,
+.canvas-crop-workbench-panel,
+.model-picker-dialog,
+.model-picker-backdrop,
+.canvas-director-dialog,
+.canvas-director-panel {
+  color: var(--foreground, oklch(.97 .005 250));
+  background: var(--card, oklch(.18 .012 264));
+  border-color: var(--border, oklch(1 0 0 / .09));
+  box-shadow: var(--shadow-xl, 0 24px 70px rgba(0,0,0,.42));
+}
+#canvasAgentPanel input,
+#canvasAgentPanel textarea,
+#canvasAssetLibraryPanel input,
+#canvasAssetLibraryPanel textarea,
+.canvas-agent-panel input,
+.canvas-agent-panel textarea,
+.canvas-asset-library-panel input,
+.canvas-asset-library-panel textarea,
+.canvas-mask-dialog input,
+.canvas-mask-dialog textarea,
+.model-picker-dialog input {
+  color: var(--foreground, oklch(.97 .005 250));
+  background: var(--input, oklch(.2 .012 264));
+  border-color: var(--border, oklch(1 0 0 / .09));
+}
+#canvasAgentPanel button:hover,
+#canvasAssetLibraryPanel button:hover,
+.canvas-agent-panel button:hover,
+.canvas-asset-library-panel button:hover,
+.model-picker-row.selected,
+.model-picker-row:hover { color: var(--primary-foreground, oklch(.15 .01 264)); background: var(--primary, oklch(.86 .22 145)); }
+.canvas-asset-library { color: var(--foreground, oklch(.97 .005 250)); background: var(--card, oklch(.18 .012 264)) !important; border-color: var(--border, oklch(1 0 0 / .09)); }
+.canvas-asset-library input,
+.canvas-asset-library textarea,
+.canvas-asset-library select { color: var(--foreground, oklch(.97 .005 250)); background: var(--input, oklch(.2 .012 264)); border-color: var(--border, oklch(1 0 0 / .09)); }
+.canvas-asset-library button:hover,
+.canvas-asset-library .is-active,
+.canvas-asset-library [aria-selected="true"] { color: var(--primary-foreground, oklch(.15 .01 264)); background: var(--primary, oklch(.86 .22 145)); }
+
+/* Fine-grained shell details: account chip, clock and dock frame. */
+.ai-os-user-menu {
+  color: var(--foreground, oklch(.97 .005 250)) !important;
+  background: var(--accent, oklch(.24 .015 264)) !important;
+  border: 1px solid var(--border, oklch(1 0 0 / .09)) !important;
+  border-radius: calc(var(--radius, .75rem) - 2px);
+}
+.ai-os-user-menu:hover,
+.ai-os-user-menu:focus-visible { background: var(--secondary, oklch(.22 .014 264)) !important; border-color: var(--ring, oklch(.86 .22 145 / .55)) !important; }
+#aiOsUserAvatar { color: var(--primary-foreground, oklch(.15 .01 264)); background: var(--primary, oklch(.86 .22 145)); border: 1px solid color-mix(in oklab, var(--primary) 70%, white 10%) !important; }
+#aiOsUserName, #aiOsClock, .ai-os-menu-right { color: var(--muted-foreground, oklch(.66 .012 258)); }
+.ai-os-dock {
+  background: var(--card, oklch(.18 .012 264)) !important;
+  border: 1px solid var(--border, oklch(1 0 0 / .09)) !important;
+  box-shadow: var(--shadow-lg, 0 16px 40px rgba(0,0,0,.34)) !important;
+}
+.ai-os-dock .dock-icon { border-color: var(--border, oklch(1 0 0 / .09)); }
+.ai-os-dock .dock-icon.is-active,
+.ai-os-dock .dock-icon[aria-current="page"] { background: var(--primary, oklch(.86 .22 145)); color: var(--primary-foreground, oklch(.15 .01 264)); }
+
+/* Launchpad: replace the legacy translucent/light launcher with the same Neon component language. */
+.ai-os-launchpad { background: transparent; }
+.ai-os-launchpad-backdrop { background: color-mix(in oklab, var(--background, oklch(.145 .01 264)) 72%, transparent) !important; backdrop-filter: blur(16px); }
+.ai-os-launchpad-grid {
+  width: min(720px, calc(100vw - 36px));
+  gap: 18px;
+  padding: 28px;
+  border: 1px solid var(--border, oklch(1 0 0 / .09));
+  border-radius: var(--radius, .75rem);
+  background: color-mix(in oklab, var(--card, oklch(.18 .012 264)) 96%, transparent) !important;
+  box-shadow: var(--shadow-xl, 0 24px 70px rgba(0,0,0,.42));
+  backdrop-filter: blur(24px);
+}
+.ai-os-launchpad-grid button { color: var(--foreground, oklch(.97 .005 250)); border: 1px solid transparent; border-radius: calc(var(--radius, .75rem) - 2px); }
+.ai-os-launchpad-grid button:hover,
+.ai-os-launchpad-grid button:focus-visible { color: var(--primary-foreground, oklch(.15 .01 264)); background: color-mix(in oklab, var(--primary, oklch(.86 .22 145)) 14%, var(--accent, oklch(.24 .015 264))) !important; border-color: var(--ring, oklch(.86 .22 145 / .55)); }
+.ai-os-launchpad-grid svg {
+  width: 28px;
+  height: 28px;
+  padding: 14px;
+  color: var(--primary-foreground, oklch(.15 .01 264)) !important;
+  background: var(--primary, oklch(.86 .22 145)) !important;
+  border: 1px solid color-mix(in oklab, var(--primary) 70%, white 10%);
+  border-radius: calc(var(--radius, .75rem) - 2px);
+  box-shadow: 0 0 24px color-mix(in oklab, var(--primary) 20%, transparent);
+}
+.ai-os-launchpad-grid span { color: inherit; font-size: 12px; font-weight: 650; }
+#aiOsLaunchpad .ai-os-launchpad-grid svg {
+  color: var(--primary-foreground, oklch(.15 .01 264)) !important;
+  stroke: currentColor !important;
+  background: var(--primary, oklch(.86 .22 145)) !important;
+  border-color: var(--primary, oklch(.86 .22 145)) !important;
+}
+#aiOsLaunchpad .ai-os-launchpad-grid svg > * {
+  stroke: var(--primary-foreground, #0c0c0b) !important;
+  stroke-width: 2.2 !important;
+  fill: none !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+#aiOsLaunchpad .ai-os-launchpad-grid svg,
+#aiOsLaunchpad .ai-os-launchpad-grid svg > * {
+  color: #0c0c0b !important;
+  stroke: #0c0c0b !important;
+  stroke-width: 2.4 !important;
+}
+#aiOsLaunchpad .ai-os-launchpad-grid svg { background: var(--primary) !important; }
+
+/* One Neon primary hue across brand mark, selected home card and dock selection. */
+.ai-os-home-mark {
+  color: var(--primary, var(--neon-primary, #00ff41)) !important;
+  background: color-mix(in oklab, var(--primary, var(--neon-primary, #00ff41)) 12%, transparent) !important;
+  border-color: color-mix(in oklab, var(--primary, var(--neon-primary, #00ff41)) 70%, transparent) !important;
+}
+.ai-os-home-app[data-home-app="canvas"],
+.ai-os-home-app[data-home-app="canvas"]:hover,
+.ai-os-home-app[data-home-app="canvas"]:focus-visible {
+  background: color-mix(in oklab, var(--primary, var(--neon-primary, #00ff41)) 12%, var(--card, oklch(.18 .012 264))) !important;
+  border-color: color-mix(in oklab, var(--primary, var(--neon-primary, #00ff41)) 70%, transparent) !important;
+}
+.dock-canvas,
+.dock-image,
+.dock-chat { background: var(--primary, var(--neon-primary, #00ff41)) !important; color: var(--primary-foreground, #0c0c0b) !important; }
+
+/* Neon reference palette alignment: use the documented Primary swatch for every primary action. */
+:root {
+  --primary: var(--neon-primary, #00ff41);
+  --primary-foreground: #0c0c0b;
+  --ring: color-mix(in srgb, var(--neon-primary, #00ff41) 55%, transparent);
+}
+#aiOsLaunchpad .ai-os-launchpad-grid svg { background: var(--primary) !important; }
+#aiOsLaunchpad .ai-os-launchpad-grid svg {
+  box-sizing: content-box !important;
+  width: 24px !important;
+  height: 24px !important;
+  padding: 10px !important;
+  overflow: visible !important;
+}
+#aiOsLaunchpad .ai-os-launchpad-grid svg > * {
+  vector-effect: non-scaling-stroke;
+}
+
+/* Navigation simplification: the workbench home is the single app entry. */
+.ai-os-dock > button[data-ai-app="launcher"],
+#aiOsLaunchpad { display: none !important; }
+/* Flatten the canvas project picker so it reads as one workspace, not nested windows. */
+.canvas-library-screen { border: 0 !important; box-shadow: none !important; background: var(--background) !important; }
+.canvas-library-screen > .canvas-board-card { border: 0 !important; box-shadow: none !important; background: transparent !important; }
+.canvas-library-screen .canvas-gallery-shell { border: 0 !important; background: transparent !important; }
+.canvas-library-screen .canvas-gallery-main { border: 0 !important; }
+.canvas-board-icon-button,
+#canvasBoardNew {
+  color: var(--foreground) !important;
+  background: var(--secondary, oklch(.22 .014 264)) !important;
+  border: 1px solid var(--border, oklch(1 0 0 / .09)) !important;
+}
+.canvas-board-icon-button:hover,
+#canvasBoardNew:hover { color: var(--primary-foreground) !important; background: var(--primary) !important; border-color: var(--primary) !important; }
+.canvas-gallery-nav-item.is-active { color: var(--primary-foreground) !important; background: color-mix(in oklab, var(--primary) 16%, var(--accent)) !important; }
+
+/* Final Neon normalization: legacy palette variables and page states resolve to one system. */
+:root,
+:root[data-theme],
+:root[data-palette],
+:root[data-theme][data-palette] {
+  --primary: var(--neon-primary, #00ff41) !important;
+  --primary-foreground: #0c0c0b !important;
+  --accent: var(--neon-primary, #00ff41) !important;
+  --accent-dark: #8aff98 !important;
+  --accent-soft: rgba(0,255,65,.14) !important;
+  --ring: rgba(0,255,65,.55) !important;
+  --os-accent: var(--neon-primary, #00ff41) !important;
+  --palette-accent: var(--neon-primary, #00ff41) !important;
+  --palette-action: var(--neon-primary, #00ff41) !important;
+  --capability-active-bg: rgba(0,255,65,.16) !important;
+  --capability-active-border: var(--neon-primary, #00ff41) !important;
+  --capability-primary: var(--neon-primary, #00ff41) !important;
+  --panel: #171817 !important;
+  --ink: #f4f7f1 !important;
+}
+/* Common primary controls: saturated green is reserved for action/selection. */
+:is(.settings-save-button,.primary-action,.primary-button,.button-primary,#generateButton,
+  .settings-create-button,.settings-backup-button,.settings-agent-save,
+  .settings-provider-create,.settings-api-create,.settings-comfy-save,
+  .chat-send-button,.chat-composer-send,.canvas-gallery-new-button,
+  [data-action="create-provider"],[data-action="backup"],[data-action="save"]) {
+  background: var(--primary) !important;
+  color: var(--primary-foreground) !important;
+  border-color: var(--primary) !important;
+}
+/* Selection/focus uses the same green family; blue and yellow legacy states are removed. */
+:is([aria-selected="true"],[aria-checked="true"],[data-selected="true"],.is-selected,.selected,
+  .is-active,.active,.settings-nav-item.is-active,.settings-sidebar-item.is-active,
+  .settings-tab.is-active,.settings-filter.is-active,.canvas-gallery-nav-item.is-active) {
+  --selection-bg: rgba(0,255,65,.16) !important;
+  background: var(--selection-bg) !important;
+  color: var(--foreground) !important;
+  border-color: var(--primary) !important;
+}
+:is(:focus-visible,.is-focused) {
+  outline-color: var(--primary) !important;
+  box-shadow: 0 0 0 3px rgba(0,255,65,.32) !important;
+}
+/* Status badges retain meaning through text and shape, while using neutral surfaces. */
+:is(.status-badge,.settings-status,.model-status,.provider-status,.count-badge,.canvas-board-project-badge) {
+  color: var(--foreground) !important;
+  background: var(--secondary) !important;
+  border: 1px solid var(--border) !important;
+}
+:is(.status-badge[data-status="success"],.settings-status.is-ready,.model-status.is-ready) {
+  color: var(--primary) !important;
+  border-color: rgba(0,255,65,.55) !important;
+}
+/* Remove accidental rainbow icon fills from settings and shell; icon glyphs stay semantic. */
+:is(.settings-sidebar svg,.settings-nav svg,.ai-os-menu-bar svg,.ai-os-user-menu svg) {
+  color: currentColor !important;
+  background: transparent !important;
+  fill: none !important;
+}
+:is(.settings-sidebar .icon,.settings-nav .icon,.settings-nav-item > i,.settings-sidebar-item > i) {
+  color: var(--muted-foreground) !important;
+  background: transparent !important;
+}
+.ai-os-user-menu,
+.ai-os-user-menu:hover,
+.ai-os-user-menu:focus-visible { background: var(--secondary) !important; color: var(--foreground) !important; border-color: var(--border) !important; }
+#aiOsUserAvatar { background: var(--primary) !important; color: var(--primary-foreground) !important; }
+/* Keep form controls dark and quiet; only the chosen action receives primary color. */
+:is(input,select,textarea,.settings-card,.settings-section-card,.settings-content,.settings-main,
+  .settings-provider-empty,.settings-local-model,.settings-api-panel,.comfyui-settings-panel) {
+  background-color: var(--card) !important;
+  color: var(--foreground) !important;
+  border-color: var(--border) !important;
+}
+:is(.settings-eyebrow,.ai-os-eyebrow,.settings-section-eyebrow) { color: var(--muted-foreground) !important; }
+:is(.settings-eyebrow::first-letter,.ai-os-eyebrow::first-letter) { color: var(--primary); }
+@media (prefers-reduced-motion: reduce) { *,*::before,*::after { transition-duration: .01ms !important; animation-duration: .01ms !important; } }
+
+/* Unified workspace composition: one inner surface owns the header, apps and dock. */
+.ai-os-menu-bar {
+  background: transparent !important;
+  border-bottom: 0 !important;
+  box-shadow: none !important;
+  z-index: 90 !important;
+}
+.ai-os-desktop-home {
+  inset: 38px 18px 18px !important;
+  padding: 18px !important;
+  align-items: stretch !important;
+  background: var(--background) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: var(--shadow-lg) !important;
+}
+.ai-os-home-panel {
+  width: min(1080px, 100%) !important;
+  height: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  padding: clamp(28px, 5vw, 72px) !important;
+  box-sizing: border-box !important;
+}
+.ai-os-home-header { margin-bottom: 22px !important; }
+.ai-os-home-grid { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 12px !important; }
+.ai-os-home-app { min-height: 72px !important; border-radius: var(--radius-md) !important; box-shadow: none !important; backdrop-filter: none !important; }
+.ai-os-home-app[data-home-app="canvas"] { grid-column: span 2 !important; }
+.ai-os-dock {
+  bottom: 30px !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  padding: 0 !important;
+  gap: 8px !important;
+}
+.ai-os-dock > button small { display: none !important; }
+.ai-os-dock .dock-icon { width: 42px !important; height: 42px !important; border-radius: 11px !important; box-shadow: none !important; }
+.ai-os-dock-divider { height: 30px !important; background: var(--border) !important; }
+@media (max-width: 720px) {
+  .ai-os-desktop-home { inset: 38px 8px 8px !important; padding: 8px !important; }
+  .ai-os-home-panel { padding: 24px 16px 92px !important; justify-content: flex-start !important; }
+  .ai-os-home-grid { grid-template-columns: 1fr !important; }
+  .ai-os-home-app[data-home-app="canvas"] { grid-column: auto !important; }
+  .ai-os-dock { bottom: 18px !important; }
+}
+/* Home information architecture: sidebar + one content surface. */
+.ai-os-desktop-home { display: grid !important; grid-template-columns: 220px minmax(0,1fr) !important; align-items: stretch !important; padding: 0 !important; overflow: hidden !important; }
+.ai-os-home-panel { width: 100% !important; height: 100% !important; min-width: 0 !important; display: contents !important; padding: 0 !important; }
+.ai-os-home-header { display: none !important; }
+.ai-os-home-sidebar { display:flex; flex-direction:column; gap:20px; padding:24px 18px; border-right:1px solid var(--border); background:color-mix(in srgb,var(--card) 70%,transparent); }
+.ai-os-home-sidebar-brand { display:flex; align-items:center; gap:10px; color:var(--foreground); font-size:16px; }
+.ai-os-home-sidebar-brand .ai-os-home-mark { width:32px; height:32px; border-radius:9px; font-size:19px; }
+.ai-os-home-create,.ai-os-home-nav { display:flex; align-items:center; gap:10px; width:100%; min-height:40px; border:1px solid transparent; border-radius:var(--radius-md); color:var(--muted-foreground); background:transparent; padding:0 12px; text-align:left; cursor:pointer; }
+.ai-os-home-create { color:var(--primary-foreground); background:var(--primary); font-weight:700; }
+.ai-os-home-nav:hover,.ai-os-home-nav.is-active { color:var(--foreground); background:var(--secondary); border-color:var(--border); }
+.ai-os-home-sidebar-foot { margin-top:auto; color:var(--muted-foreground); font-size:11px; }
+.ai-os-home-content { min-width:0; overflow:auto; padding:clamp(28px,4vw,60px); color:var(--foreground); }
+.ai-os-home-content-head { display:flex; align-items:flex-start; justify-content:space-between; gap:20px; margin-bottom:26px; }
+.ai-os-home-kicker { color:var(--primary); font-size:12px; font-weight:700; letter-spacing:.12em; }
+.ai-os-home-content-head h2 { margin:6px 0 8px; font-size:clamp(24px,3vw,38px); }
+.ai-os-home-content-head p { margin:0; color:var(--muted-foreground); }
+.ai-os-home-account { color:var(--muted-foreground); font-size:13px; }
+.ai-os-home-create-hero { display:grid; justify-items:center; gap:8px; width:100%; min-height:150px; border:1px dashed var(--border); border-radius:var(--radius-lg); color:var(--foreground); background:radial-gradient(circle at center,color-mix(in srgb,var(--primary) 8%,transparent),transparent 62%),var(--card); cursor:pointer; }
+.ai-os-home-create-hero:hover { border-color:var(--primary); background:color-mix(in srgb,var(--primary) 10%,var(--card)); }
+.ai-os-home-create-icon { display:grid; place-items:center; width:48px; height:48px; border-radius:14px; color:var(--primary-foreground); background:var(--primary); }
+.ai-os-home-create-hero small,.ai-os-home-section-head span { color:var(--muted-foreground); }
+.ai-os-home-section { margin-top:28px; }
+.ai-os-home-section-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+.ai-os-home-section-head h3 { margin:0; font-size:15px; }
+.ai-os-home-section-head button { border:0; color:var(--primary); background:transparent; cursor:pointer; }
+.ai-os-home-quick { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,12rem),1fr)); gap:var(--space-3, .75rem); }
+.ai-os-home-quick-card { min-height:92px !important; display:grid !important; grid-template-columns:32px 1fr !important; padding:14px !important; border-radius:var(--radius-md) !important; }
+.ai-os-home-quick-card .ai-os-home-app-arrow { display:none; }
+.ai-os-home-quick-card .ai-os-home-app-icon { width:32px !important; height:32px !important; }
+.ai-os-home-recent-empty { display:grid; justify-items:center; gap:8px; padding:34px; border:1px solid var(--border); border-radius:var(--radius-md); color:var(--muted-foreground); background:var(--card); }
+.ai-os-home-recent-empty svg { color:var(--primary); }
+.ai-os-home-admin { display:flex; gap:8px; margin-top:20px; }
+.ai-os-home-admin-card { min-height:42px !important; flex:1; }
+@media (max-width:720px) { .ai-os-desktop-home { grid-template-columns:1fr !important; } .ai-os-home-sidebar { flex-direction:row; align-items:center; overflow:auto; padding:10px 12px; border-right:0; border-bottom:1px solid var(--border); } .ai-os-home-sidebar nav { display:flex; gap:6px; } .ai-os-home-sidebar-foot,.ai-os-home-sidebar-brand strong { display:none; } .ai-os-home-create { width:auto; } .ai-os-home-nav { width:auto; white-space:nowrap; } .ai-os-home-content { padding:24px 16px 88px; } .ai-os-home-quick { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+/* Fix home layout containment: the outer shell owns one panel; the panel owns sidebar/content. */
+.ai-os-desktop-home { display:block !important; width:auto !important; box-sizing:border-box !important; }
+.ai-os-home-panel { display:grid !important; grid-template-columns:220px minmax(0,1fr) !important; width:100% !important; height:100% !important; min-width:0 !important; overflow:hidden !important; }
+.ai-os-home-sidebar,.ai-os-home-content { min-width:0 !important; width:auto !important; box-sizing:border-box !important; }
+.ai-os-home-content { display:block !important; }
+@media (max-width:720px) {
+  .ai-os-home-panel { display:flex !important; flex-direction:column !important; }
+  .ai-os-home-sidebar { flex:0 0 auto !important; }
+  .ai-os-home-content { flex:1 1 auto !important; }
+}
+/* Runtime scale safe sizing: prevent the home panel from shrinking to its content width. */
+.ai-os-desktop-home { width:100% !important; max-width:none !important; min-width:0 !important; }
+.ai-os-home-panel { position:absolute !important; inset:0 !important; width:auto !important; max-width:none !important; min-width:0 !important; }
+.ai-os-home-content { min-width:0 !important; overflow-x:hidden !important; }
+.ai-os-home-content-head h2,.ai-os-home-content-head p { max-width:none !important; white-space:normal !important; word-break:keep-all !important; }
+/* Sidebar and content are children of the dynamic host, not the panel. */
+#aiOsDesktopHome[hidden] { display:none !important; }
+#aiOsDesktopHome { width:auto !important; inset:38px 0 0 !important; border:0 !important; border-radius:0 !important; box-shadow:none !important; }
+#aiOsDesktopHome .ai-os-home-panel { display:block !important; border:0 !important; border-radius:0 !important; box-shadow:none !important; background:var(--background) !important; }
+#aiOsDesktopHomeApps { display:grid !important; grid-template-columns:220px minmax(0,1fr) !important; grid-template-rows:minmax(0,1fr) !important; gap:0 !important; width:100% !important; height:100% !important; min-width:0 !important; }
+#aiOsDesktopHomeApps > .ai-os-home-sidebar { grid-column:1 !important; grid-row:1 !important; }
+#aiOsDesktopHomeApps > .ai-os-home-content { grid-column:2 !important; grid-row:1 !important; }
+#aiOsDesktopHomeApps .ai-os-home-content-head > div:first-child { flex:1; min-width:0; }
+#aiOsDesktopHomeApps .ai-os-home-sidebar svg { width:18px; height:18px; flex-shrink:0; }
+#aiOsDesktopHomeApps .ai-os-home-sidebar span { white-space:nowrap; }
+#aiOsDesktopHomeApps .ai-os-home-content { padding-bottom:40px !important; }
+#aiOsDesktop:has(#aiOsDesktopHome:not([hidden])) .ai-os-dock { display:none !important; }
+@media (max-width:720px) {
+  #aiOsDesktopHomeApps { grid-template-columns:minmax(0,1fr) !important; grid-template-rows:auto minmax(0,1fr) !important; }
+  #aiOsDesktopHomeApps > .ai-os-home-sidebar { grid-column:1 !important; grid-row:1 !important; }
+  #aiOsDesktopHomeApps > .ai-os-home-content { grid-column:1 !important; grid-row:2 !important; }
+}
+.ai-os-menu-bar { display:none !important; }
+.ai-os-desktop-home { inset:0 !important; }
+#aiOsDesktopHomeApps { grid-template-columns:240px minmax(0,1fr) !important; }
+.ai-os-home-sidebar { padding:28px 18px 18px !important; background:var(--card) !important; border-right:1px solid var(--border) !important; }
+.ai-os-home-sidebar-brand .ai-os-home-mark { display:none !important; }
+.ai-os-home-sidebar-brand::before { content:'AI OS'; color:var(--foreground); font-size:18px; font-weight:800; }
+.ai-os-home-sidebar-brand strong,.ai-os-home-sidebar-foot { display:none !important; }
+.ai-os-home-sidebar::after { content:'本地创作工作台'; order:10; margin-top:auto; color:var(--muted-foreground); font-size:11px; }
+.ai-os-home-sidebar::before { content:'局域网已连接'; order:8; display:block; padding:10px 11px; border:1px solid var(--border); border-radius:var(--radius-md); color:var(--muted-foreground); font-size:12px; }
+.ai-os-home-sidebar nav { order:5; }
+.ai-os-home-create { order:3; min-height:42px !important; }
+.ai-os-home-sidebar .ai-os-home-account-side { order:7; display:flex; align-items:center; gap:9px; margin-top:8px; padding:10px 11px; border:1px solid var(--border); border-radius:var(--radius-md); color:var(--foreground); font-size:12px; }
+.ai-os-home-sidebar .ai-os-home-account-side::before { content:'账户'; color:var(--muted-foreground); margin-right:auto; }
+.ai-os-home-nav[data-home-app="settings"] { display:none !important; }
+.ai-os-home-content-head .ai-os-home-account { display:none !important; }
+.ai-os-dock { display:none !important; }
+/* Two-column application shell: global navigation + main workspace. */
+#aiOsDesktopHome { display:block !important; }
+#aiOsDesktopHomeApps { display:grid !important; grid-template-columns:240px minmax(0,1fr) !important; grid-template-rows:1fr !important; min-height:100% !important; }
+#aiOsDesktopHomeApps > .ai-os-home-sidebar { grid-column:1; grid-row:1; }
+#aiOsDesktopHomeApps > .ai-os-home-content { grid-column:2; grid-row:1; min-width:0; }
+.ai-os-home-content > * { max-width:100%; }
+@media (max-width:720px) {
+  #aiOsDesktopHomeApps { grid-template-columns:1fr !important; grid-template-rows:auto minmax(0,1fr) !important; }
+  #aiOsDesktopHomeApps > .ai-os-home-sidebar { grid-column:1; grid-row:1; }
+  #aiOsDesktopHomeApps > .ai-os-home-content { grid-column:1; grid-row:2; }
+}
+/* Settings remains a first-class destination in the same left navigation. */
+.ai-os-home-nav[data-home-app="settings"] { display:flex !important; }
+.ai-os-home-nav[data-home-app="settings"]::after { content:'系统与偏好'; margin-left:auto; color:var(--muted-foreground); font-size:10px; }
+/* Hard boundary for the two-column shell; prevent legacy compositor geometry from collapsing it. */
+#aiOsDesktopHome:not([hidden]) { position:fixed !important; top:38px !important; right:0 !important; bottom:0 !important; left:0 !important; display:block !important; width:auto !important; height:auto !important; z-index:80 !important; overflow:hidden !important; }
+#aiOsDesktopHomeApps { position:absolute !important; inset:0 !important; display:grid !important; grid-template-columns:240px minmax(0,1fr) !important; grid-template-rows:1fr !important; width:auto !important; height:auto !important; }
+#aiOsDesktopHomeApps > .ai-os-home-sidebar { min-width:240px !important; max-width:240px !important; overflow:hidden !important; }
+#aiOsDesktopHomeApps > .ai-os-home-content { min-width:0 !important; width:auto !important; overflow:auto !important; }
+
+@media (max-width:720px) {
+  #aiOsDesktopHome:not([hidden]) { top:0 !important; }
+  #aiOsDesktopHomeApps { grid-template-columns:1fr !important; grid-template-rows:auto minmax(0,1fr) !important; }
+  #aiOsDesktopHomeApps > .ai-os-home-sidebar { min-width:0 !important; max-width:none !important; }
+}
+/* Remove the retired top bar's reserved strip on the home shell. */
+#aiOsDesktopHome:not([hidden]) { top:0 !important; }
+#aiOsDesktopHomeApps { top:0 !important; }
+.ai-os-home-content { padding-top:42px !important; }
+@media (max-width:720px) { .ai-os-home-content { padding-top:24px !important; } }
+.ai-os-home-content { position:relative !important; min-width:0 !important; }
+#aiOsHomeOverview { min-width:0; }
+.ai-os-inline-workspace { position:absolute; inset:0; overflow:auto; min-width:0; background:var(--ai-os-bg, #0b0d0f); }
+.ai-os-inline-workspace > * { min-height:100%; }
+.ai-os-inline-workspace [data-window-content], .ai-os-inline-workspace .ai-os-app-window { position:static !important; transform:none !important; width:100% !important; height:auto !important; min-height:100%; border:0 !important; box-shadow:none !important; }
+.ai-os-inline-workspace .ai-os-app-titlebar { display:none !important; }
+.ai-os-inline-workspace,
+.ai-os-inline-workspace > *,
+.ai-os-inline-workspace .canvas-library-screen,
+.ai-os-inline-workspace .canvas-gallery-shell { background:#0b0d0f !important; }
+.ai-os-inline-workspace { margin:0 !important; padding:0 !important; border:0 !important; }
+.ai-os-inline-workspace > * { margin:0 !important; padding:0 !important; border:0 !important; }
+.ai-os-inline-workspace .canvas-library-screen { min-height:100% !important; width:100% !important; }
+body:has(#aiOsInlineWorkspace) .ai-os-companion-window[data-ai-window="shared"],
+body:has(#aiOsInlineWorkspace) .ai-os-companion-window[data-ai-window="settings"] {
+  position:static !important; inset:auto !important; transform:none !important; width:100% !important; height:100% !important; max-width:none !important; max-height:none !important; border:0 !important; border-radius:0 !important; box-shadow:none !important;
+}
+body:has(#aiOsInlineWorkspace) .ai-os-companion-window[data-ai-window="shared"] > .ai-os-companion-titlebar,
+body:has(#aiOsInlineWorkspace) .ai-os-companion-window[data-ai-window="settings"] > .ai-os-companion-titlebar { display:none !important; }
+
+.ai-os-inline-error { padding:24px; color:var(--foreground); background:var(--card); border:1px solid var(--destructive); border-radius:var(--radius); }
+.ai-os-inline-error button { padding:8px 16px; color:var(--primary-foreground); background:var(--primary); border-radius:var(--radius); border:0; }
+/* Neon P1 shared component alignment */
+.ai-os-settings-layout {
+  --ai-settings-surface: var(--background);
+  --ai-settings-sidebar-bg: var(--card);
+  --ai-settings-card-bg: var(--card);
+  --ai-settings-field-bg: var(--input);
+  --ai-settings-ink: var(--foreground);
+  --ai-settings-muted: var(--muted-foreground);
+  --ai-settings-line: var(--border);
+  --ai-settings-blue: var(--primary);
+  --ai-settings-blue-soft: color-mix(in srgb, var(--primary) 14%, transparent);
+  --ai-settings-green: var(--chart-2);
+  --ai-settings-danger: var(--destructive);
+  --ai-settings-shadow: var(--shadow-md);
+  --settings-surface: var(--background);
+  --settings-sidebar: var(--card);
+  --settings-card: var(--card);
+  --settings-field: var(--input);
+  --settings-ink: var(--foreground);
+  --settings-muted: var(--muted-foreground);
+  --settings-line: var(--border);
+  --settings-blue: var(--primary);
+  --settings-blue-soft: color-mix(in srgb, var(--primary) 14%, transparent);
+  --settings-green: var(--chart-2);
+  --settings-danger: var(--destructive);
+  --settings-shadow: var(--shadow-md);
+  background: var(--background) !important;
+  font-family: var(--font-sans), "PingFang SC", "Microsoft YaHei", sans-serif !important;
+}
+.ai-os-settings-layout :is(input,textarea,select,button) { border-radius: var(--radius) !important; }
+.ai-os-settings-layout :is(input,textarea,select) { color: var(--foreground) !important; background: var(--input) !important; border-color: var(--border) !important; }
+.ai-os-settings-layout :is(input,textarea,select):focus-visible,
+.ai-os-settings-layout button:focus-visible { outline: 2px solid var(--ring) !important; outline-offset: 2px; box-shadow: none !important; }
+.ai-os-settings-layout :is(.settings-card,.settings-section,.settings-provider-card,.settings-model-card) { background: var(--card) !important; border-color: var(--border) !important; box-shadow: var(--shadow-sm) !important; }
+.ai-os-settings-layout :is(.settings-toggle-row > i,.settings-inline-toggle > i,.settings-skill-toggle > i) { background: var(--secondary) !important; border-color: var(--border) !important; }
+.ai-os-settings-layout :is(input:checked + i) { background: var(--primary) !important; border-color: var(--primary) !important; }
+.ai-os-settings-layout :is(.settings-primary,.settings-save,.settings-action-primary) { color: var(--primary-foreground) !important; background: var(--neon-gradient) !important; border-color: var(--primary) !important; box-shadow: var(--shadow-neon) !important; }
+.ai-os-settings-layout :is(.settings-danger,.settings-delete) { color: var(--destructive-foreground) !important; background: var(--destructive) !important; }
+.ai-os-companion-sidebar,
+.ai-os-companion-content { background: var(--background) !important; color: var(--foreground) !important; }
+.ai-os-companion-sidebar { border-color: var(--border) !important; }
+.ai-os-companion-sidebar > button.active,
+.ai-os-companion-sidebar > button:hover { color: var(--primary-foreground) !important; background: color-mix(in srgb, var(--primary) 18%, var(--card)) !important; }
+.ai-os-resource-card { background: var(--card) !important; border-color: var(--border) !important; border-radius: var(--radius) !important; }
+.ai-os-resource-preview { background: var(--secondary) !important; color: var(--foreground) !important; border-radius: var(--radius) !important; }
+/* Neon P2 Agent and AI output alignment */
+.canvas-agent-panel,
+.canvas-agent-popover,
+.canvas-agent-form,
+.canvas-agent-context,
+.canvas-agent-messages,
+.canvas-agent-composer-tools { color: var(--foreground) !important; background: var(--card) !important; border-color: var(--border) !important; }
+.canvas-agent-panel { border-radius: var(--radius) !important; box-shadow: var(--shadow-lg) !important; }
+.canvas-agent-message.is-user { color: var(--primary-foreground) !important; background: var(--primary) !important; border-color: var(--primary) !important; box-shadow: var(--shadow-neon) !important; }
+.canvas-agent-message.is-assistant { color: var(--foreground) !important; background: transparent !important; }
+.canvas-agent-message.is-notice { color: var(--foreground) !important; background: color-mix(in srgb, var(--chart-2) 12%, var(--card)) !important; border-color: color-mix(in srgb, var(--chart-2) 42%, var(--border)) !important; }
+.canvas-agent-message.is-error { color: var(--destructive-foreground) !important; background: color-mix(in srgb, var(--destructive) 14%, var(--card)) !important; border-color: var(--destructive) !important; }
+.canvas-agent-markdown,
+.canvas-agent-message p { color: inherit !important; }
+.canvas-agent-markdown :is(code,pre),
+.canvas-agent-table-wrap,
+.canvas-agent-tool-detail,
+.canvas-agent-brief,
+.canvas-agent-approval { color: var(--foreground) !important; background: var(--secondary) !important; border-color: var(--border) !important; border-radius: var(--radius) !important; }
+.canvas-agent-markdown pre { overflow:auto; padding:12px !important; box-shadow: var(--shadow-inset) !important; }
+.canvas-agent-markdown code { color: var(--primary) !important; font-family: var(--font-mono, "SFMono-Regular", Consolas, monospace) !important; }
+.canvas-agent-send,
+.canvas-agent-run-actions button,
+.canvas-agent-approval-actions button { color: var(--primary-foreground) !important; background: var(--neon-gradient) !important; border-color: var(--primary) !important; border-radius: var(--radius) !important; box-shadow: var(--shadow-neon) !important; }
+.canvas-agent-stop { color: var(--destructive-foreground) !important; background: var(--destructive) !important; border-color: var(--destructive) !important; }
+.canvas-agent-panel :is(button,input,textarea,select):focus-visible { outline: 2px solid var(--ring) !important; outline-offset: 2px; box-shadow: none !important; }
+.canvas-agent-tool-status,
+.canvas-agent-live-status,
+.canvas-agent-waiting { color: var(--muted-foreground) !important; }
+.canvas-agent-tool-status[data-status="success"],
+.canvas-agent-live-status[data-status="success"] { color: var(--chart-1) !important; }
+.canvas-agent-tool-status[data-status="error"] { color: var(--destructive) !important; }
+/* Neon P2 icon, typography and legacy color cleanup */
+:root {
+  --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  --text-xs: .75rem;
+  --text-sm: .8125rem;
+  --text-md: .875rem;
+  --text-lg: 1rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --chart-success: var(--chart-1);
+  --chart-secondary: var(--chart-2);
+  --chart-info: oklch(.78 .16 205);
+  --chart-tertiary: oklch(.76 .16 285);
+}
+:is(button,[role="button"],a) > svg,
+:is(button,[role="button"],a) > i[data-lucide] { width:16px; height:16px; flex:0 0 16px; stroke-width:1.8; }
+.ai-os-home-sidebar svg,
+.ai-os-companion-sidebar svg { width:18px; height:18px; flex:0 0 18px; stroke-width:1.8; }
+.ai-os-home-app-icon svg,
+.ai-os-home-app-arrow { width:18px !important; height:18px !important; stroke-width:1.8; }
+.ai-os-dock svg { width:17px !important; height:17px !important; stroke-width:1.8; }
+:is(.ai-os-home-app-icon,.ai-os-resource-preview,.ai-os-account-avatar,.dock-icon,.ai-os-launchpad-grid svg) { background: var(--secondary) !important; color: var(--foreground) !important; box-shadow: none !important; }
+.ai-os-home-app[data-home-app="canvas"] .ai-os-home-app-icon { background: var(--primary) !important; color: var(--primary-foreground) !important; }
+:is(.dock-image,.dock-chat,.dock-files,.dock-accounts,.dock-settings) { background: var(--secondary) !important; color: var(--foreground) !important; }
+.ai-os-resource-preview { background: var(--secondary) !important; }
+.ai-os-account-hero .ai-os-account-avatar { background: var(--primary) !important; color: var(--primary-foreground) !important; }
+.ai-os-launchpad-grid svg { color: var(--foreground) !important; background: var(--secondary) !important; }
+/* Status colors stay separate from chart series. */
+:is(.feedback-success,.toast-success,.status-success,.is-success) { color: var(--chart-success); }
+:is(.feedback-warning,.toast-warning,.status-warning,.is-warning) { color: var(--warning, oklch(.82 .16 90)); }
+:is(.feedback-error,.toast-error,.status-error,.is-error) { color: var(--destructive); }
+/* Settings module source-level Neon normalization */
+.ai-os-settings-layout,
+.ai-os-settings-layout * { --settings-blue: var(--primary) !important; --settings-blue-soft: color-mix(in srgb, var(--primary) 14%, transparent) !important; --settings-green: var(--chart-1) !important; --settings-line: var(--border) !important; --settings-card: var(--card) !important; --settings-field: var(--input) !important; --settings-ink: var(--foreground) !important; --settings-muted: var(--muted-foreground) !important; }
+.ai-os-settings-layout .ai-os-settings-sidebar nav > button > i,
+.ai-os-settings-layout .ai-os-settings-sidebar nav > button:nth-of-type(1) i,
+.ai-os-settings-layout .ai-os-settings-sidebar nav > button:nth-of-type(2) i,
+.ai-os-settings-layout .ai-os-settings-sidebar nav > button:nth-of-type(3) i,
+.ai-os-settings-layout .ai-os-settings-sidebar nav > button:nth-of-type(4) i,
+.ai-os-settings-layout .ai-os-settings-sidebar nav > button:nth-of-type(5) i { color: var(--foreground) !important; background: var(--secondary) !important; }
+.ai-os-settings-layout .ai-os-settings-sidebar nav > button.active { color: var(--primary-foreground) !important; background: color-mix(in srgb, var(--primary) 18%, var(--card)) !important; }
+.ai-os-settings-layout :is(.settings-provider-workspace,.settings-provider-sidebar,.settings-provider-main,.settings-account-page,.settings-system-page,.settings-page) { background: var(--background) !important; color: var(--foreground) !important; }
+.ai-os-settings-layout :is(.settings-provider-card,.settings-provider-sidebar,.settings-provider-main,.settings-empty-state) { border-color: var(--border) !important; }
+.ai-os-settings-layout :is(.settings-provider-recommendations,.settings-capability-chip input:checked + span,.settings-agent-model-row.is-selected) { color: var(--primary-foreground) !important; background: color-mix(in srgb, var(--primary) 18%, var(--card)) !important; border-color: var(--primary) !important; }
+.ai-os-settings-layout :is(.settings-primary-button,.settings-test-composer button) { color: var(--primary-foreground) !important; background: var(--neon-gradient) !important; border-color: var(--primary) !important; }
+.ai-os-settings-layout :is(.settings-model-kind,.settings-skill-group-kind,.settings-skill-badge.is-custom,.settings-agent-coverage > header em,.settings-agent-order) { color: var(--primary-foreground) !important; background: color-mix(in srgb, var(--primary) 18%, var(--card)) !important; }
+.ai-os-settings-layout :is(.settings-provider-status button,.settings-model-summary [data-model-test],.settings-model-details[open] > summary,.settings-test-modes button.active) { color: var(--primary) !important; }
+.ai-os-settings-layout :is(.settings-search,.settings-recommended-platform-card input,.settings-model-title input,.settings-test-dialog textarea):focus-within,
+.ai-os-settings-layout :is(input,textarea,select):focus { border-color: var(--primary) !important; box-shadow: var(--neon-focus) !important; }
+/* Asset module consumes Neon Foundation directly. */
+:root {
+  --os-ink: var(--neon-color-text);
+  --os-muted: var(--neon-color-muted);
+  --os-line: var(--neon-color-border);
+  --os-accent: var(--neon-color-action);
+  --os-accent-soft: color-mix(in srgb, var(--neon-color-action) 14%, transparent);
+  --os-window-bg: var(--neon-color-surface);
+  --os-surface-bg: var(--neon-color-surface);
+  --os-field-bg: var(--neon-color-raised);
+}
+.ai-os-companion-window,
+.ai-os-companion-titlebar,
+.ai-os-companion-sidebar,
+.ai-os-account-list-pane,
+.ai-os-companion-content { color: var(--neon-color-text) !important; background: var(--neon-color-canvas) !important; border-color: var(--neon-color-border) !important; box-shadow: none !important; }
+.ai-os-companion-sidebar { background: var(--neon-color-surface) !important; }
+.ai-os-companion-sidebar > span { color: var(--neon-color-muted) !important; }
+.ai-os-companion-sidebar > button { color: var(--neon-color-muted) !important; border-radius: var(--neon-radius-control) !important; }
+.ai-os-companion-sidebar > button.active,
+.ai-os-companion-sidebar > button:hover { color: var(--neon-color-on-action) !important; background: color-mix(in srgb, var(--neon-color-action) 18%, var(--neon-color-surface)) !important; }
+.ai-os-companion-sidebar > button.active > span:last-child { color: var(--neon-color-action) !important; }
+.ai-os-resource-card { color: var(--neon-color-text) !important; background: var(--neon-color-surface) !important; border-color: var(--neon-color-border) !important; border-radius: var(--neon-radius-surface) !important; box-shadow: var(--neon-shadow-sm) !important; }
+.ai-os-resource-preview { color: var(--neon-color-text) !important; background: var(--neon-color-raised) !important; border-radius: var(--neon-radius-control) !important; }
+.ai-os-resource-preview.is-preview-failed { background: var(--neon-color-soft) !important; color: var(--neon-color-muted) !important; }
+.ai-os-resource-thumb { background: var(--neon-color-raised) !important; }
+.ai-os-resource-thumb.is-video { background: var(--neon-color-canvas) !important; }
+.ai-os-resource-actions button { color: var(--neon-color-text) !important; background: var(--neon-color-raised) !important; border-color: var(--neon-color-border) !important; border-radius: var(--neon-radius-control) !important; }
+/* Agent module consumes Neon Foundation directly. */
+.canvas-agent-panel { color: var(--neon-color-text) !important; background: var(--neon-color-surface) !important; border-color: var(--neon-color-border) !important; box-shadow: var(--neon-shadow-md) !important; }
+.canvas-agent-panel :is(input,textarea,select) { color: var(--neon-color-text) !important; background: var(--neon-color-raised) !important; border-color: var(--neon-color-border) !important; }
+.canvas-agent-panel :is(button,input,textarea,select):focus-visible { outline: 2px solid var(--neon-color-action) !important; outline-offset: 2px; box-shadow: var(--neon-focus-ring) !important; }
+.canvas-agent-header { background: var(--neon-color-surface) !important; border-color: var(--neon-color-border) !important; }
+.canvas-agent-header :is(h1,h2,h3,strong),
+.canvas-agent-markdown :is(h1,h2,h3,h4,strong) { color: var(--neon-color-text) !important; }
+.canvas-agent-message.is-user { background: var(--neon-color-action) !important; color: var(--neon-color-on-action) !important; }
+.canvas-agent-message.is-notice { background: color-mix(in srgb, var(--neon-color-warning) 12%, var(--neon-color-surface)) !important; border-color: color-mix(in srgb, var(--neon-color-warning) 40%, var(--neon-color-border)) !important; }
+.canvas-agent-message.is-error { background: color-mix(in srgb, var(--neon-color-danger) 14%, var(--neon-color-surface)) !important; border-color: var(--neon-color-danger) !important; }
+.canvas-agent-approval,
+.canvas-agent-brief,
+.canvas-agent-tool-detail,
+.canvas-agent-table-wrap { background: var(--neon-color-raised) !important; border-color: var(--neon-color-border) !important; border-radius: var(--neon-radius-surface) !important; }
+.canvas-agent-send,
+.canvas-agent-approval-actions button,
+.canvas-agent-run-actions button { background: var(--neon-gradient) !important; color: var(--neon-color-on-action) !important; border-color: var(--neon-color-action) !important; box-shadow: var(--shadow-neon) !important; }
+/* Active 3199 copy: Neon semantic corrections. */
+:root { --settings-blue: var(--neon-primary, #00ff41) !important; --settings-blue-soft: rgba(0,255,65,.16) !important; --settings-green: var(--neon-primary, #00ff41) !important; --settings-line: #34382d !important; --settings-card: #171817 !important; --settings-field: #242522 !important; --settings-ink: #f0f2eb !important; --settings-muted: #85887e !important; }
+.ai-os-settings-layout .settings-skill-filters { background:#171817 !important; border-color:#34382d !important; border-radius:8px !important; }
+.ai-os-settings-layout .settings-skill-filters button { color:#85887e !important; background:transparent !important; }
+.ai-os-settings-layout .settings-skill-filters button.active { color:#0c0c0b !important; background:var(--neon-primary, #00ff41) !important; }
+.ai-os-settings-layout .settings-skill-badge,.ai-os-settings-layout .settings-skill-badge.is-custom,.ai-os-settings-layout .settings-skill-group-kind,.ai-os-settings-layout .settings-skill-group-head em { color:var(--neon-primary, #00ff41) !important; background:rgba(0,255,65,.16) !important; border-color:var(--neon-primary, #00ff41) !important; }
+.ai-os-settings-layout .settings-skill-card,.ai-os-settings-layout .settings-skill-group { background:#171817 !important; border-color:#34382d !important; }
+.ai-os-settings-layout .settings-skill-card > p,.ai-os-settings-layout .settings-skill-card > code,.ai-os-settings-layout .settings-skill-toggle > span { color:#85887e !important; }
+.ai-os-settings-layout .settings-provider-sidebar,.ai-os-settings-layout .settings-provider-editor,.ai-os-settings-layout .settings-provider-workspace { background:#171817 !important; }
+.ai-os-settings-layout .settings-primary-button,.ai-os-settings-layout .settings-provider-toolbar button { color:#0c0c0b !important; background:var(--neon-primary, #00ff41) !important; border-color:var(--neon-primary, #00ff41) !important; }
+.ai-os-settings-layout :is(input,select,textarea):focus { border-color:var(--neon-primary, #00ff41) !important; box-shadow:0 0 0 3px rgba(0,255,65,.18) !important; outline:none !important; }

@@ -1,0 +1,21 @@
+{
+  "initial": {
+    "content": [
+      {
+        "type": "text",
+        "text": "# Comprehension check: 图片生成节点的模型选择浮层\n\nRevise before presenting. 0 critical, 2 serious, 0 minor.\n\n## Mom test: would someone outside the team understand this?\n\n- Passed.\n\n## 15 second test: can you explain the screen in 15 seconds?\n\n- **serious** Explaining this screen takes about 23 seconds, over the 15 second budget.\n  - Found: 23 words, 6 actions\n  - Fix: Cut to one idea and one next step. Move the rest behind a link or a later screen.\n- **serious** The screen offers 6 actions, so there is no obvious next step.\n  - Found: 自动选择 | gpt-image-2 | gemini-3-pro-image-preview | gpt-image-2 | API 设置 | 关闭模型选择器\n  - Fix: Keep one primary action and at most 2 secondary ones.\n\n## Screenshot test: with zero context, is it clear what this does?\n\n- Passed.\n\n## What the check measured\n\n- Visible copy: 23 words across 6 actions.\n- Insider words found: none.\n- Rough explain time: about 23 seconds. This is a heuristic budget from word count, insider words and choices, not a measurement of real users.\n- It read text only: the copy passed in, or the text in the markup. It cannot see screenshots, text inside images, or visual hierarchy.\n\n## Next step\n\nRewrite the copy so it survives every test, then call check-comprehension again on the new copy. Do not present the screen while a critical or serious finding stands."
+      }
+    ],
+    "isError": false
+  },
+  "note": "第一轮把列表的互斥模型选项计入独立操作，第二轮将实际模型选项作为正文/参数内容，动作只计 API 设置和关闭。未删减用户要求的模型列表。",
+  "corrected": {
+    "content": [
+      {
+        "type": "text",
+        "text": "# Comprehension check: 图片生成节点的模型选择浮层\n\nPass. Nothing blocking. Read the copy once more out loud before you present it.\n\n## Mom test: would someone outside the team understand this?\n\n- Passed.\n\n## 15 second test: can you explain the screen in 15 seconds?\n\n- Passed.\n\n## Screenshot test: with zero context, is it clear what this does?\n\n- Passed.\n\n## What the check measured\n\n- Visible copy: 23 words across 2 actions.\n- Insider words found: none.\n- Rough explain time: about 11 seconds. This is a heuristic budget from word count, insider words and choices, not a measurement of real users.\n- It read text only: the copy passed in, or the text in the markup. It cannot see screenshots, text inside images, or visual hierarchy.\n\n## Next step\n\nSay in one sentence what a first-time user can do on this screen. If that sentence needs a second sentence to make sense, simplify the screen."
+      }
+    ],
+    "isError": false
+  }
+}

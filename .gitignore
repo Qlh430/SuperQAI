@@ -58,6 +58,14 @@ docker-compose.proxy.yml
 # Dependencies
 node_modules/
 
+# Neon workbench frontend
+neon-workbench/node_modules/
+neon-workbench/dist/
+neon-workbench/.vite/
+neon-workbench/*.tsbuildinfo
+neon-workbench/acceptance/*.png
+neon-workbench/acceptance/*.json
+
 # OS/editor noise
 .DS_Store
 Thumbs.db

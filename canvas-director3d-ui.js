@@ -1386,7 +1386,7 @@
 
     function accentColor() {
       const value = getComputedStyle(dom.root).getPropertyValue("--color-accent").trim();
-      return value || "#d5ff40";
+      return value || "#00ff41";
     }
 
     /**
@@ -1503,7 +1503,7 @@
         const radius = active ? 7 : 5;
         context.beginPath();
         context.arc(handle.x, handle.y, radius, 0, Math.PI * 2);
-        context.fillStyle = active ? "rgba(213,255,64,0.96)" : "rgba(213,255,64,0.52)";
+        context.fillStyle = active ? "rgba(0,255,65,0.96)" : "rgba(0,255,65,0.52)";
         context.fill();
         context.lineWidth = 1.4;
         context.strokeStyle = "rgba(12,14,18,0.85)";
@@ -1511,7 +1511,7 @@
         if (active) {
           context.beginPath();
           context.arc(handle.x, handle.y, radius + 4, 0, Math.PI * 2);
-          context.strokeStyle = "rgba(213,255,64,0.5)";
+          context.strokeStyle = "rgba(0,255,65,0.5)";
           context.lineWidth = 1.2;
           context.stroke();
         }

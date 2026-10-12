@@ -1,0 +1,1834 @@
+{
+  "selected": {
+    "status": "completed",
+    "score": 5,
+    "summary": {
+      "critical": 0,
+      "serious": 0,
+      "moderate": 19,
+      "total": 19
+    },
+    "findings": [
+      {
+        "ruleId": "spacing/touch-target",
+        "state": "selected-390",
+        "severity": "moderate",
+        "message": "输入端口，拖动连接 measures 28x28px, below the recommended 44x44px touch target.",
+        "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+        "elementIds": [
+          "qa-generator-41"
+        ],
+        "evidence": [
+          {
+            "label": "Width",
+            "value": 28,
+            "unit": "px"
+          },
+          {
+            "label": "Height",
+            "value": 28,
+            "unit": "px"
+          }
+        ],
+        "id": "spacing-1"
+      },
+      {
+        "ruleId": "spacing/touch-target",
+        "state": "selected-390",
+        "severity": "moderate",
+        "message": "结果输出，拖动连接 measures 28x28px, below the recommended 44x44px touch target.",
+        "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+        "elementIds": [
+          "qa-generator-42"
+        ],
+        "evidence": [
+          {
+            "label": "Width",
+            "value": 28,
+            "unit": "px"
+          },
+          {
+            "label": "Height",
+            "value": 28,
+            "unit": "px"
+          }
+        ],
+        "id": "spacing-2"
+      },
+      {
+        "ruleId": "spacing/touch-target",
+        "state": "selected-390",
+        "severity": "moderate",
+        "message": "选择生成模型 measures 32x32px, below the recommended 44x44px touch target.",
+        "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+        "elementIds": [
+          "qa-generator-45"
+        ],
+        "evidence": [
+          {
+            "label": "Width",
+            "value": 32,
+            "unit": "px"
+          },
+          {
+            "label": "Height",
+            "value": 32,
+            "unit": "px"
+          }
+        ],
+        "id": "spacing-3"
+      },
+      {
+        "ruleId": "spacing/touch-target",
+        "state": "selected-390",
+        "severity": "moderate",
+        "message": "显示或隐藏节点参数 measures 32x32px, below the recommended 44x44px touch target.",
+        "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+        "elementIds": [
+          "qa-generator-53"
+        ],
+        "evidence": [
+          {
+            "label": "Width",
+            "value": 32,
+            "unit": "px"
+          },
+          {
+            "label": "Height",
+            "value": 32,
+            "unit": "px"
+          }
+        ],
+        "id": "spacing-4"
+      },
+      {
+        "ruleId": "spacing/touch-target",
+        "state": "selected-390",
+        "severity": "moderate",
+        "message": "删除节点 measures 32x32px, below the recommended 44x44px touch target.",
+        "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+        "elementIds": [
+          "qa-generator-65"
+        ],
+        "evidence": [
+          {
+            "label": "Width",
+            "value": 32,
+            "unit": "px"
+          },
+          {
+            "label": "Height",
+            "value": 32,
+            "unit": "px"
+          }
+        ],
+        "id": "spacing-5"
+      },
+      {
+        "ruleId": "spacing/touch-target",
+        "state": "selected-390",
+        "severity": "moderate",
+        "message": "线上 API measures 80.69x44px, below the recommended 44x44px touch target.",
+        "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+        "elementIds": [
+          "qa-generator-95"
+        ],
+        "evidence": [
+          {
+            "label": "Width",
+            "value": 80.69,
+            "unit": "px"
+          },
+          {
+            "label": "Height",
+            "value": 44,
+            "unit": "px"
+          }
+        ],
+        "id": "spacing-6"
+      },
+      {
+        "ruleId": "spacing/touch-target",
+        "state": "selected-390",
+        "severity": "moderate",
+        "message": "线下 ComfyUI measures 116.61x44px, below the recommended 44x44px touch target.",
+        "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+        "elementIds": [
+          "qa-generator-96"
+        ],
+        "evidence": [
+          {
+            "label": "Width",
+            "value": 116.61,
+            "unit": "px"
+          },
+          {
+            "label": "Height",
+            "value": 44,
+            "unit": "px"
+          }
+        ],
+        "id": "spacing-7"
+      },
+      {
+        "ruleId": "spacing/touch-target",
+        "state": "selected-390",
+        "severity": "moderate",
+        "message": "qa-generator-107 measures 324x44px, below the recommended 44x44px touch target.",
+        "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+        "elementIds": [
+          "qa-generator-107"
+        ],
+        "evidence": [
+          {
+            "label": "Width",
+            "value": 324,
+            "unit": "px"
+          },
+          {
+            "label": "Height",
+            "value": 44,
+            "unit": "px"
+          }
+        ],
+        "id": "spacing-8"
+      },
+      {
+        "ruleId": "spacing/touch-target",
+        "state": "selected-390",
+        "severity": "moderate",
+        "message": "重命名图片生成节点 measures 44x44px, below the recommended 44x44px touch target.",
+        "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+        "elementIds": [
+          "qa-generator-182"
+        ],
+        "evidence": [
+          {
+            "label": "Width",
+            "value": 44,
+            "unit": "px"
+          },
+          {
+            "label": "Height",
+            "value": 44,
+            "unit": "px"
+          }
+        ],
+        "id": "spacing-9"
+      },
+      {
+        "ruleId": "spacing/touch-target",
+        "state": "selected-1440",
+        "severity": "moderate",
+        "message": "输入端口，拖动连接 measures 28x28px, below the recommended 44x44px touch target.",
+        "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+        "elementIds": [
+          "qa-generator-41"
+        ],
+        "evidence": [
+          {
+            "label": "Width",
+            "value": 28,
+            "unit": "px"
+          },
+          {
+            "label": "Height",
+            "value": 28,
+            "unit": "px"
+          }
+        ],
+        "id": "spacing-10"
+      },
+      {
+        "ruleId": "spacing/touch-target",
+        "state": "selected-1440",
+        "severity": "moderate",
+        "message": "结果输出，拖动连接 measures 28x28px, below the recommended 44x44px touch target.",
+        "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+        "elementIds": [
+          "qa-generator-42"
+        ],
+        "evidence": [
+          {
+            "label": "Width",
+            "value": 28,
+            "unit": "px"
+          },
+          {
+            "label": "Height",
+            "value": 28,
+            "unit": "px"
+          }
+        ],
+        "id": "spacing-11"
+      },
+      {
+        "ruleId": "spacing/touch-target",
+        "state": "selected-1440",
+        "severity": "moderate",
+        "message": "选择生成模型 measures 32x32px, below the recommended 44x44px touch target.",
+        "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+        "elementIds": [
+          "qa-generator-45"
+        ],
+        "evidence": [
+          {
+            "label": "Width",
+            "value": 32,
+            "unit": "px"
+          },
+          {
+            "label": "Height",
+            "value": 32,
+            "unit": "px"
+          }
+        ],
+        "id": "spacing-12"
+      },
+      {
+        "ruleId": "spacing/touch-target",
+        "state": "selected-1440",
+        "severity": "moderate",
+        "message": "显示或隐藏节点参数 measures 32x32px, below the recommended 44x44px touch target.",
+        "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+        "elementIds": [
+          "qa-generator-53"
+        ],
+        "evidence": [
+          {
+            "label": "Width",
+            "value": 32,
+            "unit": "px"
+          },
+          {
+            "label": "Height",
+            "value": 32,
+            "unit": "px"
+          }
+        ],
+        "id": "spacing-13"
+      },
+      {
+        "ruleId": "spacing/touch-target",
+        "state": "selected-1440",
+        "severity": "moderate",
+        "message": "删除节点 measures 32x32px, below the recommended 44x44px touch target.",
+        "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+        "elementIds": [
+          "qa-generator-65"
+        ],
+        "evidence": [
+          {
+            "label": "Width",
+            "value": 32,
+            "unit": "px"
+          },
+          {
+            "label": "Height",
+            "value": 32,
+            "unit": "px"
+          }
+        ],
+        "id": "spacing-14"
+      },
+      {
+        "ruleId": "spacing/touch-target",
+        "state": "selected-1728",
+        "severity": "moderate",
+        "message": "输入端口，拖动连接 measures 28x28px, below the recommended 44x44px touch target.",
+        "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+        "elementIds": [
+          "qa-generator-41"
+        ],
+        "evidence": [
+          {
+            "label": "Width",
+            "value": 28,
+            "unit": "px"
+          },
+          {
+            "label": "Height",
+            "value": 28,
+            "unit": "px"
+          }
+        ],
+        "id": "spacing-15"
+      },
+      {
+        "ruleId": "spacing/touch-target",
+        "state": "selected-1728",
+        "severity": "moderate",
+        "message": "结果输出，拖动连接 measures 28x28px, below the recommended 44x44px touch target.",
+        "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+        "elementIds": [
+          "qa-generator-42"
+        ],
+        "evidence": [
+          {
+            "label": "Width",
+            "value": 28,
+            "unit": "px"
+          },
+          {
+            "label": "Height",
+            "value": 28,
+            "unit": "px"
+          }
+        ],
+        "id": "spacing-16"
+      },
+      {
+        "ruleId": "spacing/touch-target",
+        "state": "selected-1728",
+        "severity": "moderate",
+        "message": "选择生成模型 measures 32x32px, below the recommended 44x44px touch target.",
+        "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+        "elementIds": [
+          "qa-generator-45"
+        ],
+        "evidence": [
+          {
+            "label": "Width",
+            "value": 32,
+            "unit": "px"
+          },
+          {
+            "label": "Height",
+            "value": 32,
+            "unit": "px"
+          }
+        ],
+        "id": "spacing-17"
+      },
+      {
+        "ruleId": "spacing/touch-target",
+        "state": "selected-1728",
+        "severity": "moderate",
+        "message": "显示或隐藏节点参数 measures 32x32px, below the recommended 44x44px touch target.",
+        "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+        "elementIds": [
+          "qa-generator-53"
+        ],
+        "evidence": [
+          {
+            "label": "Width",
+            "value": 32,
+            "unit": "px"
+          },
+          {
+            "label": "Height",
+            "value": 32,
+            "unit": "px"
+          }
+        ],
+        "id": "spacing-18"
+      },
+      {
+        "ruleId": "spacing/touch-target",
+        "state": "selected-1728",
+        "severity": "moderate",
+        "message": "删除节点 measures 32x32px, below the recommended 44x44px touch target.",
+        "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+        "elementIds": [
+          "qa-generator-65"
+        ],
+        "evidence": [
+          {
+            "label": "Width",
+            "value": 32,
+            "unit": "px"
+          },
+          {
+            "label": "Height",
+            "value": 32,
+            "unit": "px"
+          }
+        ],
+        "id": "spacing-19"
+      }
+    ],
+    "states": [
+      {
+        "name": "selected-390",
+        "viewport": {
+          "width": 390,
+          "height": 960,
+          "devicePixelRatio": 1
+        },
+        "elements": [
+          {
+            "id": "qa-generator-31",
+            "label": "下载",
+            "rect": {
+              "x": 259.29998779296875,
+              "y": 122.89999389648438,
+              "width": 54,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-generator-41",
+            "label": "输入端口，拖动连接",
+            "rect": {
+              "x": 32.79999542236328,
+              "y": 227.1999969482422,
+              "width": 28.00000762939453,
+              "height": 27.999984741210938
+            }
+          },
+          {
+            "id": "qa-generator-42",
+            "label": "结果输出，拖动连接",
+            "rect": {
+              "x": 329.1999816894531,
+              "y": 227.1999969482422,
+              "width": 28,
+              "height": 27.999984741210938
+            }
+          },
+          {
+            "id": "qa-generator-44",
+            "label": "节点工具栏",
+            "rect": {
+              "x": 136.99998474121094,
+              "y": 24.005470275878906,
+              "width": 116.00001525878906,
+              "height": 43.99999237060547
+            }
+          },
+          {
+            "id": "qa-generator-45",
+            "label": "选择生成模型",
+            "rect": {
+              "x": 143,
+              "y": 30.00546646118164,
+              "width": 32,
+              "height": 32.000003814697266
+            }
+          },
+          {
+            "id": "qa-generator-53",
+            "label": "显示或隐藏节点参数",
+            "rect": {
+              "x": 178.99998474121094,
+              "y": 30.00546646118164,
+              "width": 32,
+              "height": 32.000003814697266
+            }
+          },
+          {
+            "id": "qa-generator-65",
+            "label": "删除节点",
+            "rect": {
+              "x": 214.99998474121094,
+              "y": 30.00546646118164,
+              "width": 32.00001525878906,
+              "height": 32.000003814697266
+            }
+          },
+          {
+            "id": "qa-generator-74",
+            "label": "图片生成操作区",
+            "rect": {
+              "x": 16.006248474121094,
+              "y": 387.1960754394531,
+              "width": 357.9999694824219,
+              "height": 527.3905029296875
+            }
+          },
+          {
+            "id": "qa-generator-75",
+            "label": "参考图",
+            "rect": {
+              "x": 33.006248474121094,
+              "y": 404.196044921875,
+              "width": 324,
+              "height": 72.00003051757812
+            }
+          },
+          {
+            "id": "qa-generator-76",
+            "label": "添加参考图",
+            "rect": {
+              "x": 33.006248474121094,
+              "y": 418.1960754394531,
+              "width": 119.99999237060547,
+              "height": 44.000030517578125
+            }
+          },
+          {
+            "id": "qa-generator-86",
+            "label": "1参考图.png",
+            "rect": {
+              "x": 165.00624084472656,
+              "y": 404.196044921875,
+              "width": 71.99998474121094,
+              "height": 72.00003051757812
+            }
+          },
+          {
+            "id": "qa-generator-90",
+            "label": "提示词",
+            "rect": {
+              "x": 33.006248474121094,
+              "y": 492.1960754394531,
+              "width": 324,
+              "height": 112.00003051757812
+            }
+          },
+          {
+            "id": "qa-generator-91",
+            "label": "节点输入",
+            "rect": {
+              "x": 33.006248474121094,
+              "y": 492.1960754394531,
+              "width": 324,
+              "height": 112.00003051757812
+            }
+          },
+          {
+            "id": "qa-generator-92",
+            "label": "生成参数",
+            "rect": {
+              "x": 33.006248474121094,
+              "y": 620.1961059570312,
+              "width": 324,
+              "height": 175.39056396484375
+            }
+          },
+          {
+            "id": "qa-generator-93",
+            "label": "生成引擎",
+            "rect": {
+              "x": 41.006248474121094,
+              "y": 620.1961059570312,
+              "width": 247.296875,
+              "height": 43.99993896484375
+            }
+          },
+          {
+            "id": "qa-generator-95",
+            "label": "线上 API",
+            "rect": {
+              "x": 83.00625610351562,
+              "y": 620.1961059570312,
+              "width": 80.6875,
+              "height": 43.99993896484375
+            }
+          },
+          {
+            "id": "qa-generator-96",
+            "label": "线下 ComfyUI",
+            "rect": {
+              "x": 171.69374084472656,
+              "y": 620.1961059570312,
+              "width": 116.60939025878906,
+              "height": 43.99993896484375
+            }
+          },
+          {
+            "id": "qa-generator-99",
+            "label": "自动选择⌄",
+            "rect": {
+              "x": 33.006248474121094,
+              "y": 676.196044921875,
+              "width": 324,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-generator-107",
+            "label": "Auto1:13:22:32K 1:12K 16:92K 9:164K 16:94K 9:16自定义尺寸...",
+            "rect": {
+              "x": 33.006248474121094,
+              "y": 728.1961059570312,
+              "width": 324,
+              "height": 43.99993896484375
+            }
+          },
+          {
+            "id": "qa-generator-169",
+            "label": "生成操作",
+            "rect": {
+              "x": 33.006248474121094,
+              "y": 811.5867309570312,
+              "width": 324,
+              "height": 50
+            }
+          },
+          {
+            "id": "qa-generator-170",
+            "label": "生成￥0.081/张",
+            "rect": {
+              "x": 261.0062561035156,
+              "y": 811.5867309570312,
+              "width": 96,
+              "height": 50
+            }
+          },
+          {
+            "id": "qa-generator-182",
+            "label": "重命名图片生成节点",
+            "rect": {
+              "x": 79.94999694824219,
+              "y": 80,
+              "width": 43.99687194824219,
+              "height": 43.99687194824219
+            }
+          }
+        ]
+      },
+      {
+        "name": "selected-1440",
+        "viewport": {
+          "width": 1440,
+          "height": 960,
+          "devicePixelRatio": 1
+        },
+        "elements": [
+          {
+            "id": "qa-generator-31",
+            "label": "下载",
+            "rect": {
+              "x": 848,
+              "y": 146,
+              "width": 54,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-generator-41",
+            "label": "输入端口，拖动连接",
+            "rect": {
+              "x": 478,
+              "y": 314,
+              "width": 28,
+              "height": 28
+            }
+          },
+          {
+            "id": "qa-generator-42",
+            "label": "结果输出，拖动连接",
+            "rect": {
+              "x": 934,
+              "y": 314,
+              "width": 28,
+              "height": 28
+            }
+          },
+          {
+            "id": "qa-generator-44",
+            "label": "节点工具栏",
+            "rect": {
+              "x": 662,
+              "y": 24,
+              "width": 116,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-generator-45",
+            "label": "选择生成模型",
+            "rect": {
+              "x": 668,
+              "y": 30,
+              "width": 32,
+              "height": 32
+            }
+          },
+          {
+            "id": "qa-generator-53",
+            "label": "显示或隐藏节点参数",
+            "rect": {
+              "x": 704,
+              "y": 30,
+              "width": 32,
+              "height": 32
+            }
+          },
+          {
+            "id": "qa-generator-65",
+            "label": "删除节点",
+            "rect": {
+              "x": 740,
+              "y": 30,
+              "width": 32,
+              "height": 32
+            }
+          },
+          {
+            "id": "qa-generator-74",
+            "label": "图片生成操作区",
+            "rect": {
+              "x": 240,
+              "y": 544,
+              "width": 960,
+              "height": 400
+            }
+          },
+          {
+            "id": "qa-generator-75",
+            "label": "参考图",
+            "rect": {
+              "x": 257,
+              "y": 560,
+              "width": 926,
+              "height": 72
+            }
+          },
+          {
+            "id": "qa-generator-76",
+            "label": "添加参考图",
+            "rect": {
+              "x": 257,
+              "y": 574,
+              "width": 120,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-generator-86",
+            "label": "1参考图.png",
+            "rect": {
+              "x": 389,
+              "y": 560,
+              "width": 72,
+              "height": 72
+            }
+          },
+          {
+            "id": "qa-generator-90",
+            "label": "提示词",
+            "rect": {
+              "x": 257,
+              "y": 648,
+              "width": 926,
+              "height": 112
+            }
+          },
+          {
+            "id": "qa-generator-91",
+            "label": "节点输入",
+            "rect": {
+              "x": 257,
+              "y": 648,
+              "width": 926,
+              "height": 112
+            }
+          },
+          {
+            "id": "qa-generator-92",
+            "label": "生成参数",
+            "rect": {
+              "x": 257,
+              "y": 776,
+              "width": 926,
+              "height": 100
+            }
+          },
+          {
+            "id": "qa-generator-93",
+            "label": "生成引擎",
+            "rect": {
+              "x": 265,
+              "y": 776,
+              "width": 247.296875,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-generator-95",
+            "label": "线上 API",
+            "rect": {
+              "x": 307,
+              "y": 776,
+              "width": 80.6875,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-generator-96",
+            "label": "线下 ComfyUI",
+            "rect": {
+              "x": 395.6875,
+              "y": 776,
+              "width": 116.609375,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-generator-99",
+            "label": "自动选择⌄",
+            "rect": {
+              "x": 257,
+              "y": 832,
+              "width": 402.234375,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-generator-107",
+            "label": "Auto1:13:22:32K 1:12K 16:92K 9:164K 16:94K 9:16自定义尺寸...",
+            "rect": {
+              "x": 667.234375,
+              "y": 832,
+              "width": 322.25,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-generator-169",
+            "label": "生成操作",
+            "rect": {
+              "x": 257,
+              "y": 892,
+              "width": 926,
+              "height": 50
+            }
+          },
+          {
+            "id": "qa-generator-170",
+            "label": "生成￥0.081/张",
+            "rect": {
+              "x": 1087,
+              "y": 892,
+              "width": 96,
+              "height": 50
+            }
+          },
+          {
+            "id": "qa-generator-182",
+            "label": "重命名图片生成节点",
+            "rect": {
+              "x": 543,
+              "y": 82,
+              "width": 64,
+              "height": 44
+            }
+          }
+        ]
+      },
+      {
+        "name": "selected-1728",
+        "viewport": {
+          "width": 1728,
+          "height": 960,
+          "devicePixelRatio": 1
+        },
+        "elements": [
+          {
+            "id": "qa-generator-31",
+            "label": "下载",
+            "rect": {
+              "x": 992,
+              "y": 146,
+              "width": 54,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-generator-41",
+            "label": "输入端口，拖动连接",
+            "rect": {
+              "x": 622,
+              "y": 314,
+              "width": 28,
+              "height": 28
+            }
+          },
+          {
+            "id": "qa-generator-42",
+            "label": "结果输出，拖动连接",
+            "rect": {
+              "x": 1078,
+              "y": 314,
+              "width": 28,
+              "height": 28
+            }
+          },
+          {
+            "id": "qa-generator-44",
+            "label": "节点工具栏",
+            "rect": {
+              "x": 806,
+              "y": 24,
+              "width": 116,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-generator-45",
+            "label": "选择生成模型",
+            "rect": {
+              "x": 812,
+              "y": 30,
+              "width": 32,
+              "height": 32
+            }
+          },
+          {
+            "id": "qa-generator-53",
+            "label": "显示或隐藏节点参数",
+            "rect": {
+              "x": 848,
+              "y": 30,
+              "width": 32,
+              "height": 32
+            }
+          },
+          {
+            "id": "qa-generator-65",
+            "label": "删除节点",
+            "rect": {
+              "x": 884,
+              "y": 30,
+              "width": 32,
+              "height": 32
+            }
+          },
+          {
+            "id": "qa-generator-74",
+            "label": "图片生成操作区",
+            "rect": {
+              "x": 384,
+              "y": 544,
+              "width": 960,
+              "height": 400
+            }
+          },
+          {
+            "id": "qa-generator-75",
+            "label": "参考图",
+            "rect": {
+              "x": 401,
+              "y": 560,
+              "width": 926,
+              "height": 72
+            }
+          },
+          {
+            "id": "qa-generator-76",
+            "label": "添加参考图",
+            "rect": {
+              "x": 401,
+              "y": 574,
+              "width": 120,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-generator-86",
+            "label": "1参考图.png",
+            "rect": {
+              "x": 533,
+              "y": 560,
+              "width": 72,
+              "height": 72
+            }
+          },
+          {
+            "id": "qa-generator-90",
+            "label": "提示词",
+            "rect": {
+              "x": 401,
+              "y": 648,
+              "width": 926,
+              "height": 112
+            }
+          },
+          {
+            "id": "qa-generator-91",
+            "label": "节点输入",
+            "rect": {
+              "x": 401,
+              "y": 648,
+              "width": 926,
+              "height": 112
+            }
+          },
+          {
+            "id": "qa-generator-92",
+            "label": "生成参数",
+            "rect": {
+              "x": 401,
+              "y": 776,
+              "width": 926,
+              "height": 100
+            }
+          },
+          {
+            "id": "qa-generator-93",
+            "label": "生成引擎",
+            "rect": {
+              "x": 409,
+              "y": 776,
+              "width": 247.296875,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-generator-95",
+            "label": "线上 API",
+            "rect": {
+              "x": 451,
+              "y": 776,
+              "width": 80.6875,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-generator-96",
+            "label": "线下 ComfyUI",
+            "rect": {
+              "x": 539.6875,
+              "y": 776,
+              "width": 116.609375,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-generator-99",
+            "label": "自动选择⌄",
+            "rect": {
+              "x": 401,
+              "y": 832,
+              "width": 402.234375,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-generator-107",
+            "label": "Auto1:13:22:32K 1:12K 16:92K 9:164K 16:94K 9:16自定义尺寸...",
+            "rect": {
+              "x": 811.234375,
+              "y": 832,
+              "width": 322.25,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-generator-169",
+            "label": "生成操作",
+            "rect": {
+              "x": 401,
+              "y": 892,
+              "width": 926,
+              "height": 50
+            }
+          },
+          {
+            "id": "qa-generator-170",
+            "label": "生成￥0.081/张",
+            "rect": {
+              "x": 1231,
+              "y": 892,
+              "width": 96,
+              "height": 50
+            }
+          },
+          {
+            "id": "qa-generator-182",
+            "label": "重命名图片生成节点",
+            "rect": {
+              "x": 687,
+              "y": 82,
+              "width": 64,
+              "height": 44
+            }
+          }
+        ]
+      }
+    ],
+    "capturedWidths": [
+      390,
+      1440,
+      1728
+    ],
+    "missingWidths": [],
+    "rubric": [
+      {
+        "id": "review-rules-visual-design",
+        "title": "Visual Design"
+      }
+    ],
+    "rubricStatus": "loaded"
+  },
+  "interaction": {
+    "status": "completed",
+    "score": 50,
+    "summary": {
+      "critical": 0,
+      "serious": 0,
+      "moderate": 10,
+      "total": 10
+    },
+    "findings": [
+      {
+        "ruleId": "spacing/touch-target",
+        "state": "hover-1440",
+        "severity": "moderate",
+        "message": "输入端口，拖动连接 measures 28x28px, below the recommended 44x44px touch target.",
+        "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+        "elementIds": [
+          "qa-generator-39"
+        ],
+        "evidence": [
+          {
+            "label": "Width",
+            "value": 28,
+            "unit": "px"
+          },
+          {
+            "label": "Height",
+            "value": 28,
+            "unit": "px"
+          }
+        ],
+        "id": "spacing-1"
+      },
+      {
+        "ruleId": "spacing/touch-target",
+        "state": "hover-1440",
+        "severity": "moderate",
+        "message": "结果输出，拖动连接 measures 28x28px, below the recommended 44x44px touch target.",
+        "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+        "elementIds": [
+          "qa-generator-40"
+        ],
+        "evidence": [
+          {
+            "label": "Width",
+            "value": 28,
+            "unit": "px"
+          },
+          {
+            "label": "Height",
+            "value": 28,
+            "unit": "px"
+          }
+        ],
+        "id": "spacing-2"
+      },
+      {
+        "ruleId": "spacing/touch-target",
+        "state": "hover-1440",
+        "severity": "moderate",
+        "message": "选择生成模型 measures 32x32px, below the recommended 44x44px touch target.",
+        "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+        "elementIds": [
+          "qa-generator-43"
+        ],
+        "evidence": [
+          {
+            "label": "Width",
+            "value": 32,
+            "unit": "px"
+          },
+          {
+            "label": "Height",
+            "value": 32,
+            "unit": "px"
+          }
+        ],
+        "id": "spacing-3"
+      },
+      {
+        "ruleId": "spacing/touch-target",
+        "state": "hover-1440",
+        "severity": "moderate",
+        "message": "显示或隐藏节点参数 measures 32x32px, below the recommended 44x44px touch target.",
+        "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+        "elementIds": [
+          "qa-generator-51"
+        ],
+        "evidence": [
+          {
+            "label": "Width",
+            "value": 32,
+            "unit": "px"
+          },
+          {
+            "label": "Height",
+            "value": 32,
+            "unit": "px"
+          }
+        ],
+        "id": "spacing-4"
+      },
+      {
+        "ruleId": "spacing/touch-target",
+        "state": "hover-1440",
+        "severity": "moderate",
+        "message": "删除节点 measures 32x32px, below the recommended 44x44px touch target.",
+        "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+        "elementIds": [
+          "qa-generator-63"
+        ],
+        "evidence": [
+          {
+            "label": "Width",
+            "value": 32,
+            "unit": "px"
+          },
+          {
+            "label": "Height",
+            "value": 32,
+            "unit": "px"
+          }
+        ],
+        "id": "spacing-5"
+      },
+      {
+        "ruleId": "spacing/touch-target",
+        "state": "focus-1440",
+        "severity": "moderate",
+        "message": "输入端口，拖动连接 measures 28x28px, below the recommended 44x44px touch target.",
+        "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+        "elementIds": [
+          "qa-generator-39"
+        ],
+        "evidence": [
+          {
+            "label": "Width",
+            "value": 28,
+            "unit": "px"
+          },
+          {
+            "label": "Height",
+            "value": 28,
+            "unit": "px"
+          }
+        ],
+        "id": "spacing-6"
+      },
+      {
+        "ruleId": "spacing/touch-target",
+        "state": "focus-1440",
+        "severity": "moderate",
+        "message": "结果输出，拖动连接 measures 28x28px, below the recommended 44x44px touch target.",
+        "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+        "elementIds": [
+          "qa-generator-40"
+        ],
+        "evidence": [
+          {
+            "label": "Width",
+            "value": 28,
+            "unit": "px"
+          },
+          {
+            "label": "Height",
+            "value": 28,
+            "unit": "px"
+          }
+        ],
+        "id": "spacing-7"
+      },
+      {
+        "ruleId": "spacing/touch-target",
+        "state": "focus-1440",
+        "severity": "moderate",
+        "message": "选择生成模型 measures 32x32px, below the recommended 44x44px touch target.",
+        "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+        "elementIds": [
+          "qa-generator-43"
+        ],
+        "evidence": [
+          {
+            "label": "Width",
+            "value": 32,
+            "unit": "px"
+          },
+          {
+            "label": "Height",
+            "value": 32,
+            "unit": "px"
+          }
+        ],
+        "id": "spacing-8"
+      },
+      {
+        "ruleId": "spacing/touch-target",
+        "state": "focus-1440",
+        "severity": "moderate",
+        "message": "显示或隐藏节点参数 measures 32x32px, below the recommended 44x44px touch target.",
+        "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+        "elementIds": [
+          "qa-generator-51"
+        ],
+        "evidence": [
+          {
+            "label": "Width",
+            "value": 32,
+            "unit": "px"
+          },
+          {
+            "label": "Height",
+            "value": 32,
+            "unit": "px"
+          }
+        ],
+        "id": "spacing-9"
+      },
+      {
+        "ruleId": "spacing/touch-target",
+        "state": "focus-1440",
+        "severity": "moderate",
+        "message": "删除节点 measures 32x32px, below the recommended 44x44px touch target.",
+        "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+        "elementIds": [
+          "qa-generator-63"
+        ],
+        "evidence": [
+          {
+            "label": "Width",
+            "value": 32,
+            "unit": "px"
+          },
+          {
+            "label": "Height",
+            "value": 32,
+            "unit": "px"
+          }
+        ],
+        "id": "spacing-10"
+      }
+    ],
+    "states": [
+      {
+        "name": "hover-1440",
+        "viewport": {
+          "width": 1440,
+          "height": 960,
+          "devicePixelRatio": 1
+        },
+        "elements": [
+          {
+            "id": "qa-generator-39",
+            "label": "输入端口，拖动连接",
+            "rect": {
+              "x": 478,
+              "y": 314,
+              "width": 28,
+              "height": 28
+            }
+          },
+          {
+            "id": "qa-generator-40",
+            "label": "结果输出，拖动连接",
+            "rect": {
+              "x": 934,
+              "y": 314,
+              "width": 28,
+              "height": 28
+            }
+          },
+          {
+            "id": "qa-generator-42",
+            "label": "节点工具栏",
+            "rect": {
+              "x": 662,
+              "y": 24,
+              "width": 116,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-generator-43",
+            "label": "选择生成模型",
+            "rect": {
+              "x": 668,
+              "y": 30,
+              "width": 32,
+              "height": 32
+            }
+          },
+          {
+            "id": "qa-generator-51",
+            "label": "显示或隐藏节点参数",
+            "rect": {
+              "x": 704,
+              "y": 30,
+              "width": 32,
+              "height": 32
+            }
+          },
+          {
+            "id": "qa-generator-63",
+            "label": "删除节点",
+            "rect": {
+              "x": 740,
+              "y": 30,
+              "width": 32,
+              "height": 32
+            }
+          },
+          {
+            "id": "qa-generator-72",
+            "label": "图片生成操作区",
+            "rect": {
+              "x": 240,
+              "y": 544,
+              "width": 960,
+              "height": 388
+            }
+          },
+          {
+            "id": "qa-generator-73",
+            "label": "参考图",
+            "rect": {
+              "x": 257,
+              "y": 561,
+              "width": 926,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-generator-74",
+            "label": "添加参考图",
+            "rect": {
+              "x": 257,
+              "y": 561,
+              "width": 120,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-generator-84",
+            "label": "提示词",
+            "rect": {
+              "x": 257,
+              "y": 621,
+              "width": 926,
+              "height": 112
+            }
+          },
+          {
+            "id": "qa-generator-85",
+            "label": "节点输入",
+            "rect": {
+              "x": 257,
+              "y": 621,
+              "width": 926,
+              "height": 112
+            }
+          },
+          {
+            "id": "qa-generator-86",
+            "label": "生成参数",
+            "rect": {
+              "x": 257,
+              "y": 749,
+              "width": 926,
+              "height": 100
+            }
+          },
+          {
+            "id": "qa-generator-87",
+            "label": "生成引擎",
+            "rect": {
+              "x": 265,
+              "y": 749,
+              "width": 247.296875,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-generator-89",
+            "label": "线上 API",
+            "rect": {
+              "x": 307,
+              "y": 749,
+              "width": 80.6875,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-generator-90",
+            "label": "线下 ComfyUI",
+            "rect": {
+              "x": 395.6875,
+              "y": 749,
+              "width": 116.609375,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-generator-93",
+            "label": "自动选择⌄",
+            "rect": {
+              "x": 257,
+              "y": 805,
+              "width": 499,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-generator-101",
+            "label": "Auto1:13:22:32K 1:12K 16:92K 9:164K 16:94K 9:16自定义尺寸...",
+            "rect": {
+              "x": 764,
+              "y": 805,
+              "width": 419,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-generator-162",
+            "label": "生成操作",
+            "rect": {
+              "x": 257,
+              "y": 865,
+              "width": 926,
+              "height": 50
+            }
+          },
+          {
+            "id": "qa-generator-163",
+            "label": "生成￥0.081/张",
+            "rect": {
+              "x": 1087,
+              "y": 865,
+              "width": 96,
+              "height": 50
+            }
+          },
+          {
+            "id": "qa-generator-175",
+            "label": "重命名图片生成节点",
+            "rect": {
+              "x": 543,
+              "y": 82,
+              "width": 64,
+              "height": 44
+            }
+          }
+        ]
+      },
+      {
+        "name": "focus-1440",
+        "viewport": {
+          "width": 1440,
+          "height": 960,
+          "devicePixelRatio": 1
+        },
+        "elements": [
+          {
+            "id": "qa-generator-39",
+            "label": "输入端口，拖动连接",
+            "rect": {
+              "x": 478,
+              "y": 314,
+              "width": 28,
+              "height": 28
+            }
+          },
+          {
+            "id": "qa-generator-40",
+            "label": "结果输出，拖动连接",
+            "rect": {
+              "x": 934,
+              "y": 314,
+              "width": 28,
+              "height": 28
+            }
+          },
+          {
+            "id": "qa-generator-42",
+            "label": "节点工具栏",
+            "rect": {
+              "x": 662,
+              "y": 24,
+              "width": 116,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-generator-43",
+            "label": "选择生成模型",
+            "rect": {
+              "x": 668,
+              "y": 30,
+              "width": 32,
+              "height": 32
+            }
+          },
+          {
+            "id": "qa-generator-51",
+            "label": "显示或隐藏节点参数",
+            "rect": {
+              "x": 704,
+              "y": 30,
+              "width": 32,
+              "height": 32
+            }
+          },
+          {
+            "id": "qa-generator-63",
+            "label": "删除节点",
+            "rect": {
+              "x": 740,
+              "y": 30,
+              "width": 32,
+              "height": 32
+            }
+          },
+          {
+            "id": "qa-generator-72",
+            "label": "图片生成操作区",
+            "rect": {
+              "x": 240,
+              "y": 544,
+              "width": 960,
+              "height": 388
+            }
+          },
+          {
+            "id": "qa-generator-73",
+            "label": "参考图",
+            "rect": {
+              "x": 257,
+              "y": 561,
+              "width": 926,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-generator-74",
+            "label": "添加参考图",
+            "rect": {
+              "x": 257,
+              "y": 561,
+              "width": 120,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-generator-84",
+            "label": "提示词",
+            "rect": {
+              "x": 257,
+              "y": 621,
+              "width": 926,
+              "height": 112
+            }
+          },
+          {
+            "id": "qa-generator-85",
+            "label": "节点输入",
+            "rect": {
+              "x": 257,
+              "y": 621,
+              "width": 926,
+              "height": 112
+            }
+          },
+          {
+            "id": "qa-generator-86",
+            "label": "生成参数",
+            "rect": {
+              "x": 257,
+              "y": 749,
+              "width": 926,
+              "height": 100
+            }
+          },
+          {
+            "id": "qa-generator-87",
+            "label": "生成引擎",
+            "rect": {
+              "x": 265,
+              "y": 749,
+              "width": 247.296875,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-generator-89",
+            "label": "线上 API",
+            "rect": {
+              "x": 307,
+              "y": 749,
+              "width": 80.6875,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-generator-90",
+            "label": "线下 ComfyUI",
+            "rect": {
+              "x": 395.6875,
+              "y": 749,
+              "width": 116.609375,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-generator-93",
+            "label": "自动选择⌄",
+            "rect": {
+              "x": 257,
+              "y": 805,
+              "width": 499,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-generator-101",
+            "label": "Auto1:13:22:32K 1:12K 16:92K 9:164K 16:94K 9:16自定义尺寸...",
+            "rect": {
+              "x": 764,
+              "y": 805,
+              "width": 419,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-generator-162",
+            "label": "生成操作",
+            "rect": {
+              "x": 257,
+              "y": 865,
+              "width": 926,
+              "height": 50
+            }
+          },
+          {
+            "id": "qa-generator-163",
+            "label": "生成￥0.081/张",
+            "rect": {
+              "x": 1087,
+              "y": 865,
+              "width": 96,
+              "height": 50
+            }
+          },
+          {
+            "id": "qa-generator-175",
+            "label": "重命名图片生成节点",
+            "rect": {
+              "x": 543,
+              "y": 82,
+              "width": 64,
+              "height": 44
+            }
+          }
+        ]
+      }
+    ],
+    "capturedWidths": [
+      1440
+    ],
+    "missingWidths": [
+      390,
+      1728
+    ],
+    "rubric": [
+      {
+        "id": "review-rules-visual-design",
+        "title": "Visual Design"
+      }
+    ],
+    "rubricStatus": "loaded"
+  }
+}

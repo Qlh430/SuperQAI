@@ -1,0 +1,477 @@
+{
+  "13": {
+    "inputs": {
+      "aspect_ratio": "9:16 (Portrait Widescreen)",
+      "megapixels": 1.5,
+      "multiple": 32
+    },
+    "class_type": "ResolutionSelector",
+    "_meta": {
+      "title": "自定义尺寸"
+    }
+  },
+  "475": {
+    "inputs": {
+      "image": ""
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": ""
+    }
+  },
+  "476": {
+    "inputs": {
+      "unet_name": "Qwen\\qwen_image_2.1_int8_convrot.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": ""
+    }
+  },
+  "477": {
+    "inputs": {
+      "clip_name": "qwen3vl_8b_int8_convrot.safetensors",
+      "type": "qwen_image",
+      "device": "default"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": ""
+    }
+  },
+  "478": {
+    "inputs": {
+      "vae_name": "qwen_image_2.1_vae_bf16.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": ""
+    }
+  },
+  "479": {
+    "inputs": {
+      "width": [
+        "13",
+        0
+      ],
+      "height": [
+        "13",
+        1
+      ],
+      "batch_size": 1
+    },
+    "class_type": "EmptyLatentImage",
+    "_meta": {
+      "title": ""
+    }
+  },
+  "480": {
+    "inputs": {
+      "samples": [
+        "481",
+        0
+      ],
+      "vae": [
+        "478",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": ""
+    }
+  },
+  "481": {
+    "inputs": {
+      "model": [
+        "476",
+        0
+      ],
+      "positive": [
+        "497",
+        0
+      ],
+      "negative": [
+        "497",
+        1
+      ],
+      "latent_image": [
+        "482",
+        0
+      ],
+      "seed": [
+        "502",
+        0
+      ],
+      "steps": 30,
+      "cfg": 1,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "denoise": 1
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": ""
+    }
+  },
+  "482": {
+    "inputs": {
+      "on_false": [
+        "497",
+        2
+      ],
+      "on_true": [
+        "479",
+        0
+      ],
+      "switch": false
+    },
+    "class_type": "ComfySwitchNode",
+    "_meta": {
+      "title": ""
+    }
+  },
+  "487": {
+    "inputs": {
+      "images": [
+        "480",
+        0
+      ],
+      "filename_prefix": "QW21-%date:yyyyMMddhhmmss%"
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": ""
+    }
+  },
+  "497": {
+    "inputs": {
+      "clip": [
+        "477",
+        0
+      ],
+      "images.image_1": [
+        "532",
+        0
+      ],
+      "images.image_2": [
+        "551",
+        0
+      ],
+      "images.image_3": [
+        "552",
+        0
+      ],
+      "images.image_4": [
+        "554",
+        0
+      ],
+      "images.image_5": [
+        "553",
+        0
+      ],
+      "images.image_6": [
+        "557",
+        0
+      ],
+      "images.image_7": [
+        "556",
+        0
+      ],
+      "vae": [
+        "478",
+        0
+      ],
+      "prompt": [
+        "569",
+        0
+      ],
+      "negative_prompt": "",
+      "resolution": 0,
+      "images.image_8": [
+        "555",
+        0
+      ]
+    },
+    "class_type": "TextEncodeQwenImage21",
+    "_meta": {
+      "title": ""
+    }
+  },
+  "502": {
+    "inputs": {
+      "seed": -1
+    },
+    "class_type": "Seed (rgthree)",
+    "_meta": {
+      "title": ""
+    }
+  },
+  "505": {
+    "inputs": {
+      "image": ""
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": ""
+    }
+  },
+  "506": {
+    "inputs": {
+      "image": ""
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": ""
+    }
+  },
+  "507": {
+    "inputs": {
+      "image": ""
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": ""
+    }
+  },
+  "532": {
+    "inputs": {
+      "image": [
+        "475",
+        0
+      ],
+      "upscale_method": "lanczos",
+      "megapixels": 1.5,
+      "resolution_steps": 32
+    },
+    "class_type": "ImageScaleToTotalPixels",
+    "_meta": {
+      "title": ""
+    }
+  },
+  "541": {
+    "inputs": {
+      "image": ""
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": ""
+    }
+  },
+  "542": {
+    "inputs": {
+      "image": ""
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": ""
+    }
+  },
+  "543": {
+    "inputs": {
+      "image": ""
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": ""
+    }
+  },
+  "544": {
+    "inputs": {
+      "image": ""
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": ""
+    }
+  },
+  "551": {
+    "inputs": {
+      "image": [
+        "505",
+        0
+      ],
+      "upscale_method": "lanczos",
+      "megapixels": 1,
+      "resolution_steps": 32
+    },
+    "class_type": "ImageScaleToTotalPixels",
+    "_meta": {
+      "title": ""
+    }
+  },
+  "552": {
+    "inputs": {
+      "image": [
+        "507",
+        0
+      ],
+      "upscale_method": "lanczos",
+      "megapixels": 1,
+      "resolution_steps": 32
+    },
+    "class_type": "ImageScaleToTotalPixels",
+    "_meta": {
+      "title": ""
+    }
+  },
+  "553": {
+    "inputs": {
+      "image": [
+        "541",
+        0
+      ],
+      "upscale_method": "lanczos",
+      "megapixels": 1,
+      "resolution_steps": 32
+    },
+    "class_type": "ImageScaleToTotalPixels",
+    "_meta": {
+      "title": ""
+    }
+  },
+  "554": {
+    "inputs": {
+      "image": [
+        "506",
+        0
+      ],
+      "upscale_method": "lanczos",
+      "megapixels": 1,
+      "resolution_steps": 32
+    },
+    "class_type": "ImageScaleToTotalPixels",
+    "_meta": {
+      "title": ""
+    }
+  },
+  "555": {
+    "inputs": {
+      "image": [
+        "544",
+        0
+      ],
+      "upscale_method": "lanczos",
+      "megapixels": 1,
+      "resolution_steps": 32
+    },
+    "class_type": "ImageScaleToTotalPixels",
+    "_meta": {
+      "title": ""
+    }
+  },
+  "556": {
+    "inputs": {
+      "image": [
+        "543",
+        0
+      ],
+      "upscale_method": "lanczos",
+      "megapixels": 1,
+      "resolution_steps": 32
+    },
+    "class_type": "ImageScaleToTotalPixels",
+    "_meta": {
+      "title": ""
+    }
+  },
+  "557": {
+    "inputs": {
+      "image": [
+        "542",
+        0
+      ],
+      "upscale_method": "lanczos",
+      "megapixels": 1,
+      "resolution_steps": 32
+    },
+    "class_type": "ImageScaleToTotalPixels",
+    "_meta": {
+      "title": ""
+    }
+  },
+  "565": {
+    "inputs": {
+      "图片": [
+        "532",
+        0
+      ],
+      "图片2": [
+        "551",
+        0
+      ],
+      "图片3": [
+        "552",
+        0
+      ],
+      "图片4": [
+        "554",
+        0
+      ],
+      "图片5": [
+        "553",
+        0
+      ],
+      "图片6": [
+        "557",
+        0
+      ],
+      "图片7": [
+        "556",
+        0
+      ],
+      "图片8": [
+        "555",
+        0
+      ],
+      "输入提示词": [
+        "571",
+        0
+      ],
+      "任务模式": "图生图",
+      "输出语言": "中文",
+      "增强方式": "本地官方PE",
+      "api_key": "",
+      "api_base_url": "",
+      "model": "",
+      "文生图PE模型": "qwen3.5_9b_qwen_image_2.1_pe_t2i.int8_convrot.safetensors",
+      "图生图PE模型": "qwen3.5_9b_qwen_image_2.1_pe_i2i.int8_convrot.safetensors",
+      "主模型": "Q35-4B-G-UD\\Qwen3.5-4B-UD-Q4_K_XL.gguf",
+      "mmproj": "Q35-4B-G-UD\\mmproj-Qwen3.5-4B-BF16.gguf",
+      "最大生成token": 4096,
+      "上下文长度": 16384,
+      "seed": 666,
+      "生成后自动卸载模型": true,
+      "启用思考": false
+    },
+    "class_type": "TE_Qwen_Image_2_1_Prompt_Enhancer",
+    "_meta": {
+      "title": ""
+    }
+  },
+  "569": {
+    "inputs": {
+      "input_text": [
+        "565",
+        0
+      ],
+      "text": "",
+      "use_edited_text": false,
+      "edited_from_text": ""
+    },
+    "class_type": "TE_text_display",
+    "_meta": {
+      "title": ""
+    }
+  },
+  "571": {
+    "inputs": {
+      "value": ""
+    },
+    "class_type": "PrimitiveStringMultiline",
+    "_meta": {
+      "title": "提示词"
+    }
+  }
+}

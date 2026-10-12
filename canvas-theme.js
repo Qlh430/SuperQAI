@@ -11,24 +11,17 @@
   const EVENT = "canvas-theme-changed";
   const ROOT_ID = "canvasEditorScreen";
 
-  // The canvas editor ships four palettes plus the classic one that predates
-  // the migration. "auto" is a mode, not a palette: it picks midnight or paper
-  // from the OS light/dark state.
+  // Neon is the only canvas visual language. Legacy ids remain readable below
+  // through normalizeMode so old projects migrate without losing their data.
   const THEMES = Object.freeze([
-    Object.freeze({ id: "midnight", label: "午夜电光", scheme: "dark" }),
-    Object.freeze({ id: "paper", label: "纸白紫调", scheme: "light" }),
-    Object.freeze({ id: "warm", label: "暖光浮雕", scheme: "light" }),
-    Object.freeze({ id: "legacy", label: "经典画布", scheme: "system", note: "沿用 AI OS 配色" }),
+    Object.freeze({ id: "neon", label: "Neon", scheme: "dark", note: "统一 Neon 工作台" }),
   ]);
   const THEME_IDS = Object.freeze(THEMES.map((theme) => theme.id));
-  const MODES = Object.freeze(["auto", ...THEME_IDS]);
-  const AUTO = Object.freeze({ dark: "midnight", light: "paper" });
-  const DEFAULT_MODE = "auto";
-  const AUTO_NOTE = "跟随系统明暗";
+  const MODES = Object.freeze(["neon"]);
+  const DEFAULT_MODE = "neon";
 
   function normalizeMode(value) {
-    const mode = String(value ?? "").trim().toLowerCase();
-    return MODES.includes(mode) ? mode : DEFAULT_MODE;
+    return DEFAULT_MODE;
   }
 
   function themeEntry(id) {
@@ -52,9 +45,7 @@
   }
 
   function resolveTheme(mode, doc) {
-    const normalized = normalizeMode(mode);
-    if (normalized !== "auto") return normalized;
-    return AUTO[systemScheme(doc)] || AUTO.light;
+    return DEFAULT_MODE;
   }
 
   function readStoredMode(storage) {
@@ -108,16 +99,13 @@
   }
 
   function themeOptions() {
-    return [
-      { id: "auto", label: "跟随系统", note: AUTO_NOTE },
-      ...THEMES.map((theme) => ({ id: theme.id, label: theme.label, note: theme.note || "" })),
-    ];
+    return THEMES.map((theme) => ({ id: theme.id, label: theme.label, note: theme.note || "" }));
   }
 
   function createController(win) {
     const ownerWindow = win || (typeof window !== "undefined" ? window : null);
     const ownerDocument = ownerWindow?.document || (typeof document !== "undefined" ? document : null);
-    let mode = readStoredMode(ownerWindow?.localStorage);
+    let mode = DEFAULT_MODE;
     let resolved = resolveTheme(mode, ownerDocument);
     let mediaQuery = null;
     let observer = null;
@@ -144,7 +132,7 @@
     }
 
     function modeLabel(next = mode) {
-      return next === "auto" ? `跟随系统 · ${label(resolved)}` : label(next);
+      return label(next);
     }
 
     function sync({ notify = false } = {}) {
@@ -284,10 +272,11 @@
     }
 
     function start() {
+      writeStoredMode(DEFAULT_MODE, ownerWindow?.localStorage);
       sync();
       renderControl();
       watchForCanvas();
-      watchSystemScheme();
+      // System light/dark changes no longer alter the canvas language.
       // The AI OS preference applier owns html[data-theme]; when it flips we
       // re-resolve "auto" so canvas light/dark never drifts from the OS.
       ownerWindow?.addEventListener?.("ai-os-preferences-applied", () => {

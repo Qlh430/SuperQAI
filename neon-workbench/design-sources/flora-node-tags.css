@@ -1,0 +1,78 @@
+/* Native canvas adapters use the same Neon semantic tokens as the workbench. */
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node > .flora-node-tag {
+  position: absolute; z-index: 6; top: 0; right: 0; display: flex; align-items: center; max-width: 55%; height: 48px; gap: 0;
+  pointer-events: auto; user-select: none;
+}
+#canvasEditorScreen .canvas-node[data-has-node-tag="true"] > .flora-node-label { max-width: 42%; }
+#canvasEditorScreen .canvas-node > .flora-node-tag .flora-tag-trigger { min-width: 44px; max-width: 100%; }
+.flora-node-tag[hidden], .flora-tag-remove[hidden], .flora-tag-manager [hidden], .flora-tag-picker [hidden] { display: none !important; }
+.flora-tag-action {
+  box-sizing: border-box; min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  margin: 0; padding: 8px 12px; border: 1px solid transparent; border-radius: 10px; background: transparent;
+  color: var(--canvas-neon-text, var(--neon-foreground)); font: inherit; cursor: pointer; touch-action: manipulation;
+}
+.flora-tag-action:hover { background: var(--canvas-neon-accent, var(--neon-accent)); }
+#neonEngineSurface #canvasEditorScreen .flora-tag-action:focus { box-shadow: none !important; }
+/* Legacy global focus declarations are !important; scope the official ring to
+   this adapter so its controls cannot inherit the retired blue focus theme. */
+#neonEngineSurface #canvasEditorScreen .flora-tag-action:focus-visible, #neonEngineSurface #canvasEditorScreen .flora-tag-manager input:focus-visible { outline: 2px solid var(--canvas-neon-primary, var(--neon-ring)) !important; outline-offset: 2px !important; }
+#neonEngineSurface #canvasEditorScreen .flora-tag-manager input:focus { border-color: var(--canvas-neon-primary, var(--neon-ring)); box-shadow: none !important; }
+.flora-tag-action:disabled { opacity: .5; cursor: wait; }
+.flora-tag-action svg { width: 16px; height: 16px; flex-shrink: 0; }
+#canvasEditorScreen .flora-tag-trigger { color: var(--canvas-neon-muted, var(--neon-muted-fg)); border-color: var(--canvas-neon-border, var(--neon-border)); font: 500 14px/1.5 var(--neon-font-sans, Inter, "Microsoft YaHei", sans-serif); }
+#canvasEditorScreen .flora-tag-trigger.is-tagged { background: var(--tag-color); color: var(--tag-foreground); border-color: transparent; min-width: 0; }
+#canvasEditorScreen .flora-tag-trigger.is-tagged:hover { filter: brightness(1.08); }
+#canvasEditorScreen .flora-tag-remove { position: absolute; top: -16px; right: -16px; width: 44px; height: 44px; padding: 12px; background: transparent; color: var(--canvas-neon-text, var(--neon-foreground)); border: 0; border-radius: 50%; }
+.flora-tag-remove::before { content: ''; position: absolute; inset: 8px; background: var(--canvas-neon-card, var(--neon-card)); border: 1px solid var(--canvas-neon-border, var(--neon-border)); border-radius: 50%; }
+.flora-tag-remove svg { position: relative; z-index: 1; }
+.flora-tag-remove:hover::before { border-color: var(--canvas-neon-primary, var(--neon-primary)); }
+.flora-tag-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.flora-tag-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; flex: 0 0 8px; background: currentColor; }
+.flora-tag-picker, .flora-tag-manager {
+  box-sizing: border-box; padding: 16px; border: 1px solid var(--canvas-neon-border, var(--neon-border)); border-radius: 16px;
+  background: var(--canvas-neon-popover, var(--neon-popover)); color: var(--canvas-neon-text, var(--neon-foreground));
+  font: 400 14px/1.5 var(--neon-font-sans, Inter, "PingFang SC", "Microsoft YaHei", sans-serif); box-shadow: var(--neon-shadow-lg);
+}
+.flora-tag-picker { position: fixed; inset: auto; margin: 0; padding: 8px; max-width: calc(100vw - 32px); max-height: calc(100dvh - 32px); overflow: auto; overscroll-behavior: contain; }
+.flora-tag-picker-header { display: flex; align-items: center; justify-content: space-between; padding-bottom: 8px; margin-bottom: 8px; border-bottom: 1px solid var(--canvas-neon-border, var(--neon-border)); }
+.flora-tag-picker-list { display: flex; flex-direction: column; gap: 0; }
+.flora-tag-picker-list > .flora-tag-action { width: 100%; justify-content: flex-start; }
+.flora-tag-picker-list > .flora-tag-action[aria-checked="true"], .flora-tag-library > .flora-tag-action[aria-pressed="true"] { background: var(--canvas-neon-secondary, var(--neon-secondary)); }
+.flora-tag-manager { width: min(880px, calc(100vw - 32px)); max-width: calc(100vw - 32px); max-height: calc(100dvh - 32px); overflow: auto; padding: 24px; overscroll-behavior: contain; }
+.flora-tag-manager::backdrop { background: color-mix(in srgb, var(--canvas-neon-bg, var(--neon-background)) 80%, transparent); }
+.flora-tag-manager-heading { display: flex; align-items: center; gap: 16px; }
+.flora-tag-manager-heading h2 { flex: 1; margin: 0; font-size: 20px; font-weight: 600; line-height: 1.4; }
+.flora-tag-manager > .flora-tag-muted { margin: 0 0 24px; }
+.flora-tag-muted { color: var(--canvas-neon-muted, var(--neon-muted-fg)); font-size: 12px; }
+.flora-tag-manager-body { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 24px; }
+.flora-tag-sidebar { display: flex; flex-direction: column; gap: 16px; min-width: 0; padding-right: 24px; border-right: 1px solid var(--canvas-neon-border, var(--neon-border)); }
+.flora-tag-library { display: flex; flex-direction: column; gap: 4px; flex: 1; max-height: 420px; overflow: auto; }
+.flora-tag-library .flora-tag-action { justify-content: flex-start; width: 100%; flex-shrink: 0; }
+.flora-tag-sidebar > .flora-tag-action { border: 1px dashed var(--canvas-neon-border, var(--neon-border)); flex-shrink: 0; }
+.flora-tag-editor { display: flex; flex-direction: column; gap: 16px; min-width: 0; padding: 16px; border: 1px solid var(--canvas-neon-border, var(--neon-border)); border-radius: 16px; background: var(--canvas-neon-card, var(--neon-card)); }
+.flora-tag-field { display: flex; flex-direction: column; gap: 8px; font-weight: 500; }
+.flora-tag-field > .flora-tag-muted { text-align: right; }
+.flora-tag-manager input { box-sizing: border-box; min-width: 0; width: 100%; min-height: 44px; padding: 8px 12px; border: 1px solid var(--canvas-neon-border, var(--neon-border)); border-radius: 10px; background: var(--canvas-neon-bg, var(--neon-background)); color: inherit; font: inherit; }
+.flora-tag-color-row { display: flex; gap: 8px; }
+.flora-tag-manager .flora-tag-color-input { width: 72px; padding: 4px; flex-shrink: 0; cursor: pointer; }
+.flora-tag-color-input::-webkit-color-swatch-wrapper { padding: 0; }
+.flora-tag-color-input::-webkit-color-swatch { border: 0; border-radius: 6px; }
+.flora-tag-swatches { display: flex; flex-wrap: wrap; gap: 8px; }
+.flora-tag-swatches .flora-tag-action { width: 44px; height: 44px; padding: 8px; position: relative; }
+.flora-tag-swatches .flora-tag-action::before { content: ''; width: 24px; height: 24px; border-radius: 50%; background: var(--swatch-color); }
+.flora-tag-swatches [aria-pressed="true"] { border-color: var(--canvas-neon-primary, var(--neon-primary)); }
+.flora-tag-preview { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.flora-tag-preview-badge { max-width: 100%; overflow-wrap: anywhere; padding: 8px 12px; border-radius: 10px; font-weight: 500; }
+.flora-tag-manager-actions { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 8px; }
+.flora-tag-action[data-destructive="true"], .flora-tag-error { color: var(--canvas-neon-danger, var(--neon-destructive)); }
+.flora-tag-action[data-primary="true"] { margin-left: auto; background: var(--canvas-neon-primary, var(--neon-primary)); color: var(--canvas-neon-primary-foreground, var(--neon-primary-fg)); font-weight: 600; }
+.flora-tag-error { margin: 0; padding: 8px; font-size: 12px; overflow-wrap: anywhere; }
+.flora-tag-delete-confirm { padding: 16px; border: 1px solid var(--canvas-neon-border, var(--neon-border)); border-radius: 12px; }
+.flora-tag-delete-confirm p { margin: 0 0 8px; }
+@media (max-width: 640px) {
+  .flora-tag-manager { padding: 16px; }
+  .flora-tag-manager-body { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .flora-tag-sidebar { padding-right: 0; padding-bottom: 16px; border-right: 0; border-bottom: 1px solid var(--canvas-neon-border, var(--neon-border)); }
+  .flora-tag-library { max-height: 144px; }
+  .flora-tag-manager-actions { flex-wrap: wrap; gap: 8px; }
+}

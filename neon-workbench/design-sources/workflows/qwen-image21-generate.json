@@ -1,0 +1,200 @@
+{
+  "508": {
+    "inputs": {
+      "images": [
+        "520",
+        0
+      ],
+      "filename_prefix": "QW21-%date:yyyyMMddhhmmss%"
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": ""
+    }
+  },
+  "512": {
+    "inputs": {
+      "aspect_ratio": "9:16 (Portrait Widescreen)",
+      "megapixels": 1.5,
+      "multiple": 32
+    },
+    "class_type": "ResolutionSelector",
+    "_meta": {
+      "title": ""
+    }
+  },
+  "514": {
+    "inputs": {
+      "width": [
+        "512",
+        0
+      ],
+      "height": [
+        "512",
+        1
+      ],
+      "batch_size": 1
+    },
+    "class_type": "EmptyLatentImage",
+    "_meta": {
+      "title": ""
+    }
+  },
+  "515": {
+    "inputs": {
+      "model": [
+        "523",
+        0
+      ],
+      "positive": [
+        "522",
+        0
+      ],
+      "negative": [
+        "522",
+        1
+      ],
+      "latent_image": [
+        "514",
+        0
+      ],
+      "seed": [
+        "524",
+        0
+      ],
+      "steps": 30,
+      "cfg": 1,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "denoise": 1
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": ""
+    }
+  },
+  "517": {
+    "inputs": {
+      "value": ""
+    },
+    "class_type": "PrimitiveStringMultiline",
+    "_meta": {
+      "title": "提示词"
+    }
+  },
+  "518": {
+    "inputs": {
+      "clip_name": "qwen3vl_8b_int8_convrot.safetensors",
+      "type": "qwen_image",
+      "device": "default"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": ""
+    }
+  },
+  "519": {
+    "inputs": {
+      "vae_name": "qwen_image_2.1_vae_bf16.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": ""
+    }
+  },
+  "520": {
+    "inputs": {
+      "samples": [
+        "515",
+        0
+      ],
+      "vae": [
+        "519",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": ""
+    }
+  },
+  "522": {
+    "inputs": {
+      "clip": [
+        "518",
+        0
+      ],
+      "prompt": [
+        "582",
+        0
+      ],
+      "negative_prompt": "",
+      "resolution": 0
+    },
+    "class_type": "TextEncodeQwenImage21",
+    "_meta": {
+      "title": ""
+    }
+  },
+  "523": {
+    "inputs": {
+      "unet_name": "Qwen\\qwen_image_2.1_int8_convrot.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": ""
+    }
+  },
+  "524": {
+    "inputs": {
+      "seed": -1
+    },
+    "class_type": "Seed (rgthree)",
+    "_meta": {
+      "title": ""
+    }
+  },
+  "582": {
+    "inputs": {
+      "input_text": [
+        "583",
+        0
+      ],
+      "text": "",
+      "use_edited_text": false,
+      "edited_from_text": ""
+    },
+    "class_type": "TE_text_display",
+    "_meta": {
+      "title": ""
+    }
+  },
+  "583": {
+    "inputs": {
+      "输入提示词": [
+        "517",
+        0
+      ],
+      "任务模式": "文生图",
+      "输出语言": "中文",
+      "增强方式": "本地官方PE",
+      "api_key": "",
+      "api_base_url": "",
+      "model": "",
+      "文生图PE模型": "qwen3.5_9b_qwen_image_2.1_pe_t2i.int8_convrot.safetensors",
+      "图生图PE模型": "qwen3.5_9b_qwen_image_2.1_pe_i2i.int8_convrot.safetensors",
+      "主模型": "Q35-4B-G-UD\\Qwen3.5-4B-UD-Q6_K_XL.gguf",
+      "mmproj": "Q35-4B-G-UD\\mmproj-Qwen3.5-4B-BF16.gguf",
+      "最大生成token": 4096,
+      "上下文长度": 8192,
+      "seed": 666,
+      "生成后自动卸载模型": true,
+      "启用思考": false
+    },
+    "class_type": "TE_Qwen_Image_2_1_Prompt_Enhancer",
+    "_meta": {
+      "title": ""
+    }
+  }
+}

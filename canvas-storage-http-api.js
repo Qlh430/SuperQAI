@@ -37,8 +37,11 @@ function collaborationOperations(operations) {
     };
     if (type === "board.patch") {
       const title = operation.after?.title;
-      if (title === undefined) continue;
-      next.after = { title: String(title) };
+      const labels = operation.after?.labelDefinitions;
+      if (title === undefined && labels === undefined) continue;
+      next.after = {};
+      if (title !== undefined) next.after.title = String(title);
+      if (labels !== undefined) next.after.labelDefinitions = labels;
     } else if (operation.after) {
       next.after = operation.after;
     }
@@ -163,6 +166,8 @@ function createCanvasStorageHttpApi({
               refType: "canvas",
               refId: board.id,
             }, { syncTitle: Boolean(board.title) });
+            // Deleted resource tombstones must not invalidate the entire board list.
+            if (resource.deletedAt) continue;
             if (!board.projectId) {
               const ownerProject = projectService.ensureUnclassifiedProject(resource.ownerUserId);
               board.projectId = ownerProject.id;
@@ -198,7 +203,7 @@ function createCanvasStorageHttpApi({
               if (url.searchParams.get("scope") === "shared" && board.isOwner) continue;
               visible.push(board);
             } catch (error) {
-              if (!["forbidden", "share_password_required"].includes(error?.code)) throw error;
+              if (!["forbidden", "share_password_required", "resource_not_found"].includes(error?.code)) throw error;
             }
           }
           result[collectionName] = visible;
@@ -307,4 +312,4 @@ function createCanvasStorageHttpApi({
   return Object.freeze({ handle });
 }
 
-module.exports = { createCanvasStorageHttpApi };
+module.exports = { createCanvasStorageHttpApi, collaborationOperations };

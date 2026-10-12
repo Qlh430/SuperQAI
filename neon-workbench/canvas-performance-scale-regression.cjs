@@ -1,0 +1,10 @@
+const assert = require('node:assert/strict')
+const fs = require('node:fs')
+const path = require('node:path')
+
+const source = fs.readFileSync(path.join(__dirname, 'design-sources', 'canvas-scene-layer.js'), 'utf8')
+assert.match(source, /const renderBounds = \{/, '场景层需要有可见绘制边界')
+assert.match(source, /drawNode\([^\n]+renderBounds/, '节点绘制必须使用可见绘制边界')
+assert.match(source, /connectionVisible\(/, '连接线绘制必须使用可见绘制边界')
+assert.match(source, /renderedGeometryCount = renderedNodeCount/, '诊断计数需要反映实际绘制节点数')
+console.log(JSON.stringify({ ok: true, checks: ['scene-node-culling', 'scene-connection-culling', 'scene-diagnostics'] }))

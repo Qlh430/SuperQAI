@@ -1,4 +1,4 @@
-const SCHEMA_VERSION = 5;
+const SCHEMA_VERSION = 6;
 
 const SCHEMA_SQL = `
   CREATE TABLE IF NOT EXISTS boards (
@@ -7,6 +7,7 @@ const SCHEMA_SQL = `
     project_id TEXT,
     title TEXT NOT NULL,
     viewport_json TEXT NOT NULL,
+    label_definitions_json TEXT,
     revision INTEGER NOT NULL DEFAULT 0,
     schema_version INTEGER NOT NULL DEFAULT 4,
     migration_state TEXT NOT NULL DEFAULT 'active'
@@ -90,6 +91,7 @@ const SCHEMA_SQL = `
     node_id TEXT NOT NULL,
     source TEXT NOT NULL,
     title TEXT NOT NULL DEFAULT '',
+    label_id TEXT NOT NULL DEFAULT '',
     z_order INTEGER NOT NULL,
     updated_at TEXT NOT NULL,
     PRIMARY KEY(board_pk, node_id)
@@ -154,6 +156,7 @@ function initializeSchema(db) {
   if (!boardColumns.has("project_id")) {
     db.exec("ALTER TABLE boards ADD COLUMN project_id TEXT");
   }
+  if (!boardColumns.has("label_definitions_json")) db.exec("ALTER TABLE boards ADD COLUMN label_definitions_json TEXT");
   db.exec("CREATE INDEX IF NOT EXISTS boards_project_updated_idx ON boards(project_id, updated_at DESC, pk DESC)");
   const previewColumns = new Set(
     db.prepare("PRAGMA table_info(node_previews)").all().map((row) => String(row.name)),
@@ -161,6 +164,7 @@ function initializeSchema(db) {
   if (!previewColumns.has("title")) {
     db.exec("ALTER TABLE node_previews ADD COLUMN title TEXT NOT NULL DEFAULT ''");
   }
+  if (!previewColumns.has("label_id")) db.exec("ALTER TABLE node_previews ADD COLUMN label_id TEXT NOT NULL DEFAULT ''");
   db.exec(`UPDATE boards SET schema_version = ${SCHEMA_VERSION} WHERE schema_version < ${SCHEMA_VERSION}`);
   db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
   return SCHEMA_VERSION;

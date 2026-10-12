@@ -1,0 +1,33 @@
+/* AI OS rebuilt shell */
+#aiOsDesktopHome{position:fixed;inset:0;z-index:40;display:block;padding:0;background:var(--background);overflow:hidden}
+#aiOsDesktopHome .ai-os-home-panel{display:block;width:100%;height:100%;padding:0;background:transparent;border:0;box-shadow:none}
+#aiOsDesktopHome .ai-os-home-header{display:none}
+#aiOsDesktopHomeApps{display:grid;grid-template-columns:clamp(15rem,18vw,18rem) minmax(0,1fr);width:100%;height:100%;min-width:0}
+.os-management-sidebar{box-sizing:border-box;min-height:100%;padding:2rem 1.25rem 1.25rem;border-right:1px solid var(--border);background:var(--card);color:var(--muted-foreground)}
+.os-management-sidebar .ai-os-home-sidebar-brand{display:flex;align-items:center;gap:.65rem;margin:0 0 1.5rem;color:var(--foreground);font-size:1.15rem}
+.os-management-sidebar .ai-os-home-mark{color:var(--neon-primary, var(--neon-primary));font-size:1.45rem}
+.os-management-sidebar .ai-os-home-create{width:100%;min-height:2.75rem;border:0;border-radius:.7rem;background:var(--neon-primary, var(--neon-primary));color:var(--background);font-weight:700}
+.os-management-sidebar .ai-os-home-nav{display:flex;align-items:center;gap:.7rem;width:100%;min-height:2.5rem;padding:.55rem .7rem;border:0;border-radius:.55rem;background:transparent;color:var(--muted-foreground);text-align:left;cursor:pointer}
+.os-management-sidebar .ai-os-home-nav:hover{background:var(--border);color:var(--foreground)}
+.os-management-sidebar .ai-os-home-nav.is-active{background:var(--neon-primary, var(--neon-primary));color:var(--background)}
+.os-management-main{box-sizing:border-box;min-width:0;min-height:100%;padding:3.5rem clamp(1.5rem,5vw,5rem);background:var(--background);color:var(--foreground);overflow:auto}
+.os-management-main #aiOsHomeOverview{width:min(100%,90rem);margin:0 auto}
+.os-management-main .ai-os-home-content-head{margin:0 0 2rem}
+.os-management-main .ai-os-home-content-head h2{margin:.35rem 0 .5rem;font-size:clamp(2rem,4vw,3.5rem);line-height:1.05}
+.os-management-main .ai-os-home-create-hero{display:grid;place-items:center;gap:.65rem;width:100%;min-height:9rem;margin-bottom:2rem;border:1px dashed var(--border);border-radius:1rem;background:var(--card);color:var(--foreground)}
+.os-management-main .ai-os-home-quick{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1rem}
+.os-management-main .ai-os-home-quick-card,.os-management-main .ai-os-home-admin-card{min-height:5.5rem;border:1px solid var(--border);border-radius:.75rem;background:var(--card);color:var(--foreground)}
+.os-management-main .ai-os-home-section{margin-top:2rem}
+.os-management-main .ai-os-home-recent-empty{min-height:12rem;border:1px solid var(--border);border-radius:.75rem;background:var(--card)}
+@media(max-width:900px){#aiOsDesktopHomeApps{grid-template-columns:13.5rem minmax(0,1fr)}.os-management-main{padding:2rem 1.25rem}.os-management-main .ai-os-home-quick{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:640px){#aiOsDesktopHomeApps{grid-template-columns:1fr}.os-management-sidebar{min-height:auto;border-right:0;border-bottom:1px solid var(--border);padding:1rem}.os-management-sidebar .ai-os-home-nav-list{display:none}.os-management-main{padding:1.25rem}.os-management-main .ai-os-home-quick{grid-template-columns:1fr}.os-management-main .ai-os-home-create-hero{min-height:7rem}}
+/* New page-shell boundary: mounted management apps fill the content region. */
+.os-management-main .ai-os-inline-workspace{width:100%;min-height:100%;padding:0;background:var(--background);color:var(--foreground)}
+.os-management-main .ai-os-inline-workspace > *{width:100%;min-width:0;min-height:100%;max-width:none;margin:0;border:0;border-radius:0;box-shadow:none;background:var(--background);color:var(--foreground)}
+.os-management-main .ai-os-inline-workspace :is(.canvas-gallery-shell,.ai-os-companion-window,.ai-os-settings-layout,.settings-provider-workspace,.settings-account-page){width:100%;max-width:none;min-height:100%;margin:0;border:0;border-radius:0;box-shadow:none}
+/* Management page skeleton: shared hierarchy for every non-canvas page. */
+.os-management-main .ai-os-inline-workspace :is(.settings-page,.settings-account-page,.settings-system-page,.settings-provider-workspace,.canvas-library-screen,.history-page,.record-page){display:block;padding:clamp(1.25rem,3vw,3rem);background:var(--background);color:var(--foreground)}
+.os-management-main .ai-os-inline-workspace :is(h1,h2,.settings-page-title,.settings-account-title,.canvas-library-title,.history-title){color:var(--foreground);font-weight:700;letter-spacing:-.025em}
+.os-management-main .ai-os-inline-workspace :is(.settings-page-header,.settings-account-header,.canvas-library-header,.history-header){display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;margin:0 0 2rem;padding:0 0 1.25rem;border-bottom:1px solid var(--border)}
+.os-management-main .ai-os-inline-workspace :is(.settings-content,.settings-provider-main,.settings-account-content,.canvas-gallery-main,.history-content){min-width:0;background:transparent;color:var(--foreground)}
+.os-management-main .ai-os-inline-workspace :is(.settings-card,.settings-section-card,.settings-provider-card,.settings-model-card,.record-card,.history-thumb,.canvas-gallery-card){background:var(--card)!important;border:1px solid var(--border)!important;border-radius:var(--neon-radius-surface)!important;box-shadow:none!important}

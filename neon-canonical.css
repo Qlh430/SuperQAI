@@ -1,0 +1,108 @@
+/* Neon canonical semantic layer
+   Single source for the Better Design Neon system. Component CSS must consume
+   these variables instead of defining a second palette. */
+:root,
+:root[data-theme="dark"],
+:root[data-theme="light"] {
+  --neon-background: oklch(.145 .01 264);
+  --neon-foreground: oklch(.97 .005 250);
+  --neon-card: oklch(.18 .012 264);
+  --neon-card-foreground: oklch(.97 .005 250);
+  --neon-popover: oklch(.20 .013 264);
+  --neon-popover-foreground: oklch(.97 .005 250);
+  --neon-primary: oklch(.86 .22 145);
+  --neon-primary-foreground: oklch(.18 .04 150);
+  --neon-secondary: oklch(.22 .014 264);
+  --neon-secondary-foreground: oklch(.92 .006 250);
+  --neon-muted: oklch(.20 .012 264);
+  --neon-muted-foreground: oklch(.66 .012 258);
+  --neon-accent: oklch(.24 .015 264);
+  --neon-accent-foreground: oklch(.97 .005 250);
+  --neon-warning: oklch(.82 .16 90);
+  --neon-destructive: oklch(.62 .23 25);
+  --neon-destructive-foreground: oklch(.98 .01 20);
+  --neon-border: oklch(1 0 0 / .09);
+  --neon-input: oklch(.20 .012 264);
+  --neon-ring: oklch(.86 .22 145 / .55);
+  --neon-radius-control: .5rem;
+  --neon-radius-surface: .75rem;
+  --neon-radius-pill: 999px;
+
+  --background: var(--neon-background);
+  --foreground: var(--neon-foreground);
+  --card: var(--neon-card);
+  --card-foreground: var(--neon-card-foreground);
+  --popover: var(--neon-popover);
+  --popover-foreground: var(--neon-popover-foreground);
+  --primary: var(--neon-primary);
+  --primary-foreground: var(--neon-primary-foreground);
+  --secondary: var(--neon-secondary);
+  --secondary-foreground: var(--neon-secondary-foreground);
+  --muted: var(--neon-muted);
+  --muted-foreground: var(--neon-muted-foreground);
+  --accent: var(--neon-accent);
+  --accent-foreground: var(--neon-accent-foreground);
+  --destructive: var(--neon-destructive);
+  --destructive-foreground: var(--neon-destructive-foreground);
+  --border: var(--neon-border);
+  --input: var(--neon-input);
+  --ring: var(--neon-ring);
+  --radius: var(--neon-radius-surface);
+  --neon-accent-soft: color-mix(in oklab, var(--neon-primary) 14%, transparent);
+  --neon-focus-ring: 0 0 0 3px color-mix(in oklab, var(--neon-primary) 55%, transparent);
+}
+:is(button,input,textarea,select):focus-visible { outline:2px solid var(--neon-ring); outline-offset:2px; box-shadow:var(--neon-focus-ring); }
+/* Legacy variable bridge: old modules no longer own the visual language. */
+:root,
+:root[data-theme="dark"],
+:root[data-theme="light"] {
+  --os-wallpaper-base: var(--background);
+  --os-menu-bg: color-mix(in oklab,var(--card) 92%,transparent);
+  --os-dock-bg: color-mix(in oklab,var(--card) 94%,transparent);
+  --os-window-bg: var(--card);
+  --os-window-solid: var(--card);
+  --os-titlebar-bg: var(--card);
+  --os-surface-bg: var(--background);
+  --os-sidebar-bg: var(--card);
+  --os-field-bg: var(--input);
+  --os-accent: var(--primary);
+  --os-text: var(--foreground);
+  --os-muted-text: var(--muted-foreground);
+  --os-border: var(--border);
+  --os-border-strong: color-mix(in oklab,var(--border) 160%,transparent);
+  --os-shadow-color: oklch(0 0 0 / .35);
+  --os-overlay-bg: oklch(0 0 0 / .42);
+  --os-hover-bg: color-mix(in oklab,var(--foreground) 7%,transparent);
+  --os-selected-bg: color-mix(in oklab,var(--primary) 16%,transparent);
+  --os-canvas-bg: var(--background);
+  --os-node-bg: var(--card);
+  --bg: var(--background);
+  --stage: var(--background);
+  --panel: var(--card);
+  --field: var(--input);
+  --ink: var(--foreground);
+  --muted: var(--muted-foreground);
+  --line: var(--border);
+  --line-strong: color-mix(in oklab,var(--border) 160%,transparent);
+  --soft: var(--secondary);
+  --black: var(--foreground);
+  --os-grid-line: color-mix(in oklab,var(--border) 60%,transparent);
+  --settings-bg: var(--background);
+  --settings-sidebar: var(--card);
+  --settings-card: var(--card);
+  --settings-field: var(--input);
+  --settings-text: var(--foreground);
+  --settings-muted: var(--muted-foreground);
+  --settings-line: var(--border);
+  --rail-active-bg: var(--primary);
+  --rail-active-fg: var(--primary-foreground);
+  --agent-accent: var(--primary);
+  --agent-accent-strong: var(--primary);
+  --agent-surface: var(--card);
+  --agent-surface-muted: var(--secondary);
+  --agent-line: var(--border);
+}
+:is(.ai-os-theme-root,.ai-os-desktop,.app-shell,.canvas-agent-shell,.canvas-agent-panel) {
+  color:var(--foreground);
+  background-color:var(--background);
+}

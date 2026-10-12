@@ -23,6 +23,12 @@ const MINIMAX_H3_ASPECT_RATIOS = Object.freeze({
   "16:9": [16, 9],
   "21:9": [21, 9],
 });
+// Local ComfyUI video models are deliberately separate from the provider API
+// catalog. Workflow adapters can extend this list without exposing a local
+// transport option in an API video node.
+const MINIMAX_H3_LOCAL_MODELS = Object.freeze([
+  ["minimax-h3", "MiniMax H3"],
+]);
 const UPSCALE_API_URL = "/api/upscale";
 const UPSCALE2_API_URL = "/api/upscale2";
 const SHOE_SWAP_API_URL = "/api/shoe-swap";
@@ -30,6 +36,7 @@ const OUTPAINT_API_URL = "/api/outpaint";
 const RUNNINGHUB_OUTPAINT_API_URL = "/api/runninghub-outpaint";
 const FLUX2_KLEIN_EDIT_API_URL = "/api/flux2-klein-edit";
 const QWEN_EDIT_ANGLE_API_URL = "/api/qwen-edit-angle";
+const QWEN_IMAGE21_API_URL = "/api/qwen-image21";
 const COMFY_REMOVE_BACKGROUND_API_URL = "/api/comfy-remove-background";
 const IMAGE_CHUNK_UPLOAD_API_URL = "/api/upload-image/chunk";
 const UPSCALE_STATUS_API_URL = "/api/upscale/status";
@@ -37,6 +44,59 @@ const CHAT_HISTORY_API_URL = "/api/history/chat";
 const IMAGE_HISTORY_API_URL = "/api/history/images";
 const CANVAS_BOARDS_API_URL = "/api/canvas/boards";
 const CANVAS_MEDIA_CLEANUP_API_URL = "/api/canvas/media/cleanup";
+const canvasGenerationSoundStates = new WeakMap();
+function getCanvasGenerationSoundState(node) {
+  if (!node) return null;
+  let state = canvasGenerationSoundStates.get(node);
+  if (!state) { state = { context: null, armed: false, played: new Set() }; canvasGenerationSoundStates.set(node, state); }
+  return state;
+}
+const CanvasGenerationSound = Object.freeze({
+  arm(node) {
+    const state = getCanvasGenerationSoundState(node);
+    if (!state) return;
+    state.armed = true;
+    try {
+      const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextCtor) return;
+      state.context ||= new AudioContextCtor();
+      if (state.context.state === "suspended") void state.context.resume().catch(() => {});
+    } catch {
+      // Audio is an enhancement; browser policy or an unavailable device must
+      // never affect a generation task.
+    }
+  },
+  playComplete(node, key = "default") {
+    const state = getCanvasGenerationSoundState(node);
+    if (!state || state.played.has(String(key))) return;
+    state.played.add(String(key));
+    try {
+      window.__canvasGenerationSoundTestHook?.(node, String(key));
+      const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextCtor) return;
+      state.context ||= new AudioContextCtor();
+      const context = state.context;
+      const start = context.currentTime;
+      const gain = context.createGain();
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(0.045, start + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.24);
+      gain.connect(context.destination);
+      [659.25, 880].forEach((frequency, index) => {
+        const oscillator = context.createOscillator();
+        oscillator.type = "sine"; oscillator.frequency.value = frequency;
+        oscillator.connect(gain); oscillator.start(start + index * 0.07); oscillator.stop(start + 0.24);
+      });
+    } catch {
+      // Ignore autoplay and audio-device errors.
+    }
+  },
+  _testHooks: Object.freeze({
+    setPlayHook(hook) { window.__canvasGenerationSoundTestHook = typeof hook === "function" ? hook : null; },
+    isArmed(node) { return Boolean(getCanvasGenerationSoundState(node)?.armed); },
+  }),
+});
+window.CanvasGenerationSound = CanvasGenerationSound;
 const CANVAS_ASSET_DRAG_TYPE = "application/x-ai-os-asset";
 const ONLINE_API_URL = "/api/online";
 const SETTINGS_API_URL = "/api/settings";
@@ -52,9 +112,11 @@ const CanvasCropRules = window.CanvasCropRules;
 if (!CanvasCropRules) throw new Error("Canvas crop rules must load before the canvas application.");
 const CanvasGridEditorRules = window.CanvasGridEditorRules;
 if (!CanvasGridEditorRules) throw new Error("Canvas grid editor rules must load before the canvas application.");
-const CanvasComfyRules = window.CanvasComfyRules;
-const CanvasComfyOutpaintUi = window.CanvasComfyOutpaintUi;
-const CanvasComfyQwenUi = window.CanvasComfyQwenUi;
+function getCanvasComfyHelper(name) {
+  const helper = window[name];
+  if (!helper) throw new Error("ComfyUI 图片组件尚未加载，请重新打开画布。");
+  return helper;
+}
 // The H3 controls UI ships with the MiniMax H3 node component, so it is read
 // lazily: disabling that component must not stop the canvas application.
 function getCanvasH3ControlsUi() {
@@ -331,6 +393,8 @@ let videoModelRatios = {};
 let videoModelDurations = {};
 let canvasImageModelCandidates = [];
 let imageModelCatalog = [];
+let canvasAudioModelCatalog = [];
+let canvasAudioCatalogRequest = 0;
 let canvasImageModelsLoadPromise = null;
 let canvasImageModelsLoadPromiseMinimumRevision = 0;
 let canvasImageModelsRequestSerial = 0;
@@ -511,9 +575,15 @@ const canvasVirtualizer = new window.CanvasVirtualizer({
   rules: window.CanvasVirtualizationRules,
   getViewport: () => {
     const viewport = document.querySelector("#infiniteCanvas");
+    // clientWidth/clientHeight force a synchronous layout. Culling runs on every
+    // virtualizer flush, which during a pan is once per movement, so reading the
+    // live size cost a full reflow each time. The size only changes when the
+    // viewport element itself resizes, and the cache is kept in step by a
+    // ResizeObserver, so serve the cached numbers here.
+    const size = getCachedCanvasViewportSize(viewport);
     return {
-      width: viewport?.clientWidth || 0,
-      height: viewport?.clientHeight || 0,
+      width: size.width,
+      height: size.height,
       x: canvasState.x,
       y: canvasState.y,
       scale: canvasState.scale,
@@ -533,12 +603,14 @@ const canvasVirtualizer = new window.CanvasVirtualizer({
   },
   afterFlush: (detail) => {
     if (detail.mounted || detail.unmounted || detail.replaced) {
+      canvasConnectionMountGeneration += 1;
       syncCanvasNodeStacking();
       if (canvasPagedStore.scenePage) scheduleCanvasSceneRender();
       scheduleCanvasImageQualityUpdate();
       scheduleCanvasConnectionRender({ trailing: false });
       updateCanvasOrigin();
     }
+    if (!detail.remaining) releaseCanvasRestoreMountBudget();
     if (!detail.remaining && canvasPendingRestoreRefsBoardId && canvasPendingRestoreRefsBoardId === canvasState.activeBoardId) {
       canvasPendingRestoreRefsBoardId = "";
       // A target may have mounted before its upstream gallery. Reconcile
@@ -553,6 +625,13 @@ window.canvasViewportDataSource = canvasViewportDataSource;
 window.canvasVirtualizer = canvasVirtualizer;
 window.canvasMediaScheduler = canvasMediaScheduler;
 window.CanvasWorkspace = {
+  saveForNavigation: async function () {
+    if (canvasState.isRestoring || canvasState.boardOpening) throw new Error("画布正在恢复，请完成后重试。");
+    await saveCanvasBoardNow();
+    if (canvasPagedStore.getPendingOperations().length || canvasState.hasUnsavedChanges) {
+      throw new Error("画布尚未保存成功，请重试后再返回。");
+    }
+  },
   loadCanvasWorkspace,
   renderCanvasWorkspace,
   openCanvasProjectDialog,
@@ -563,6 +642,23 @@ window.CanvasWorkspace = {
 };
 
 const canvasPersistedNodes = new Map();
+// 分页存储会按内存预算回收离屏节点的载荷，直接查节点/存储会让参考带与生成请求
+// 少素材（用户连了三个只显示一个）。这里缓存最近一次解析到的输出，回收后仍可还原。
+const canvasIncomingOutputCache = new Map();
+const CANVAS_INCOMING_OUTPUT_CACHE_LIMIT = 240;
+
+function rememberCanvasIncomingOutput(key, output) {
+  if (!output || !key) return;
+  let snapshot = output;
+  try { snapshot = JSON.parse(JSON.stringify(output)); } catch { /* 保持原引用 */ }
+  canvasIncomingOutputCache.delete(key);
+  canvasIncomingOutputCache.set(key, snapshot);
+  while (canvasIncomingOutputCache.size > CANVAS_INCOMING_OUTPUT_CACHE_LIMIT) {
+    const oldest = canvasIncomingOutputCache.keys().next().value;
+    if (oldest === undefined) break;
+    canvasIncomingOutputCache.delete(oldest);
+  }
+}
 const canvasPersistedConnections = new Map();
 let canvasVisibleConnectionBaselineIds = new Set();
 let canvasOperationFlushPromise = null;
@@ -845,6 +941,7 @@ function renderCanvasSceneLayer() {
     },
     resolveTexture: resolveCanvasSceneTexture,
     resolveNodeBounds: getCanvasImageContentRect,
+    resolveNodeLabel: node => window.FloraNodeTags?.resolve(node.nodeLabelId),
   });
   for (const [source, entry] of canvasSceneTextureCache) {
     if (canvasSceneOriginalDemand.has(source)) continue;
@@ -861,7 +958,7 @@ function renderCanvasSceneLayer() {
 function getCanvasSceneVisualNodes(page) {
   const decodeNode = item => Array.isArray(item) ? {
     id: String(item[0]), kind: item[1], x: item[2], y: item[3], width: item[4], height: item[5],
-    zOrder: item[6], previewSource: item[7], title: item[8],
+    zOrder: item[6], previewSource: item[7], title: item[8], nodeLabelId: item[9] || "",
   } : item;
   const nodes = new Map((page.visualNodes || []).map(item => {
     const node = decodeNode(item);
@@ -875,11 +972,11 @@ function getCanvasSceneVisualNodes(page) {
     if (top && !topMoving && !canvasPagedStore.deletedNodeIds.has(base.id) && !canvasVirtualStore.getMounted(base.id)
       && top.x === base.x && top.y === base.y && (top.width || base.width) === base.width
       && (top.height || base.height) === base.height) continue;
-    for (const [id, zOrder, title] of members) {
+    for (const [id, zOrder, title, nodeLabelId] of members) {
       if (canvasPagedStore.deletedNodeIds.has(id) || canvasVirtualStore.getMounted(id)) continue;
       const model = canvasVirtualStore.get(id);
       const moving = canvasState.selectionDragging && canvasState.selectedSceneItems.get(id);
-      const node = { ...base, id, zOrder, title, ...model, ...moving };
+      const node = { ...base, id, zOrder, title, nodeLabelId, ...model, ...moving };
       nodes.set(id, node);
       // Once an unchanged underlying copy is available, the rest of this stack
       // is still covered. Render work stays bounded even for 50,000 copies.
@@ -991,11 +1088,36 @@ let agentRoutingCandidateRequestSerial = 0;
 let canvasConnectionResizeFrame = 0;
 let canvasConnectionRenderFrame = 0;
 let canvasConnectionRenderTimer = 0;
+let canvasNodePositionPaintFrame = 0;
+const canvasDeferredNodePositions = new Set();
 let canvasGalleryMemberHoverConnectionSyncFrame = 0;
 let canvasGalleryMemberHoverConnectionSyncUntil = 0;
 const canvasConnectionElements = new Map();
 const canvasConnectionOverlayElements = new Map();
 const canvasConnectionPortPointCache = new Map();
+// Signature of everything a connection render depends on. When it is unchanged
+// the DOM already matches, so the pass can be skipped instead of re-touching
+// every path on a schedule that only looked like a change.
+let canvasConnectionRenderSignature = "";
+// Declared early: clearCanvasPlane() touches these during startup, before the
+// later definitions run, and a late const would leave them in the temporal dead
+// zone and abort script evaluation.
+var canvasWarmedThumbnailSources = new Set();
+var CANVAS_THUMBNAIL_WARM_LIMIT = 24;
+var canvasThumbnailSweepTimer = 0;
+var CANVAS_THUMBNAIL_SWEEP_DELAY_MS = 900;
+// Grace period before a canvas image falls back to its original when nothing
+// painted. Tunable so the regression can exercise it quickly.
+var canvasThumbnailWatchdogMs = 4000;
+// Bumped whenever the virtualizer mounts, unmounts or swaps a node, so a
+// same-count swap cannot be mistaken for "nothing changed".
+let canvasConnectionMountGeneration = 0;
+// The viewport that is actually painted on #canvasPlane. canvasState can run
+// ahead of the DOM while a pan/zoom waits for its animation frame; measuring a
+// live port rect must be converted with the painted viewport, otherwise the
+// wires jump by the pending delta and snap back on the next frame.
+let canvasAppliedViewport = null;
+let canvasConnectionDragCancel = null;
 const CANVAS_CONNECTION_PORT_CACHE_LIMIT = 8192;
 let canvasViewportSize = { width: 0, height: 0 };
 let canvasViewportSizeObserver = null;
@@ -1015,9 +1137,12 @@ let canvasVirtualRefreshTimer = 0;
 let canvasViewportSaveTimer = 0;
 let canvasAgentFocusTimer = 0;
 let providerCatalogRefreshTimer = 0;
+const providerModelRequestSerial = { chat: 0, vision: 0, video: 0 };
+let visionModelCatalogLoaded = false;
 let chatModelPicker = null;
 let imageModelPicker = null;
 const canvasImageModelPickers = new WeakMap();
+const canvasImageModelPresentationListeners = new WeakMap();
 const canvasNodeResizeObserver = typeof ResizeObserver === "function"
   ? new ResizeObserver((entries) => {
     if (canvasConnectionResizeFrame) cancelAnimationFrame(canvasConnectionResizeFrame);
@@ -1082,6 +1207,41 @@ function scheduleModelCatalogHydration() {
   window.setTimeout(hydrate, 80);
 }
 
+function retainCatalogSelection(select, preferred, available) {
+  if (!select) return;
+  const previousUnavailable = select.dataset.catalogUnavailable === "true";
+  const previousError = select.dataset.catalogError === "true";
+  delete select.dataset.catalogError;
+  const missing = Boolean(preferred) && !available.includes(preferred);
+  const unavailable = missing || !available.length;
+  select.dataset.catalogUnavailable = String(unavailable);
+  if (missing) {
+    const option = document.createElement("option");
+    option.value = preferred;
+    option.textContent = "原模型已移除或能力不匹配，请重新选择";
+    option.disabled = true;
+    select.append(option);
+    select.value = preferred;
+  } else if (!available.length) {
+    select.innerHTML = '<option value="">请先添加可用模型</option>';
+  }
+  const node = select.closest(".canvas-node");
+  if (node && unavailable) setCanvasNodeStatus(node, "所选模型已移除或能力不匹配，请重新选择。");
+  else if (node && (previousUnavailable || previousError)) setCanvasNodeStatus(node, "准备就绪");
+}
+
+document.addEventListener("change", event => {
+  const select = event.target;
+  if (!(select instanceof HTMLSelectElement) || !Object.hasOwn(select.dataset, "catalogUnavailable")) return;
+  if (!select.value || select.selectedOptions[0]?.disabled) return;
+  const wasUnavailable = select.dataset.catalogUnavailable === "true";
+  select.dataset.catalogUnavailable = "false";
+  if (wasUnavailable) {
+    const node = select.closest(".canvas-node");
+    if (node) setCanvasNodeStatus(node, "准备就绪");
+  }
+}, true);
+
 window.addEventListener("ai-os-provider-catalog-changed", (event) => {
   clearTimeout(providerCatalogRefreshTimer);
   providerCatalogRefreshTimer = window.setTimeout(() => {
@@ -1089,21 +1249,22 @@ window.addEventListener("ai-os-provider-catalog-changed", (event) => {
       const catalogRevision = Math.max(0, Number(event.detail?.catalogRevision) || 0);
       canvasImageModelsRequiredRevision = catalogRevision > 0
         ? Math.max(canvasImageModelsRequiredRevision, catalogRevision)
-        : Math.max(1, canvasImageModelsRequiredRevision + 1);
+        : canvasImageModelsRequiredRevision;
       canvasImageModelsSettingsDirty = true;
-      await Promise.allSettled([
-        loadImageModels({ preserveOnError: true }),
+      const refreshResults = await Promise.allSettled([
+        loadImageModels({ preserveOnError: true, preserveSelection: true }),
         loadVideoModels(),
         loadChatModels({ preserveSelection: true }),
         loadVisionModels(),
+        loadCanvasAudioModels(),
       ]);
       if (catalogRevision > 0 && canvasImageModelsAppliedRevision < catalogRevision) {
         await new Promise((resolve) => window.setTimeout(resolve, 120));
-        await loadImageModels({ preserveOnError: true });
+        await loadImageModels({ preserveOnError: true, preserveSelection: true });
       }
-      refreshCanvasImageModelSelects();
-      refreshImageModelPickers();
-    })().catch(() => {});
+      const failed = refreshResults.find(result => result.status === "rejected");
+      if (failed) setImageStatus("模型目录更新失败，请检查服务后重试。");
+    })().catch(() => { setImageStatus("模型目录更新失败，请检查服务后重试。"); });
   }, 40);
 });
 
@@ -1955,9 +2116,10 @@ outpaint2Form?.addEventListener("submit", async (event) => {
   }
 });
 
-async function waitForUpscaleTask(taskId, setProgress = setUpscaleProgress) {
+async function waitForUpscaleTask(taskId, setProgress = setUpscaleProgress, { signal = null } = {}) {
   while (true) {
-    const response = await fetch(`${UPSCALE_STATUS_API_URL}?id=${encodeURIComponent(taskId)}`);
+    if (signal?.aborted) throw new DOMException("任务已取消。", "AbortError");
+    const response = await fetch(`${UPSCALE_STATUS_API_URL}?id=${encodeURIComponent(taskId)}`, { signal });
     const task = await response.json().catch(() => ({}));
     if (!response.ok || task.error) throw new Error(task.error || task.message || `${response.status} ${response.statusText}`);
 
@@ -2052,42 +2214,49 @@ function renderChatModelPicker() {
 }
 
 async function loadChatModels({ preserveSelection = false } = {}) {
+  const serial = ++providerModelRequestSerial.chat;
   const previousModel = String(chatModelInput?.value || "").trim();
   try {
     const response = await fetch(CHAT_MODELS_API_URL);
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || "对话模型读取失败。");
+    if (serial !== providerModelRequestSerial.chat) return;
     const models = normalizePublicModelCatalog(data.models);
     Object.assign(DYNAMIC_MODEL_DISPLAY_NAMES, data.labels || {}, Object.fromEntries(models.map((model) => [model.id, model.displayName])));
     fillSelect(chatModelInput, models.map((model) => model.id));
-    chatModelInput.value = preserveSelection && models.some((model) => model.id === previousModel)
-      ? previousModel
-      : data.defaultModel;
+    chatModelInput.value = preserveSelection && models.some((model) => model.id === previousModel) ? previousModel : data.defaultModel;
+    retainCatalogSelection(chatModelInput, preserveSelection ? previousModel : "", models.map(model => model.id));
     renderChatModelPicker();
-    refreshCanvasLlmModelSelects();
-    setChatStatus("准备就绪");
+    setChatStatus(chatModelInput.dataset.catalogUnavailable === "true" ? "所选模型已移除，请重新选择。" : "准备就绪");
   } catch (error) {
-    fillSelect(chatModelInput, ["模型列表读取失败"]);
-    renderChatModelPicker();
-    refreshCanvasLlmModelSelects();
+    if (serial !== providerModelRequestSerial.chat) return;
     setChatStatus(error.message);
+    throw error;
   }
 }
 
 async function loadVisionModels() {
+  const serial = ++providerModelRequestSerial.vision;
   try {
     const response = await fetch(VISION_MODELS_API_URL);
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || "视觉模型读取失败。");
+    if (serial !== providerModelRequestSerial.vision) return;
     const models = normalizePublicModelCatalog(data.models);
     visionModelCatalog = models;
     Object.assign(DYNAMIC_MODEL_DISPLAY_NAMES, data.labels || {}, Object.fromEntries(models.map((model) => [model.id, model.displayName])));
     visionModelOptions = models.map((model) => model.id);
+    visionModelCatalogLoaded = true;
     refreshCanvasLlmModelSelects();
-  } catch {
-    visionModelOptions = [];
-    visionModelCatalog = [];
-    refreshCanvasLlmModelSelects();
+  } catch (error) {
+    if (serial !== providerModelRequestSerial.vision) return;
+    setChatStatus("视觉模型读取失败，请检查服务配置。");
+    document.querySelectorAll("#canvasPlane .canvas-node-llm, #canvasPlane .canvas-node-text").forEach(node => {
+      const select = node.querySelector(".canvas-llm-model");
+      if (select) select.dataset.catalogError = "true";
+      setCanvasNodeStatus(node, "视觉模型读取失败，请检查服务配置。");
+    });
+    throw error;
   }
 }
 
@@ -2156,23 +2325,45 @@ function initializeImageModelPicker() {
 }
 
 function enhanceCanvasImageModelSelect(select) {
-  if (!select || select.classList.contains("canvas-llm-model")) return null;
+  if (!select) return null;
+  const textModel = select.classList.contains("canvas-llm-model");
+  const catalog = textModel
+    ? Array.from(select.options).filter(option => !option.disabled).map(option =>
+      visionModelCatalog.find(model => model.id === option.value)
+      || { id: option.value, modelId: option.textContent, providerName: "文字模型" })
+    : imageModelCatalog;
   const existing = canvasImageModelPickers.get(select);
   if (existing) {
-    existing.setModels(imageModelCatalog);
+    existing.setModels(catalog);
     return existing;
   }
   if (!select.parentNode || !window.ImageModelPicker?.createSelectPicker) return null;
   const picker = window.ImageModelPicker.createSelectPicker({
     select,
-    models: imageModelCatalog,
+    models: catalog,
+    modelKind: textModel ? "text" : "image",
     storage: localStorage,
     getScope: getImageModelPickerScope,
     onManage: openImageModelServiceSettings,
     variant: "canvas",
+    getDisplayModels: textModel ? undefined : (models, selectedId) => window.FloraMidjourneySettings?.groupModels(models, selectedId) || models,
+    getDisplayName: textModel ? undefined : model => window.MidjourneyParameterRules?.isMidjourney(model) ? 'Midjourney' : '',
   });
   canvasImageModelPickers.set(select, picker);
+  const refreshPresentation = () => picker.refresh();
+  canvasImageModelPresentationListeners.set(select, refreshPresentation);
+  select.addEventListener('flora-model-presentation-refresh', refreshPresentation);
   return picker;
+}
+
+function releaseCanvasImageModelPicker(select) {
+  if (!select) return;
+  const picker = canvasImageModelPickers.get(select);
+  const refreshPresentation = canvasImageModelPresentationListeners.get(select);
+  if (refreshPresentation) select.removeEventListener('flora-model-presentation-refresh', refreshPresentation);
+  canvasImageModelPresentationListeners.delete(select);
+  canvasImageModelPickers.delete(select);
+  picker?.destroy?.();
 }
 
 function refreshImageModelPickers() {
@@ -2187,6 +2378,8 @@ async function loadImageModels(options = {}) {
   const preserveOnError = Boolean(options.preserveOnError);
   const minimumRevision = Math.max(0, Number(options.minimumRevision) || 0);
   const saved = getSavedSettings(IMAGE_STORAGE_KEY);
+  const currentModel = options.preserveSelection ? String(imageModelInput.value || "") : "";
+  const currentAutomatic = imageModelInput.dataset.modelSelection === "auto";
   const requestSerial = ++canvasImageModelsRequestSerial;
   try {
     const response = await fetch(IMAGE_MODELS_API_URL, { cache: "no-store" });
@@ -2224,19 +2417,21 @@ async function loadImageModels(options = {}) {
     Object.keys(DYNAMIC_IMAGE_MODEL_PRICES).forEach((key) => delete DYNAMIC_IMAGE_MODEL_PRICES[key]);
     Object.assign(DYNAMIC_IMAGE_MODEL_PRICES, data.prices || {});
     fillSelect(imageModelInput, modelIds);
-    const preferredModel = window.ImageModelPicker?.resolveModelId?.(models, saved?.model || data.defaultModel) || saved?.model || data.defaultModel;
-    const automaticSelection = !saved?.model || saved.model === "__auto__";
+    const requestedModel = currentModel || saved?.model || data.defaultModel;
+    const preferredModel = window.ImageModelPicker?.resolveModelId?.(models, requestedModel) || requestedModel;
+    const automaticSelection = options.preserveSelection ? currentAutomatic : !saved?.model || saved.model === "__auto__";
     imageModelInput.value = automaticSelection
       ? data.defaultModel
       : modelIds.includes(preferredModel) ? preferredModel : data.defaultModel;
     imageModelInput.dataset.modelSelection = automaticSelection ? "auto" : "exact";
+    retainCatalogSelection(imageModelInput, automaticSelection ? "" : preferredModel, modelIds);
     refreshImageSizeOptions(saved?.size || imageSizeInput.value);
     syncMidjourneyControls(imageMidjourneyOptions, imageModelInput.value, saved?.midjourney || {});
     updateImageResolutionAvailability();
     refreshCanvasImageModelSelects();
     refreshImageModelPickers();
     updateGenerateButtonLabel();
-    setImageStatus("准备就绪");
+    setImageStatus(imageModelInput.dataset.catalogUnavailable === "true" ? "所选模型已移除或能力不匹配，请重新选择。" : "准备就绪");
     return canvasImageModelCandidates;
   } catch (error) {
     if (requestSerial !== canvasImageModelsRequestSerial) return canvasImageModelCandidates;
@@ -2250,15 +2445,24 @@ async function loadImageModels(options = {}) {
       setImageStatus(error.message);
       return canvasImageModelCandidates;
     }
+    document.querySelectorAll("#canvasPlane .canvas-node-image:not([data-upload-only='true'])").forEach(node => {
+      if (node.dataset.canvasEngine !== "comfyui") {
+        const select = node.querySelector(".canvas-node-model");
+        if (select) select.dataset.catalogError = "true";
+        setCanvasNodeStatus(node, "图片模型目录更新失败，请检查服务后重试。");
+      }
+    });
     throw error;
   }
 }
 
 async function loadVideoModels() {
+  const serial = ++providerModelRequestSerial.video;
   try {
     const response = await fetch(VIDEO_MODELS_API_URL, { cache: "no-store" });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || "视频模型读取失败。");
+    if (serial !== providerModelRequestSerial.video) return;
     videoModelCatalog = normalizePublicModelCatalog(data.models);
     videoModelCandidates = Array.isArray(data.candidates) ? data.candidates : [];
     videoModelResolutions = data.resolutions || {};
@@ -2269,18 +2473,25 @@ async function loadVideoModels() {
       Object.fromEntries(videoModelCatalog.map((model) => [model.id, model.displayName])),
     );
     refreshCanvasApiVideoModelSelects();
-  } catch {
-    videoModelCatalog = [];
-    videoModelCandidates = [];
-    videoModelResolutions = {};
-    videoModelRatios = {};
-    videoModelDurations = {};
-    refreshCanvasApiVideoModelSelects();
+  } catch (error) {
+    if (serial !== providerModelRequestSerial.video) return;
+    document.querySelectorAll("#canvasPlane .canvas-node-video-api").forEach(node => {
+      const select = node.querySelector(".canvas-api-video-model");
+      if (select) select.dataset.catalogError = "true";
+      setCanvasH3Status(node, "视频模型读取失败，请检查服务配置。", true);
+    });
+    throw error;
   }
 }
 
 function getVideoModelOptions() {
-  return videoModelCatalog.filter((model) => String(model.id || "").trim());
+  return videoModelCatalog.filter((model) => {
+    if (!String(model.id || "").trim()) return false;
+    const transport = `${model.platform || ""} ${model.providerProtocol || ""} ${model.modelProtocol || ""}`.toLowerCase();
+    const label = `${model.id || ""} ${model.displayName || ""}`.toLowerCase();
+    return !/(^|[\s._-])comfy(?:ui)?([\s._-]|$)/.test(transport)
+      && !/本机\s*comfy|comfyui/.test(label);
+  });
 }
 
 function fillCanvasApiVideoModelSelect(select, preferred) {
@@ -2297,6 +2508,7 @@ function fillCanvasApiVideoModelSelect(select, preferred) {
   });
   const next = choices.some((model) => model.id === preferred) ? preferred : (choices[0]?.id || "");
   select.value = next;
+  retainCatalogSelection(select, preferred, models.map(model => model.id));
   select.disabled = !models.length;
   if (models.length) select.dataset.platform = getApiVideoModelPlatform(next);
   else delete select.dataset.platform;
@@ -2308,7 +2520,7 @@ function refreshCanvasApiVideoModelSelects() {
     const node = select.closest(".canvas-node");
     fillCanvasApiVideoModelSelect(select, node?.dataset.apiVideoModel || select.value || "");
     if (node) node.dataset.apiVideoModel = select.value;
-    syncCanvasApiVideoControls(node);
+    if (select.dataset.catalogUnavailable !== "true") syncCanvasApiVideoControls(node);
   });
 }
 
@@ -4485,38 +4697,42 @@ function ensureCanvasMarkup() {
   canvasView.dataset.view = "canvas";
   canvasView.dataset.canvasScreen = "library";
   canvasView.innerHTML = `
-    <section id="canvasLibraryScreen" class="canvas-library-screen">
+
+    <section id="canvasLibraryScreen" class="canvas-library-screen neon-canvas-library">
       <div class="canvas-board-card">
-        <div class="canvas-board-head">
-          <div>
+        <header class="canvas-board-head">
+          <div class="canvas-board-heading">
+            <span class="canvas-board-eyebrow">无限画布</span>
             <strong id="canvasBoardTitle">全部画布</strong>
-            <span id="canvasBoardCount">0 个</span>
-            <p id="canvasBoardHint">按项目整理画布，选择卡片即可继续编辑。</p>
+            <div class="canvas-board-summary"><span id="canvasBoardCount">0 个</span><span class="canvas-board-separator">·</span><span id="canvasGalleryBreadcrumb">全部画布</span></div>
+            <p id="canvasBoardHint">选择一个画布继续组织提示词、参考图和生成结果。</p>
             <p id="canvasLibraryStatus" class="canvas-library-status" role="status" aria-live="polite"></p>
           </div>
           <div class="canvas-board-tools">
             <button id="canvasBoardRefresh" class="canvas-board-icon-button" type="button" title="刷新画布列表" aria-label="刷新画布列表"><i data-lucide="refresh-cw"></i></button>
-            <button id="canvasBoardTrash" class="canvas-board-icon-button" type="button" title="打开回收站" aria-label="打开回收站"><i data-lucide="trash"></i></button>
-            <button id="canvasBoardNew" type="button" aria-label="新建画布"><i data-lucide="plus"></i><span>新建画布</span></button>
+            <button id="canvasBoardTrash" class="canvas-board-icon-button" type="button" title="打开回收站" aria-label="打开回收站"><i data-lucide="trash-2"></i></button>
+            <button id="canvasBoardNew" class="canvas-board-new" type="button" aria-label="新建画布"><i data-lucide="plus"></i><span>新建画布</span></button>
           </div>
-        </div>
+        </header>
         <div class="canvas-gallery-shell">
-          <aside class="canvas-gallery-sidebar" aria-label="画布导航">
-            <div class="canvas-gallery-nav-title">画布</div>
-            <button class="canvas-gallery-nav-item is-active" type="button" data-canvas-scope="all"><i data-lucide="layout-grid"></i><span>全部画布</span><b id="canvasScopeAllCount">0</b></button>
-            <button class="canvas-gallery-nav-item" type="button" data-canvas-scope="mine"><i data-lucide="user-round"></i><span>我的画布</span><b id="canvasScopeMineCount">0</b></button>
-            <button class="canvas-gallery-nav-item" type="button" data-canvas-scope="shared"><i data-lucide="users-round"></i><span>协同文件</span><b id="canvasScopeSharedCount">0</b></button>
-            <button class="canvas-gallery-nav-item" type="button" data-canvas-scope="recent"><i data-lucide="clock-3"></i><span>最近使用</span></button>
-            <div class="canvas-gallery-nav-title canvas-gallery-project-title"><span>我的项目</span><button id="canvasProjectNew" data-canvas-new-project type="button" title="新建项目" aria-label="新建项目"><i data-lucide="plus"></i></button></div>
-            <div id="canvasProjectList" data-canvas-project-tree class="canvas-gallery-project-list"></div>
-            <button class="canvas-gallery-nav-item" type="button" data-canvas-scope="trash"><i data-lucide="trash-2"></i><span>回收站</span><b id="canvasScopeTrashCount">0</b></button>
-          </aside>
+          <div class="canvas-gallery-toolbar">
+            <nav class="canvas-gallery-sidebar" aria-label="画布范围">
+              <button class="canvas-gallery-nav-item is-active" type="button" data-canvas-scope="all"><i data-lucide="layout-grid"></i><span>全部画布</span><b id="canvasScopeAllCount">0</b></button>
+              <button class="canvas-gallery-nav-item" type="button" data-canvas-scope="mine"><i data-lucide="user-round"></i><span>我的画布</span><b id="canvasScopeMineCount">0</b></button>
+              <button class="canvas-gallery-nav-item" type="button" data-canvas-scope="shared"><i data-lucide="users-round"></i><span>协同文件</span><b id="canvasScopeSharedCount">0</b></button>
+              <button class="canvas-gallery-nav-item" type="button" data-canvas-scope="recent"><i data-lucide="clock-3"></i><span>最近使用</span></button>
+              <button class="canvas-gallery-nav-item" type="button" data-canvas-scope="trash"><i data-lucide="trash-2"></i><span>回收站</span><b id="canvasScopeTrashCount">0</b></button>
+            </nav>
+            <div class="canvas-gallery-project-filter">
+              <div class="canvas-gallery-project-label"><span>项目</span><button id="canvasProjectNew" data-canvas-new-project type="button" title="新建项目" aria-label="新建项目"><i data-lucide="plus"></i></button></div>
+              <div id="canvasProjectList" data-canvas-project-tree class="canvas-gallery-project-list"></div>
+            </div>
+          </div>
           <section class="canvas-gallery-main">
-            <label class="canvas-board-search">
-              <span>搜索</span>
-              <input id="canvasBoardSearch" type="search" placeholder="输入画布名称..." autocomplete="off" />
-            </label>
-            <div class="canvas-gallery-breadcrumb" id="canvasGalleryBreadcrumb">全部画布</div>
+            <div class="canvas-gallery-controls">
+              <label class="canvas-board-search"><i data-lucide="search" aria-hidden="true"></i><span class="sr-only">搜索画布</span><input id="canvasBoardSearch" type="search" placeholder="搜索画布名称" autocomplete="off" /></label>
+              <div class="canvas-gallery-view-meta" id="canvasGalleryViewMeta">按最近更新排序</div>
+            </div>
             <div class="canvas-board-list" id="canvasBoardList"></div>
           </section>
         </div>
@@ -4529,7 +4745,6 @@ function ensureCanvasMarkup() {
     <section id="canvasEditorScreen" class="canvas-editor-screen" hidden>
       <section class="canvas-workspace">
       <div class="canvas-editor-navigation" aria-label="画布导航">
-        <button id="canvasImmersiveToggleButton" class="text-action canvas-immersive-toggle" type="button" aria-pressed="true" title="退出全屏"><span data-canvas-immersive-glyph aria-hidden="true">↙</span><span data-canvas-immersive-label>退出全屏</span></button>
         <button id="canvasLibraryBackButton" class="text-action canvas-library-back" type="button"><i data-lucide="chevron-left"></i><span>返回项目</span></button>
       </div>
       <div class="header-actions canvas-actions">
@@ -4566,6 +4781,7 @@ function ensureCanvasMarkup() {
         <div class="canvas-selection-box" id="canvasSelectionBox" hidden>
           <div class="canvas-selection-tools">
             <button type="button" data-selection-action="group">打组</button>
+            <button type="button" data-selection-action="layout" aria-haspopup="menu" aria-expanded="false">布局</button>
           </div>
         </div>
         <div class="canvas-alignment-guides" id="canvasAlignmentGuides" aria-hidden="true" hidden>
@@ -4579,33 +4795,29 @@ function ensureCanvasMarkup() {
       </div>
       <div class="canvas-node-menu" id="canvasNodeMenu" hidden>
         <div class="canvas-menu-group" data-canvas-menu-group="cards">
-          <span class="canvas-menu-group-label">添加卡片</span>
+          <span class="canvas-menu-group-label">添加节点</span>
           <button type="button" data-canvas-node="note"><span class="canvas-menu-icon"><i data-lucide="sticky-note"></i></span><span>便签</span></button>
-          <button type="button" data-canvas-node="text"><span class="canvas-menu-icon"><i data-lucide="type"></i></span><span>提示词文本</span></button>
-          <button type="button" data-canvas-node="asset"><span class="canvas-menu-icon"><i data-lucide="paperclip"></i></span><span>素材</span></button>
+          <button type="button" data-canvas-node="text"><span class="canvas-menu-icon"><i data-lucide="type"></i></span><span>文本</span></button>
         </div>
         <div class="canvas-menu-group" data-canvas-menu-group="generate">
           <span class="canvas-menu-group-label">生成节点</span>
           <button type="button" data-canvas-node="image-generator" data-node-type="image"><span class="canvas-menu-icon"><i data-lucide="sparkles"></i></span><span>图片生成</span></button>
           <button type="button" data-canvas-node="video-generator" data-node-type="video"><span class="canvas-menu-icon"><i data-lucide="clapperboard"></i></span><span>视频生成</span></button>
-          <button type="button" data-canvas-node="midjourney"><span class="canvas-menu-icon"><i data-lucide="wand-sparkles"></i></span><span>Midjourney 生成</span></button>
-          <button type="button" data-canvas-node="llm"><span class="canvas-menu-icon"><i data-lucide="bot"></i></span><span>LLM 文本</span></button>
+          <button type="button" data-canvas-node="audio-generator"><span class="canvas-menu-icon"><i data-lucide="audio-lines"></i></span><span>音频生成</span></button>
           <button type="button" data-canvas-node="director3d"><span class="canvas-menu-icon"><i data-lucide="box"></i></span><span>3D 导演台</span></button>
         </div>
-        <div class="canvas-menu-group" data-canvas-menu-group="tools">
-          <span class="canvas-menu-group-label">工具与输出</span>
-          <button type="button" data-canvas-node="loop"><span class="canvas-menu-icon"><i data-lucide="repeat-2"></i></span><span>循环批处理</span></button>
-          <button type="button" data-canvas-node="asset-collection"><span class="canvas-menu-icon"><i data-lucide="layers-3"></i></span><span>素材合集</span></button>
+        <div class="canvas-menu-group" data-canvas-menu-group="resources">
+          <span class="canvas-menu-group-label">添加资源</span>
+          <button type="button" data-canvas-node="asset-upload"><span class="canvas-menu-icon"><i data-lucide="upload"></i></span><span>上传</span></button>
         </div>
       </div>
       <div class="canvas-node-menu canvas-connect-menu" id="canvasConnectMenu" hidden>
         <button type="button" data-connect-node="upload"><span class="canvas-menu-icon"><i data-lucide="image-plus"></i></span><span>\u8fde\u63a5\u5230\u56fe\u7247</span></button>
         <button type="button" data-connect-node="image-generator" data-node-type="image"><span class="canvas-menu-icon"><i data-lucide="sparkles"></i></span><span>连接到图片生成</span></button>
         <button type="button" data-connect-node="video-generator" data-node-type="video"><span class="canvas-menu-icon"><i data-lucide="clapperboard"></i></span><span>连接到视频生成</span></button>
-        <button type="button" data-connect-node="midjourney"><span class="canvas-menu-icon"><i data-lucide="wand-sparkles"></i></span><span>连接到 Midjourney 生成</span></button>
         <button type="button" data-connect-node="loop"><span class="canvas-menu-icon"><i data-lucide="repeat-2"></i></span><span>\u8fde\u63a5\u5230\u5faa\u73af</span></button>
         <button type="button" data-connect-node="gallery"><span class="canvas-menu-icon"><i data-lucide="images"></i></span><span>\u8fde\u63a5\u5230\u56fe\u96c6</span></button>
-        <button type="button" data-connect-node="llm"><span class="canvas-menu-icon"><i data-lucide="bot"></i></span><span>\u8fde\u63a5\u5230 LLM</span></button>
+        <button type="button" data-connect-node="audio-generator"><span class="canvas-menu-icon"><i data-lucide="audio-lines"></i></span><span>连接到音频生成</span></button>
         <button type="button" data-connect-node="text"><span class="canvas-menu-icon"><i data-lucide="type"></i></span><span>\u8fde\u63a5\u5230\u63d0\u793a\u8bcd</span></button>
       </div>
       <div class="canvas-node-menu canvas-image-menu" id="canvasImageMenu" hidden>
@@ -4793,32 +5005,13 @@ function initializeCanvasImageActions(
   viewport = document.querySelector("#infiniteCanvas"),
   nodeImageInput = document.querySelector("#canvasNodeImageInput"),
 ) {
-  if (canvasImageToolbar && canvasImageInfo) return true;
-  if (!viewport || !nodeImageInput || !window.CanvasImageToolbar || !window.CanvasImageInfo) return false;
-  canvasImageToolbar = window.CanvasImageToolbar.create({
-    viewport, getSelectedNodes: getSelectedCanvasNodes, selectNode: selectCanvasNode,
-    onSelectImage: (node, image) => {
-      const memberId = image.closest(".canvas-gallery-member")?.dataset.galleryMemberId;
-      if (memberId) setCanvasGalleryActiveImage(node, memberId);
-    },
-    onPreview: openCanvasImageOriginalPreview,
-    onCrop: (node, image) => openCanvasCropWorkbench(
-      node,
-      image.closest(".canvas-gallery-member")?.dataset.galleryMemberId || "",
-    ),
-    onDownload: (node, image) => downloadCanvasImage({ dataset: { imageSrc: image.getAttribute("data-original-src"), imageName: image.alt || node.dataset.imageName || "图片.png" } }),
-    onDelete: deleteCanvasImageSelection,
-    onReplace: (node) => {
-      selectCanvasNode(node);
-      if (node.classList.contains("canvas-node-asset-collection")) {
-        node.dataset.assetReplaceMemberId = getCanvasAssetCollection(node).members[0]?.id || "";
-        nodeImageInput.click();
-        return;
-      }
-      nodeImageInput.click();
-    },
-    onError: (error) => setCanvasStatus(`图片操作失败：${error.message}`),
-  });
+  if (canvasImageInfo) return true;
+  if (!viewport || !nodeImageInput || !window.CanvasImageInfo) return false;
+  // Media operations now render inside every node's Flora action bar. Keep
+  // the compatibility reference null so legacy refresh calls become no-ops,
+  // and remove a stale detached bar left by an older hot reload if present.
+  canvasImageToolbar = null;
+  viewport.querySelectorAll(":scope > .canvas-image-toolbar").forEach((toolbar) => toolbar.remove());
   canvasImageInfo = window.CanvasImageInfo.create({
     viewport,
     getMetadata: (image) => {
@@ -4829,6 +5022,26 @@ function initializeCanvasImageActions(
       return item ? { name: item.name, width: item.width, height: item.height, source: item.src || item.savedUrl } : {};
     },
     onRename: renameCanvasImage,
+  });
+  // A single media node is intentionally a clean image surface. The shared
+  // image-info caption is useful for galleries, but its filename/dimensions
+  // overlay would sit on top of an adaptive material and reintroduce the
+  // visual chrome this node template removes.
+  const syncAdaptiveImageInfoVisibility = (event) => {
+    // The visible Flora title and toolbar sit outside the image element. Use
+    // the whole adaptive node as the boundary so moving across its chrome
+    // cannot re-enable the shared caption and place it over the title.
+    const floraNode = event.target?.closest?.('.canvas-node[data-flora-node="true"]');
+    const singleImage = floraNode && !floraNode.matches('.canvas-node-gallery-container, .canvas-node-asset-collection:not(.canvas-node-asset-single-image)');
+    viewport.classList.toggle("flora-hide-image-info", Boolean(singleImage));
+    if (singleImage) canvasImageInfo?.hide?.();
+  };
+  viewport.addEventListener("pointermove", syncAdaptiveImageInfoVisibility, true);
+  viewport.addEventListener("pointerdown", syncAdaptiveImageInfoVisibility, true);
+  viewport.addEventListener("focusin", syncAdaptiveImageInfoVisibility, true);
+  viewport.addEventListener("pointerleave", () => {
+    viewport.classList.remove("flora-hide-image-info");
+    viewport.classList.remove("flora-generated-image-info");
   });
   return true;
 }
@@ -4846,7 +5059,7 @@ function initializeCanvasBoard() {
   const imageMenu = document.querySelector("#canvasImageMenu");
   const contextMenu = document.querySelector("#canvasContextMenu");
   const selectionBox = document.querySelector("#canvasSelectionBox");
-  if (!viewport || !plane || !imageInput || !nodeImageInput || !nodeVideoInput || !nodeAudioInput || !nodeMenu || !connectMenu || !imageMenu || !contextMenu) return;
+  if (!viewport || !plane || !imageInput || !nodeImageInput || !nodeVideoInput || !nodeAudioInput || !nodeAssetInput || !nodeMenu || !connectMenu || !imageMenu || !contextMenu) return;
   ensureCanvasSceneLayer();
   window.addEventListener("resize", renderCanvasSceneLayer);
   initializeCanvasImageActions(viewport, nodeImageInput);
@@ -4945,6 +5158,16 @@ function initializeCanvasBoard() {
     if (!button) return;
     event.stopPropagation();
     if (button.dataset.selectionAction === "group") createCanvasGroupFromSelection(event);
+    // 框选后的布局只排列、不打组：排列完仍然是散节点，用户再决定要不要打组。
+    else if (button.dataset.selectionAction === "layout") {
+      const menu = document.querySelector("#canvasGroupMenu");
+      const open = !menu || menu.hidden
+        || menu.dataset.groupMenu !== "layout"
+        || menu.dataset.groupMenuTarget !== "selection";
+      button.setAttribute("aria-expanded", String(open));
+      if (open) openCanvasGroupMenu(null, "layout", button, { selection: true });
+      else closeCanvasGroupMenu();
+    }
   });
   document.querySelector("#canvasReset")?.addEventListener("click", () => {
     resetCanvasView();
@@ -5007,19 +5230,45 @@ function initializeCanvasBoard() {
   });
 
   nodeAssetInput.addEventListener("change", async () => {
-    const node = getCanvasNode(nodeAssetInput.dataset.nodeId);
-    const boardId = node?.dataset.boardId;
-    for (const file of Array.from(nodeAssetInput.files || [])) {
-      if (!node?.isConnected || canvasState.activeBoardId !== boardId) break;
-      await fillCanvasAssetCollectionFromFile(node, file);
-    }
-    nodeAssetInput.value = "";
+    const files = Array.from(nodeAssetInput.files || []);
+    const nodeId = String(nodeAssetInput.dataset.nodeId || "");
+    const point = readCanvasAssetUploadPoint(nodeAssetInput.dataset.uploadPoint);
     delete nodeAssetInput.dataset.nodeId;
+    delete nodeAssetInput.dataset.uploadPoint;
+    nodeAssetInput.value = "";
+    if (!files.length) return;
+
+    const node = getCanvasNode(nodeId);
+    const replaceMemberId = String(node?.dataset.assetReplaceMemberId || "");
+    if (node && replaceMemberId) {
+      delete node.dataset.assetReplaceMemberId;
+      const replacement = files.find((file) => window.CanvasAssetCollectionRules?.detectKind?.({
+        mimeType: file.type,
+        name: file.name,
+      }));
+      if (replacement) {
+        await fillCanvasAssetCollectionFromFile(node, replacement, { replaceMemberId });
+      } else {
+        setCanvasStatus("不支持此文件，请选择图片、视频或音频。");
+      }
+      scheduleCanvasSave();
+      return;
+    }
+    await fillCanvasAssetCollectionNodesFromFiles(files, {
+      targetNode: node?.isConnected ? node : null,
+      point,
+    });
   });
 
   nodeMenu.addEventListener("click", (event) => {
     const button = event.target.closest("[data-canvas-node]");
     if (!button || !canvasState.menuPoint) return;
+    if (button.dataset.canvasNode === "asset-upload") {
+      nodeAssetInput.dataset.uploadPoint = JSON.stringify(canvasState.menuPoint);
+      nodeAssetInput.click();
+      hideCanvasNodeMenu();
+      return;
+    }
     if (button.dataset.canvasNode === "asset") addCanvasMaterialPlaceholder(canvasState.menuPoint);
     if (button.dataset.canvasNode === "image-generator") addCanvasImageGeneratorNode(canvasState.menuPoint);
     if (button.dataset.canvasNode === "video-generator") addCanvasVideoGeneratorNode(canvasState.menuPoint);
@@ -5029,6 +5278,7 @@ function initializeCanvasBoard() {
     if (button.dataset.canvasNode === "loop") addCanvasLoopNode(canvasState.menuPoint);
     if (button.dataset.canvasNode === "gallery") addCanvasGallery(canvasState.menuPoint);
     if (button.dataset.canvasNode === "llm") addCanvasLlmNode(canvasState.menuPoint);
+    if (button.dataset.canvasNode === "audio-generator") addCanvasAudioGeneratorNode(canvasState.menuPoint);
     if (button.dataset.canvasNode === "text") addCanvasText(canvasState.menuPoint);
     if (button.dataset.canvasNode === "note") addCanvasNote(canvasState.menuPoint);
     hideCanvasNodeMenu();
@@ -5052,7 +5302,10 @@ function initializeCanvasBoard() {
     if (!action) return;
     event.stopPropagation();
     hideCanvasContextMenu();
-    if (action === "upload") imageInput.click();
+    if (action === "upload") {
+      nodeAssetInput.dataset.uploadPoint = JSON.stringify(canvasState.menuPoint || getCanvasViewportCenterPoint());
+      nodeAssetInput.click();
+    }
     if (action === "add-node") {
       const local = canvasState.contextMenuLocal;
       if (local) placeCanvasNodeMenuAt(local.x, local.y);
@@ -5158,7 +5411,7 @@ function initializeCanvasBoard() {
       return;
     }
     if (event.key.toLowerCase() === "v") {
-      pasteCanvasNodes(event);
+      // Native paste carries external files. Classify it in the paste event.
       return;
     }
     if (event.key.toLowerCase() === "z") {
@@ -5196,13 +5449,15 @@ function initializeCanvasBoard() {
 
   viewport.addEventListener("pointerdown", (event) => {
     canvasSceneInteractionSequence += 1;
+    // The user has taken over, so drop the widened first-fill mount slice.
+    releaseCanvasRestoreMountBudget();
     hideCanvasNodeMenu();
     if (!event.target.closest("#canvasContextMenu")) hideCanvasContextMenu();
     if (!event.target.closest("#canvasImageMenu")) hideCanvasImageMenu();
     if (!event.target.closest("#canvasConnectMenu")) hideCanvasConnectMenu();
     const node = event.target.closest(".canvas-node");
     if (node) {
-      if (!event.target.closest(".canvas-text")) blurActiveCanvasText();
+      if (!event.target.closest('.canvas-text[contenteditable="true"]')) blurActiveCanvasText();
       if (event.ctrlKey) {
         toggleCanvasNodeSelection(node);
         return;
@@ -5233,12 +5488,11 @@ function initializeCanvasBoard() {
       }
     }
     blurActiveCanvasText();
-    if (event.ctrlKey) {
-      beginCanvasMarquee(event);
-      return;
-    }
+    // 空白处左键按住 = 框选（框住多个节点后操作区上直接出现「打组」）；
+    // 中键平移由捕获阶段的处理器接管，这里的其它按键不做事。
+    if (event.button !== 0) return;
     clearCanvasSelection();
-    beginCanvasPan(event);
+    beginCanvasMarquee(event);
   });
 
   viewport.addEventListener("dblclick", (event) => {
@@ -5280,10 +5534,12 @@ function initializeCanvasBoard() {
   });
 
   viewport.addEventListener("dragover", (event) => {
+    if (isCanvasTypingTarget(event.target)) return;
     if (canvasState.draggedGalleryImage
       || event.dataTransfer?.types?.includes(CANVAS_ASSET_DRAG_TYPE)
       || event.dataTransfer?.types?.includes("application/x-canvas-gallery-image")
       || event.dataTransfer?.types?.includes("text/plain")
+      || event.dataTransfer?.types?.includes("Files")
       || Array.from(event.dataTransfer?.items || []).some((item) => /^(image|video|audio)\//.test(item.type))) {
       event.preventDefault();
       if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
@@ -5296,6 +5552,14 @@ function initializeCanvasBoard() {
   });
 
   viewport.addEventListener("drop", async (event) => {
+    if (isCanvasTypingTarget(event.target) || event.defaultPrevented) return;
+    const externalFiles = window.CanvasFileImport?.files(event.dataTransfer) || [];
+    if (externalFiles.length) {
+      event.preventDefault(); viewport.classList.remove("drag-over");
+      try { await window.CanvasFileImport.importFiles(externalFiles, getCanvasPointFromEvent(event)); }
+      catch (error) { setCanvasStatus(`文件导入失败：${error.message}`); }
+      return;
+    }
     const assetPayload = event.dataTransfer?.getData(CANVAS_ASSET_DRAG_TYPE);
     if (assetPayload) {
       event.preventDefault();
@@ -5321,14 +5585,6 @@ function initializeCanvasBoard() {
       canvasState.draggedGalleryImage = null;
       return;
     }
-    const allFiles = Array.from(event.dataTransfer?.files || []).filter((file) => /^(image|video|audio)\//.test(file.type));
-    if (!allFiles.length) return;
-    event.preventDefault();
-    viewport.classList.remove("drag-over");
-    const point = getCanvasPointFromEvent(event);
-    const target = document.elementFromPoint(event.clientX, event.clientY)?.closest?.(".canvas-node-asset-collection");
-    const node = target || addCanvasMaterialPlaceholder(point);
-    for (const file of allFiles) await fillCanvasAssetCollectionFromFile(node, file);
   });
 
   prepareBlankCanvasLanding();
@@ -5476,6 +5732,7 @@ function applyCanvasGenerationImplementation(node, implementation, carried = {})
     });
   } else if (implementation === "comfy") {
     node.classList.add("canvas-node-comfy");
+    node.dataset.comfyPrompt = String(carried.prompt || "");
     renderCanvasComfyNode(node, {});
   } else if (implementation === "video-api") {
     node.classList.add("canvas-node-video-api");
@@ -5573,6 +5830,51 @@ window.CanvasAssetBridge = {
   }),
   insertAsset: insertCanvasAsset,
 };
+
+// Uploading into an H3 reference slot creates the matching material node beside
+// the video node and wires it as a reference, which is exactly what a manual
+// connection does, so the workflow receives the same shape either way.
+async function uploadCanvasH3Reference(node, collection, file, trigger) {
+  const kind = { images: "image", videos: "video", audios: "audio" }[collection];
+  if (!kind || !node?.isConnected) return;
+  const label = kind === "image" ? "图片" : kind === "video" ? "视频" : "音频";
+  if (!new RegExp(`^${kind}/`).test(file?.type || "")) {
+    setCanvasNodeStatus(node, `请选择${label}文件作为参考。`);
+    return;
+  }
+  const boardId = canvasState.activeBoardId;
+  const point = { x: Number(node.dataset.x || 0) - 472, y: Number(node.dataset.y || 0) };
+  if (trigger) trigger.disabled = true;
+  try {
+    setCanvasNodeStatus(node, "正在上传参考素材…");
+    let reference;
+    if (kind === "image") {
+      reference = addCanvasImage(await uploadCanvasImageFile(file), file.name || "参考图", point);
+    } else {
+      const uploaded = await uploadCanvasMediaFile(file);
+      const options = {
+        src: uploaded.url,
+        name: file.name || uploaded.filename || `${label}素材`,
+        mimeType: uploaded.mimeType || file.type,
+      };
+      reference = kind === "video" ? addCanvasVideoNode(point, options) : addCanvasAudioNode(point, options);
+    }
+    if (!node.isConnected || canvasState.activeBoardId !== boardId) throw new Error("画布已切换，参考素材未添加。");
+    connectCanvasNodes(reference.dataset.id, node.dataset.id);
+    if (!canvasState.connections.some((connection) => connection.from === reference.dataset.id && connection.to === node.dataset.id)) {
+      throw new Error("参考素材已上传，但当前节点无法接收该连接。");
+    }
+    selectCanvasNode(node);
+    updateCanvasNodeRefs(node);
+    window.FloraGeneratorComposer?.sync?.(node);
+    setCanvasNodeStatus(node, "");
+    scheduleCanvasSave();
+  } catch (error) {
+    setCanvasNodeStatus(node, `参考素材上传失败：${error.message || "请稍后重试。"}`);
+  } finally {
+    if (trigger) trigger.disabled = false;
+  }
+}
 
 async function fillCanvasMediaNode(node, file, kind) {
   setCanvasNodeStatus(node, "上传中...");
@@ -5708,16 +6010,7 @@ function syncCanvasApiVideoPrompt(node) {
   if (!node?.classList.contains("canvas-node-video-api")) return;
   const prompt = node.querySelector(".canvas-api-video-prompt-input");
   if (!prompt) return;
-  const incoming = getCanvasIncomingTexts(node.dataset.id);
-  if (incoming.length) {
-    prompt.value = incoming.join("\n");
-    prompt.readOnly = true;
-    prompt.classList.add("is-synced");
-  } else {
-    prompt.readOnly = false;
-    prompt.classList.remove("is-synced");
-    prompt.value = node.dataset.apiVideoPrompt || prompt.value || "";
-  }
+  unlockCanvasReferencePrompt(node, prompt, 'apiVideoPrompt');
 }
 
 function syncCanvasApiVideoControls(node) {
@@ -5785,9 +6078,12 @@ function syncCanvasApiVideoRunButton(node) {
 async function runCanvasApiVideoNode(node, options) {
   const guard = options?.guard || null;
   guard?.assertActive();
+  CanvasGenerationSound.arm(node);
   if (!node?.classList.contains("canvas-node-video-api")) return;
+  if (node.querySelector(".canvas-api-video-model")?.dataset.catalogUnavailable === "true") { setCanvasH3Status(node, "所选模型已移除或能力不匹配，请重新选择。", true); return; }
   syncCanvasApiVideoPrompt(node);
-  const prompt = node.querySelector(".canvas-api-video-prompt-input")?.value.trim() || "";
+  const ownPrompt = node.querySelector(".canvas-api-video-prompt-input")?.value.trim() || "";
+  const prompt = getCanvasGenerationPrompt(node, ownPrompt);
   const modelId = node.dataset.apiVideoModel || "";
   if (!prompt) {
     setCanvasH3Status(node, "请先输入视频描述", true);
@@ -5799,7 +6095,7 @@ async function runCanvasApiVideoNode(node, options) {
   }
   const runButton = node.querySelector(".canvas-api-video-run");
   if (runButton) runButton.disabled = true;
-  if (!node.querySelector(".canvas-api-video-prompt-input")?.readOnly) node.dataset.apiVideoPrompt = prompt;
+  node.dataset.apiVideoPrompt = ownPrompt;
   const resumableTaskId = String(node.dataset.apiVideoTaskId || "");
   setCanvasH3Status(node, resumableTaskId ? "正在查询已提交的视频任务..." : "正在提交任务...");
   try {
@@ -5929,8 +6225,6 @@ function watchCanvasApiVideoTask(node, delayMs = CANVAS_API_VIDEO_WATCH_MS) {
 function deliverCanvasApiVideoResult(node, videos, prompt = "") {
   const videoUrl = (Array.isArray(videos) ? videos : [videos]).filter(Boolean)[0];
   if (!videoUrl) return false;
-  const output = getOrCreateCanvasAssetOutput(node, "video");
-  if (!output) return false;
   const result = {
     src: videoUrl,
     name: `API 视频 ${new Date().toLocaleString()}.mp4`,
@@ -5938,20 +6232,19 @@ function deliverCanvasApiVideoResult(node, videos, prompt = "") {
     promptSummary: String(prompt || "").slice(0, 180),
     createdAt: new Date().toISOString(),
   };
-  if (output.classList.contains("canvas-node-video-output")) appendCanvasVideoOutputHistory(output, result);
-  else appendCanvasAssetCollectionMember(output, { ...result, kind: "video", source: "generation", sourceNodeId: node.dataset.id });
+  applyCanvasGenerationHistoryItem(node, { ...result, kind: "video" });
+  window.FloraGenerationHistory?.add(node, { ...result, id: node.dataset.apiVideoTaskId || createId(), kind: "video", prompt, model: node.dataset.apiVideoModel || "" });
   setCanvasH3Status(node, "生成完成");
+  CanvasGenerationSound.playComplete(node, `video:${node.dataset.apiVideoTaskId || createId()}`);
   return true;
 }
 
 /* --------------------------------------------------------------------------
-   Midjourney 生成节点
+   旧 Midjourney 生成节点兼容
 
-   DX OS 把 Midjourney 单独立成一个节点，因为它和通用图片接口的形状不同：
-   imagine 吃提示词和 0-4 张参考图，edit 必须带参考图，blend 只吃 2-4 张参考
-   图并且不接受提示词。这个节点把选择留在画布上，请求仍然走 /api/image-jobs，
-   所以任务恢复、原图同步和历史记录和其他生成节点保持一致；通用图片生成节点
-   里的 Midjourney 选项保持不变。
+   创建菜单与连接菜单不再提供单独的 Midjourney 节点，统一从图片生成选择模型。
+   已有画布的节点继续保留 imagine / edit / blend 的渲染、运行、恢复与历史，
+   不改写用户数据；通用图片生成节点里的 Midjourney 选项保持不变。
    -------------------------------------------------------------------------- */
 
 const CANVAS_MIDJOURNEY_OPERATIONS = Object.freeze([
@@ -6021,13 +6314,8 @@ function syncCanvasMidjourneyControls(node) {
   node.dataset.midjourneyOperation = operation;
   const promptField = node.querySelector(".canvas-midjourney-prompt");
   const prompt = node.querySelector(".canvas-midjourney-prompt-input");
-  const incoming = getCanvasIncomingTexts(node.dataset.id);
   if (prompt) {
-    const synced = Boolean(incoming.length) && operation !== "blend";
-    prompt.readOnly = synced;
-    prompt.classList.toggle("is-synced", synced);
-    const value = synced ? incoming.join("\n") : (node.dataset.midjourneyPrompt || "");
-    if (prompt.value !== value) prompt.value = value;
+    unlockCanvasReferencePrompt(node, prompt, 'midjourneyPrompt');
   }
   if (promptField) promptField.hidden = operation === "blend";
   const reference = node.querySelector(".canvas-midjourney-reference");
@@ -6225,6 +6513,62 @@ async function fillCanvasAssetCollectionFromFile(node, file, { replaceMemberId =
   }
 }
 
+function readCanvasAssetUploadPoint(value) {
+  if (!value) return null;
+  try {
+    const point = JSON.parse(value);
+    const x = Number(point?.x);
+    const y = Number(point?.y);
+    return Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null;
+  } catch {
+    return null;
+  }
+}
+
+function getCanvasAssetUploadPoint(origin, index, width = 400, height = 400) {
+  const gap = 72;
+  const perRow = 4;
+  const column = index % perRow;
+  const row = Math.floor(index / perRow);
+  return {
+    x: Number(origin.x || 0) + column * (width + gap),
+    y: Number(origin.y || 0) + row * (height + gap),
+  };
+}
+
+async function fillCanvasAssetCollectionNodesFromFiles(files, { targetNode = null, point = null } = {}) {
+  const rules = window.CanvasAssetCollectionRules;
+  const entries = Array.from(files || [])
+    .map((file) => ({
+      file,
+      kind: rules?.detectKind?.({ mimeType: file.type, name: file.name }) || "",
+    }))
+    .filter((entry) => entry.kind);
+  if (!entries.length) {
+    setCanvasStatus("不支持此文件，请选择图片、视频或音频。");
+    return [];
+  }
+
+  const boardId = targetNode?.dataset.boardId || canvasState.activeBoardId;
+  const origin = point || (targetNode
+    ? { x: Number(targetNode.dataset.x || 0), y: Number(targetNode.dataset.y || 0) }
+    : getCanvasViewportCenterPoint());
+  const width = Math.max(1, Number(targetNode?.dataset.width || targetNode?.offsetWidth || 400));
+  const height = Math.max(1, Number(targetNode?.dataset.height || targetNode?.offsetHeight || 400));
+  const created = [];
+
+  for (let index = 0; index < entries.length; index += 1) {
+    if (canvasState.activeBoardId !== boardId) break;
+    const node = index === 0 && targetNode?.isConnected
+      ? targetNode
+      : addCanvasMaterialPlaceholder(getCanvasAssetUploadPoint(origin, index, width, height));
+    await fillCanvasAssetCollectionFromFile(node, entries[index].file);
+    if (node.isConnected) created.push(node);
+  }
+  scheduleCanvasSave();
+  return created;
+}
+
 function renderCanvasMidjourneyNode(node, options = {}) {
   const plugin = window.AiOsCanvasNodePlugins?.get?.("midjourney");
   if (plugin?.render) {
@@ -6242,7 +6586,7 @@ function canvasMidjourneyRequest(node, operation) {
   const refs = getCanvasMidjourneyRefs(node).map(canvasH3ReferencePayload);
   const request = {
     model,
-    prompt: String(promptInput?.value || "").trim(),
+    prompt: getCanvasGenerationPrompt(node, promptInput?.value),
     size: node.dataset.midjourneySize || "1:1",
     n: 1,
     reference_images: refs,
@@ -6270,6 +6614,7 @@ function canvasMidjourneyRequestError(operation, request) {
 async function runCanvasMidjourneyNode(node, options = {}) {
   const guard = options?.guard || null;
   guard?.assertActive();
+  CanvasGenerationSound.arm(node);
   if (!node?.classList.contains("canvas-node-midjourney")) {
     return { ok: false, code: "node_kind", error: "目标节点不是 Midjourney 节点。" };
   }
@@ -6281,7 +6626,7 @@ async function runCanvasMidjourneyNode(node, options = {}) {
     return { ok: false, ...invalid };
   }
   const promptInput = node.querySelector(".canvas-midjourney-prompt-input");
-  if (!promptInput?.readOnly) node.dataset.midjourneyPrompt = request.prompt;
+  node.dataset.midjourneyPrompt = String(promptInput?.value || '').trim();
   const runButton = node.querySelector(".canvas-midjourney-run");
   if (runButton) runButton.disabled = true;
   setCanvasNodeStatus(node, "正在提交任务...");
@@ -6400,6 +6745,24 @@ const CANVAS_H3_MENTION_GROUPS = [
   { collection: "audios", type: "audio", typeLabel: "音频", promptType: "Audio" },
 ];
 
+// 生成方式决定用哪套 ComfyUI 工作流，以及哪些素材会参与本次生成。
+const CANVAS_H3_MODES = Object.freeze([
+  { key: "reference", label: "全能参考", limits: { images: 9, videos: 3, audios: 3 } },
+  { key: "text", label: "文生视频", limits: { images: 0, videos: 0, audios: 0 } },
+  { key: "first", label: "首帧", limits: { images: 1, videos: 0, audios: 0 } },
+  { key: "last", label: "首尾帧", limits: { images: 2, videos: 0, audios: 0 } },
+]);
+
+function normalizeCanvasH3Mode(value) {
+  const key = String(value || "");
+  return CANVAS_H3_MODES.some(mode => mode.key === key) ? key : "reference";
+}
+
+function getCanvasH3Mode(value) {
+  const key = normalizeCanvasH3Mode(typeof value === "string" ? value : value?.dataset?.minimaxH3Mode);
+  return CANVAS_H3_MODES.find(mode => mode.key === key);
+}
+
 function getCanvasH3MentionItems(node) {
   const refs = getCanvasIncomingMinimaxH3Refs(node);
   const connections = canvasState.connections.filter((item) => item.to === node?.dataset.id);
@@ -6471,6 +6834,18 @@ function validateCanvasH3PromptReferences(prompt, refs) {
   return { ok: missing.length === 0, missing: [...new Set(missing)] };
 }
 
+function bindCanvasH3PromptReferences(prompt, refs) {
+  const missingTags = [];
+  CANVAS_H3_MENTION_GROUPS.forEach(({ collection, promptType }) => {
+    const seen = new Set([...String(prompt || "").matchAll(new RegExp(`<${promptType}\\s+(\\d+)>`, "g"))]
+      .map((match) => Number(match[1])));
+    (refs[collection] || []).forEach((ref, index) => {
+      if (!seen.has(index + 1)) missingTags.push(`<${promptType} ${index + 1}>`);
+    });
+  });
+  return missingTags.length ? `参考素材：${missingTags.join("、")}。\n\n${prompt}` : prompt;
+}
+
 let canvasH3MentionState = null;
 
 function updateCanvasH3MentionFromTextarea(node, textarea) {
@@ -6487,17 +6862,23 @@ function openCanvasH3MentionMenu(node, textarea, trigger) {
   if (!node?.isConnected || !textarea?.isConnected || textarea.readOnly || !trigger) return;
   const previousMenu = canvasH3MentionState?.menu;
   if (canvasH3MentionState?.textarea !== textarea) closeCanvasH3MentionMenu();
-  const field = textarea.closest(".canvas-h3-prompt-field");
+  // 操作区会把提示词输入框搬进 .flora-generator-prompt-area，菜单容器随之回退，
+  // 否则组合器里输入 @ 不会弹出素材列表。
+  const field = textarea.closest(".canvas-h3-prompt-field")
+    || textarea.closest(".flora-generator-prompt-area")
+    || textarea.parentElement;
   if (!field) return;
   const menu = previousMenu?.isConnected ? previousMenu : document.createElement("div");
   menu.className = "canvas-h3-mention-menu";
   menu.id = `canvas-h3-mention-${node.dataset.id}`;
   menu.setAttribute("role", "listbox");
+  // popover 让列表渲染在顶层，避免被操作区的 overflow 裁掉。
+  if (!menu.hasAttribute("popover")) menu.setAttribute("popover", "manual");
   menu.addEventListener("pointerdown", (event) => event.stopPropagation());
+  menu.addEventListener("click", (event) => event.stopPropagation());
   menu.addEventListener("mousedown", (event) => event.preventDefault());
   if (!menu.isConnected) field.append(menu);
-  textarea.setAttribute("aria-controls", menu.id);
-  textarea.setAttribute("aria-expanded", "true");
+  // 先按输入框定位再显示，避免 popover 以默认位置闪一下。
   canvasH3MentionState = {
     node,
     textarea,
@@ -6506,7 +6887,35 @@ function openCanvasH3MentionMenu(node, textarea, trigger) {
     items: [],
     activeIndex: -1,
   };
+  positionCanvasH3MentionMenu(canvasH3MentionState);
+  if (!menu.matches(":popover-open")) {
+    try { menu.showPopover(); } catch (error) { menu.removeAttribute("popover"); }
+  }
+  textarea.setAttribute("aria-controls", menu.id);
+  textarea.setAttribute("aria-expanded", "true");
   renderCanvasH3MentionMenu();
+}
+
+// 以输入框为锚点做固定定位；下方空间不足时翻到上方。
+function positionCanvasH3MentionMenu(state) {
+  if (!state?.menu || !state?.textarea) return;
+  const rect = state.textarea.getBoundingClientRect();
+  if (!rect.width && !rect.height) return;
+  const viewportHeight = Math.max(32, window.innerHeight || document.documentElement.clientHeight);
+  const viewportWidth = Math.max(32, window.innerWidth || document.documentElement.clientWidth);
+  const width = Math.max(220, Math.min(rect.width, viewportWidth - 32));
+  const limit = 264;
+  const natural = Math.min(limit, Math.max(120, state.menu.scrollHeight || limit));
+  const spaceBelow = viewportHeight - rect.bottom - 6 - 16;
+  const spaceAbove = rect.top - 6 - 16;
+  const above = spaceBelow < Math.min(natural, 160) && spaceAbove > spaceBelow;
+  const height = Math.max(120, Math.min(natural, above ? spaceAbove : spaceBelow));
+  const top = above ? rect.top - 6 - height : rect.bottom + 6;
+  state.menu.classList.toggle("is-above", above);
+  state.menu.style.left = `${Math.max(16, Math.min(rect.left, viewportWidth - width - 16))}px`;
+  state.menu.style.width = `${width}px`;
+  state.menu.style.top = `${Math.max(16, Math.min(top, viewportHeight - height - 16))}px`;
+  state.menu.style.maxHeight = `${height}px`;
 }
 
 function renderCanvasH3MentionMenu() {
@@ -6550,6 +6959,7 @@ function renderCanvasH3MentionMenu() {
   const active = state.menu.querySelector(".canvas-h3-mention-option.is-active");
   if (active) state.textarea.setAttribute("aria-activedescendant", active.id);
   else state.textarea.removeAttribute("aria-activedescendant");
+  positionCanvasH3MentionMenu(state);
   window.lucide?.createIcons({ attrs: { "aria-hidden": "true", "stroke-width": 1.8 } });
 }
 
@@ -6617,6 +7027,7 @@ function updateCanvasH3MentionActiveOption() {
   } else {
     state.textarea.removeAttribute("aria-activedescendant");
   }
+  positionCanvasH3MentionMenu(state);
 }
 
 function moveCanvasH3MentionActive(direction) {
@@ -6683,6 +7094,9 @@ function refreshCanvasH3MentionMenu(node) {
 function closeCanvasH3MentionMenu(textarea = null) {
   const state = canvasH3MentionState;
   if (!state || (textarea && state.textarea !== textarea)) return;
+  if (state.menu?.matches?.(":popover-open")) {
+    try { state.menu.hidePopover(); } catch (error) { /* 忽略关闭失败 */ }
+  }
   state.menu?.remove();
   state.textarea?.setAttribute("aria-expanded", "false");
   state.textarea?.removeAttribute("aria-controls");
@@ -6729,12 +7143,36 @@ function renderCanvasMinimaxH3References(node) {
     const header = document.createElement("div");
     header.className = "canvas-h3-reference-head";
     header.innerHTML = `<strong>${title}</strong><span>${refs[key].length}/${limit}</span>`;
+    // H3 accepts pictures, clips and sounds as references, so every collection
+    // uploads its own media type instead of only accepting a node connection.
+    const kinds = { images: "image", videos: "video", audios: "audio" };
+    const picker = document.createElement("input");
+    picker.type = "file";
+    picker.accept = `${kinds[key]}/*`;
+    picker.hidden = true;
+    const upload = document.createElement("button");
+    upload.type = "button";
+    upload.className = "canvas-h3-reference-upload";
+    upload.title = `上传${title}参考`;
+    upload.setAttribute("aria-label", `上传${title}参考`);
+    upload.innerHTML = '<i data-lucide="upload"></i>';
+    upload.addEventListener("pointerdown", (event) => event.stopPropagation());
+    upload.addEventListener("click", (event) => {
+      event.stopPropagation();
+      picker.click();
+    });
+    picker.addEventListener("change", () => {
+      const file = picker.files?.[0];
+      picker.value = "";
+      if (file) void uploadCanvasH3Reference(node, key, file, upload);
+    });
+    header.append(upload, picker);
     const list = document.createElement("div");
     list.className = "canvas-h3-reference-list";
     if (!refs[key].length) {
       const empty = document.createElement("span");
       empty.className = "canvas-h3-reference-empty";
-      empty.textContent = `连接${title}节点`;
+      empty.textContent = `上传或连接${title}`;
       list.append(empty);
     }
     refs[key].forEach((ref, index) => {
@@ -6789,24 +7227,19 @@ function syncCanvasMinimaxH3Prompt(node) {
   if (!node?.classList.contains("canvas-node-minimax-h3")) return;
   const prompt = node.querySelector(".canvas-h3-prompt");
   if (!prompt) return;
-  const incoming = getCanvasIncomingTexts(node.dataset.id);
-  if (incoming.length) {
-    prompt.value = incoming.join("\n");
-    prompt.readOnly = true;
-    prompt.classList.add("is-synced");
-    closeCanvasH3MentionMenu(prompt);
-  } else {
-    prompt.readOnly = false;
-    prompt.classList.remove("is-synced");
-    prompt.value = node.dataset.minimaxH3Prompt || prompt.value || "";
-  }
+  unlockCanvasReferencePrompt(node, prompt, 'minimaxH3Prompt');
 }
 
 async function runCanvasMinimaxH3Node(node, options) {
   const guard = options?.guard || null;
   guard?.assertActive();
+  CanvasGenerationSound.arm(node);
+  const boardId = canvasState.activeBoardId;
+  const nodeId = node?.dataset.id;
+  if (!nodeId || node.querySelector(".canvas-h3-run")?.disabled) return;
   syncCanvasMinimaxH3Prompt(node);
-  const prompt = node.querySelector(".canvas-h3-prompt")?.value.trim() || "";
+  const ownPrompt = node.querySelector(".canvas-h3-prompt")?.value.trim() || "";
+  let prompt = getCanvasGenerationPrompt(node, ownPrompt);
   const refs = getCanvasIncomingMinimaxH3Refs(node);
   if (!prompt) {
     setCanvasH3Status(node, "请先输入视频描述", true);
@@ -6814,7 +7247,9 @@ async function runCanvasMinimaxH3Node(node, options) {
   }
 
   const referenceCheck = validateCanvasH3PromptReferences(prompt, refs);
-  if (!referenceCheck.ok) {
+  const mode = getCanvasH3Mode(node);
+  // 引用标记只属于全能参考工作流；其它方式按原样提交提示词，只裁剪实际使用的素材。
+  if (mode.key === "reference" && !referenceCheck.ok) {
     setCanvasH3Status(node, `提示词引用的 ${referenceCheck.missing.join("、")} 当前不存在`, true);
     return;
   }
@@ -6832,25 +7267,35 @@ async function runCanvasMinimaxH3Node(node, options) {
     return;
   }
 
+  if (mode.key === "reference") prompt = bindCanvasH3PromptReferences(prompt, refs);
+  const usedRefs = {
+    images: refs.images.slice(0, mode.limits.images),
+    videos: refs.videos.slice(0, mode.limits.videos),
+    audios: refs.audios.slice(0, mode.limits.audios),
+  };
+
   const runButton = node.querySelector(".canvas-h3-run");
   if (runButton) runButton.disabled = true;
-  node.dataset.minimaxH3Prompt = node.querySelector(".canvas-h3-prompt")?.readOnly ? (node.dataset.minimaxH3Prompt || "") : prompt;
+  node.dataset.minimaxH3Prompt = ownPrompt;
   setCanvasH3Status(node, "正在创建任务...");
   try {
     const response = await fetch(MINIMAX_H3_VIDEO_API_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        mode: mode.key,
+        model: node.dataset.minimaxH3Model || "minimax-h3",
         prompt,
-        images: refs.images.map(canvasH3ReferencePayload),
-        videos: refs.videos.map(canvasH3ReferencePayload),
-        audios: refs.audios.map(canvasH3ReferencePayload),
+        images: usedRefs.images.map(canvasH3ReferencePayload),
+        videos: usedRefs.videos.map(canvasH3ReferencePayload),
+        audios: usedRefs.audios.map(canvasH3ReferencePayload),
         aspect_ratio: node.dataset.minimaxH3AspectRatio || "16:9",
         megapixels: Number(node.dataset.minimaxH3Megapixels || 0.6),
         steps: Number(node.dataset.minimaxH3Steps || 4),
         duration: Number(node.dataset.minimaxH3Duration || 12),
         ref_image_size: node.dataset.minimaxH3RefImageSize || "match",
-        seed: node.dataset.minimaxH3Seed === "" ? "" : Number(node.dataset.minimaxH3Seed),
+        // 种子不再提供界面入口，提交一律留空由服务端随机。
+        seed: "",
       }),
     });
     guard?.assertActive();
@@ -6861,8 +7306,15 @@ async function runCanvasMinimaxH3Node(node, options) {
     guard?.assertActive();
     const videoUrl = task.videos?.[0];
     if (!videoUrl) throw new Error("任务成功，但没有返回视频文件。");
-    const output = getOrCreateCanvasAssetOutput(node, "video");
     guard?.assertActive();
+    // A paged canvas may replace or unmount the DOM while ComfyUI is running.
+    // Deliver to the current instance, never the detached submission element.
+    if (canvasState.activeBoardId !== boardId) throw new Error("视频已生成并保存在本地输出目录，但当前画布已切换，未写入新画布。");
+    const current = getCanvasNode(nodeId) || ensureCanvasNodeMounted(nodeId);
+    if (!current?.isConnected || !current.classList.contains("canvas-node-minimax-h3")) {
+      throw new Error("视频已生成，但原节点已删除或更改类型，结果仍保存在本地输出目录。");
+    }
+    node = current;
     const result = {
       src: videoUrl,
       name: `MiniMax H3 ${new Date().toLocaleString()}.mp4`,
@@ -6870,14 +7322,21 @@ async function runCanvasMinimaxH3Node(node, options) {
       promptSummary: prompt.slice(0, 180),
       createdAt: new Date().toISOString(),
     };
-    if (output.classList.contains("canvas-node-video-output")) appendCanvasVideoOutputHistory(output, result);
-    else appendCanvasAssetCollectionMember(output, { ...result, kind: "video", source: "generation", sourceNodeId: node.dataset.id });
+    applyCanvasGenerationHistoryItem(node, { ...result, kind: "video" });
+    window.FloraGenerationHistory?.add(node, { ...result, id: data.task_id || createId(), kind: "video", prompt, model: "MiniMax H3" });
+    syncCanvasNodeModel(node);
     setCanvasH3Status(node, "生成完成");
+    CanvasGenerationSound.playComplete(node, `h3:${data.task_id || createId()}`);
     scheduleCanvasSave();
   } catch (error) {
-    setCanvasH3Status(node, `失败：${error.message}`, true);
+    const current = canvasState.activeBoardId === boardId ? getCanvasNode(nodeId) : null;
+    setCanvasH3Status(current || node, `失败：${error.message}`, true);
   } finally {
     if (runButton) runButton.disabled = false;
+    if (canvasState.activeBoardId === boardId) {
+      const currentRun = getCanvasNode(nodeId)?.querySelector(".canvas-h3-run");
+      if (currentRun) currentRun.disabled = false;
+    }
   }
 }
 
@@ -7175,6 +7634,7 @@ function closeCanvasVideoHistoryPanels(exceptNode = null) {
 }
 
 function createCanvasNodeFromConnectChoice(choice, point) {
+  if (choice === "audio-generator") return addCanvasAudioGeneratorNode(point);
   if (choice === "image-generator") return addCanvasImageGeneratorNode(point);
   if (choice === "video-generator") return addCanvasVideoGeneratorNode(point);
   if (choice === "video") return addCanvasVideoNode(point);
@@ -8026,7 +8486,12 @@ function suggestedCanvasGalleryContainerColumns(count) {
   return CanvasGalleryRules.suggestedColumns(count);
 }
 
-function getCanvasGalleryMinimumWidthForColumns(columns, gap = 16) {
+// 图集单元格间距：渲染端由 canvas-gallery-node-renderer.js 写成
+// `--canvas-gallery-container-gap`，数值就取自这里的布局结果，所以两处必须同源。
+// 裁切图集的图片本身就是同一张原图切开的，间距比默认的 16px 收紧一半更贴近「一张图」。
+const CANVAS_GALLERY_CELL_GAP = 8;
+
+function getCanvasGalleryMinimumWidthForColumns(columns, gap = CANVAS_GALLERY_CELL_GAP) {
   return CanvasGalleryRules.minimumWidthForColumns(columns, gap);
 }
 
@@ -8040,7 +8505,7 @@ function getCanvasGalleryContainerSizeForRequest(node, requestedWidth, requested
     members: container.members,
     width: requestedWidth,
     height: requestedHeight,
-    gap: container.gap ?? 16,
+    gap: container.gap ?? CANVAS_GALLERY_CELL_GAP,
     layoutMode: options.layoutMode || container.layoutMode,
     manualColumns: options.manualColumns ?? container.manualColumns,
     resizeAxis: options.resizeAxis,
@@ -8072,7 +8537,7 @@ function getCanvasGalleryContainerRenderState(value = {}, size = {}) {
       members: container.members,
       width: size?.width,
       height: size?.height,
-      gap: container.gap ?? 16,
+      gap: container.gap ?? CANVAS_GALLERY_CELL_GAP,
       layoutMode: container.layoutMode,
       manualColumns: container.manualColumns,
     }),
@@ -8149,6 +8614,10 @@ function renderCanvasGalleryContainerNode(node, value = {}, { preservedMemberIma
   const renderer = window.CanvasGalleryNodeRenderer;
   if (renderer?.render) {
     renderer.render(node, value, { preservedMemberImages }, getCanvasNodePluginContext());
+    // 图集机身按内容收缩：渲染完再核对一次，避免单元格晚一帧才落位时漏掉。
+    const syncFit = () => window.CanvasFloraNodeShell?.syncToolbar?.(node);
+    requestAnimationFrame(syncFit);
+    window.setTimeout(syncFit, 300);
     return;
   }
   throw new Error("Canvas gallery node renderer is unavailable.");
@@ -8430,22 +8899,50 @@ function getCanvasCropWorkbenchSource(sourceNode, memberId = "") {
     const savedUrl = member?.savedUrl || member?.src || "";
     return member && savedUrl ? { ...member, savedUrl } : null;
   }
+  if (sourceNode.classList.contains("canvas-node-asset-single-image")) {
+    // 单图素材节点不是 .canvas-node-image，输出也不是单图对象，单独解析一次。
+    const image = sourceNode.querySelector(".canvas-image-upload img, img");
+    const savedUrl = sourceNode.dataset.originalSrc || sourceNode.dataset.imageSrc || sourceNode.dataset.resultSrc
+      || image?.getAttribute?.("data-original-src") || image?.getAttribute?.("src") || "";
+    if (!savedUrl) return null;
+    // 节点里的 <img> 常常只是长边 640 的缩略图资源，naturalWidth 量到的是缩略图尺寸；
+    // 裁切要按原图尺寸算，所以这里读取被记录的原始尺寸。
+    const intrinsic = getCanvasImageIntrinsicDimensions(image);
+    return {
+      id: String(memberId || ""),
+      name: sourceNode.dataset.imageName || image?.alt || "素材图片",
+      src: savedUrl,
+      savedUrl,
+      width: intrinsic?.width || 0,
+      height: intrinsic?.height || 0,
+    };
+  }
   if (!sourceNode.classList.contains("canvas-node-image")) return null;
   const output = getCanvasNodeOutput(sourceNode);
   const savedUrl = output?.originalUrl || output?.url || sourceNode.dataset.originalSrc || sourceNode.dataset.resultSrc || sourceNode.dataset.imageSrc || "";
   if (!savedUrl) return null;
   const image = sourceNode.querySelector(".canvas-image-upload img, img");
+  const intrinsic = getCanvasImageIntrinsicDimensions(image);
   return {
     id: "",
     name: output?.name || sourceNode.dataset.imageName || "图片",
     src: savedUrl,
     savedUrl,
-    width: Number(image?.naturalWidth || image?.width || 0),
-    height: Number(image?.naturalHeight || image?.height || 0),
+    width: intrinsic?.width || 0,
+    height: intrinsic?.height || 0,
   };
 }
 
 // AI 抠图工作台：本地 ONNX（主体模式）与颜色键控（特效模式）共用同一个界面。
+// 画布引擎是 z-index 2147483000 的固定层，而抠图弹窗（10020）与裁切工作台（10000）
+// 都在它下面，直接打开会藏在画布背后，看起来像“点击没反应”。统一挂到 body 并抬层。
+function raiseCanvasWorkbenchAboveEngine(element) {
+  if (!element?.classList) return null;
+  if (element.parentElement !== document.body) document.body.append(element);
+  element.classList.add("is-over-canvas-workbench");
+  return element;
+}
+
 async function openCanvasCutoutWorkbench(sourceNode, memberId = "") {
   if (!window.BackgroundRemovalUi) {
     setCanvasStatus("抠图界面没有加载，请刷新页面后再试。");
@@ -8457,22 +8954,63 @@ async function openCanvasCutoutWorkbench(sourceNode, memberId = "") {
     return false;
   }
   try {
-    return await window.BackgroundRemovalUi.open({
+    const opened = window.BackgroundRemovalUi.open({
       node: sourceNode,
       source: source.src || source.savedUrl,
       savedUrl: source.savedUrl,
-      name: appendNameSuffix(source.name || "image.png", "抠图"),
+      // 服务端自己会给保存的文件加「-抠图」后缀，这里传原始名字，避免出现「-抠图-抠图」。
+      name: source.name || "image.png",
       width: source.width,
       height: source.height,
       onSaved: async (result) => placeCanvasCutoutResult(sourceNode, result),
     });
+    // 抠图面板也放节点下方：挂到节点壳体内，不再是铺满视口的模态框。
+    dockCanvasCutoutModal(sourceNode);
+    queueMicrotask(() => dockCanvasCutoutModal(sourceNode));
+    return await opened;
   } catch (error) {
     setCanvasStatus(error?.message || "抠图失败。");
     return false;
   }
 }
 
-// 抠图结果作为新图片节点落在原图右侧，不覆盖原图。
+// 抠图面板改挂到原节点下方（和换角度面板同一套位置规则）；面板本身由 BackgroundRemovalUi 生成，
+// 这里只负责换宿主、去掉模态语义，样式交给 .is-node-anchored。
+// 面板整体尽量留在窗口里：下方放不下就把画布上移一点（上限是不让节点自己的工具栏跑出顶部）。
+function revealCanvasPanelBelowNode(node, panel) {
+  if (!node?.isConnected || !panel?.isConnected) return false;
+  const viewportRect = document.querySelector("#infiniteCanvas")?.getBoundingClientRect();
+  if (!viewportRect) return false;
+  const scale = Math.max(0.01, Number(canvasState.scale) || 1);
+  const nodeRect = node.getBoundingClientRect();
+  const panelHeight = panel.getBoundingClientRect().height || 0;
+  const overflow = (nodeRect.bottom + 12 + panelHeight) - (viewportRect.bottom - 12);
+  if (overflow <= 0) return false;
+  // 面板要始终完整可见：需要多少就往上推多少，上限是把面板顶推到视口上沿
+  // （再推也看不见面板顶了）。宁可节点自己移出视口，也不让操作区被截断。
+  const panelTop = nodeRect.bottom + 12;
+  const maxShift = Math.max(0, panelTop - (viewportRect.top + 12));
+  const shift = Math.min(overflow, maxShift);
+  if (shift <= 0) return false;
+  canvasState.y -= shift / scale;
+  applyCanvasTransformNow();
+  return true;
+}
+
+function dockCanvasCutoutModal(sourceNode) {
+  const modal = document.querySelector(".canvas-cutout-modal");
+  const shell = sourceNode?.querySelector?.(":scope > .flora-node-shell");
+  if (!modal || !shell) return false;
+  if (modal.parentElement !== shell) shell.append(modal);
+  modal.classList.add("is-node-anchored");
+  modal.querySelector(".canvas-cutout-dialog")?.setAttribute("aria-modal", "false");
+  revealCanvasPanelBelowNode(sourceNode, modal.querySelector(".canvas-cutout-dialog") || modal);
+  return true;
+}
+
+// 抠图结果落在原图右侧，不覆盖原图：抠好的图是结果，节点本身是图片生成节点，
+// 并用一条连线接回原图，画布上既看得出它从哪张图来，也能直接接着生成。
+// 生成节点一旦带上图片就不再接收图片参考，所以必须先连线、再写结果。
 function placeCanvasCutoutResult(sourceNode, result) {
   if (!result?.url) throw new Error("抠图结果没有返回图片地址。");
   const anchor = sourceNode?.isConnected ? sourceNode : null;
@@ -8482,12 +9020,37 @@ function placeCanvasCutoutResult(sourceNode, result) {
       y: Number(anchor.dataset.y || 0),
     }
     : { x: 0, y: 0 };
-  const targetNode = addCanvasImage(result.url, result.filename || "抠图结果.png", point);
+  const name = appendNameSuffix(anchor?.dataset.imageName || "image.png", "抠图");
+  const targetNode = addCanvasImageGeneratorNode(point);
+  if (anchor) connectCanvasNodes(anchor.dataset.id, targetNode.dataset.id, "input", "output");
+  const image = {
+    id: createId(),
+    kind: "image",
+    name,
+    src: result.url,
+    savedUrl: result.url,
+    createdAt: new Date().toISOString(),
+    ...(Number(result.width) > 0 && Number(result.height) > 0
+      ? { actualSize: { width: Math.round(Number(result.width)), height: Math.round(Number(result.height)) } }
+      : {}),
+  };
+  updateCanvasGenerationResult(targetNode, image);
+  window.CanvasFloraNodeShell?.syncToolbar?.(targetNode);
+  window.FloraGenerationHistory?.add(targetNode, image);
+  // 写结果与写历史都会把节点名改成「生成结果」，最后换回抠图自己的名字（与保存的文件名一致）。
+  targetNode.dataset.imageName = name;
+  const legacyTitle = targetNode.querySelector(":scope > .canvas-node-bar .canvas-node-title:not(input)");
+  if (legacyTitle) legacyTitle.textContent = name;
+  const legacyTitleInput = targetNode.querySelector(":scope > .canvas-node-bar input.canvas-node-title");
+  if (legacyTitleInput) legacyTitleInput.value = name;
+  window.CanvasFloraNodeShell?.syncLabel?.(targetNode);
   refreshCanvasConnectedNodes(targetNode.dataset.id);
   scheduleCanvasConnectionRender();
   scheduleCanvasSave();
   setCanvasStatus("已生成抠图结果，原图保留。");
   focusAgentCanvasNodesInViewport(anchor ? [anchor, targetNode] : [targetNode]);
+  // 和其它图片工具一致：结果节点单独选中，用户可以直接在它下面接着生成。
+  selectCanvasNode(targetNode);
   return targetNode;
 }
 
@@ -8497,17 +9060,21 @@ async function openCanvasCropWorkbench(sourceNode, memberId = "") {
     setCanvasStatus("当前图片没有可裁切的原图。");
     return false;
   }
-  if (!source.width || !source.height) {
-    try {
-      const image = await loadImageElement(source.savedUrl || source.src);
-      source = { ...source, width: image.naturalWidth || image.width, height: image.naturalHeight || image.height };
-    } catch {
-      setCanvasStatus("原图加载失败，暂时无法裁切。");
-      return false;
-    }
+  // 裁切几何与导出像素必须来自同一张图：画布节点里的 <img> 是缩略图资源（长边 640），
+  // 而导出读的是 savedUrl 上的原图。尺寸取错时格子坐标会落回原图左上角，裁出来就不是
+  // 预览里看到的区域，所以这里一律以原图自身尺寸为准。
+  try {
+    const image = await loadImageElement(source.savedUrl || source.src);
+    const width = Math.round(Number(image.naturalWidth || image.width || 0));
+    const height = Math.round(Number(image.naturalHeight || image.height || 0));
+    if (width > 0 && height > 0) source = { ...source, width, height };
+  } catch {
+    setCanvasStatus("原图加载失败，暂时无法裁切。");
+    return false;
   }
   canvasCropWorkbenchState = createCanvasCropWorkbenchState(sourceNode, source);
   const workbench = ensureCanvasCropWorkbenchMarkup();
+  raiseCanvasWorkbenchAboveEngine(workbench);
   workbench.hidden = false;
   renderCanvasCropWorkbench();
   workbench.querySelector("[data-crop-mode]")?.focus();
@@ -8611,7 +9178,7 @@ async function createCanvasCropResultContainer(sourceNode, sourceMember, crops, 
     crops,
     await persistCanvasGridCrops(image, crops, { sourceName: sourceMember?.name }),
   );
-  const layout = getCanvasGalleryFreeGridLayout({ members: persisted });
+  const layout = getCanvasGalleryFreeGridLayout({ members: persisted, gap: CANVAS_GALLERY_CELL_GAP });
   const gallery = createCanvasGalleryContainerWithSourceConnection(
     sourceNode,
     findCanvasGridImageBlockPoint(sourceNode, layout.width, layout.minHeight),
@@ -8626,10 +9193,79 @@ async function createCanvasCropResultContainer(sourceNode, sourceMember, crops, 
   return gallery;
 }
 
+// 裁切结果改成打组：每张切片是独立的图片节点，按裁剪时的行 × 列摆好，
+// 再整体打成一个组（和手动框选后点「打组」得到的是同一种节点）。
+async function createCanvasCropResultGroup(sourceNode, sourceMember, crops, { image } = {}) {
+  if (!sourceNode?.classList?.contains("canvas-node")) {
+    throw new Error("裁切来源节点无效，未创建分组。");
+  }
+  const persisted = assertCanvasCropPersistenceComplete(
+    crops,
+    await persistCanvasGridCrops(image, crops, { sourceName: sourceMember?.name }),
+  );
+  const tileGap = 32;
+  const origin = findCanvasImageToolResultPoint(sourceNode);
+  const tiles = persisted.map((member) => {
+    const node = addCanvasImage(member.savedUrl, member.name, origin);
+    node.dataset.cropRow = String(member.row);
+    node.dataset.cropColumn = String(member.column);
+    return node;
+  });
+  // 图片节点的最终尺寸由画布在图片解码后按「短边 400」算出来，壳体同步还会再写一次宽高。
+  // 这里等尺寸稳定下来再排版，否则按临时尺寸摆好、尺寸一变就互相压住。
+  await new Promise((resolve) => {
+    const started = Date.now();
+    let last = "";
+    let stable = 0;
+    const tick = () => {
+      const current = tiles.map((node) => `${node.offsetWidth}x${node.offsetHeight}`).join(",");
+      stable = current && current === last ? stable + 1 : 0;
+      last = current;
+      if (stable >= 2 || Date.now() - started > 1800) {
+        resolve();
+        return;
+      }
+      window.setTimeout(tick, 60);
+    };
+    window.setTimeout(tick, 60);
+  });
+  const columnWidths = [];
+  const rowHeights = [];
+  tiles.forEach((node) => {
+    const column = Math.max(1, Number(node.dataset.cropColumn) || 1) - 1;
+    const row = Math.max(1, Number(node.dataset.cropRow) || 1) - 1;
+    columnWidths[column] = Math.max(columnWidths[column] || 0, node.offsetWidth || 0);
+    rowHeights[row] = Math.max(rowHeights[row] || 0, node.offsetHeight || 0);
+  });
+  const offsets = (sizes) => sizes.map((_, index) => (
+    sizes.slice(0, index).reduce((total, size) => total + size + tileGap, 0)
+  ));
+  const columnOffsets = offsets(columnWidths);
+  const rowOffsets = offsets(rowHeights);
+  tiles.forEach((node) => {
+    const column = Math.max(1, Number(node.dataset.cropColumn) || 1) - 1;
+    const row = Math.max(1, Number(node.dataset.cropRow) || 1) - 1;
+    setCanvasNodePoint(node, { x: origin.x + (columnOffsets[column] || 0), y: origin.y + (rowOffsets[row] || 0) });
+    placeCanvasNode(node);
+  });
+  canvasState.selectionFrameVisible = false;
+  clearCanvasSelection();
+  tiles.forEach((node) => addCanvasNodeToSelection(node));
+  const group = createCanvasGroupFromSelection();
+  if (group) {
+    group.dataset.cropGroupColumns = String(Math.max(1, ...persisted.map((member) => Number(member.column) || 1)));
+    group.dataset.groupLayout = "grid";
+    renderCanvasGroupNode(group, { title: "裁切组", memberIds: tiles.map((node) => node.dataset.id) });
+    // 裁切组也保持和来源节点连接。
+    connectCanvasNodes(String(sourceNode.dataset.id || ""), String(group.dataset.id || ""), "input", "output");
+  }
+  return group || tiles[0] || null;
+}
+
 async function outputCanvasCropWorkbench() {
   const state = canvasCropWorkbenchState;
   if (!state || state.busy) return null;
-  const validation = validateCanvasCropWorkbenchCrops(state);
+  let validation = validateCanvasCropWorkbenchCrops(state);
   if (!validation.valid) {
     state.error = validation.error;
     renderCanvasCropWorkbench();
@@ -8640,6 +9276,17 @@ async function outputCanvasCropWorkbench() {
   renderCanvasCropWorkbench();
   try {
     const image = await loadImageElement(state.source.savedUrl || state.source.src);
+    // 兜底：若几何尺寸与即将参与裁切的像素尺寸仍不一致（例如像素源在打开工作台后
+    // 被换成了另一份文件），以图片自身尺寸重算。裁切框都是比例量，重算结果与预览一致。
+    const naturalWidth = Math.round(Number(image.naturalWidth || image.width || 0));
+    const naturalHeight = Math.round(Number(image.naturalHeight || image.height || 0));
+    if (naturalWidth > 0 && naturalHeight > 0
+      && (naturalWidth !== state.sourceWidth || naturalHeight !== state.sourceHeight)) {
+      state.sourceWidth = naturalWidth;
+      state.sourceHeight = naturalHeight;
+      validation = validateCanvasCropWorkbenchCrops(state);
+      if (!validation.valid) throw new Error(validation.error);
+    }
     const gallery = await createCanvasCropResultContainer(
       state.sourceNode,
       state.source,
@@ -9210,7 +9857,7 @@ function findCanvasGridSliceGalleryPoint(sourceNode, estimatedWidth = 320, estim
 
 function createCanvasGridSliceGallery(sourceNode, images) {
   if (!sourceNode?.classList?.contains("canvas-node") || !Array.isArray(images) || !images.length) return null;
-  const layout = getCanvasGalleryFreeGridLayout({ members: images });
+  const layout = getCanvasGalleryFreeGridLayout({ members: images, gap: CANVAS_GALLERY_CELL_GAP });
   const point = findCanvasGridSliceGalleryPoint(sourceNode, layout.width, layout.minHeight);
   const gallery = createCanvasGalleryContainerWithSourceConnection(sourceNode, point, {
     title: "裁切图集",
@@ -9221,31 +9868,31 @@ function createCanvasGridSliceGallery(sourceNode, images) {
   return gallery;
 }
 
-function renderCanvasComfyNode(node, { mode = "", resolution = "", padding = null, qwenAngle = null } = {}) {
+function renderCanvasComfyNode(node, { mode = "", resolution = "", padding = null, qwenAngle = null, aspectRatio = "", megapixels = "", tier = "" } = {}) {
   const plugin = window.AiOsCanvasNodePlugins?.get?.("comfy");
   if (plugin?.render) {
-    plugin.render(node, { mode, resolution, padding, qwenAngle }, getCanvasNodePluginContext());
+    plugin.render(node, { mode, resolution, padding, qwenAngle, aspectRatio, megapixels, tier }, getCanvasNodePluginContext());
     return;
   }
   const renderer = window.CanvasComfyNodeRenderer;
   if (!renderer?.render) throw new Error("Canvas ComfyUI node renderer is unavailable.");
-  renderer.render(node, { mode, resolution, padding, qwenAngle }, getCanvasNodePluginContext());
+  renderer.render(node, { mode, resolution, padding, qwenAngle, aspectRatio, megapixels, tier }, getCanvasNodePluginContext());
 }
 
 function normalizeCanvasComfyPadding(value = {}) {
-  return CanvasComfyRules.normalizePadding(value);
+  return getCanvasComfyHelper("CanvasComfyRules").normalizePadding(value);
 }
 
 function setCanvasComfyPadding(node, padding) {
-  return CanvasComfyRules.setPadding(node, padding);
+  return getCanvasComfyHelper("CanvasComfyRules").setPadding(node, padding);
 }
 
 function getCanvasComfyPadding(node) {
-  return CanvasComfyRules.getPadding(node);
+  return getCanvasComfyHelper("CanvasComfyRules").getPadding(node);
 }
 
 function createCanvasComfyOutpaintArea(node) {
-  return CanvasComfyOutpaintUi.createOutpaintArea({
+  return getCanvasComfyHelper("CanvasComfyOutpaintUi").createOutpaintArea({
     document,
     node,
     getPadding: getCanvasComfyPadding,
@@ -9259,7 +9906,7 @@ function createCanvasComfyOutpaintArea(node) {
 }
 
 function syncCanvasComfyPaddingInputs(node) {
-  return CanvasComfyOutpaintUi.syncPaddingInputs({
+  return getCanvasComfyHelper("CanvasComfyOutpaintUi").syncPaddingInputs({
     node,
     getPadding: getCanvasComfyPadding,
   });
@@ -9305,6 +9952,1085 @@ function handleCanvasComfyOutpaintDrag(event, node) {
 
   window.addEventListener("pointermove", move);
   window.addEventListener("pointerup", up, { once: true });
+}
+
+// 内联扩图：直接在原节点上把外框往外拖，扩出的区域用棋盘格表示，确认后照旧新建结果节点。
+let canvasInlineOutpaintState = null;
+
+
+// 内联裁剪：裁剪线直接画在原节点图上，线本身可拖（拖动即改裁剪范围），
+// 节点下方浮出一条操作条：✕ 取消 | 宫格裁剪 | 宽高比 | 确认。
+// 默认就是「整块裁一张」：图面上只有裁剪框的四条边线，没有多余的分割线。
+// 选宫格后才会出现宫格分线，这些分线同样能拖——分线怎么分就怎么裁。
+// 选了比例后拖线锁死该比例；滚轮缩放预览方便对位。裁剪与切片始终按原图像素计算。
+const CANVAS_INLINE_CROP_RATIOS = Object.freeze([
+  ["source", "原图比例"],
+  ["1:1", "1:1"],
+  ["4:3", "4:3"],
+  ["3:4", "3:4"],
+  ["16:9", "16:9"],
+  ["9:16", "9:16"],
+]);
+const CANVAS_INLINE_CROP_GRIDS = Object.freeze([
+  [2, 2, "4 宫格裁剪", "2 × 2 网格"],
+  [3, 3, "9 宫格裁剪", "3 × 3 网格"],
+  [4, 4, "16 宫格裁剪", "4 × 4 网格"],
+  [5, 5, "25 宫格裁剪", "5 × 5 网格"],
+]);
+const CANVAS_INLINE_CROP_MIN = 0.05;
+const CANVAS_INLINE_CROP_ZOOM_MAX = 4;
+let canvasInlineCropState = null;
+
+function getCanvasInlineCrop() {
+  return document.querySelector("#canvasInlineCrop");
+}
+
+function normalizeCanvasInlineCropRect(rect = {}) {
+  const x = Math.max(0, Math.min(1 - CANVAS_INLINE_CROP_MIN, Number(rect.x) || 0));
+  const y = Math.max(0, Math.min(1 - CANVAS_INLINE_CROP_MIN, Number(rect.y) || 0));
+  const width = Math.max(CANVAS_INLINE_CROP_MIN, Math.min(1 - x, Number(rect.width) || 1));
+  const height = Math.max(CANVAS_INLINE_CROP_MIN, Math.min(1 - y, Number(rect.height) || 1));
+  return { x, y, width, height };
+}
+
+function setCanvasInlineCropRatio(state, key) {
+  state.ratioKey = key;
+  if (key === "source") {
+    state.rect = { x: 0, y: 0, width: 1, height: 1 };
+    return;
+  }
+  const ratio = resolveCanvasCropWorkbenchAspectRatio(key);
+  const width = Math.min(state.sourceWidth, state.sourceHeight * ratio);
+  const height = width / ratio;
+  state.rect = normalizeCanvasInlineCropRect({
+    x: (state.sourceWidth - width) / 2 / state.sourceWidth,
+    y: (state.sourceHeight - height) / 2 / state.sourceHeight,
+    width: width / state.sourceWidth,
+    height: height / state.sourceHeight,
+  });
+}
+
+function canvasInlineCropPixels(state) {
+  const { x, y, width, height } = state.rect;
+  return {
+    x: Math.round(x * state.sourceWidth),
+    y: Math.round(y * state.sourceHeight),
+    width: Math.max(1, Math.round(width * state.sourceWidth)),
+    height: Math.max(1, Math.round(height * state.sourceHeight)),
+  };
+}
+
+// 是否切分（默认 0 × 0 = 整块裁一张，不画任何分线）。
+function canvasInlineCropIsSplit(state) {
+  return Math.max(1, Number(state?.rows) || 0) > 1 || Math.max(1, Number(state?.columns) || 0) > 1;
+}
+
+// 宫格分线的位置（0~1，相对裁剪框）。拖动分线就是改这些值。
+function resetCanvasInlineCropSplits(state) {
+  const columns = Math.max(1, Number(state.columns) || 0);
+  const rows = Math.max(1, Number(state.rows) || 0);
+  state.columnSplits = state.columns > 1
+    ? Array.from({ length: state.columns - 1 }, (_, index) => (index + 1) / columns)
+    : [];
+  state.rowSplits = state.rows > 1
+    ? Array.from({ length: state.rows - 1 }, (_, index) => (index + 1) / rows)
+    : [];
+}
+
+function canvasInlineCropColumnSplits(state) {
+  const columns = Math.max(1, state.columns);
+  const splits = state.columnSplits || [];
+  return splits.length === columns - 1
+    ? splits
+    : Array.from({ length: Math.max(0, columns - 1) }, (_, index) => (index + 1) / columns);
+}
+
+function canvasInlineCropRowSplits(state) {
+  const rows = Math.max(1, state.rows);
+  const splits = state.rowSplits || [];
+  return splits.length === rows - 1
+    ? splits
+    : Array.from({ length: Math.max(0, rows - 1) }, (_, index) => (index + 1) / rows);
+}
+
+function canvasInlineCropSplitsAreEqual(state) {
+  return canvasInlineCropColumnSplits(state).every((value, index) => (
+    Math.abs(value - (index + 1) / Math.max(1, state.columns)) < 0.005
+  )) && canvasInlineCropRowSplits(state).every((value, index) => (
+    Math.abs(value - (index + 1) / Math.max(1, state.rows)) < 0.005
+  ));
+}
+
+// 节点图片在页面上的真实可见区域。object-fit 为 contain/cover 时元素盒会带黑边，
+// 裁剪线必须贴着图片内容画，否则线和图会错位（旧画布的 .canvas-node img 还会改元素盒尺寸）。
+function getCanvasInlineCropImageRect(node) {
+  const image = node?.querySelector(".flora-node-result-area img, .canvas-image-upload img, .canvas-node-result img, img");
+  if (!image) return null;
+  const box = image.getBoundingClientRect();
+  if (box.width < 8 || box.height < 8) return null;
+  const naturalWidth = Number(image.naturalWidth) || 0;
+  const naturalHeight = Number(image.naturalHeight) || 0;
+  if (!naturalWidth || !naturalHeight) return { left: box.left, top: box.top, width: box.width, height: box.height, box };
+  const fit = String(getComputedStyle(image).objectFit || "fill").trim();
+  if (fit !== "contain" && fit !== "cover") {
+    return { left: box.left, top: box.top, width: box.width, height: box.height, box };
+  }
+  const imageRatio = naturalWidth / naturalHeight;
+  const boxRatio = box.width / box.height;
+  let width = box.width;
+  let height = box.height;
+  if (fit === "contain" ? imageRatio > boxRatio : imageRatio < boxRatio) height = box.width / imageRatio;
+  else width = box.height * imageRatio;
+  return {
+    left: box.left + (box.width - width) / 2,
+    top: box.top + (box.height - height) / 2,
+    width,
+    height,
+    box,
+  };
+}
+
+// 判断图片整体偏亮还是偏暗：亮图用深色分割线，暗图用浅色线，任何照片上都看得清。
+function sampleCanvasInlineCropTone(image) {
+  try {
+    const canvas = document.createElement("canvas");
+    canvas.width = 8;
+    canvas.height = 8;
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    context.drawImage(image, 0, 0, 8, 8);
+    const { data } = context.getImageData(0, 0, 8, 8);
+    let total = 0;
+    for (let index = 0; index < data.length; index += 4) {
+      total += 0.299 * data[index] + 0.587 * data[index + 1] + 0.114 * data[index + 2];
+    }
+    return total / (data.length / 4) / 255 > 0.5 ? "dark" : "light";
+  } catch {
+    return "light";
+  }
+}
+
+// 裁剪层就贴在节点图片上：外层裁剪到图片元素盒（cover 时图片内容比元素盒大，只露出窗口），
+// 内层按图片内容铺满，裁剪线用百分比画在图片内容上，所以线和图永远对齐，也不再出现第二个框。
+function positionCanvasInlineCropStage(state, dialog = getCanvasInlineCrop()) {
+  if (!state || !dialog) return false;
+  const stage = dialog.querySelector("[data-crop-stage]");
+  const view = dialog.querySelector("[data-crop-view]");
+  const node = state.node;
+  if (!stage || !view || !node?.isConnected) return false;
+  const content = getCanvasInlineCropImageRect(node);
+  const hostRect = dialog.getBoundingClientRect();
+  if (!content || !hostRect.width) return false;
+  const canvasScale = hostRect.width / (dialog.offsetWidth || hostRect.width) || 1;
+  const toLocal = (value) => value / canvasScale;
+  const clipLeft = Math.max(content.left, content.box.left);
+  const clipTop = Math.max(content.top, content.box.top);
+  const clipRight = Math.min(content.left + content.width, content.box.left + content.box.width);
+  const clipBottom = Math.min(content.top + content.height, content.box.top + content.box.height);
+  if (clipRight - clipLeft < 8 || clipBottom - clipTop < 8) return false;
+  const contentLeft = Math.round(toLocal(content.left - hostRect.left));
+  const contentTop = Math.round(toLocal(content.top - hostRect.top));
+  const contentWidth = Math.max(8, Math.round(toLocal(content.width)));
+  const contentHeight = Math.max(8, Math.round(toLocal(content.height)));
+  const stageLeft = Math.round(toLocal(clipLeft - hostRect.left));
+  const stageTop = Math.round(toLocal(clipTop - hostRect.top));
+  stage.style.left = `${stageLeft}px`;
+  stage.style.top = `${stageTop}px`;
+  stage.style.width = `${Math.max(8, Math.round(toLocal(clipRight - clipLeft)))}px`;
+  stage.style.height = `${Math.max(8, Math.round(toLocal(clipBottom - clipTop)))}px`;
+  view.style.left = `${contentLeft - stageLeft}px`;
+  view.style.top = `${contentTop - stageTop}px`;
+  view.style.width = `${contentWidth}px`;
+  view.style.height = `${contentHeight}px`;
+  applyCanvasInlineCropViewTransform(state, dialog);
+  return true;
+}
+
+function applyCanvasInlineCropViewTransform(state, dialog = getCanvasInlineCrop()) {
+  const view = dialog?.querySelector("[data-crop-view]");
+  if (!view) return;
+  const zoom = Math.max(1, Math.min(CANVAS_INLINE_CROP_ZOOM_MAX, Number(state.zoom) || 1));
+  const width = view.offsetWidth || 1;
+  const height = view.offsetHeight || 1;
+  const maxX = (width * (zoom - 1)) / 2;
+  const maxY = (height * (zoom - 1)) / 2;
+  state.viewX = Math.max(-maxX, Math.min(maxX, Number(state.viewX) || 0));
+  state.viewY = Math.max(-maxY, Math.min(maxY, Number(state.viewY) || 0));
+  view.style.transform = `translate(${Math.round(state.viewX)}px, ${Math.round(state.viewY)}px) scale(${zoom})`;
+  // 线宽在缩放后保持 1px 视觉厚度。
+  view.style.setProperty("--crop-line-width", `${(1 / zoom).toFixed(3)}px`);
+}
+
+function renderCanvasInlineCropFrame() {
+  const state = canvasInlineCropState;
+  const dialog = getCanvasInlineCrop();
+  if (!state || !dialog) return;
+  const overlay = dialog.querySelector("[data-crop-rect]");
+  if (!overlay) return;
+  const { x, y, width, height } = state.rect;
+  overlay.style.left = `${x * 100}%`;
+  overlay.style.top = `${y * 100}%`;
+  overlay.style.width = `${width * 100}%`;
+  overlay.style.height = `${height * 100}%`;
+  renderCanvasInlineCropSplits(state, dialog);
+  const pixels = canvasInlineCropPixels(state);
+  const size = dialog.querySelector("[data-crop-size]");
+  if (size) {
+    if (canvasInlineCropIsSplit(state)) {
+      const rows = Math.max(1, state.rows);
+      const columns = Math.max(1, state.columns);
+      const cell = `${Math.round(pixels.width / columns)} × ${Math.round(pixels.height / rows)}`;
+      size.textContent = `${rows} × ${columns} · ${canvasInlineCropSplitsAreEqual(state) ? `每格 ${cell}` : "分线自定义"}`;
+    } else {
+      size.textContent = `${pixels.width} × ${pixels.height} · 裁剪`;
+    }
+  }
+  const ratioLabel = dialog.querySelector("[data-crop-ratio-label]");
+  if (ratioLabel) {
+    // 未锁比例时按钮就叫「宽高比」，选了以后显示具体比例（如图3）。
+    ratioLabel.textContent = state.ratioKey === "source"
+      ? "宽高比"
+      : (CANVAS_INLINE_CROP_RATIOS.find(([key]) => key === state.ratioKey)?.[1] || "宽高比");
+  }
+  const gridLabel = dialog.querySelector("[data-crop-grid-label]");
+  if (gridLabel) {
+    gridLabel.textContent = canvasInlineCropIsSplit(state)
+      ? (CANVAS_INLINE_CROP_GRIDS.find(([rows, columns]) => rows === state.rows && columns === state.columns)?.[2] || `${state.rows} × ${state.columns} 宫格`)
+      : "宫格裁剪";
+  }
+  const locked = state.ratioKey !== "source";
+  dialog.dataset.cropLocked = String(locked);
+}
+
+// 宫格分线画成真正的元素（不是背景渐变），这样每条线都能单独拖。
+function renderCanvasInlineCropSplits(state, dialog = getCanvasInlineCrop()) {
+  const layer = dialog?.querySelector("[data-crop-splits]");
+  if (!layer) return;
+  const wanted = [];
+  if (canvasInlineCropIsSplit(state)) {
+    canvasInlineCropColumnSplits(state).forEach((value, index) => wanted.push({ key: `col:${index}`, axis: "col", index, value }));
+    canvasInlineCropRowSplits(state).forEach((value, index) => wanted.push({ key: `row:${index}`, axis: "row", index, value }));
+  }
+  const existing = new Map(Array.from(layer.children).map((line) => [line.dataset.cropSplit, line]));
+  wanted.forEach(({ key, axis, index, value }) => {
+    let line = existing.get(key);
+    if (!line) {
+      line = document.createElement("i");
+      line.className = `canvas-inline-crop-split is-${axis}`;
+      line.dataset.cropSplit = key;
+      line.setAttribute("role", "separator");
+      line.setAttribute("aria-label", axis === "col" ? `第 ${index + 1} 条竖分割线` : `第 ${index + 1} 条横分割线`);
+      layer.append(line);
+    }
+    existing.delete(key);
+    if (axis === "col") line.style.left = `${(value * 100).toFixed(4)}%`;
+    else line.style.top = `${(value * 100).toFixed(4)}%`;
+  });
+  existing.forEach((line) => line.remove());
+}
+
+// 拖线 / 拖框 / 平移预览：鼠标位置换算成原图比例，缩放后同样成立。
+function startCanvasInlineCropDrag(event) {
+  const state = canvasInlineCropState;
+  const dialog = getCanvasInlineCrop();
+  if (!state || !dialog || event.button !== 0) return;
+  const view = dialog.querySelector("[data-crop-view]");
+  const viewRect = view?.getBoundingClientRect();
+  if (!viewRect?.width) return;
+  const line = event.target.closest("[data-crop-line]");
+  const splitLine = event.target.closest("[data-crop-split]");
+  const inside = event.target.closest("[data-crop-rect]");
+  const mode = splitLine ? "split" : line ? "line" : inside ? "move" : "pan";
+  const side = line?.dataset.cropLine || "";
+  const [splitAxis, splitIndex] = String(splitLine?.dataset.cropSplit || "").split(":");
+  const stage = dialog.querySelector("[data-crop-stage]");
+  event.preventDefault();
+  event.stopPropagation();
+  const start = { ...state.rect };
+  // 分线拖动要以按下时的位置为基准算，不能每帧在已经改过的值上再叠加。
+  const startSplits = splitAxis === "col" ? [...canvasInlineCropColumnSplits(state)] : [...canvasInlineCropRowSplits(state)];
+  const startView = { x: state.viewX || 0, y: state.viewY || 0 };
+  const startX = event.clientX;
+  const startY = event.clientY;
+  const scaleX = 1 / viewRect.width;
+  const scaleY = 1 / viewRect.height;
+  const imageAspect = state.sourceWidth / state.sourceHeight;
+  const targetRatio = state.ratioKey === "source" ? 0 : resolveCanvasCropWorkbenchAspectRatio(state.ratioKey);
+  const heightForWidth = (widthValue) => (widthValue * imageAspect) / targetRatio;
+  const widthForHeight = (heightValue) => (heightValue * targetRatio) / imageAspect;
+  const move = (moveEvent) => {
+    const dx = (moveEvent.clientX - startX) * scaleX;
+    const dy = (moveEvent.clientY - startY) * scaleY;
+    if (mode === "pan") {
+      state.viewX = startView.x + (moveEvent.clientX - startX);
+      state.viewY = startView.y + (moveEvent.clientY - startY);
+      applyCanvasInlineCropViewTransform(state, dialog);
+      return;
+    }
+    if (mode === "move") {
+      state.rect = normalizeCanvasInlineCropRect({
+        x: Math.max(0, Math.min(1 - start.width, start.x + dx)),
+        y: Math.max(0, Math.min(1 - start.height, start.y + dy)),
+        width: start.width,
+        height: start.height,
+      });
+      renderCanvasInlineCropFrame();
+      return;
+    }
+    if (mode === "split") {
+      // 宫格分线相对裁剪框定位，所以鼠标位移要先换算成框内的比例。
+      const index = Number(splitIndex);
+      if (!Number.isFinite(index) || index < 0 || index >= startSplits.length) return;
+      const list = [...startSplits];
+      const delta = splitAxis === "col" ? dx / Math.max(0.01, start.width) : dy / Math.max(0.01, start.height);
+      const lower = index === 0 ? 0 : list[index - 1];
+      const upper = index === list.length - 1 ? 1 : list[index + 1];
+      list[index] = Math.max(lower + CANVAS_INLINE_CROP_MIN, Math.min(upper - CANVAS_INLINE_CROP_MIN, startSplits[index] + delta));
+      if (splitAxis === "col") state.columnSplits = list;
+      else state.rowSplits = list;
+      renderCanvasInlineCropFrame();
+      return;
+    }
+    const next = { ...start };
+    if (targetRatio) {
+      // 锁定比例：改宽度就按比例算高度（纵向拖动同理），并保持框中心不跳。
+      const centerX = start.x + start.width / 2;
+      const centerY = start.y + start.height / 2;
+      if (side === "left" || side === "right") {
+        const width = side === "left"
+          ? Math.max(CANVAS_INLINE_CROP_MIN, start.width - dx)
+          : Math.max(CANVAS_INLINE_CROP_MIN, start.width + dx);
+        let height = heightForWidth(width);
+        const clampedWidth = Math.min(width, 1, height > 1 ? widthForHeight(1) : width);
+        height = heightForWidth(clampedWidth);
+        next.width = clampedWidth;
+        next.height = height;
+        next.x = Math.max(0, Math.min(1 - clampedWidth, centerX - clampedWidth / 2));
+        next.y = Math.max(0, Math.min(1 - height, centerY - height / 2));
+      } else {
+        const height = side === "top"
+          ? Math.max(CANVAS_INLINE_CROP_MIN, start.height - dy)
+          : Math.max(CANVAS_INLINE_CROP_MIN, start.height + dy);
+        let width = widthForHeight(height);
+        const clampedHeight = Math.min(height, 1, width > 1 ? heightForWidth(1) : height);
+        width = widthForHeight(clampedHeight);
+        next.height = clampedHeight;
+        next.width = width;
+        next.x = Math.max(0, Math.min(1 - width, centerX - width / 2));
+        next.y = Math.max(0, Math.min(1 - clampedHeight, centerY - clampedHeight / 2));
+      }
+      state.rect = normalizeCanvasInlineCropRect(next);
+      renderCanvasInlineCropFrame();
+      return;
+    }
+    if (side === "left") {
+      const right = start.x + start.width;
+      const x = Math.max(0, Math.min(right - CANVAS_INLINE_CROP_MIN, start.x + dx));
+      next.x = x;
+      next.width = right - x;
+    } else if (side === "right") {
+      next.width = Math.max(CANVAS_INLINE_CROP_MIN, Math.min(1 - start.x, start.width + dx));
+    } else if (side === "top") {
+      const bottom = start.y + start.height;
+      const y = Math.max(0, Math.min(bottom - CANVAS_INLINE_CROP_MIN, start.y + dy));
+      next.y = y;
+      next.height = bottom - y;
+    } else if (side === "bottom") {
+      next.height = Math.max(CANVAS_INLINE_CROP_MIN, Math.min(1 - start.y, start.height + dy));
+    }
+    state.rect = normalizeCanvasInlineCropRect(next);
+    renderCanvasInlineCropFrame();
+  };
+  const stop = () => {
+    window.removeEventListener("pointermove", move);
+    window.removeEventListener("pointerup", stop);
+    window.removeEventListener("pointercancel", stop);
+    if (mode !== "pan") scheduleCanvasSave();
+  };
+  window.addEventListener("pointermove", move);
+  window.addEventListener("pointerup", stop, { once: true });
+  window.addEventListener("pointercancel", stop, { once: true });
+  void stage;
+}
+
+function buildCanvasInlineCropMenu(state, dialog) {
+  const menu = dialog.querySelector("[data-crop-menu-content]");
+  if (!menu) return;
+  if (state.panel === "ratio") {
+    menu.innerHTML = CANVAS_INLINE_CROP_RATIOS.map(([key, label]) => (
+      `<button type="button" data-crop-ratio="${key}" class="${key === state.ratioKey ? "is-active" : ""}"><span>${label}</span></button>`
+    )).join("");
+    return;
+  }
+  if (state.panel === "grid") {
+    menu.innerHTML = CANVAS_INLINE_CROP_GRIDS.map(([rows, columns, label, hint]) => (
+      `<button type="button" data-crop-grid="${rows}x${columns}" class="${rows === state.rows && columns === state.columns ? "is-active" : ""}"><i data-lucide="layout-grid" aria-hidden="true"></i><span><b>${label}</b><em>${hint}</em></span></button>`
+    )).join("")
+      + `<button type="button" data-crop-grid="custom" class="${state.customGrid ? "is-active" : ""}"><i data-lucide="grid-2x2-plus" aria-hidden="true"></i><span><b>自定义宫格裁剪</b><em>自定义行 × 列</em></span></button>`;
+    return;
+  }
+  menu.innerHTML = `
+    <div class="canvas-inline-crop-custom">
+      <header><button type="button" class="canvas-inline-crop-custom-back" data-crop-custom-back aria-label="返回">←</button><strong>自定义宫格裁剪</strong></header>
+      <p>请选择裁剪宫格（行 × 列）</p>
+      <div class="canvas-inline-crop-custom-fields">
+        <label><span>行</span><input type="number" min="1" max="8" step="1" value="${Number(state.rows) >= 1 ? Number(state.rows) : 3}" data-crop-custom-rows></label>
+        <i aria-hidden="true">×</i>
+        <label><span>列</span><input type="number" min="1" max="8" step="1" value="${Number(state.columns) >= 1 ? Number(state.columns) : 3}" data-crop-custom-columns></label>
+      </div>
+      <button type="button" class="canvas-inline-crop-custom-confirm" data-crop-custom-confirm>确认</button>
+    </div>
+  `;
+}
+
+function openCanvasInlineCropMenu(panel) {
+  const state = canvasInlineCropState;
+  const dialog = getCanvasInlineCrop();
+  if (!state || !dialog) return;
+  state.panel = state.panel === panel ? "" : panel;
+  const menu = dialog.querySelector("[data-crop-menu]");
+  if (!menu) return;
+  if (!state.panel) {
+    menu.hidden = true;
+    return;
+  }
+  buildCanvasInlineCropMenu(state, dialog);
+  menu.hidden = false;
+  window.lucide?.createIcons?.({ root: menu, attrs: { "aria-hidden": "true", "stroke-width": 1.8 } });
+}
+
+async function openCanvasInlineCrop(node) {
+  if (!node?.classList?.contains("canvas-node")) return false;
+  const source = getCanvasCropWorkbenchSource(node, "");
+  if (!source?.savedUrl && !source?.src) {
+    setCanvasNodeStatus(node, "当前图片没有可裁切的原图。");
+    return false;
+  }
+  const sourceUrl = source.savedUrl || source.src;
+  let width = Number(source.width) || 0;
+  let height = Number(source.height) || 0;
+  let tone = "light";
+  try {
+    // 裁剪永远按原图算：这里读的就是将要裁的那张原图的真实像素尺寸。
+    const image = await loadImageElement(sourceUrl);
+    width = Math.round(Number(image.naturalWidth) || width);
+    height = Math.round(Number(image.naturalHeight) || height);
+    tone = sampleCanvasInlineCropTone(image);
+  } catch {
+    setCanvasNodeStatus(node, "原图加载失败，暂时无法裁切。");
+    return false;
+  }
+  if (!width || !height) {
+    setCanvasNodeStatus(node, "当前图片缺少原图尺寸，无法裁切。");
+    return false;
+  }
+  closeCanvasInlineCrop();
+  const shell = node.querySelector(":scope > .flora-node-shell");
+  if (!shell) return false;
+  const dialog = document.createElement("div");
+  dialog.id = "canvasInlineCrop";
+  dialog.className = "canvas-inline-crop";
+  dialog.dataset.floraRegion = "inline-crop";
+  dialog.dataset.cropTone = tone;
+  dialog.innerHTML = `
+    <div class="canvas-inline-crop-stage" data-crop-stage>
+      <div class="canvas-inline-crop-view" data-crop-view>
+        <img class="canvas-inline-crop-source" src="${sourceUrl}" alt="${source.name || "裁切来源"}" draggable="false">
+        <div class="canvas-inline-crop-rect" data-crop-rect>
+          <span class="canvas-inline-crop-splits" data-crop-splits></span>
+          <i class="canvas-inline-crop-line is-left" data-crop-line="left" role="separator" aria-label="左边裁剪线"></i>
+          <i class="canvas-inline-crop-line is-right" data-crop-line="right" role="separator" aria-label="右边裁剪线"></i>
+          <i class="canvas-inline-crop-line is-top" data-crop-line="top" role="separator" aria-label="上边裁剪线"></i>
+          <i class="canvas-inline-crop-line is-bottom" data-crop-line="bottom" role="separator" aria-label="下边裁剪线"></i>
+        </div>
+      </div>
+      <span class="canvas-inline-crop-size" data-crop-size>裁剪</span>
+    </div>
+    <div class="canvas-inline-crop-bar">
+      <button type="button" class="canvas-inline-crop-cancel" data-crop-cancel><i data-lucide="x" aria-hidden="true"></i><span>取消</span></button>
+      <span class="canvas-inline-crop-spacer"></span>
+      <button type="button" class="canvas-inline-crop-option" data-crop-grid-menu><i data-lucide="layout-grid" aria-hidden="true"></i><span data-crop-grid-label>宫格裁剪</span></button>
+      <button type="button" class="canvas-inline-crop-option" data-crop-ratio-menu><i data-lucide="ratio" aria-hidden="true"></i><span data-crop-ratio-label>宽高比</span></button>
+      <button type="button" class="canvas-inline-crop-confirm" data-crop-confirm>确认</button>
+      <div class="canvas-inline-crop-menu" data-crop-menu hidden><div data-crop-menu-content></div></div>
+    </div>
+  `;
+  ["pointerdown", "wheel", "click"].forEach((type) => dialog.addEventListener(type, (event) => event.stopPropagation()));
+  dialog.addEventListener("pointerdown", startCanvasInlineCropDrag);
+  dialog.addEventListener("wheel", (event) => {
+    const state = canvasInlineCropState;
+    if (!state) return;
+    event.preventDefault();
+    const view = dialog.querySelector("[data-crop-view]");
+    const viewRect = view?.getBoundingClientRect();
+    const zoom = Math.max(1, Math.min(CANVAS_INLINE_CROP_ZOOM_MAX, (state.zoom || 1) * (event.deltaY < 0 ? 1.12 : 1 / 1.12)));
+    if (viewRect && zoom !== state.zoom) {
+      // 以指针为锚点缩放，方便对着细节裁。
+      const offsetX = event.clientX - (viewRect.left + viewRect.width / 2);
+      const offsetY = event.clientY - (viewRect.top + viewRect.height / 2);
+      const ratio = zoom / (state.zoom || 1);
+      state.viewX = (state.viewX || 0) - offsetX * (ratio - 1);
+      state.viewY = (state.viewY || 0) - offsetY * (ratio - 1);
+    }
+    state.zoom = zoom;
+    applyCanvasInlineCropViewTransform(state, dialog);
+  }, { passive: false });
+  dialog.addEventListener("click", (event) => {
+    const state = canvasInlineCropState;
+    if (!state) return;
+    if (event.target.closest("[data-crop-cancel]")) {
+      closeCanvasInlineCrop();
+      return;
+    }
+    if (event.target.closest("[data-crop-ratio-menu]")) {
+      openCanvasInlineCropMenu("ratio");
+      return;
+    }
+    if (event.target.closest("[data-crop-grid-menu]")) {
+      openCanvasInlineCropMenu("grid");
+      return;
+    }
+    const ratio = event.target.closest("[data-crop-ratio]")?.dataset.cropRatio;
+    if (ratio) {
+      setCanvasInlineCropRatio(state, ratio);
+      openCanvasInlineCropMenu("");
+      renderCanvasInlineCropFrame();
+      return;
+    }
+    const grid = event.target.closest("[data-crop-grid]")?.dataset.cropGrid;
+    if (grid === "custom") {
+      state.customGrid = true;
+      state.panel = "custom";
+      buildCanvasInlineCropMenu(state, dialog);
+      dialog.querySelector("[data-crop-menu]").hidden = false;
+      return;
+    }
+    if (event.target.closest("[data-crop-custom-back]")) {
+      state.panel = "grid";
+      buildCanvasInlineCropMenu(state, dialog);
+      return;
+    }
+    if (event.target.closest("[data-crop-custom-confirm]")) {
+      state.rows = Math.max(1, Math.min(8, Number(dialog.querySelector("[data-crop-custom-rows]")?.value) || 3));
+      state.columns = Math.max(1, Math.min(8, Number(dialog.querySelector("[data-crop-custom-columns]")?.value) || 3));
+      resetCanvasInlineCropSplits(state);
+      openCanvasInlineCropMenu("");
+      renderCanvasInlineCropFrame();
+      return;
+    }
+    if (grid) {
+      const [rows, columns] = grid.split("x").map(Number);
+      // 再点一次已经选中的宫格 = 回到不切分（整块裁一张）。
+      const same = state.rows === rows && state.columns === columns;
+      state.rows = same ? 0 : rows;
+      state.columns = same ? 0 : columns;
+      state.customGrid = false;
+      resetCanvasInlineCropSplits(state);
+      openCanvasInlineCropMenu("");
+      renderCanvasInlineCropFrame();
+      return;
+    }
+    if (event.target.closest("[data-crop-confirm]")) submitCanvasInlineCrop();
+  });
+  shell.append(dialog);
+  canvasInlineCropState = {
+    node,
+    source: { ...source, savedUrl: sourceUrl },
+    sourceWidth: width,
+    sourceHeight: height,
+    ratioKey: "source",
+    rect: { x: 0, y: 0, width: 1, height: 1 },
+    rows: 0,
+    columns: 0,
+    columnSplits: [],
+    rowSplits: [],
+    zoom: 1,
+    viewX: 0,
+    viewY: 0,
+    panel: "",
+    customGrid: false,
+  };
+  node.dataset.inlineTool = "crop";
+  // 隐藏节点自己的图片，避免和裁剪层的图片叠成两份；退出时恢复。
+  node.classList.add("is-inline-cropping");
+  window.lucide?.createIcons?.({ root: dialog, attrs: { "aria-hidden": "true", "stroke-width": 1.8 } });
+  positionCanvasInlineCropStage(canvasInlineCropState, dialog);
+  renderCanvasInlineCropFrame();
+  // 壳体和图片可能晚一帧才定尺，再对一次位置。
+  requestAnimationFrame(() => positionCanvasInlineCropStage(canvasInlineCropState, dialog));
+  const reposition = () => positionCanvasInlineCropStage(canvasInlineCropState, dialog);
+  window.addEventListener("resize", reposition);
+  dialog.addEventListener("remove", () => window.removeEventListener("resize", reposition));
+  canvasInlineCropState.reposition = reposition;
+  return true;
+}
+
+function closeCanvasInlineCrop() {
+  const state = canvasInlineCropState;
+  const dialog = getCanvasInlineCrop();
+  if (state?.reposition) window.removeEventListener("resize", state.reposition);
+  if (state?.node?.classList) state.node.classList.remove("is-inline-cropping");
+  if (dialog) dialog.remove();
+  if (state?.node?.dataset && state.node.dataset.inlineTool === "crop") delete state.node.dataset.inlineTool;
+  canvasInlineCropState = null;
+  return Boolean(state);
+}
+
+function buildCanvasInlineCropTiles(state) {
+  const frame = canvasInlineCropPixels(state);
+  const tiles = [];
+  const rows = Math.max(1, state.rows);
+  const columns = Math.max(1, state.columns);
+  // 边界按可拖的宫格分线算：分线拖到哪里就从哪里切。
+  const columnBounds = [0, ...canvasInlineCropColumnSplits(state), 1];
+  const rowBounds = [0, ...canvasInlineCropRowSplits(state), 1];
+  for (let row = 1; row <= rows; row += 1) {
+    for (let column = 1; column <= columns; column += 1) {
+      const x0 = frame.x + Math.round(frame.width * columnBounds[column - 1]);
+      const x1 = frame.x + Math.round(frame.width * columnBounds[column]);
+      const y0 = frame.y + Math.round(frame.height * rowBounds[row - 1]);
+      const y1 = frame.y + Math.round(frame.height * rowBounds[row]);
+      tiles.push({
+        key: `r${row}-c${column}`,
+        row,
+        column,
+        x: x0,
+        y: y0,
+        width: Math.max(1, x1 - x0),
+        height: Math.max(1, y1 - y0),
+      });
+    }
+  }
+  return tiles;
+}
+
+async function submitCanvasInlineCrop() {
+  const state = canvasInlineCropState;
+  if (!state) return null;
+  const dialog = getCanvasInlineCrop();
+  const confirm = dialog?.querySelector("[data-crop-confirm]");
+  if (confirm) confirm.disabled = true;
+  const node = state.node;
+  try {
+    const split = canvasInlineCropIsSplit(state);
+    const crops = split
+      ? buildCanvasInlineCropTiles(state)
+      : [{ key: "single", row: 1, column: 1, ...canvasInlineCropPixels(state) }];
+    const image = await loadImageElement(state.source.savedUrl || state.source.src);
+    if (split) {
+      const group = await createCanvasCropResultGroup(node, state.source, crops, { image });
+      closeCanvasInlineCrop();
+      setCanvasNodeStatus(node, `已生成 ${crops.length} 张分镜切片并打组。`);
+      setCanvasStatus(`已生成 ${crops.length} 张分镜切片，并打成一个组。`);
+      return group;
+    }
+    const [persisted] = assertCanvasCropPersistenceComplete(
+      crops,
+      await persistCanvasGridCrops(image, crops, { sourceName: state.source.name }),
+    );
+    closeCanvasInlineCrop();
+    const result = addCanvasImage(
+      persisted.savedUrl,
+      appendNameSuffix(state.source.name || "image.png", "裁剪"),
+      findCanvasImageToolResultPoint(node),
+    );
+    // 裁出来的图保持和来源节点连接。
+    connectCanvasNodes(String(node.dataset.id || ""), String(result.dataset.id || ""), "input", "output");
+    selectCanvasNode(result);
+    setCanvasNodeStatus(node, "已完成裁剪，结果在新节点。");
+    scheduleCanvasSave();
+    return result;
+  } catch (error) {
+    setCanvasNodeStatus(node, `裁剪失败：${error.message || "未知错误"}`);
+    setCanvasStatus(`裁剪失败：${error.message || "未知错误"}`);
+    return null;
+  } finally {
+    if (confirm?.isConnected) confirm.disabled = false;
+  }
+}
+
+function getCanvasInlineOutpaint() {
+  return document.querySelector("#canvasInlineOutpaint");
+}
+
+// 扩图比例：原比例 = 不强制（保持手动边距），其余按目标比例把扩图量补足。
+const CANVAS_INLINE_OUTPAINT_RATIOS = Object.freeze([
+  ["source", "原比例", null],
+  ["21:9", "21:9", 21 / 9],
+  ["16:9", "16:9", 16 / 9],
+  ["4:3", "4:3", 4 / 3],
+  ["1:1", "1:1", 1],
+  ["3:4", "3:4", 3 / 4],
+  ["9:16", "9:16", 9 / 16],
+]);
+// 原比例 = 上下左右按同一比例外扩一点：每条边的扩图量取边长的 6.25%，
+// 总尺寸比原图大 12.5%，比例与原图一致。
+const CANVAS_INLINE_OUTPAINT_SOURCE_SCALE = 0.0625;
+
+function getCanvasInlineOutpaintRatio(node) {
+  const key = String(node?.dataset?.comfyOutpaintRatio || "source");
+  return CANVAS_INLINE_OUTPAINT_RATIOS.find(([value]) => value === key) || CANVAS_INLINE_OUTPAINT_RATIOS[0];
+}
+
+function buildCanvasInlineOutpaintRatioStrip() {
+  return CANVAS_INLINE_OUTPAINT_RATIOS.map(([value, label, ratio]) => {
+    // 小方块按比例画：一眼能看出是长条还是竖条。
+    const shape = ratio ? Math.max(6, Math.min(20, Math.round(11 * ratio))) : 11;
+    return `<button type="button" class="canvas-inline-outpaint-ratio" data-inline-outpaint-ratio="${value}" title="${label}" aria-label="${label}"><i class="canvas-inline-outpaint-ratio-shape" style="width: ${shape}px" aria-hidden="true"></i><span>${label}</span></button>`;
+  }).join("");
+}
+
+function renderCanvasInlineOutpaintRatioStrip(node) {
+  const host = getCanvasInlineOutpaint();
+  if (!host || !node) return;
+  const active = getCanvasInlineOutpaintRatio(node)[0];
+  host.querySelectorAll("[data-inline-outpaint-ratio]").forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.inlineOutpaintRatio === active);
+  });
+}
+
+// 按目标比例补足扩图量：原图居中，多出来的量左右（或上下）平分。
+function setCanvasInlineOutpaintRatio(node, key) {
+  if (!node?.classList?.contains("canvas-node")) return false;
+  const entry = CANVAS_INLINE_OUTPAINT_RATIOS.find(([value]) => value === key);
+  if (!entry) return false;
+  node.dataset.comfyOutpaintRatio = entry[0];
+  const ratio = entry[2];
+  const sourceWidth = Math.max(1, Number(node.dataset.comfyOutpaintSourceWidth || 1024));
+  const sourceHeight = Math.max(1, Number(node.dataset.comfyOutpaintSourceHeight || 768));
+  if (ratio) {
+    const sourceRatio = sourceWidth / sourceHeight;
+    let left = 0;
+    let top = 0;
+    if (sourceRatio < ratio) {
+      const totalWidth = Math.round(sourceHeight * ratio);
+      left = Math.max(0, Math.round((totalWidth - sourceWidth) / 2));
+    } else {
+      const totalHeight = Math.round(sourceWidth / ratio);
+      top = Math.max(0, Math.round((totalHeight - sourceHeight) / 2));
+    }
+    setCanvasComfyPadding(node, { left, right: left, top, bottom: top });
+  } else {
+    // 原比例不是「什么都不做」：四边同时按同一比例外扩，图片比例保持不变。
+    const padX = Math.max(8, Math.round(sourceWidth * CANVAS_INLINE_OUTPAINT_SOURCE_SCALE));
+    const padY = Math.max(8, Math.round(sourceHeight * CANVAS_INLINE_OUTPAINT_SOURCE_SCALE));
+    setCanvasComfyPadding(node, { left: padX, right: padX, top: padY, bottom: padY });
+  }
+  layoutCanvasInlineOutpaint(node);
+  renderCanvasInlineOutpaintRatioStrip(node);
+  scheduleCanvasSave();
+  return true;
+}
+
+// 锁了比例以后再拖把手：改一条边就按比例回算另一轴，保证总比例不漂。
+function lockCanvasOutpaintPaddingToRatio(padding, sourceWidth, sourceHeight, ratio, side) {
+  if (!ratio) return padding;
+  const next = { ...padding };
+  const horizontal = String(side).includes("left") || String(side).includes("right");
+  if (horizontal) {
+    const totalWidth = sourceWidth + next.left + next.right;
+    const extra = Math.max(0, Math.round(totalWidth / ratio) - sourceHeight);
+    next.top = Math.round(extra / 2);
+    next.bottom = extra - next.top;
+  } else {
+    const totalHeight = sourceHeight + next.top + next.bottom;
+    const extra = Math.max(0, Math.round(totalHeight * ratio) - sourceWidth);
+    next.left = Math.round(extra / 2);
+    next.right = extra - next.left;
+  }
+  return next;
+}
+
+function layoutCanvasInlineOutpaint(node, { keepScale = false } = {}) {
+  const stage = node?.querySelector("#canvasInlineOutpaint [data-inline-outpaint-stage]");
+  const frame = stage?.querySelector("[data-inline-outpaint-frame]");
+  const imageWrap = stage?.querySelector("[data-inline-outpaint-image]");
+  if (!stage || !frame || !imageWrap) return;
+  const padding = getCanvasComfyPadding(node);
+  const sourceWidth = Math.max(1, Number(node.dataset.comfyOutpaintSourceWidth || 1024));
+  const sourceHeight = Math.max(1, Number(node.dataset.comfyOutpaintSourceHeight || 768));
+  const totalWidth = sourceWidth + padding.left + padding.right;
+  const totalHeight = sourceHeight + padding.top + padding.bottom;
+  const box = stage.getBoundingClientRect();
+  // box 是屏幕像素，而下面写回的是节点本地像素：画布缩放不为 1 时必须先换算，
+  // 否则外框会整体放大一个缩放倍数。
+  const canvasScale = box.width / Math.max(1, stage.offsetWidth) || 1;
+  const toLocal = (value) => value / canvasScale;
+  // 缩放基准＝节点里那张图现在的显示比例：打开扩图时原图大小和位置都不变，
+  // 只有扩出的那一圈长在它四周（以前是把「原图＋扩出」整体塞进节点，原图必然被缩小）。
+  const displayRect = getCanvasInlineOutpaintSourceRect(node, stage, { canvasScale, sourceWidth, sourceHeight });
+  const fitted = Math.max(0.02, displayRect.width / sourceWidth);
+  const previous = Number(node.dataset.comfyOutpaintVisualScale || 0);
+  const scale = keepScale && previous > 0 ? previous : fitted;
+  frame.style.width = `${Math.round(totalWidth * scale)}px`;
+  frame.style.height = `${Math.round(totalHeight * scale)}px`;
+  frame.style.left = `${Math.round(displayRect.left - padding.left * scale)}px`;
+  frame.style.top = `${Math.round(displayRect.top - padding.top * scale)}px`;
+  imageWrap.style.left = `${Math.round(padding.left * scale)}px`;
+  imageWrap.style.top = `${Math.round(padding.top * scale)}px`;
+  imageWrap.style.width = `${Math.round(sourceWidth * scale)}px`;
+  imageWrap.style.height = `${Math.round(sourceHeight * scale)}px`;
+  // 扩区四条带：只有这一圈画棋盘格，原图那块留空，让节点自己的图片透出来。
+  const bands = {
+    top: { left: 0, top: 0, width: Math.round(totalWidth * scale), height: Math.round(padding.top * scale) },
+    bottom: {
+      left: 0,
+      top: Math.round((padding.top + sourceHeight) * scale),
+      width: Math.round(totalWidth * scale),
+      height: Math.round(padding.bottom * scale),
+    },
+    left: {
+      left: 0,
+      top: Math.round(padding.top * scale),
+      width: Math.round(padding.left * scale),
+      height: Math.round(sourceHeight * scale),
+    },
+    right: {
+      left: Math.round((padding.left + sourceWidth) * scale),
+      top: Math.round(padding.top * scale),
+      width: Math.round(padding.right * scale),
+      height: Math.round(sourceHeight * scale),
+    },
+  };
+  Object.entries(bands).forEach(([side, size]) => {
+    const band = frame.querySelector(`[data-inline-outpaint-band="${side}"]`);
+    if (!band) return;
+    band.style.left = `${size.left}px`;
+    band.style.top = `${size.top}px`;
+    band.style.width = `${size.width}px`;
+    band.style.height = `${size.height}px`;
+    band.hidden = size.width <= 0 || size.height <= 0;
+  });
+  const size = node.querySelector("#canvasInlineOutpaint [data-inline-outpaint-size]");
+  if (size) size.textContent = `${totalWidth} × ${totalHeight} · 扩图`;
+  // 操作条跟着外框下沿走，别压到底部扩区上。
+  const bar = node.querySelector("#canvasInlineOutpaint .canvas-inline-outpaint-bar");
+  if (bar) {
+    const frameTop = Number.parseFloat(frame.style.top || "0") || 0;
+    const frameBottom = frameTop + totalHeight * scale;
+    bar.style.setProperty("--inline-outpaint-bar-top", `${Math.round(Math.max(box.height / canvasScale, frameBottom) + 12)}px`);
+  }
+  node.dataset.comfyOutpaintVisualScale = String(scale);
+}
+
+// 节点里那张（正在编辑的）图的显示矩形，换算成舞台本地像素；
+// 取不到就退回「节点内容区铺满」的老口径，保证外框仍然画得出来。
+function getCanvasInlineOutpaintSourceRect(node, stage, { canvasScale = 1, sourceWidth = 1, sourceHeight = 1 } = {}) {
+  const stageBox = stage.getBoundingClientRect();
+  const toLocal = (value) => value / canvasScale;
+  const image = node.querySelector(".flora-node-result-area img, .canvas-image-upload img, .canvas-media-shell img");
+  const imageBox = image?.getBoundingClientRect?.();
+  if (imageBox && imageBox.width > 1 && imageBox.height > 1) {
+    return {
+      left: toLocal(imageBox.left - stageBox.left),
+      top: toLocal(imageBox.top - stageBox.top),
+      width: toLocal(imageBox.width),
+      height: toLocal(imageBox.height),
+    };
+  }
+  const styles = getComputedStyle(stage);
+  const innerWidth = Math.max(40, toLocal(stageBox.width) - parseFloat(styles.paddingLeft || "0") - parseFloat(styles.paddingRight || "0"));
+  const innerHeight = Math.max(40, toLocal(stageBox.height) - parseFloat(styles.paddingTop || "0") - parseFloat(styles.paddingBottom || "0"));
+  const fit = Math.min(innerWidth / sourceWidth, innerHeight / sourceHeight);
+  return {
+    left: toLocal(parseFloat(styles.paddingLeft || "0")) + Math.max(0, (innerWidth - sourceWidth * fit) / 2),
+    top: toLocal(parseFloat(styles.paddingTop || "0")) + Math.max(0, (innerHeight - sourceHeight * fit) / 2),
+    width: sourceWidth * fit,
+    height: sourceHeight * fit,
+  };
+}
+
+function startCanvasInlineOutpaintDrag(event, node) {
+  // 除了 14px 的方块把手，贴着外框的四条边也能拖（线太细，只认方块很容易抓空）。
+  const handle = event.target.closest?.("[data-inline-outpaint-side], [data-inline-outpaint-edge]");
+  if (!handle) return;
+  event.preventDefault();
+  event.stopPropagation();
+  const side = handle.dataset.inlineOutpaintSide || handle.dataset.inlineOutpaintEdge || "";
+  const startX = event.clientX;
+  const startY = event.clientY;
+  const start = getCanvasComfyPadding(node);
+  const imageWrap = node.querySelector("#canvasInlineOutpaint [data-inline-outpaint-image]");
+  const imageRect = imageWrap?.getBoundingClientRect();
+  const sourceWidth = Math.max(1, Number(node.dataset.comfyOutpaintSourceWidth || 1024));
+  const sourceHeight = Math.max(1, Number(node.dataset.comfyOutpaintSourceHeight || 768));
+  const visualScaleX = Math.max(0.01, Number(imageRect?.width || 1) / sourceWidth);
+  const visualScaleY = Math.max(0.01, Number(imageRect?.height || 1) / sourceHeight);
+  // 选了比例就锁死：拖一条边，另一轴按比例回算。
+  const lockedRatio = getCanvasInlineOutpaintRatio(node)[2];
+  handle.setPointerCapture?.(event.pointerId);
+  const move = (moveEvent) => {
+    const dx = (moveEvent.clientX - startX) / visualScaleX;
+    const dy = (moveEvent.clientY - startY) / visualScaleY;
+    const next = { ...start };
+    if (side.includes("left")) next.left = start.left - dx;
+    if (side.includes("right")) next.right = start.right + dx;
+    if (side.includes("top")) next.top = start.top - dy;
+    if (side.includes("bottom")) next.bottom = start.bottom + dy;
+    const locked = lockCanvasOutpaintPaddingToRatio(next, sourceWidth, sourceHeight, lockedRatio, side);
+    setCanvasComfyPadding(node, normalizeCanvasComfyPadding(locked));
+    layoutCanvasInlineOutpaint(node, { keepScale: true });
+  };
+  const stop = () => {
+    handle.releasePointerCapture?.(event.pointerId);
+    window.removeEventListener("pointermove", move);
+    window.removeEventListener("pointerup", stop);
+    window.removeEventListener("pointercancel", stop);
+    // 松手后再按可用空间重新贴合一次。
+    layoutCanvasInlineOutpaint(node);
+    scheduleCanvasSave();
+  };
+  window.addEventListener("pointermove", move);
+  window.addEventListener("pointerup", stop, { once: true });
+  window.addEventListener("pointercancel", stop, { once: true });
+}
+
+async function openCanvasInlineOutpaint(node) {
+  if (!node?.classList?.contains("canvas-node")) return false;
+  const source = resolveCanvasImageToolSource(node);
+  if (!source) {
+    setCanvasNodeStatus(node, "请先让节点上有一张图片再使用这个工具。");
+    return false;
+  }
+  let dialog = getCanvasInlineOutpaint();
+  if (!dialog) {
+    dialog = document.createElement("div");
+    dialog.id = "canvasInlineOutpaint";
+    dialog.className = "canvas-inline-outpaint";
+    dialog.dataset.floraRegion = "inline-outpaint";
+    dialog.innerHTML = `
+      <div class="canvas-inline-outpaint-stage" data-inline-outpaint-stage>
+        <div class="canvas-inline-outpaint-frame" data-inline-outpaint-frame>
+          <i class="canvas-inline-outpaint-band is-top" data-inline-outpaint-band="top" aria-hidden="true"></i>
+          <i class="canvas-inline-outpaint-band is-right" data-inline-outpaint-band="right" aria-hidden="true"></i>
+          <i class="canvas-inline-outpaint-band is-bottom" data-inline-outpaint-band="bottom" aria-hidden="true"></i>
+          <i class="canvas-inline-outpaint-band is-left" data-inline-outpaint-band="left" aria-hidden="true"></i>
+          <div class="canvas-inline-outpaint-image" data-inline-outpaint-image></div>
+          <i class="canvas-inline-outpaint-edge is-top" data-inline-outpaint-edge="top" aria-hidden="true"></i>
+          <i class="canvas-inline-outpaint-edge is-right" data-inline-outpaint-edge="right" aria-hidden="true"></i>
+          <i class="canvas-inline-outpaint-edge is-bottom" data-inline-outpaint-edge="bottom" aria-hidden="true"></i>
+          <i class="canvas-inline-outpaint-edge is-left" data-inline-outpaint-edge="left" aria-hidden="true"></i>
+          <button class="canvas-inline-outpaint-handle is-top" type="button" data-inline-outpaint-side="top" aria-label="向上扩展"></button>
+          <button class="canvas-inline-outpaint-handle is-right" type="button" data-inline-outpaint-side="right" aria-label="向右扩展"></button>
+          <button class="canvas-inline-outpaint-handle is-bottom" type="button" data-inline-outpaint-side="bottom" aria-label="向下扩展"></button>
+          <button class="canvas-inline-outpaint-handle is-left" type="button" data-inline-outpaint-side="left" aria-label="向左扩展"></button>
+          <button class="canvas-inline-outpaint-handle is-top-left" type="button" data-inline-outpaint-side="top-left" aria-label="向左上扩展"></button>
+          <button class="canvas-inline-outpaint-handle is-top-right" type="button" data-inline-outpaint-side="top-right" aria-label="向右上扩展"></button>
+          <button class="canvas-inline-outpaint-handle is-bottom-right" type="button" data-inline-outpaint-side="bottom-right" aria-label="向右下扩展"></button>
+          <button class="canvas-inline-outpaint-handle is-bottom-left" type="button" data-inline-outpaint-side="bottom-left" aria-label="向左下扩展"></button>
+        </div>
+      </div>
+      <div class="canvas-inline-outpaint-bar">
+        <button type="button" class="canvas-inline-outpaint-close" data-inline-outpaint-close aria-label="退出扩图">×</button>
+        <span class="canvas-inline-outpaint-hint">拖动外框进行扩图</span>
+        <span class="canvas-inline-outpaint-ratios" data-inline-outpaint-ratios>${buildCanvasInlineOutpaintRatioStrip()}</span>
+        <span class="canvas-inline-outpaint-size" data-inline-outpaint-size>扩图</span>
+        <button type="button" class="canvas-inline-outpaint-submit" data-inline-outpaint-submit>执行</button>
+      </div>
+    `;
+    ["pointerdown", "wheel", "click"].forEach((type) => dialog.addEventListener(type, (event) => event.stopPropagation()));
+    dialog.addEventListener("click", (event) => {
+      if (event.target.closest("[data-inline-outpaint-close]")) {
+        closeCanvasInlineOutpaint();
+        return;
+      }
+      if (event.target.closest("[data-inline-outpaint-submit]")) submitCanvasInlineOutpaint();
+      const ratio = event.target.closest("[data-inline-outpaint-ratio]")?.dataset.inlineOutpaintRatio;
+      if (ratio && canvasInlineOutpaintState) setCanvasInlineOutpaintRatio(canvasInlineOutpaintState.node, ratio);
+    });
+    dialog.addEventListener("pointerdown", (event) => {
+      if (canvasInlineOutpaintState) startCanvasInlineOutpaintDrag(event, canvasInlineOutpaintState.node);
+    });
+  }
+  const shell = node.querySelector(":scope > .flora-node-shell");
+  if (!shell) return false;
+  shell.append(dialog);
+  canvasInlineOutpaintState = { node };
+  node.dataset.inlineTool = "outpaint";
+  try {
+    const image = await loadImageElement(source.savedUrl || source.url || "");
+    node.dataset.comfyOutpaintSourceWidth = String(Math.round(Number(image.naturalWidth) || 1024));
+    node.dataset.comfyOutpaintSourceHeight = String(Math.round(Number(image.naturalHeight) || 768));
+  } catch {
+    setCanvasNodeStatus(node, "原图加载失败，暂时无法扩图。");
+    closeCanvasInlineOutpaint();
+    return false;
+  }
+  // 从没设过扩图边距的节点，按「原比例」开：四边同一比例外扩一点，比例不变；
+  // 已经手动设过的节点保留它自己的边距。
+  if (node.dataset.comfyOutpaintLeft === undefined) setCanvasInlineOutpaintRatio(node, "source");
+  else setCanvasComfyPadding(node, getCanvasComfyPadding(node));
+  renderCanvasInlineOutpaintRatioStrip(node);
+  // 原图保持不动：扩区只画在原图四周的带子里，节点自己那张图继续显示。
+  node.classList.add("is-inline-outpainting");
+  // 外框按节点里那张图的实际显示尺寸定位；节点被缩放/改尺寸后必须重算。
+  const relayout = () => layoutCanvasInlineOutpaint(node);
+  // 外框会长到节点外面：超出可视区就平移画布把它带进来（只平移，不缩放——
+  // 缩放画布等于又把原图缩小了）。窗口尺寸变化时重算。
+  const relayoutAndReveal = () => {
+    relayout();
+    ensureCanvasInlineOutpaintVisible(node);
+  };
+  const stage = dialog.querySelector("[data-inline-outpaint-stage]");
+  const observer = typeof ResizeObserver === "function" && stage ? new ResizeObserver(relayout) : null;
+  observer?.observe(stage);
+  window.addEventListener("resize", relayoutAndReveal);
+  canvasInlineOutpaintState.relayout = relayoutAndReveal;
+  canvasInlineOutpaintState.observer = observer;
+  requestAnimationFrame(relayoutAndReveal);
+  return true;
+}
+
+// 扩图外框超出可视区时把画布平移过去：只调整 canvasState.x/y，不动缩放级别。
+function ensureCanvasInlineOutpaintVisible(node) {
+  const frame = getCanvasInlineOutpaint()?.querySelector("[data-inline-outpaint-frame]");
+  const viewport = document.querySelector("#infiniteCanvas");
+  const frameBox = frame?.getBoundingClientRect?.();
+  const viewportBox = viewport?.getBoundingClientRect?.();
+  if (!node?.isConnected || !frameBox || !viewportBox || !(frameBox.width > 0) || !(frameBox.height > 0)) return false;
+  const inset = 24;
+  const left = viewportBox.left + inset;
+  const right = viewportBox.right - inset;
+  const top = viewportBox.top + inset;
+  const bottom = viewportBox.bottom - inset;
+  const axis = (start, size, min, max) => {
+    if (size > max - min) return Math.round((min + max) / 2 - (start + size / 2));
+    if (start < min) return Math.round(min - start);
+    if (start + size > max) return Math.round(max - (start + size));
+    return 0;
+  };
+  const dx = axis(frameBox.left, frameBox.width, left, right);
+  const dy = axis(frameBox.top, frameBox.height, top, bottom);
+  if (!dx && !dy) return false;
+  canvasState.x += dx;
+  canvasState.y += dy;
+  applyCanvasTransformNow();
+  return true;
+}
+
+function closeCanvasInlineOutpaint() {
+  const state = canvasInlineOutpaintState;
+  const dialog = getCanvasInlineOutpaint();
+  if (dialog) dialog.remove();
+  state?.observer?.disconnect?.();
+  if (state?.relayout) window.removeEventListener("resize", state.relayout);
+  if (state?.node?.classList) state.node.classList.remove("is-inline-outpainting");
+  if (state?.node?.dataset) delete state.node.dataset.inlineTool;
+  canvasInlineOutpaintState = null;
+  return Boolean(state);
+}
+
+async function submitCanvasInlineOutpaint() {
+  const state = canvasInlineOutpaintState;
+  if (!state) return false;
+  const node = state.node;
+  const submit = getCanvasInlineOutpaint()?.querySelector("[data-inline-outpaint-submit]");
+  if (submit) submit.disabled = true;
+  closeCanvasInlineOutpaint();
+  try {
+    return await runCanvasImageTool(node, "outpaint");
+  } finally {
+    if (submit?.isConnected) submit.disabled = false;
+  }
 }
 
 function updateCanvasComfyOutpaintPreview(node) {
@@ -9378,35 +11104,35 @@ function renderCanvasLoopNode(node) {
 
 
 function normalizeCanvasComfyQwenAngle(value = {}) {
-  return CanvasComfyRules.normalizeQwenAngle(value);
+  return getCanvasComfyHelper("CanvasComfyRules").normalizeQwenAngle(value);
 }
 
 function setCanvasComfyQwenAngle(node, value = {}) {
-  return CanvasComfyRules.setQwenAngle(node, value);
+  return getCanvasComfyHelper("CanvasComfyRules").setQwenAngle(node, value);
 }
 
 function getCanvasComfyQwenAngle(node) {
-  return CanvasComfyRules.getQwenAngle(node);
+  return getCanvasComfyHelper("CanvasComfyRules").getQwenAngle(node);
 }
 
 function describeCanvasComfyQwenHorizontal(value) {
-  return CanvasComfyRules.describeQwenHorizontal(value);
+  return getCanvasComfyHelper("CanvasComfyRules").describeQwenHorizontal(value);
 }
 
 function describeCanvasComfyQwenVertical(value) {
-  return CanvasComfyRules.describeQwenVertical(value);
+  return getCanvasComfyHelper("CanvasComfyRules").describeQwenVertical(value);
 }
 
 function describeCanvasComfyQwenZoom(value) {
-  return CanvasComfyRules.describeQwenZoom(value);
+  return getCanvasComfyHelper("CanvasComfyRules").describeQwenZoom(value);
 }
 
 function getCanvasComfyQwenSvgPoint(svg, event) {
-  return CanvasComfyQwenUi.getSvgPoint(svg, event);
+  return getCanvasComfyHelper("CanvasComfyQwenUi").getSvgPoint(svg, event);
 }
 
 function updateCanvasComfyQwenAngleUi(node, area = null) {
-  return CanvasComfyQwenUi.updateQwenAngleUi({
+  return getCanvasComfyHelper("CanvasComfyQwenUi").updateQwenAngleUi({
     document,
     node,
     area,
@@ -9419,7 +11145,7 @@ function updateCanvasComfyQwenAngleUi(node, area = null) {
 
 function createCanvasComfyQwenAngleFields(node, value = {}) {
   const angle = setCanvasComfyQwenAngle(node, value);
-  return CanvasComfyQwenUi.createQwenAngleFields({
+  return getCanvasComfyHelper("CanvasComfyQwenUi").createQwenAngleFields({
     document,
     node,
     angle,
@@ -9434,11 +11160,11 @@ function createCanvasComfyQwenAngleFields(node, value = {}) {
 }
 
 function isCanvasComfyResolutionMode(mode) {
-  return CanvasComfyRules.isResolutionMode(mode);
+  return getCanvasComfyHelper("CanvasComfyRules").isResolutionMode(mode);
 }
 
 function normalizeCanvasComfyResolution(value) {
-  return CanvasComfyRules.normalizeResolution(value);
+  return getCanvasComfyHelper("CanvasComfyRules").normalizeResolution(value);
 }
 
 function setCanvasComfyResolutionFieldVisible(node, resolutionField, resolutionSelect, mode) {
@@ -9486,10 +11212,23 @@ function updateCanvasLoopHint(node) {
 function updateCanvasComfyHint(node) {
   const hint = node.querySelector(".canvas-comfy-hint");
   if (!hint) return;
-  const mode = node.querySelector(".canvas-comfy-mode")?.value || node.dataset.comfyMode || "upscale2";
+  const mode = node.querySelector(".canvas-comfy-mode")?.value || node.dataset.comfyMode || "qwen-image21";
   const resolution = node.querySelector(".canvas-comfy-resolution")?.value || node.dataset.comfyResolution || "2048";
   const resolutionLabel = resolution === "6144" ? "6K" : (resolution === "4096" ? "4K" : "2K");
-  const count = getCanvasIncomingRefs(node.dataset.id).length;
+  const incoming = getCanvasIncomingRefs(node.dataset.id).filter((ref) => ref?.url);
+  const count = incoming.length;
+  if (mode === "qwen-image21") {
+    const aspect = node.querySelector(".canvas-comfy-aspect")?.value || node.dataset.comfyAspectRatio || "1:1 (Square)";
+    const ratioLabel = String(aspect).split(" ")[0] || "1:1";
+    // 分辨率按档位说（1K/2K/4K），提交用的像素档是按比例换算出来的值。
+    const tier = node.dataset.comfyTier || "1";
+    // 有参考图走图像编辑，没有参考图走文生图；上限与参考带、服务端保持一致。
+    const used = Math.min(count, 8);
+    hint.textContent = used
+      ? `输入 ${used}/8 · Qwen-image2.1 图像编辑 · ${ratioLabel} · ${tier}K`
+      : `无参考图 · Qwen-image2.1 生图 · ${ratioLabel} · ${tier}K`;
+    return;
+  }
   if (mode === "shoe-swap") {
     hint.textContent = `输入 ${count}/2 · 人物原图 + 鞋子参考图`;
   } else if (["outpaint", "outpaint2"].includes(mode)) {
@@ -9710,7 +11449,7 @@ window.addEventListener("ai-os-module-load-progress", (event) => {
 
 function fillCanvasLlmModelSelect(select, preferred) {
   const available = visionModelOptions;
-  const fallback = available.length ? available : CANVAS_LLM_MODELS;
+  const fallback = visionModelCatalogLoaded ? available : available.length ? available : CANVAS_LLM_MODELS;
   const catalogById = new Map(visionModelCatalog.map(model => [model.id, model]));
   select.innerHTML = "";
   fallback.forEach((model) => {
@@ -9720,6 +11459,8 @@ function fillCanvasLlmModelSelect(select, preferred) {
     select.append(option);
   });
   select.value = fallback.includes(preferred) ? preferred : fallback[0];
+  if (visionModelCatalogLoaded) retainCatalogSelection(select, preferred, fallback);
+  canvasImageModelPickers.get(select)?.setModels(visionModelCatalog);
 }
 
 function refreshCanvasLlmModelSelects() {
@@ -9749,6 +11490,7 @@ function renderCanvasLlmImages(node, target = node.querySelector(".canvas-llm-im
   const incoming = getCanvasIncomingRefs(node.dataset.id);
   target.innerHTML = "";
   if (!uploaded.length && !incoming.length) {
+    if (node.classList.contains("canvas-node-text")) return;
     const empty = document.createElement("span");
     empty.textContent = "可上传图片，或连接图片节点作为视觉输入";
     target.append(empty);
@@ -10070,25 +11812,14 @@ function setCanvasGalleryActiveImage(node, imageId) {
   return image;
 }
 
-function requestCanvasGalleryNodeDelete(node) {
+// 图集删除不再二次确认：删除按钮和节点工具条都走这里，直接删除并保留撤销。
+function deleteCanvasGalleryNode(node) {
   if (!node?.classList?.contains("canvas-node-gallery-container")) return;
   const galleryImages = getCanvasGalleryImages(node);
   const imageCount = galleryImages.length;
-  const connectionCount = canvasState.connections.filter((item) => (
-    item.from === node.dataset.id || item.to === node.dataset.id
-  )).length;
-  const imageLabel = imageCount ? `${imageCount} 张图片` : "空图集";
-  const connectionLabel = connectionCount ? `和 ${connectionCount} 条相关连线` : "";
-  requestCanvasDeleteConfirmation({
-    title: "删除整个图集？",
-    message: `将删除这个节点中的${imageLabel}${connectionLabel}。可使用 Ctrl+Z 撤销；撤销记录清除后，未被其他节点使用的本地图片会被永久清理。`,
-    confirmLabel: "删除图集",
-    onConfirm: () => {
-      const deletion = deleteCanvasNodes([node]);
-      scheduleCanvasGalleryMediaCleanup(deletion?.command, galleryImages);
-      setCanvasStatus(imageCount ? `已删除图集和 ${imageCount} 张图片；可使用 Ctrl+Z 撤销。` : "已删除图集；可使用 Ctrl+Z 撤销。");
-    },
-  });
+  const deletion = deleteCanvasNodes([node]);
+  scheduleCanvasGalleryMediaCleanup(deletion?.command, galleryImages);
+  setCanvasStatus(imageCount ? `已删除图集和 ${imageCount} 张图片；可使用 Ctrl+Z 撤销。` : "已删除图集；可使用 Ctrl+Z 撤销。");
 }
 
 function getCanvasGalleryMediaUrls(images) {
@@ -10323,7 +12054,7 @@ function getCanvasModelPortPoint(id, kind = "input") {
       members,
       width: Number(model.width) || rect.right - rect.left,
       height: Number(model.height) || height,
-      gap: model.galleryContainer?.gap ?? 16,
+      gap: model.galleryContainer?.gap ?? CANVAS_GALLERY_CELL_GAP,
       layoutMode: model.galleryContainer?.layoutMode,
       manualColumns: model.galleryContainer?.manualColumns,
     });
@@ -10372,6 +12103,37 @@ function getCanvasConnectionPathData(from, to) {
   return CanvasConnectionRules.pathData(from, to);
 }
 
+// 连线端点用的节点矩形：优先取挂载节点的实际盒子（图片自适应后可能与模型宽高不同），
+// 离屏时退回虚拟模型的内容矩形。
+function getCanvasConnectionNodeBox(id) {
+  const node = getCanvasNode(id);
+  if (node?.isConnected) {
+    const box = getCanvasNodeBox(node);
+    if (box) return box;
+  }
+  const model = getCanvasNodeModel(id);
+  const rect = model ? getCanvasImageContentRect(model, canvasVirtualStore.getRect(id)) : null;
+  if (!rect) return null;
+  return { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom };
+}
+
+// 把端口圆心夹回节点边框：输出端口在右、输入/提示词端口在左，圆心各在外侧 28px，
+// 夹回之后端点就落在节点边上。注意这是「一个端口一个点」的纯几何换算，不依赖连线方向，
+// 所以同一个端口出去的多根线仍然共用同一个束点，只是整体从端口挪到贴着节点。
+function clampCanvasWireEndpoint(portPoint, nodeId) {
+  if (!portPoint) return portPoint;
+  const box = getCanvasConnectionNodeBox(nodeId);
+  if (!box) return portPoint;
+  const left = Math.min(box.left, box.right);
+  const right = Math.max(box.left, box.right);
+  const top = Math.min(box.top, box.bottom);
+  const bottom = Math.max(box.top, box.bottom);
+  return {
+    x: Math.min(Math.max(portPoint.x, left), right),
+    y: Math.min(Math.max(portPoint.y, top), bottom),
+  };
+}
+
 function getCachedCanvasViewportSize(viewport) {
   if (!viewport) return { width: 0, height: 0 };
   if (!canvasViewportSizeObserver) {
@@ -10399,9 +12161,14 @@ function getVisibleCanvasConnections() {
   );
   const visible = canvasState.connections.flatMap((item, index) => {
     if (!canvasVirtualStore.has(item.from) || !canvasVirtualStore.has(item.to)) return [];
-    const from = getCanvasConnectionPortPoint(item.from, item.fromPort || "output");
-    const to = getCanvasConnectionPortPoint(item.to, item.toPort || "input");
-    if (!from || !to) return [];
+    const fromPort = getCanvasConnectionPortPoint(item.from, item.fromPort || "output");
+    const toPort = getCanvasConnectionPortPoint(item.to, item.toPort || "input");
+    if (!fromPort || !toPort) return [];
+    // 端点贴到节点边缘：端口浮在节点外侧（输出右 28px、输入左 28px），直接连到
+    // 端口圆心会在节点和线之间留一截空隙。这里把圆心夹回节点边框，端口本身的
+    // 位置、大小、样式都不动；同一个端口的多根线依旧共用这一个束点。
+    const from = clampCanvasWireEndpoint(fromPort, item.from);
+    const to = clampCanvasWireEndpoint(toPort, item.to);
     const bounds = rules.getConnectionBounds(from, to);
     if (!rules.rectsIntersect(bounds, visibleRect)) return [];
     return [{ item, index, from, to, key: CanvasConnectionRules.connectionKey(item, index) }];
@@ -10425,6 +12192,13 @@ function initializeCanvasConnectionSvg(svg) {
   canvasConnectionElements.clear();
   canvasTempConnectionPath = null;
   svg.replaceChildren();
+  for (const type of ["pointerover", "pointerout"]) svg.addEventListener(type, (event) => {
+    const hit = event.target.closest?.(".canvas-connection-hit");
+    const key = hit?.dataset.connectionKey;
+    if (!key) return;
+    canvasConnectionElements.get(key)?.path.classList.toggle("is-hovered", type === "pointerover");
+    canvasConnectionOverlayElements.get(key)?.classList.toggle("is-hovered", type === "pointerover");
+  });
   svg.addEventListener("pointerdown", (event) => {
     const hit = event.target.closest?.(".canvas-connection-hit[data-connection-from][data-connection-to]");
     if (hit) event.stopPropagation();
@@ -10461,9 +12235,46 @@ function syncCanvasGalleryMemberOutputPortVisibility() {
   });
 }
 
+// Cheap signature of everything that decides the wire DOM. The viewport is part
+// of it because connection culling depends on the visible rectangle, and the
+// endpoint geometry revisions decide the path data.
+function getCanvasConnectionRenderSignature() {
+  if (canvasState.tempConnection) return "";
+  const viewport = document.querySelector("#infiniteCanvas");
+  let hash = 2166136261;
+  const bump = (value) => {
+    const text = String(value);
+    for (let index = 0; index < text.length; index += 1) {
+      hash ^= text.charCodeAt(index);
+      hash = Math.imul(hash, 16777619);
+    }
+    hash = Math.imul(hash ^ 0x2c, 16777619);
+  };
+  bump(canvasState.activeBoardId || "");
+  bump(canvasState.scale >= 0.3 ? "interactive" : "overview");
+  bump(canvasState.x);
+  bump(canvasState.y);
+  bump(canvasState.scale);
+  bump(`${viewport?.clientWidth || 0}x${viewport?.clientHeight || 0}`);
+  bump(canvasConnectionMountGeneration);
+  bump(canvasState.selectedIds ? [...canvasState.selectedIds].map(String).sort().join(",") : "");
+  canvasState.connections.forEach((item) => {
+    bump(item.from);
+    bump(item.to);
+    bump(item.fromPort || "output");
+    bump(item.toPort || "input");
+    bump(canvasVirtualStore.has(item.from) ? canvasVirtualStore.getRevision(item.from) : "missing");
+    bump(canvasVirtualStore.has(item.to) ? canvasVirtualStore.getRevision(item.to) : "missing");
+  });
+  return String(hash >>> 0);
+}
+
 function renderCanvasConnections() {
   const svg = document.querySelector("#canvasConnections");
   if (!svg) return;
+  syncCanvasGalleryMemberOutputPortVisibility();
+  const signature = getCanvasConnectionRenderSignature();
+  if (signature && signature === canvasConnectionRenderSignature) return;
   initializeCanvasConnectionSvg(svg);
   const overlaySvg = document.querySelector("#canvasConnectionsOverlay");
   if (overlaySvg) initializeCanvasConnectionOverlaySvg(overlaySvg);
@@ -10482,6 +12293,8 @@ function renderCanvasConnections() {
       canvasConnectionElements.set(key, entry);
     }
     entry.path.classList.toggle("is-member-connection", isMemberConnection);
+    const related = canvasState.selectedIds.has(String(item.from)) || canvasState.selectedIds.has(String(item.to));
+    entry.path.classList.toggle("is-related", related);
     if (isMemberConnection && overlaySvg) {
       let overlayPath = canvasConnectionOverlayElements.get(key);
       if (!overlayPath) {
@@ -10491,6 +12304,7 @@ function renderCanvasConnections() {
         canvasConnectionOverlayElements.set(key, overlayPath);
       }
       const overlayD = getCanvasConnectionPathData(from, to);
+      overlayPath.classList.toggle("is-related", related);
       if (overlayPath.getAttribute("d") !== overlayD) overlayPath.setAttribute("d", overlayD);
     } else {
       canvasConnectionOverlayElements.get(key)?.remove();
@@ -10499,6 +12313,7 @@ function renderCanvasConnections() {
     if (interactive && !entry.hit) {
       const hit = document.createElementNS("http://www.w3.org/2000/svg", "path");
       hit.setAttribute("class", "canvas-connection-hit");
+      hit.dataset.connectionKey = key;
       hit.dataset.connectionFrom = String(item.from);
       hit.dataset.connectionTo = String(item.to);
       hit.dataset.connectionFromPort = String(item.fromPort || "output");
@@ -10524,16 +12339,17 @@ function renderCanvasConnections() {
     path.remove();
     canvasConnectionOverlayElements.delete(key);
   });
-  syncCanvasGalleryMemberOutputPortVisibility();
-
   if (canvasState.tempConnection) {
     const reverse = canvasState.tempConnection.direction === "input";
-    const from = reverse
+    const rawFrom = reverse
       ? canvasState.tempConnection.fromPoint
       : getCanvasConnectionPortPoint(canvasState.tempConnection.from, canvasState.tempConnection.fromPort || "output");
-    const to = reverse
+    const rawTo = reverse
       ? getCanvasConnectionPortPoint(canvasState.tempConnection.to, canvasState.tempConnection.toPort || "input")
       : canvasState.tempConnection.to;
+    // 拖拽中的预览线同样从节点边缘起，和落定后的连线一致。
+    const from = reverse ? rawFrom : clampCanvasWireEndpoint(rawFrom, canvasState.tempConnection.from);
+    const to = reverse ? clampCanvasWireEndpoint(rawTo, canvasState.tempConnection.to) : rawTo;
     if (from && to) {
       if (!canvasTempConnectionPath) {
         canvasTempConnectionPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
@@ -10546,6 +12362,7 @@ function renderCanvasConnections() {
     canvasTempConnectionPath.remove();
     canvasTempConnectionPath = null;
   }
+  canvasConnectionRenderSignature = signature;
 }
 
 function scheduleCanvasConnectionRender(options = {}) {
@@ -10564,6 +12381,41 @@ function scheduleCanvasConnectionRender(options = {}) {
   }, 160);
 }
 
+// During a drag, collect all moved nodes and paint their transforms together
+// with one connection render in the same animation frame. Pointermove only
+// records data coordinates, so a fast mouse cannot trigger a full SVG pass
+// several times per frame; painting nodes and paths together also means a
+// connection can never spend a painted frame at its old port position.
+function renderCanvasConnectionsNow() {
+  if (canvasConnectionRenderFrame) {
+    cancelAnimationFrame(canvasConnectionRenderFrame);
+    canvasConnectionRenderFrame = 0;
+  }
+  if (canvasConnectionRenderTimer) {
+    clearTimeout(canvasConnectionRenderTimer);
+    canvasConnectionRenderTimer = 0;
+  }
+  renderCanvasConnections();
+}
+
+function scheduleCanvasNodePositionPaint() {
+  if (canvasNodePositionPaintFrame) return;
+  canvasNodePositionPaintFrame = requestAnimationFrame(() => {
+    canvasNodePositionPaintFrame = 0;
+    const nodes = [...canvasDeferredNodePositions];
+    canvasDeferredNodePositions.clear();
+    nodes.forEach((node) => {
+      if (!node?.isConnected) return;
+      node.style.transform = `translate(${Number(node.dataset.x)}px, ${Number(node.dataset.y)}px)`;
+    });
+    if (!nodes.length) return;
+    renderCanvasConnectionsNow();
+    scheduleCanvasImageQualityUpdate();
+    canvasVirtualizer.schedule();
+    updateCanvasSelectionFrame();
+  });
+}
+
 function getCanvasPortPoint(node, kind) {
   if (!node) return null;
   const port = Array.from(node.querySelectorAll("[data-canvas-port]")).find((item) => item.dataset.canvasPort === kind)
@@ -10580,7 +12432,7 @@ function getCanvasPortPoint(node, kind) {
     && portRect.width > 0
     && portRect.height > 0;
   if (hasVisiblePortRect) {
-    return screenToCanvas(
+    return screenPointToCanvas(
       portRect.left + portRect.width / 2 - viewportRect.left,
       portRect.top + portRect.height / 2 - viewportRect.top,
     );
@@ -10597,11 +12449,27 @@ function getCanvasPortPoint(node, kind) {
 }
 
 function createCanvasPort(kind, { handle = kind } = {}) {
+  window.FloraConnectionInteraction?.install({
+    getScale: () => canvasState.scale,
+    isDragging: () => Boolean(canvasState.tempConnection),
+    cancelDrag: () => canvasConnectionDragCancel?.(),
+    onPositionChange: (port) => {
+      const nodeId = port?.closest(".canvas-node")?.dataset.id;
+      if (nodeId) canvasConnectionPortPointCache.delete(`${String(canvasState.activeBoardId || "")}\u0000${nodeId}\u0000${port.dataset.canvasPort}`);
+      scheduleCanvasConnectionRender({ trailing: false });
+    },
+  });
   const port = document.createElement("button");
   port.className = `canvas-port canvas-port-${kind}`;
   port.type = "button";
   port.dataset.canvasPort = handle;
-  port.title = kind === "output" ? "连接到其它节点" : "接收图片或提示词连接";
+  port.dataset.canvasPortKind = kind;
+  port.dataset.canvasPortHandle = handle;
+  const handleLabel = String(handle).startsWith("member-output:")
+    ? `素材成员 ${String(handle).slice("member-output:".length)}`
+    : handle === "output" ? "结果" : "输入";
+  port.title = kind === "output" ? `连接${handleLabel}` : `接收${handleLabel}`;
+  port.setAttribute("aria-label", kind === "output" ? `${handleLabel}输出，拖动连接` : `${handleLabel}端口，拖动连接`);
   if (kind === "output") {
     port.addEventListener("pointerdown", (event) => {
       event.preventDefault();
@@ -10643,6 +12511,28 @@ function resolveCanvasConnectionDropPort(node, target, kind, fallback) {
   return CanvasConnectionRules.resolveDropPort(node, target, kind, fallback);
 }
 
+function findCanvasConnectionSnap(clientX, clientY, { sourceNode, fromPort = "output", targetNode }) {
+  const reverse = Boolean(targetNode);
+  const snap = window.FloraConnectionInteraction?.nearest(clientX, clientY, {
+    kind: reverse ? "output" : "input",
+    excludeNode: reverse ? targetNode : sourceNode,
+    accepts: (port, node) => {
+      const source = reverse ? node : sourceNode;
+      const target = reverse ? targetNode : node;
+      const handle = reverse ? port.dataset.canvasPort : fromPort;
+      let output = getCanvasNodeOutput(source, handle);
+      if (!output && source?.dataset.uploadOnly === "true") output = { type: "image", url: "" };
+      if (!output && target?.classList.contains("canvas-node-minimax-h3")) {
+        if (source?.classList.contains("canvas-node-video")) output = { type: "video", url: "" };
+        else if (source?.classList.contains("canvas-node-audio")) output = { type: "audio", url: "" };
+      }
+      return Boolean(output && getCanvasConnectionCompatibility(source, target, output, { sourcePort: handle }).ok);
+    },
+  }) || null;
+  window.FloraConnectionInteraction?.paint(snap, clientX, clientY, true);
+  return snap;
+}
+
 function startCanvasInputConnectionDrag(targetNode, startEvent, toPort = "input") {
   canvasState.tempConnection = {
     direction: "input",
@@ -10656,11 +12546,12 @@ function startCanvasInputConnectionDrag(targetNode, startEvent, toPort = "input"
   scheduleCanvasConnectionRender({ trailing: false });
 
   const move = (event) => {
+    const snap = findCanvasConnectionSnap(event.clientX, event.clientY, { targetNode });
     canvasState.tempConnection = {
       direction: "input",
       to: targetNode.dataset.id,
       toPort,
-      fromPoint: getCanvasPointFromClient(event.clientX, event.clientY),
+      fromPoint: snap ? getCanvasPortPoint(snap.node, snap.handle) : getCanvasPointFromClient(event.clientX, event.clientY),
     };
     scheduleCanvasConnectionRender({ trailing: false });
   };
@@ -10669,11 +12560,14 @@ function startCanvasInputConnectionDrag(targetNode, startEvent, toPort = "input"
     window.removeEventListener("pointermove", move);
     window.removeEventListener("pointerup", finish);
     window.removeEventListener("pointercancel", cancel);
+    const snap = findCanvasConnectionSnap(event.clientX, event.clientY, { targetNode });
+    canvasConnectionDragCancel = null;
     canvasState.tempConnection = null;
-    const sourceNode = findCanvasNodeAtClient(event.clientX, event.clientY, targetNode);
+    window.FloraConnectionInteraction?.clear();
+    const sourceNode = snap?.node || findCanvasNodeAtClient(event.clientX, event.clientY, targetNode);
     if (sourceNode && sourceNode !== targetNode) {
       const sourceTarget = document.elementFromPoint(event.clientX, event.clientY);
-      const fromPort = resolveCanvasConnectionDropPort(sourceNode, sourceTarget, "output", "output");
+      const fromPort = snap?.handle || resolveCanvasConnectionDropPort(sourceNode, sourceTarget, "output", "output");
       connectCanvasNodes(sourceNode.dataset.id, targetNode.dataset.id, toPort, fromPort);
       return;
     }
@@ -10687,10 +12581,13 @@ function startCanvasInputConnectionDrag(targetNode, startEvent, toPort = "input"
     window.removeEventListener("pointerup", finish);
     window.removeEventListener("pointercancel", cancel);
     canvasState.tempConnection = null;
+    canvasConnectionDragCancel = null;
+    window.FloraConnectionInteraction?.clear();
     targetNode.classList.remove("is-connecting");
     renderCanvasConnections();
   };
 
+  canvasConnectionDragCancel = cancel;
   window.addEventListener("pointermove", move);
   window.addEventListener("pointerup", finish, { once: true });
   window.addEventListener("pointercancel", cancel, { once: true });
@@ -10716,10 +12613,11 @@ function startCanvasConnectionDrag(sourceNode, startEvent, fromPort = "output") 
   scheduleCanvasConnectionRender({ trailing: false });
 
   const move = (event) => {
+    const snap = findCanvasConnectionSnap(event.clientX, event.clientY, { sourceNode, fromPort });
     canvasState.tempConnection = {
       from: sourceNode.dataset.id,
       fromPort,
-      to: getCanvasPointFromClient(event.clientX, event.clientY),
+      to: snap ? getCanvasPortPoint(snap.node, snap.handle) : getCanvasPointFromClient(event.clientX, event.clientY),
     };
     scheduleCanvasConnectionRender({ trailing: false });
   };
@@ -10728,11 +12626,14 @@ function startCanvasConnectionDrag(sourceNode, startEvent, fromPort = "output") 
     window.removeEventListener("pointermove", move);
     window.removeEventListener("pointerup", finish);
     window.removeEventListener("pointercancel", cancel);
+    const snap = findCanvasConnectionSnap(event.clientX, event.clientY, { sourceNode, fromPort });
+    canvasConnectionDragCancel = null;
     canvasState.tempConnection = null;
+    window.FloraConnectionInteraction?.clear();
     const target = document.elementFromPoint(event.clientX, event.clientY);
-    const targetNode = findCanvasNodeAtClient(event.clientX, event.clientY, sourceNode);
+    const targetNode = snap?.node || findCanvasNodeAtClient(event.clientX, event.clientY, sourceNode);
     if (targetNode && targetNode !== sourceNode) {
-      const toPort = resolveCanvasConnectionDropPort(targetNode, target, "input", "input");
+      const toPort = snap?.handle || resolveCanvasConnectionDropPort(targetNode, target, "input", "input");
       connectCanvasNodes(sourceNode.dataset.id, targetNode.dataset.id, toPort, fromPort);
       return;
     }
@@ -10748,10 +12649,13 @@ function startCanvasConnectionDrag(sourceNode, startEvent, fromPort = "output") 
     window.removeEventListener("pointercancel", cancel);
     canvasState.pendingConnection = null;
     canvasState.tempConnection = null;
+    canvasConnectionDragCancel = null;
+    window.FloraConnectionInteraction?.clear();
     sourceNode.classList.remove("is-connecting");
     renderCanvasConnections();
   };
 
+  canvasConnectionDragCancel = cancel;
   window.addEventListener("pointermove", move);
   window.addEventListener("pointerup", finish, { once: true });
   window.addEventListener("pointercancel", cancel, { once: true });
@@ -10806,6 +12710,10 @@ function showCanvasConnectMenu(event, fromId, options = {}) {
       buttons.forEach((button) => {
         button.hidden = button.dataset.connectNode !== "llm";
       });
+    } else if (targetNode?.classList.contains("canvas-node-audio-generator")) {
+      buttons.forEach((button) => {
+        button.hidden = !["text", "llm"].includes(button.dataset.connectNode);
+      });
     } else if (targetNode?.classList.contains("canvas-node-llm")) {
       buttons.forEach((button) => {
         button.hidden = !["upload", "text"].includes(button.dataset.connectNode);
@@ -10822,7 +12730,7 @@ function showCanvasConnectMenu(event, fromId, options = {}) {
       menu.querySelector('[data-connect-node="gallery"]')?.toggleAttribute("hidden", true);
       menu.querySelector('[data-connect-node="image-generator"]')?.toggleAttribute("hidden", true);
       menu.querySelector('[data-connect-node="video-generator"]')?.toggleAttribute("hidden", true);
-      menu.querySelector('[data-connect-node="llm"]')?.toggleAttribute("hidden", true);
+      menu.querySelector('[data-connect-node="audio-generator"]')?.toggleAttribute("hidden", true);
     }
   } else {
     const sourceNode = getCanvasNode(fromId);
@@ -10839,11 +12747,11 @@ function showCanvasConnectMenu(event, fromId, options = {}) {
       });
     } else if (sourceOutput?.type === "llm") {
       buttons.forEach((button) => {
-        button.hidden = button.dataset.connectNode !== "text";
+        button.hidden = !["text", "audio-generator"].includes(button.dataset.connectNode);
       });
     } else if (sourceOutput?.type === "text") {
       buttons.forEach((button) => {
-        button.hidden = !["image-generator", "video-generator", "llm"].includes(button.dataset.connectNode);
+        button.hidden = !["image-generator", "video-generator", "llm", "audio-generator"].includes(button.dataset.connectNode);
       });
     } else if (sourceOutput?.type === "image" || sourceOutput?.type === "group" || sourceOutput?.type === "images") {
       buttons.forEach((button) => {
@@ -11034,6 +12942,15 @@ function getCanvasImageProtocolParams(node, model) {
 function createCanvasMidjourneyOptions(node, preferred = {}) {
   const container = document.createElement("div");
   container.className = "canvas-midjourney-options midjourney-options";
+  if (window.FloraMidjourneySettings) {
+    container.hidden = true;
+    container.addEventListener('change', () => {
+      scheduleCanvasSave();
+      enhanceCanvasImageModelSelect(node.querySelector('.canvas-node-model'))?.refresh();
+    });
+    container.addEventListener('flora-midjourney-change', () => scheduleCanvasSave());
+    return container;
+  }
   const fields = [
     ["version", "Version", "select", "canvas-midjourney-version"],
     ["mode", "Mode", "select", "canvas-midjourney-mode"],
@@ -11118,6 +13035,24 @@ function createCanvasMidjourneyOptions(node, preferred = {}) {
 function syncCanvasMidjourneyOptions(node, model, preferred = {}) {
   const container = node?.querySelector(".canvas-midjourney-options");
   if (!container) return;
+  if (window.FloraMidjourneySettings) {
+    const automatic = isCanvasImageAutomaticSelection(node);
+    const descriptor = automatic ? { id: '__auto__' } : canvasModelParameterDescriptor(model);
+    window.FloraMidjourneySettings.sync(node, descriptor, preferred, {
+      hasImages: getCanvasIncomingRefs(node.dataset.id).length > 0 || Boolean(node.dataset.imageSrc),
+      modelAvailable: automatic || imageModelCatalog.some(item => String(item.id) === String(model)),
+      catalog: imageModelCatalog,
+      selectModel: (modelId, values) => {
+        const select = node.querySelector('.canvas-node-model');
+        if (!select || !Array.from(select.options).some(option => option.value === modelId && !option.disabled)) return;
+        select.value = modelId; select.dataset.modelSelection = 'exact'; node.dataset.modelSelection = 'exact';
+        node.dataset.canvasModel = modelId;
+        syncCanvasMidjourneyOptions(node, modelId, { ...values, __replace: true });
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+      },
+    });
+    return;
+  }
   syncMidjourneyControls(container, model, preferred);
   const options = readMidjourneyOptions(container);
   node.dataset.canvasMidjourneyVersion = options.version;
@@ -11130,6 +13065,7 @@ function syncCanvasMidjourneyOptions(node, model, preferred = {}) {
 
 function getCanvasImageModels() {
   return Array.from(imageModelInput.options || [])
+    .filter(option => !option.disabled && imageModelCatalog.some(model => model.id === option.value))
     .map((option) => ({
       value: option.value,
       label: option.textContent || option.value,
@@ -11164,12 +13100,16 @@ function refreshCanvasImageModelSelects() {
     const node = select.closest(".canvas-node");
     if (node?.dataset.canvasEngine === "comfyui") return;
     const current = node?.dataset.canvasModel || select.value || imageModelInput.value || "";
+    const automatic = node?.dataset.modelSelection === "auto" || select.dataset.modelSelection === "auto";
     fillCanvasNodeModelSelect(select, current);
+    const resolvedCurrent = window.ImageModelPicker?.resolveModelId?.(imageModelCatalog, current) || current;
+    retainCatalogSelection(select, automatic ? "" : resolvedCurrent, imageModelCatalog.map(model => model.id));
     if (node) node.dataset.canvasModel = select.value;
     if (node) node.dataset.canvasPlatform = getImageModelPlatform(select.value) || node.dataset.canvasPlatform || "openai";
     select.dataset.platform = getImageModelPlatform(select.value) || node?.dataset.canvasPlatform || "";
     if (node) select.dataset.modelSelection = node.dataset.modelSelection || select.dataset.modelSelection || "auto";
     enhanceCanvasImageModelSelect(select)?.setModels(imageModelCatalog);
+    if (select.dataset.catalogUnavailable === "true") return;
     const size = node?.querySelector(".canvas-node-size");
     if (size) {
       fillCanvasNodeSizeSelect(size, node.dataset.canvasSize || size.value, select.value);
@@ -11414,6 +13354,30 @@ function getCanvasSizeLabel(node) {
   return option?.textContent || value;
 }
 
+// The canvas asks upstream for an aspect ratio plus a quality tier. The pixel
+// count is the provider's own choice, so "1:1 · 1K" may legitimately come back
+// as 1024×1024 from one relay and 1254×1254 from another. Record and compare
+// the request the API actually received instead of the UI's pixel preset.
+function getCanvasImageRatioLabel(size) {
+  const value = String(size || "").trim();
+  if (/^\d+\s*:\s*\d+$/.test(value)) return value.replace(/\s+/g, "");
+  const pixels = value.match(/^(\d+)\s*[x*]\s*(\d+)$/i);
+  if (!pixels) return "";
+  const greatestCommonDivisor = (a, b) => (b ? greatestCommonDivisor(b, a % b) : a);
+  const divisor = greatestCommonDivisor(Number(pixels[1]), Number(pixels[2])) || 1;
+  return `${Number(pixels[1]) / divisor}:${Number(pixels[2]) / divisor}`;
+}
+
+function getCanvasImageRequestSummary(node) {
+  const size = String(getCanvasOutputSize(node) || "").trim();
+  const ratio = getCanvasImageRatioLabel(size) || size;
+  const resolution = String(getCanvasImageResolution(node) || "").trim();
+  const tier = resolution && resolution.toLowerCase() !== "auto"
+    ? (/k$/i.test(resolution) ? resolution.toUpperCase() : `${resolution}K`)
+    : "";
+  return [ratio, tier].filter(Boolean).join(" · ");
+}
+
 function getScaledImageSizeByLongEdge(size, resolution) {
   const dimensions = getGptImage2DimensionsByRatio(size, resolution);
   return isValidGptImage2Dimensions(dimensions) ? dimensions.width + "x" + dimensions.height : "";
@@ -11519,6 +13483,7 @@ function connectCanvasNodes(fromId, toId, toPort = "input", fromPort = "output")
   const allowEmptyUploadToInput = sourceNode?.dataset.uploadOnly === "true"
     && (targetNode?.classList.contains("canvas-node-image")
       || targetNode?.classList.contains("canvas-node-llm")
+      || targetNode?.classList.contains("canvas-node-text")
       || targetNode?.classList.contains("canvas-node-comfy")
       || targetNode?.classList.contains("canvas-node-loop"));
   const emptyH3MaterialType = targetNode?.classList.contains("canvas-node-minimax-h3")
@@ -11669,13 +13634,18 @@ function getCanvasMidjourneyConnectionCapacity(sourceNode, targetNode, output, s
 
 function getCanvasConnectionCompatibility(sourceNode, targetNode, output, options = {}) {
   if (!sourceNode || !targetNode || !output) return { ok: false, message: "连接内容不可用。" };
+  if (targetNode.classList.contains("canvas-node-audio-generator")) {
+    return ["text", "llm"].includes(output.type)
+      ? { ok: true, message: "已连接，文本将作为音频生成内容；原草稿保留。" }
+      : { ok: false, message: "当前音频协议只支持文本输入，不支持参考图片、视频或音频。" };
+  }
   const sourcePort = String(options.sourcePort || "output");
   let assetsTargetKind = "";
   if (output.type === "assets") {
     assetsTargetKind = targetNode.classList.contains("canvas-node-minimax-h3") ? "video-generator"
       : targetNode.classList.contains("canvas-node-video-api") ? "image"
         : targetNode.classList.contains("canvas-node-image") && targetNode.dataset.uploadOnly !== "true" && !targetNode.dataset.imageSrc
-          ? "image" : ["canvas-node-midjourney", "canvas-node-llm", "canvas-node-comfy", "canvas-node-loop"]
+          ? "image" : ["canvas-node-midjourney", "canvas-node-llm", "canvas-node-text", "canvas-node-comfy", "canvas-node-loop"]
             .some((kind) => targetNode.classList.contains(kind)) ? "image" : "";
     if (!assetsTargetKind) return { ok: false, message: "素材合集不能连接到这个节点。" };
     if ((output.assets || []).some((asset) => !window.CanvasAssetCollectionRules.canConnect(asset.kind, assetsTargetKind))) {
@@ -11727,14 +13697,14 @@ function getCanvasConnectionCompatibility(sourceNode, targetNode, output, option
     if (targetNode.classList.contains("canvas-node-midjourney")) {
       return { ok: true, message: "已连接，提示词会作为 Midjourney 提示词。" };
     }
-    if (targetNode.classList.contains("canvas-node-llm")) {
-      return { ok: true, message: "已连接，提示词会作为 LLM 输入。" };
+    if (targetNode.classList.contains("canvas-node-llm") || targetNode.classList.contains("canvas-node-text")) {
+      return { ok: true, message: "已连接，文字会作为模型的参考素材。" };
     }
     if (targetNode.classList.contains("canvas-node-comfy")) {
       return { ok: true, message: "已连接，提示词会作为 ComfyUI 图片编辑描述。" };
     }
     if (targetNode.classList.contains("canvas-node-image") && targetNode.dataset.uploadOnly !== "true" && !targetNode.dataset.imageSrc) {
-      return { ok: true, message: "已连接，提示词会填充到生成节点。" };
+      return { ok: true, message: "已连接，文字会作为生成参考素材。" };
     }
     return { ok: false, message: "提示词节点只能连接到生成节点或 LLM 节点。" };
   }
@@ -11751,6 +13721,7 @@ function getCanvasConnectionCompatibility(sourceNode, targetNode, output, option
     if (targetNode.classList.contains("canvas-node-video-api")) return { ok: true, message: "已连接，图片会作为视频首帧参考。" };
     if (targetNode.classList.contains("canvas-node-midjourney")) return { ok: true, message: "已连接，图片会作为 Midjourney 参考图。" };
     if (targetNode.classList.contains("canvas-node-llm")) return { ok: true, message: "已连接，图片会作为 LLM 视觉输入。" };
+    if (targetNode.classList.contains("canvas-node-text")) return { ok: true, message: "已连接，图片会作为文字模型的参考输入。" };
     if (targetNode.classList.contains("canvas-node-comfy")) return { ok: true, message: "已连接，图片会作为 ComfyUI 输入。" };
     if (targetNode.classList.contains("canvas-node-loop")) return { ok: true, message: "已连接，图片会进入循环队列。" };
     if (targetNode.classList.contains("canvas-node-image") && targetNode.dataset.uploadOnly !== "true" && !targetNode.dataset.imageSrc) {
@@ -11803,8 +13774,23 @@ function disconnectCanvasNodes(fromId, toId, fromPort = null, toPort = null) {
   scheduleCanvasSave();
 }
 
+// The Flora operation area exposes a small remove control on every reference
+// card. Keep the actual connection mutation in the canvas bridge so removing a
+// card follows the same undo/save/render path as a manual wire deletion.
+window.CanvasReferenceBridge = Object.freeze({
+  remove({ targetNodeId, sourceNodeId, sourcePort = "output" } = {}) {
+    if (!targetNodeId || !sourceNodeId) return;
+    disconnectCanvasNodes(String(sourceNodeId), String(targetNodeId), String(sourcePort || "output"), null);
+    updateCanvasNodeRefs(getCanvasNode(String(targetNodeId)));
+  },
+});
+
 function updateCanvasNodeRefs(node) {
   if (!node) return;
+  if (node.querySelector('.canvas-node-model') && node.querySelector('.canvas-midjourney-options')) {
+    syncCanvasMidjourneyOptions(node, node.querySelector('.canvas-node-model').value);
+  }
+  if (node.classList.contains("canvas-node-audio-generator")) syncCanvasAudioPromptState(node);
   if (node.classList.contains("canvas-node-minimax-h3")) {
     renderCanvasMinimaxH3References(node);
     syncCanvasMinimaxH3Prompt(node);
@@ -11816,7 +13802,7 @@ function updateCanvasNodeRefs(node) {
   if (node.classList.contains("canvas-node-midjourney")) {
     syncCanvasMidjourneyControls(node);
   }
-  if (node.classList.contains("canvas-node-llm")) {
+  if (node.classList.contains("canvas-node-llm") || node.classList.contains("canvas-node-text")) {
     renderCanvasLlmImages(node);
     syncCanvasLlmPromptState(node);
   }
@@ -11831,8 +13817,8 @@ function updateCanvasNodeRefs(node) {
     syncCanvasTextFromLlmInputs(node);
   }
   const refs = node.querySelector(".canvas-node-refs");
-  if (!refs) return;
-  const imageRefs = getCanvasIncomingRefs(node.dataset.id);
+  if (!refs) { window.FloraGeneratorComposer?.sync(node); return; }
+  const imageRefs = getCanvasIncomingReferenceMaterials(node.dataset.id);
   const orderedRefs = applyCanvasRefOrder(node, imageRefs);
   refs.innerHTML = "";
   refs.hidden = !orderedRefs.length;
@@ -11843,6 +13829,13 @@ function updateCanvasNodeRefs(node) {
     thumb.draggable = false;
     thumb.dataset.refKey = ref.key;
     thumb.dataset.index = String(index);
+    if (['text', 'llm'].includes(ref.type)) {
+      thumb.classList.add('flora-text-reference');
+      thumb.title = `${ref.name || '文字'}\n${String(ref.text || '').slice(0, 400) || '暂无正文'}`;
+      thumb.setAttribute('aria-label', `文字素材：${ref.name || '文字'}`);
+      const icon = document.createElement('i'); icon.dataset.lucide = 'text'; icon.setAttribute('aria-hidden', 'true'); thumb.append(icon);
+      bindCanvasRefPointerSort(thumb, node, ref.key); refs.append(thumb); return;
+    }
     const img = createDeferredThumbnail(ref.url, ref.name || "参考图");
     const badge = document.createElement("span");
     badge.className = "canvas-ref-index";
@@ -11875,6 +13868,8 @@ function updateCanvasNodeRefs(node) {
     refs.append(thumb);
   });
   syncCanvasPromptFromTextInputs(node);
+  queueMicrotask(() => window.lucide?.createIcons?.({ root: refs }));
+  window.FloraGeneratorComposer?.sync(node);
 }
 
 function bindCanvasRefPointerSort(thumb, node, refKey) {
@@ -11927,12 +13922,19 @@ function getCanvasIncomingItems(nodeId, exclude = null) {
       || (item.fromPort || "output") !== (exclude.fromPort || "output"))
     .flatMap((item) => {
       const node = getCanvasNode(item.from);
-      const output = getCanvasNodeOutput(node, item.fromPort || "output");
+      const model = node ? null : canvasVirtualStore.get(String(item.from || ""));
+      const port = item.fromPort || "output";
+      const cacheKey = `${item.from}|${port}`;
+      let output = node ? getCanvasNodeOutput(node, port) : getCanvasVirtualNodeOutput(model, port);
+      if (output) rememberCanvasIncomingOutput(cacheKey, output);
+      // 来源节点被卸载且载荷被回收时，用最近一次解析结果兜底，避免素材凭空消失。
+      else output = canvasIncomingOutputCache.get(cacheKey) || null;
       if (!output) return [];
       if (output.type === "assets") {
         return (output.assets || []).map((asset) => ({
           type: asset.kind, url: asset.src, originalUrl: asset.src, name: asset.name,
           mimeType: asset.mimeType, duration: asset.duration,
+          sourceNodeId: item.from, sourcePort: item.fromPort || "output",
           key: `asset:${item.from}:${asset.id}`,
         }));
       }
@@ -11940,6 +13942,7 @@ function getCanvasIncomingItems(nodeId, exclude = null) {
         return (output.images || []).map((image, index) => ({
           ...image,
           type: "image",
+          sourceNodeId: item.from, sourcePort: item.fromPort || "output",
           key: `group:${item.from}:${item.fromPort || "output"}:${index}`,
         }));
       }
@@ -11948,12 +13951,18 @@ function getCanvasIncomingItems(nodeId, exclude = null) {
           ...image,
           type: "image",
           loopSource: item.from,
+          sourceNodeId: item.from, sourcePort: item.fromPort || "output",
           key: `loop:${item.from}:${item.fromPort || "output"}:${index}`,
         }));
       }
       if (output.type === "generator") return [];
       return [{
         ...output,
+        sourceNodeId: item.from,
+        sourcePort: item.fromPort || "output",
+        name: ['text', 'llm'].includes(output.type)
+          ? (node?.dataset.nodeTitle || node?.dataset.textName || model?.nodeTitle || model?.textName || '文字')
+          : output.name,
         key: `${output.type}:${item.from}:${item.fromPort || "output"}`,
       }];
     })
@@ -11969,10 +13978,136 @@ function getCanvasIncomingLoopRefs(nodeId) {
 }
 
 function getCanvasIncomingTexts(nodeId) {
-  return getCanvasIncomingItems(nodeId)
+  const fromOutputs = getCanvasIncomingItems(nodeId)
     .filter((item) => item.type === "text" || item.type === "llm")
     .map((item) => item.text)
     .filter(Boolean);
+  // A connected text node can be temporarily missing from the output snapshot
+  // while its virtual canvas view is being refreshed. Read the current source
+  // directly as a fallback so a non-empty connection is still a valid prompt.
+  const direct = canvasState.connections
+    .filter((item) => item.to === nodeId)
+    .map((item) => getCanvasNode(item.from))
+    .filter((source) => source?.classList?.contains("canvas-node-text") || source?.classList?.contains("canvas-node-llm"))
+    .map((source) => source.classList.contains("canvas-node-text") ? getCanvasTextValue(source).trim() : String(source.dataset.llmOutput || "").trim())
+    .filter(Boolean);
+  return [...new Set([...fromOutputs, ...direct])];
+}
+
+function getCanvasVirtualNodeOutput(model, handle = "output") {
+  if (!model) return null;
+  const kind = String(model.kind || model.type || '');
+  if (kind === 'text') return { type: 'text', text: String(model.text || '').trim() };
+  if (kind === 'llm') return { type: 'llm', text: String(model.llmOutput || '').trim() };
+  // 画布分页会把离屏源节点从 DOM 里卸载，但连接关系与序列化快照还在。
+  // 这里按挂载态 getCanvasNodeOutput 的同一口径还原素材输出，否则参考带
+  // （以及 H3 参考列表、生成请求）会随着源节点被卸载而丢掉素材。
+  if (kind === 'image') {
+    const url = model.resultSrc || model.imageSrc || "";
+    if (model.uploadOnly === true && !url) return null;
+    if (!url) return { type: "generator", name: model.imageName || "API 生成" };
+    return {
+      type: "image",
+      name: model.imageName || "参考图",
+      url,
+      originalUrl: model.originalSrc || url,
+      maskUrl: model.maskSrc || "",
+      maskName: model.maskName || "",
+      openaiMaskUrl: model.openaiMaskSrc || "",
+      openaiMaskName: model.openaiMaskName || "",
+      maskBaseUrl: model.maskBaseSrc || "",
+      maskBaseName: model.maskBaseName || "",
+    };
+  }
+  if (kind === 'video' || kind === 'audio') {
+    const url = String(model.mediaSrc || (kind === 'video' ? model.videoSrc : model.audioSrc) || "");
+    if (!url) return null;
+    return {
+      type: kind,
+      name: model.mediaName || model.videoName || (kind === 'video' ? '视频' : '音频'),
+      url,
+      mimeType: model.mediaMimeType || model.videoMimeType || (kind === 'video' ? 'video/mp4' : 'audio/mpeg'),
+      duration: Number(model.mediaDuration || model.videoDuration || 0),
+    };
+  }
+  if (kind === 'video-output') {
+    const url = String(model.videoSrc || model.mediaSrc || "");
+    if (!url) return null;
+    return {
+      type: "video",
+      name: model.mediaName || model.videoName || "生成视频",
+      url,
+      mimeType: model.mediaMimeType || model.videoMimeType || "video/mp4",
+      duration: Number(model.mediaDuration || model.videoDuration || 0),
+    };
+  }
+  if (kind === 'asset-collection') {
+    const members = model.assetCollection?.members;
+    // 成员端口（member-output:<id>）只输出选中的那一项，和挂载态一致。
+    if (String(handle).startsWith('member-output:')) {
+      const member = (Array.isArray(members) ? members : []).find((item) => item.id === String(handle).slice('member-output:'.length));
+      return member ? {
+        type: member.kind, url: member.src, originalUrl: member.src,
+        name: member.name, mimeType: member.mimeType, duration: member.duration,
+      } : null;
+    }
+    const rules = window.CanvasAssetCollectionRules;
+    if (rules?.getOutput) return rules.getOutput(members);
+    return { type: "assets", assets: Array.isArray(members) ? members : [] };
+  }
+  if (kind === 'minimax-h3' || kind === 'video-api') {
+    if (model.generationVideoSrc) return { type: "video", name: "生成视频", url: model.generationVideoSrc, mimeType: "video/mp4" };
+    return { type: "video-generator", name: kind === 'minimax-h3' ? "MiniMax H3 生视频" : "API 生视频" };
+  }
+  if (kind === 'director-3d') {
+    return {
+      type: "image",
+      name: model.directorSceneName || "3D 导演台画面",
+      url: model.directorPreviewSrc || "",
+    };
+  }
+  if (kind === 'comfy') {
+    // 与挂载态同一口径：离屏（被画布分页卸载）的 ComfyUI 节点也要按已有结果提供图片，
+    // 否则刷新或滚动出视口后，从它拖出的连线会丢掉参考素材。
+    const url = model.resultSrc || model.imageSrc || "";
+    if (!url) return { type: "generator", name: "ComfyUI 生成" };
+    return {
+      type: "image",
+      name: model.imageName || "ComfyUI 结果",
+      url,
+      originalUrl: model.originalSrc || url,
+    };
+  }
+  if (kind === 'group') {
+    const images = Array.isArray(model.groupImages) ? model.groupImages : [];
+    if (!images.length) return null;
+    return { type: "group", name: model.groupTitle || "图片组", images };
+  }
+  if (kind === 'grid-editor') {
+    const source = model.gridEditorState?.sourceSrc || "";
+    if (!source) return null;
+    return { type: "grid-editor", name: "宫格编辑节点", url: source, originalUrl: source };
+  }
+  return null;
+}
+
+function getCanvasIncomingReferenceMaterials(nodeId) {
+  return getCanvasIncomingItems(nodeId).filter(item => (['image', 'video', 'audio'].includes(item.type) && item.url) || ['text', 'llm'].includes(item.type));
+}
+
+function getCanvasGenerationPrompt(node, ownPrompt = '') {
+  const texts = getCanvasIncomingTexts(node.dataset.id), own = String(ownPrompt || '').trim();
+  const joined = texts.join('\n\n');
+  return [joined, own && own !== joined.trim() && own !== texts.join('\n').trim() && !texts.some(text => text.trim() === own) ? own : ''].filter(Boolean).join('\n\n');
+}
+
+function unlockCanvasReferencePrompt(node, prompt, draftKey) {
+  if (prompt.dataset.syncedFromText === 'true' || prompt.classList.contains('is-synced')) {
+    const draft = String(node.dataset[draftKey] || '');
+    prompt.value = getCanvasIncomingTexts(node.dataset.id).some(text => text.trim() === draft.trim()) ? '' : draft;
+  }
+  prompt.dataset.syncedFromText = ''; prompt.readOnly = false;
+  prompt.classList.remove('is-synced', 'is-overridden');
 }
 
 function getCanvasIncomingPromptTexts(nodeId) {
@@ -11983,26 +14118,16 @@ function getCanvasIncomingPromptTexts(nodeId) {
 }
 
 function syncCanvasLlmPromptState(node) {
-  if (!node?.classList.contains("canvas-node-llm")) return;
+  if (!node?.classList.contains("canvas-node-llm") && !node?.classList.contains("canvas-node-text")) return;
   const promptBox = node.querySelector(".canvas-llm-prompt");
   if (!promptBox) return;
-  const hasExternalPrompt = getCanvasIncomingPromptTexts(node.dataset.id).length > 0;
-  promptBox.readOnly = hasExternalPrompt;
-  promptBox.classList.toggle("is-overridden", hasExternalPrompt);
-  promptBox.title = hasExternalPrompt ? "已连接提示词节点，此处内容暂不参与执行" : "";
+  promptBox.readOnly = false;
+  promptBox.classList.remove('is-overridden'); promptBox.title = '';
   const presets = node.querySelector(".canvas-llm-presets");
-  presets?.classList.toggle("is-overridden", hasExternalPrompt);
-  if (hasExternalPrompt && presets) {
-    presets.classList.remove("is-editing");
-    const editor = presets.querySelector(".canvas-llm-preset-editor");
-    if (editor) editor.hidden = true;
-    const addToggle = presets.querySelector(".canvas-llm-preset-add");
-    addToggle?.classList.remove("is-open");
-    addToggle?.setAttribute("aria-expanded", "false");
-  }
+  presets?.classList.remove('is-overridden');
   node.querySelectorAll(".canvas-llm-preset-chip, .canvas-llm-preset-delete, .canvas-llm-preset-add, .canvas-llm-preset-save, .canvas-llm-preset-name, .canvas-llm-preset-text")
     .forEach((control) => {
-      control.disabled = hasExternalPrompt;
+      control.disabled = false;
     });
 }
 
@@ -12020,7 +14145,7 @@ function applyCanvasRefOrder(node, refs) {
 
 function reorderCanvasNodeRefs(node, fromKey, toKey) {
   if (!fromKey || !toKey || fromKey === toKey) return;
-  const refs = getCanvasIncomingRefs(node.dataset.id);
+  const refs = getCanvasIncomingReferenceMaterials(node.dataset.id);
   const order = applyCanvasRefOrder(node, refs).map((ref) => ref.key);
   const fromIndex = order.indexOf(fromKey);
   const toIndex = order.indexOf(toKey);
@@ -12050,20 +14175,8 @@ function syncCanvasPromptFromTextInputs(node) {
   if (!node?.classList.contains("canvas-node-image")) return;
   const prompt = node.querySelector(".canvas-node-prompt");
   if (!prompt) return;
-  const textPrompts = getCanvasIncomingTexts(node.dataset.id);
-  if (!textPrompts.length) {
-    if (prompt.dataset.syncedFromText === "true") {
-      prompt.value = "";
-      prompt.dataset.syncedFromText = "";
-    }
-    prompt.readOnly = false;
-    prompt.classList.remove("is-synced");
-    return;
-  }
-  prompt.value = textPrompts.join("\n");
-  prompt.dataset.syncedFromText = "true";
-  prompt.readOnly = true;
-  prompt.classList.add("is-synced");
+  unlockCanvasReferencePrompt(node, prompt, 'canvasGenerationPrompt');
+  prompt.placeholder = '输入本次生成要求，可连接文字或图片作为参考素材';
 }
 
 function getCanvasTextElement(target) {
@@ -12080,12 +14193,12 @@ function getCanvasTextValue(target) {
   return String(text.dataset.markdownSource ?? text.textContent ?? "");
 }
 
-function setCanvasTextValue(target, value) {
+function setCanvasTextValue(target, value, options = {}) {
   const text = getCanvasTextElement(target);
   if (!text) return "";
   const source = String(value ?? "");
   const renderer = window.CanvasTextNodeRenderer;
-  if (renderer?.setValue) return renderer.setValue(text, source);
+  if (renderer?.setValue) return renderer.setValue(text, source, options);
   text.dataset.markdownSource = source;
   text.textContent = source;
   return source;
@@ -12131,10 +14244,17 @@ function getCanvasNodeOutput(node, handle = "output") {
     };
   }
   if (node.classList.contains("canvas-node-minimax-h3")) {
+    if (node.dataset.generationVideoSrc) return { type: "video", name: "生成视频", url: node.dataset.generationVideoSrc, mimeType: "video/mp4" };
     return { type: "video-generator", name: "MiniMax H3 生视频" };
   }
   if (node.classList.contains("canvas-node-video-api")) {
+    if (node.dataset.generationVideoSrc) return { type: "video", name: "生成视频", url: node.dataset.generationVideoSrc, mimeType: "video/mp4" };
     return { type: "video-generator", name: "API 生视频" };
+  }
+  if (node.classList.contains("canvas-node-audio-generator")) {
+    const result = window.CanvasAudioGenerator?.serialize(node)?.result;
+    const url = result?.url || result?.src;
+    return url ? { type: "audio", name: "生成音频", url, mimeType: result?.mimeType || "audio/mpeg", duration: Number(result?.duration || 0) } : null;
   }
   if (node.classList.contains("canvas-node-midjourney")) {
     return { type: "generator", name: "Midjourney 生成" };
@@ -12214,9 +14334,15 @@ function getCanvasNodeOutput(node, handle = "output") {
     };
   }
   if (node.classList.contains("canvas-node-comfy")) {
+    // ComfyUI 节点出了图之后就是一张图片素材：不认结果的话，它只能连到素材合集，
+    // 从端口拖到另一个生成节点会被「生成节点只能连接到素材合集」挡下来。
+    const url = node.dataset.resultSrc || node.dataset.imageSrc || "";
+    if (!url) return { type: "generator", name: "ComfyUI 生成" };
     return {
-      type: "generator",
-      name: "ComfyUI 生成",
+      type: "image",
+      name: node.dataset.imageName || "ComfyUI 结果",
+      url,
+      originalUrl: node.dataset.originalSrc || url,
     };
   }
   if (node.classList.contains("canvas-node-loop")) {
@@ -12345,6 +14471,7 @@ async function createCanvasImageJob(requestBody, node, guard) {
   const boardId = String(canvasState.activeBoardId || "");
   const nodeId = String(node?.dataset?.id || "");
   if (!boardId || !nodeId) throw new Error("当前画布或节点无效，无法创建生图任务。");
+  const midjourneySnapshot = isMidjourneyModel(requestBody.model) ? JSON.stringify(requestBody.params || {}) : "";
   let response;
   try {
     response = await fetch(IMAGE_JOBS_API_URL, {
@@ -12369,6 +14496,7 @@ async function createCanvasImageJob(requestBody, node, guard) {
     throw new Error(data.error?.message || data.message || data.error || `${response.status} ${response.statusText}`);
   }
   assertCanvasImageJobScope(data.job, node, guard);
+  node.dataset.imageJobMidjourneyParameters = midjourneySnapshot;
   syncCanvasImageJobProgress(node, data.job);
   return data.job;
 }
@@ -12434,19 +14562,26 @@ function commitCanvasImageJobResult(node, job, prompt, fallback, guard) {
   if (node.dataset.imageJobCommittedId === job.id) {
     return { ok: true, image: returnedImage, gallery: null, model: data.model || job.model, ...(fallback ? { fallback } : {}) };
   }
-  const appended = appendCanvasGenerationToGallery(node, returnedImage);
+  const returnedImages = extractImages(data);
+  returnedImages.forEach((image, index) => appendCanvasGenerationToGallery(node, {
+    ...image, id: `${job.id}:${index}`, prompt, model: data.model || job.model,
+    ...(node.dataset.imageJobMidjourneyParameters ? { midjourneyParameters: JSON.parse(node.dataset.imageJobMidjourneyParameters) } : {}),
+  }));
   node.dataset.imageJobCommittedId = String(job.id || "");
   node.dataset.imageJobState = "completed";
+  CanvasGenerationSound.playComplete(node, `image:${job.id || node.dataset.imageJobId || "completed"}`);
   void saveImageHistory(`画布编辑：${prompt}`, [returnedImage], data.model || job.model, "canvas").catch(() => {
     // History is secondary: a returned image already committed to the canvas must remain successful.
   });
-  const size = getCanvasOutputSize(node);
+  // Report the request the API actually received. The pixel preset only picks
+  // the ratio and tier upstream, so a provider's own 1K square is a match.
+  const size = getCanvasImageRequestSummary(node) || getCanvasOutputSize(node);
   const sizeNote = getImageSizeNote(size, [returnedImage]);
   const sizeMismatch = hasImageSizeMismatch(size, [returnedImage]);
-  setCanvasNodeStatus(node, sizeNote ? `${sizeMismatch ? "尺寸不一致" : "完成"} · ${sizeNote}` : "完成");
+  setCanvasNodeStatus(node, sizeNote ? `${sizeMismatch ? "完成 · 返回尺寸与设置不同" : "完成"} · ${sizeNote}` : "完成");
   refreshCanvasConnectedNodes(node.dataset.id);
   scheduleCanvasSave();
-  return { ok: true, image: returnedImage, gallery: appended?.gallery || null, model: data.model || job.model, ...(fallback ? { fallback } : {}) };
+  return { ok: true, image: returnedImage, gallery: null, model: data.model || job.model, ...(fallback ? { fallback } : {}) };
 }
 
 async function resumeCanvasImageNodeJob(node) {
@@ -12487,12 +14622,14 @@ async function runCanvasImageEdit(node, options) {
   const guard = options?.guard || null;
   const autoFailover = options?.autoFailover === true;
   guard?.assertActive();
+  CanvasGenerationSound.arm(node);
   const engine = node.dataset.canvasEngine || "api";
   if (engine === "comfyui") {
     return runCanvasComfyNode(node, options);
   }
+  if (node.querySelector(".canvas-node-model")?.dataset.catalogUnavailable === "true") { setCanvasNodeStatus(node, "所选模型已移除或能力不匹配，请重新选择。"); return { ok: false, code: "model_unavailable" }; }
   syncCanvasPromptFromTextInputs(node);
-  const prompt = node.querySelector(".canvas-node-prompt")?.value.trim();
+  const prompt = getCanvasGenerationPrompt(node, node.querySelector(".canvas-node-prompt")?.value);
   let activeModel = node.querySelector(".canvas-node-model")?.value;
   const automaticSelection = node.querySelector(".canvas-node-model")?.dataset.modelSelection === "auto"
     || node.dataset.modelSelection === "auto";
@@ -12566,7 +14703,7 @@ async function runCanvasImageEdit(node, options) {
           n: 1,
           reference_images: requestRefs,
         };
-        if (!automaticSelection && isMidjourneyModel(activeModel)) Object.assign(requestBody, getMidjourneyPayload(node.querySelector(".canvas-midjourney-options")));
+        if (!automaticSelection && isMidjourneyModel(activeModel)) requestBody.params = getMidjourneyPayload(node.querySelector(".canvas-midjourney-options"));
         else Object.assign(requestBody, getCanvasImageProtocolParams(node, activeModel));
         const createdJob = await createCanvasImageJob(requestBody, node, guard);
         const completedJob = await waitForCanvasImageJob(createdJob.id, node, {
@@ -12625,11 +14762,21 @@ async function runCanvasImageEdit(node, options) {
 async function runCanvasLlmNode(node, options) {
   const guard = options?.guard || null;
   guard?.assertActive();
+  CanvasGenerationSound.arm(node);
+  node.dataset.canvasGenerationRunKey = `text:${createId()}`;
+  if (node.querySelector(".canvas-llm-model")?.dataset.catalogUnavailable === "true") { setCanvasNodeStatus(node, "所选模型已移除或能力不匹配，请重新选择。"); return; }
   const ownPrompt = node.querySelector(".canvas-llm-prompt")?.value.trim();
   const incomingPrompts = getCanvasIncomingPromptTexts(node.dataset.id);
-  const prompt = incomingPrompts.length ? incomingPrompts.join("\n") : ownPrompt;
+  // Snapshot the full current text, including manual edits and the selected
+  // history version, before awaiting reference images or the API response.
+  const isTextNode = node.classList.contains("canvas-node-text");
+  const nodeText = isTextNode ? getCanvasTextValue(node) : "";
+  const prompt = getCanvasGenerationPrompt(node, ownPrompt) || nodeText;
+  const requestPrompt = isTextNode && nodeText.trim() && (ownPrompt || incomingPrompts.length)
+    ? `当前文字节点的完整内容：\n${nodeText}\n\n本次要求：\n${prompt}`
+    : prompt;
   const model = node.querySelector(".canvas-llm-model")?.value;
-  if (!prompt) {
+  if (!prompt.trim()) {
     setCanvasNodeStatus(node, "请输入要求");
     return;
   }
@@ -12653,7 +14800,7 @@ async function runCanvasLlmNode(node, options) {
         model,
         messages: [{
           role: "user",
-          content: buildCanvasLlmMessageContent(prompt, images),
+          content: buildCanvasLlmMessageContent(requestPrompt, images),
         }],
       }),
     });
@@ -12667,8 +14814,15 @@ async function runCanvasLlmNode(node, options) {
     node.dataset.llmPrompt = ownPrompt || "";
     node.dataset.llmModel = model;
     node.dataset.llmOutput = content;
-    fillOrCreatePromptNodeFromLlm(node, content);
+    if (isTextNode && nodeText && nodeText !== content) {
+      // Keep what the node held before the run so the previous text stays
+      // reachable from the node's own history.
+      window.FloraGenerationHistory?.add(node, { id: createId(), kind: "text", text: nodeText, richHtml: window.CanvasTextNodeRenderer?.getRichHtml(node), prompt, model, createdAt: new Date().toISOString() });
+    }
+    applyCanvasGenerationHistoryItem(node, { kind: "text", text: content });
+    window.FloraGenerationHistory?.add(node, { id: createId(), kind: "text", text: content, prompt, model, createdAt: new Date().toISOString() });
     setCanvasNodeStatus(node, "完成");
+    CanvasGenerationSound.playComplete(node, node.dataset.canvasGenerationRunKey || `text:${createId()}`);
     refreshCanvasConnectedNodes(node.dataset.id);
     scheduleCanvasSave();
   } catch (error) {
@@ -12681,10 +14835,80 @@ async function runCanvasLlmNode(node, options) {
   }
 }
 
+// Qwen-image2.1：有参考图走「图像编辑」（最多 8 张），没有参考图走「文生图」。
+// 两份模板、提示词增强器与参考图槽位都在服务端，客户端只收集素材、提示词和比例档。
+async function runCanvasComfyQwen21Node(node, { guard = null } = {}) {
+  const referenceLimit = 8;
+  const refs = applyCanvasRefOrder(node, getCanvasIncomingRefs(node.dataset.id))
+    .filter((ref) => ref?.url)
+    .slice(0, referenceLimit);
+  const prompt = getCanvasGenerationPrompt(node, node.dataset.comfyPrompt) || "";
+  const aspectRatio = node.querySelector(".canvas-comfy-aspect")?.value || node.dataset.comfyAspectRatio || "";
+  const megapixels = node.querySelector(".canvas-comfy-megapixels")?.value || node.dataset.comfyMegapixels || "1";
+  const runButton = node.querySelector(".canvas-comfy-run");
+  if (runButton) {
+    runButton.disabled = true;
+    runButton.textContent = "生成中";
+  }
+  setCanvasNodeStatus(node, refs.length ? "提交 ComfyUI 图像编辑..." : "提交 ComfyUI 生图...");
+  try {
+    const response = await fetch(QWEN_IMAGE21_API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        images: refs.map((ref) => ref.url),
+        names: refs.map((ref) => ref.name || ""),
+        prompt,
+        aspect_ratio: aspectRatio,
+        megapixels: Number(megapixels) || 1,
+      }),
+    });
+    guard?.assertActive();
+    const data = await response.json().catch(() => ({}));
+    guard?.assertActive();
+    if (!response.ok || data.error) throw new Error(data.error || data.message || `${response.status} ${response.statusText}`);
+    if (!data.task_id) throw new Error("后端没有返回 ComfyUI 任务 ID。");
+
+    const task = await waitForUpscaleTask(data.task_id, (value, message) => {
+      setCanvasNodeStatus(node, message || `ComfyUI处理中 ${Math.round(value || 0)}%`);
+    });
+    guard?.assertActive();
+    const taskImages = (task.images || []).map((url) => ({ src: url, savedUrl: url })).filter((item) => item.src);
+    if (!taskImages.length) throw new Error("ComfyUI 没有返回图片。");
+
+    const modeName = data.mode === "generate" ? "Qwen-image2.1 生图" : "Qwen-image2.1 图像编辑";
+    taskImages.forEach((image, index) => appendCanvasGenerationToGallery(node, {
+      ...image,
+      id: `comfy:${data.task_id}:${index}`,
+      model: modeName,
+      prompt,
+    }));
+    await saveImageHistory(prompt ? `${modeName}：${prompt}` : modeName, taskImages.map((item) => item.src), modeName, "canvas");
+    guard?.assertActive();
+    setCanvasNodeStatus(node, "完成");
+    CanvasGenerationSound.playComplete(node, node.dataset.canvasGenerationRunKey || `comfy:${createId()}`);
+    refreshCanvasConnectedNodes(node.dataset.id);
+    scheduleCanvasSave();
+  } catch (error) {
+    setCanvasNodeStatus(node, `失败：${error.message}`);
+  } finally {
+    if (runButton) {
+      runButton.disabled = false;
+      runButton.textContent = "执行";
+    }
+  }
+}
+
 async function runCanvasComfyNode(node, options) {
   const guard = options?.guard || null;
   guard?.assertActive();
-  const mode = node.querySelector(".canvas-comfy-mode")?.value || node.dataset.comfyMode || "upscale2";
+  CanvasGenerationSound.arm(node);
+  node.dataset.canvasGenerationRunKey = `comfy:${createId()}`;
+  const mode = node.querySelector(".canvas-comfy-mode")?.value || node.dataset.comfyMode || "qwen-image21";
+  if (mode === "qwen-image21") {
+    await runCanvasComfyQwen21Node(node, { guard });
+    return;
+  }
   const ttpResolution = Number(node.querySelector(".canvas-comfy-resolution")?.value || node.dataset.comfyResolution || 2048);
   const refs = applyCanvasRefOrder(node, getCanvasIncomingRefs(node.dataset.id)).filter((ref) => ref.url);
   const loopRefs = mode === "shoe-swap" ? [] : applyCanvasRefOrder(node, getCanvasIncomingLoopRefs(node.dataset.id)).filter((ref) => ref.url);
@@ -12755,8 +14979,7 @@ async function runCanvasComfyNode(node, options) {
           image: ref.originalUrl || ref.url,
           name: ref.name || "flux2_klein_input.png",
           ...(comfyMaskUrl ? { mask_image: comfyMaskUrl, mask_name: ref.maskName || "flux2_klein_mask.png" } : {}),
-          prompt: getCanvasIncomingPromptTexts(node.dataset.id).join("\n")
-            || node.dataset.comfyPrompt
+          prompt: getCanvasGenerationPrompt(node, node.dataset.comfyPrompt)
             || "\u4fdd\u6301\u4e3b\u4f53\u6784\u56fe\u3001\u6750\u8d28\u3001\u989c\u8272\u548c\u4f4d\u7f6e\u81ea\u7136\u4e00\u81f4\uff0c\u53ea\u6309\u63d0\u793a\u8fdb\u884c\u56fe\u7247\u7f16\u8f91\u3002",
         };
       } else if (mode === "qwen-edit-angle") {
@@ -12788,7 +15011,7 @@ async function runCanvasComfyNode(node, options) {
       guard?.assertActive();
       const taskImages = (task.images || []).map((url) => ({ src: url, savedUrl: url })).filter((item) => item.src);
       if (!taskImages.length) throw new Error("ComfyUI \u6ca1\u6709\u8fd4\u56de\u56fe\u7247\u3002");
-      taskImages.forEach((image) => appendCanvasGenerationToGallery(node, image));
+      taskImages.forEach((image, index) => appendCanvasGenerationToGallery(node, { ...image, id: `comfy:${data.task_id}:${index}`, model: "ComfyUI", prompt: node.dataset.comfyPrompt || "" }));
       images.push(...taskImages);
     }
     if (!images.length) throw new Error("ComfyUI 没有返回图片。");
@@ -12813,6 +15036,7 @@ async function runCanvasComfyNode(node, options) {
     await saveImageHistory(`${modeName}：${refs[0].name || "图片"}`, images, historyModel, "canvas");
     guard?.assertActive();
     setCanvasNodeStatus(node, "完成");
+    CanvasGenerationSound.playComplete(node, node.dataset.canvasGenerationRunKey || `comfy:${createId()}`);
     refreshCanvasConnectedNodes(node.dataset.id);
     scheduleCanvasSave();
   } catch (error) {
@@ -12822,6 +15046,635 @@ async function runCanvasComfyNode(node, options) {
       runButton.disabled = false;
       runButton.textContent = "执行";
     }
+  }
+}
+
+// 工具栏的「放大 / 扩图 / 换角度」：以节点当前的图片为输入单独跑一次工作流，
+// 结果作为新的图片节点落在原节点右侧，不覆盖原图。
+const CANVAS_IMAGE_TOOL_LABELS = Object.freeze({
+  upscale: "放大图片",
+  outpaint: "扩展图片区域",
+  angle: "调整拍摄角度",
+});
+
+// 换角度对话框：拖拽方块 + 滑杆 + 方位预设，参数仍写回同一份 comfyQwenAngle 数据，
+// 提交走 runCanvasImageTool(node, "angle")，请求体与旧面板完全一致。
+const CANVAS_ANGLE_PRESETS = Object.freeze([
+  ["left-up", "左上", "arrow-up-left", -45, 30],
+  ["up", "上方", "arrow-up", 0, 60],
+  ["right-up", "右上", "arrow-up-right", 45, 30],
+  ["left", "左侧", "arrow-left", -90, 0],
+  ["front", "正面", "circle-dot", 0, 0],
+  ["right", "右侧", "arrow-right", 90, 0],
+  ["left-down", "左下", "arrow-down-left", -45, -30],
+  ["down", "下方", "arrow-down", 0, -30],
+  ["right-down", "右下", "arrow-down-right", 45, -30],
+]);
+const CANVAS_ANGLE_RESET = Object.freeze({ horizontal: 0, vertical: 0, zoom: 5 });
+let canvasAngleDialogState = null;
+
+function getCanvasAngleDialog() {
+  return document.querySelector("#canvasAngleDialog");
+}
+
+function readCanvasAngleInputs(dialog) {
+  return {
+    horizontal: Number(dialog.querySelector("[data-angle-horizontal]")?.value ?? 0),
+    vertical: Number(dialog.querySelector("[data-angle-vertical]")?.value ?? 0),
+    zoom: Number(dialog.querySelector("[data-angle-zoom]")?.value ?? 5),
+  };
+}
+
+function updateCanvasAngleReadouts(dialog, angle) {
+  const horizontalOutput = dialog.querySelector("[data-angle-horizontal-value]");
+  if (horizontalOutput) horizontalOutput.textContent = `${Math.round(angle.horizontal)}°`;
+  const verticalOutput = dialog.querySelector("[data-angle-vertical-value]");
+  if (verticalOutput) verticalOutput.textContent = `${Math.round(angle.vertical)}°`;
+  const zoomOutput = dialog.querySelector("[data-angle-zoom-value]");
+  if (zoomOutput) zoomOutput.textContent = describeCanvasComfyQwenZoom(angle.zoom);
+  const hint = dialog.querySelector("[data-angle-hint]");
+  if (hint) {
+    hint.textContent = `${describeCanvasComfyQwenHorizontal(angle.horizontal)} · ${describeCanvasComfyQwenVertical(angle.vertical)} · ${describeCanvasComfyQwenZoom(angle.zoom)}`;
+  }
+}
+
+function updateCanvasAngleCube(dialog, angle) {
+  const cube = dialog.querySelector(".canvas-angle-cube");
+  if (!cube) return;
+  // 相机右移 = 左脸转向观察者，所以横向取负。纵向同理要取负：CSS 的 rotateX(+θ)
+  // 把方块顶「推离」观察者（看到的是底面），而 vertical 为正表示俯视（相机在上、
+  // 应该看到方块顶面），所以写成 -vertical。这样鼠标下移→俯视也才符合直觉。
+  cube.style.setProperty("--canvas-angle-x", `${-angle.vertical}deg`);
+  cube.style.setProperty("--canvas-angle-y", `${-angle.horizontal}deg`);
+}
+
+function renderCanvasAngleDialog({ save = false } = {}) {
+  const state = canvasAngleDialogState;
+  const dialog = getCanvasAngleDialog();
+  if (!state || !dialog) return null;
+  const angle = setCanvasComfyQwenAngle(state.node, readCanvasAngleInputs(dialog));
+  updateCanvasAngleReadouts(dialog, angle);
+  updateCanvasAngleCube(dialog, angle);
+  dialog.querySelectorAll("[data-angle-preset]").forEach((button) => {
+    const active = Number(button.dataset.presetHorizontal) === Math.round(angle.horizontal)
+      && Number(button.dataset.presetVertical) === Math.round(angle.vertical);
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
+  if (save) scheduleCanvasSave();
+  return angle;
+}
+
+// 拖拽映射：横向 1°/2px（-180..180 环绕），纵向 1°/3px（-30..60 夹取）。
+function startCanvasAngleDrag(event) {
+  const state = canvasAngleDialogState;
+  const dialog = getCanvasAngleDialog();
+  if (!state || !dialog || event.button !== 0) return;
+  event.preventDefault();
+  const startX = event.clientX;
+  const startY = event.clientY;
+  const start = getCanvasComfyQwenAngle(state.node);
+  const target = event.currentTarget;
+  target.setPointerCapture?.(event.pointerId);
+  target.classList.add("is-dragging");
+  const apply = (moveEvent) => {
+    const wrap = (value) => ((value + 180) % 360 + 360) % 360 - 180;
+    // 拖拽是「抓住方块」的手感：鼠标往右，方块正面跟着往右转；
+    // 相机右移对应水平角变小，所以横向取负；往下拖＝俯视减少，纵向取正。
+    const horizontal = wrap(start.horizontal - (moveEvent.clientX - startX) / 2);
+    const vertical = Math.max(-30, Math.min(60, start.vertical + (moveEvent.clientY - startY) / 3));
+    dialog.querySelector("[data-angle-horizontal]").value = String(Math.round(horizontal));
+    dialog.querySelector("[data-angle-vertical]").value = String(Math.round(vertical));
+    renderCanvasAngleDialog();
+  };
+  const stop = () => {
+    target.classList.remove("is-dragging");
+    window.removeEventListener("pointermove", apply);
+    window.removeEventListener("pointerup", stop);
+    window.removeEventListener("pointercancel", stop);
+    renderCanvasAngleDialog({ save: true });
+  };
+  window.addEventListener("pointermove", apply);
+  window.addEventListener("pointerup", stop, { once: true });
+  window.addEventListener("pointercancel", stop, { once: true });
+}
+
+function nudgeCanvasAngle(dialog, deltaHorizontal, deltaVertical) {
+  const current = getCanvasComfyQwenAngle(canvasAngleDialogState.node);
+  const wrap = (value) => ((value + 180) % 360 + 360) % 360 - 180;
+  dialog.querySelector("[data-angle-horizontal]").value = String(Math.round(wrap(current.horizontal + deltaHorizontal)));
+  dialog.querySelector("[data-angle-vertical]").value = String(Math.round(Math.max(-30, Math.min(60, current.vertical + deltaVertical))));
+  renderCanvasAngleDialog({ save: true });
+}
+
+function applyCanvasAnglePreset(horizontal, vertical) {
+  const dialog = getCanvasAngleDialog();
+  if (!dialog) return;
+  dialog.querySelector("[data-angle-horizontal]").value = String(horizontal);
+  dialog.querySelector("[data-angle-vertical]").value = String(vertical);
+  renderCanvasAngleDialog({ save: true });
+}
+
+function resetCanvasAngleDialog() {
+  const dialog = getCanvasAngleDialog();
+  if (!dialog) return;
+  dialog.querySelector("[data-angle-horizontal]").value = String(CANVAS_ANGLE_RESET.horizontal);
+  dialog.querySelector("[data-angle-vertical]").value = String(CANVAS_ANGLE_RESET.vertical);
+  dialog.querySelector("[data-angle-zoom]").value = String(CANVAS_ANGLE_RESET.zoom);
+  renderCanvasAngleDialog({ save: true });
+}
+
+function ensureCanvasAngleDialogMarkup() {
+  let dialog = getCanvasAngleDialog();
+  if (dialog) return dialog;
+  dialog = document.createElement("div");
+  dialog.id = "canvasAngleDialog";
+  dialog.className = "canvas-angle-dialog";
+  dialog.hidden = true;
+  const presetButtons = CANVAS_ANGLE_PRESETS.map(([id, label, icon, horizontal, vertical]) => (
+    `<button type="button" data-angle-preset="${id}" data-preset-horizontal="${horizontal}" data-preset-vertical="${vertical}" aria-pressed="false"><i data-lucide="${icon}" aria-hidden="true"></i><span>${label}</span></button>`
+  )).join("");
+  dialog.innerHTML = `
+    <section class="canvas-angle-dialog-panel" role="dialog" aria-modal="false" aria-label="换角度">
+      <header>
+        <strong>拖拽方块调整角度</strong>
+        <button type="button" class="canvas-angle-dialog-close" data-angle-close aria-label="关闭换角度">×</button>
+      </header>
+      <div class="canvas-angle-dialog-body">
+        <div class="canvas-angle-stage">
+          <div class="canvas-angle-cube" tabindex="0" role="application" aria-label="拖拽方块或使用方向键调整拍摄角度">
+            <span class="canvas-angle-face canvas-angle-face-front"></span>
+            <span class="canvas-angle-face canvas-angle-face-back"></span>
+            <span class="canvas-angle-face canvas-angle-face-right"></span>
+            <span class="canvas-angle-face canvas-angle-face-left"></span>
+            <span class="canvas-angle-face canvas-angle-face-top"></span>
+            <span class="canvas-angle-face canvas-angle-face-bottom"></span>
+          </div>
+          <p class="canvas-angle-stage-hint" data-angle-hint>正面 · 平视 · 中景</p>
+          <button type="button" class="canvas-angle-reset" data-angle-reset><i data-lucide="rotate-ccw" aria-hidden="true"></i><span>重置</span></button>
+        </div>
+        <div class="canvas-angle-controls">
+          <section class="canvas-angle-group">
+            <h4>摄像机方位</h4>
+            <div class="canvas-angle-presets">${presetButtons}</div>
+          </section>
+          <section class="canvas-angle-group">
+            <h4><span>水平</span><output data-angle-horizontal-value>0°</output></h4>
+            <input type="range" min="-180" max="180" step="1" value="0" data-angle-horizontal aria-label="水平角度">
+            <div class="canvas-angle-ticks"><span>-180</span><span>-90</span><span>0</span><span>90</span><span>180</span></div>
+          </section>
+          <section class="canvas-angle-group">
+            <h4><span>垂直</span><output data-angle-vertical-value>0°</output></h4>
+            <input type="range" min="-30" max="60" step="1" value="0" data-angle-vertical aria-label="垂直角度">
+            <div class="canvas-angle-ticks"><span>-30</span><span>0</span><span>30</span><span>60</span></div>
+          </section>
+          <section class="canvas-angle-group">
+            <h4><span>景别缩放</span><output data-angle-zoom-value>中景</output></h4>
+            <input type="range" min="0" max="10" step="0.1" value="5" data-angle-zoom aria-label="景别缩放">
+            <div class="canvas-angle-ticks"><span>远景</span><span>中景</span><span>近景</span></div>
+          </section>
+        </div>
+      </div>
+      <footer>
+        <button type="button" class="canvas-angle-dialog-cancel" data-angle-cancel>取消</button>
+        <button type="button" class="canvas-angle-dialog-submit" data-angle-submit>生成</button>
+      </footer>
+    </section>
+  `;
+  ["pointerdown", "wheel", "click"].forEach((type) => dialog.addEventListener(type, (event) => event.stopPropagation()));
+  dialog.addEventListener("click", (event) => {
+    if (event.target.closest("[data-angle-close], [data-angle-cancel]")) {
+      closeCanvasAngleDialog();
+      return;
+    }
+    if (event.target.closest("[data-angle-reset]")) {
+      resetCanvasAngleDialog();
+      return;
+    }
+    const preset = event.target.closest("[data-angle-preset]");
+    if (preset) {
+      applyCanvasAnglePreset(Number(preset.dataset.presetHorizontal), Number(preset.dataset.presetVertical));
+      return;
+    }
+    if (event.target.closest("[data-angle-submit]")) submitCanvasAngleDialog();
+  });
+  dialog.querySelectorAll("input[type=range]").forEach((input) => {
+    input.addEventListener("input", () => renderCanvasAngleDialog());
+    input.addEventListener("change", () => renderCanvasAngleDialog({ save: true }));
+  });
+  const cube = dialog.querySelector(".canvas-angle-cube");
+  cube.addEventListener("pointerdown", startCanvasAngleDrag);
+  cube.addEventListener("keydown", (event) => {
+    const step = event.shiftKey ? 15 : 5;
+    if (event.key === "Home") {
+      event.preventDefault();
+      resetCanvasAngleDialog();
+      return;
+    }
+    const moves = {
+      ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, step], ArrowDown: [0, -step],
+    };
+    const move = moves[event.key];
+    if (!move) return;
+    event.preventDefault();
+    nudgeCanvasAngle(dialog, move[0], move[1]);
+  });
+  (document.querySelector("#aiOsDesktop") || document.body).append(dialog);
+  return dialog;
+}
+
+function paintCanvasAngleCubeImage(dialog, node) {
+  const front = dialog.querySelector(".canvas-angle-face-front");
+  if (!front) return;
+  const source = resolveCanvasImageToolSource(node);
+  if (source?.url) front.style.backgroundImage = `url("${String(source.url).replace(/"/g, "%22")}")`;
+  else front.style.removeProperty("background-image");
+}
+
+function openCanvasAngleDialog(node) {
+  if (!node?.classList?.contains("canvas-node")) return false;
+  const current = getCanvasComfyQwenAngle(node);
+  const dialog = ensureCanvasAngleDialogMarkup();
+  canvasAngleDialogState = { node };
+  dialog.querySelector("[data-angle-horizontal]").value = String(Math.round(current.horizontal));
+  dialog.querySelector("[data-angle-vertical]").value = String(Math.round(current.vertical));
+  dialog.querySelector("[data-angle-zoom]").value = String(current.zoom);
+  paintCanvasAngleCubeImage(dialog, node);
+  // 换角度面板挂在节点下方（图2 那种位置），不再是铺满视口的模态框。
+  const shell = node.querySelector(":scope > .flora-node-shell");
+  if (shell && dialog.parentElement !== shell) shell.append(dialog);
+  dialog.classList.add("is-node-anchored");
+  dialog.hidden = false;
+  positionCanvasAngleDialog();
+  requestAnimationFrame(() => positionCanvasAngleDialog());
+  // 窗口尺寸变化后重新定位/上推，保证操作区始终完整可见。
+  if (!canvasAngleDialogState.onResize) {
+    canvasAngleDialogState.onResize = () => { positionCanvasAngleDialog(); };
+    window.addEventListener("resize", canvasAngleDialogState.onResize);
+  }
+  renderCanvasAngleDialog();
+  window.lucide?.createIcons?.({ root: dialog, attrs: { "aria-hidden": "true", "stroke-width": 1.8 } });
+  dialog.querySelector(".canvas-angle-cube")?.focus({ preventScroll: true });
+  node.querySelector('[data-flora-action="angle"]')?.setAttribute("aria-expanded", "true");
+  return true;
+}
+
+// 面板固定在节点下方；CSS 的 100% 是相对节点内容盒（比壳体再内缩 8px）算的，
+// 这里量一次把差值补回去，让面板顶边正好落在节点下沿 +12px 处。
+function positionCanvasAngleDialog() {
+  const dialog = getCanvasAngleDialog();
+  const state = canvasAngleDialogState;
+  if (!dialog || !state || dialog.hidden) return false;
+  const nodeRect = state.node.getBoundingClientRect();
+  dialog.style.marginTop = "";
+  const rect = dialog.getBoundingClientRect();
+  const delta = Math.round((nodeRect.bottom + 12) - rect.top);
+  if (delta) dialog.style.marginTop = `${delta}px`;
+  revealCanvasPanelBelowNode(state.node, dialog.querySelector(".canvas-angle-dialog-panel") || dialog);
+  // 面板按内容自然展开，不再按「节点下方剩余空间」限高——限高配内部滚动会让操作区
+  // 看起来被截断。空间不够时上面已经把画布整体上推（只平移，不缩放）。
+  const panel = dialog.querySelector(".canvas-angle-dialog-panel");
+  if (panel) {
+    panel.style.maxHeight = "";
+    panel.style.overflowY = "";
+  }
+  return true;
+}
+
+function closeCanvasAngleDialog() {
+  const dialog = getCanvasAngleDialog();
+  const state = canvasAngleDialogState;
+  if (!dialog || !state) return false;
+  if (state.onResize) window.removeEventListener("resize", state.onResize);
+  dialog.hidden = true;
+  canvasAngleDialogState = null;
+  state.node.querySelector('[data-flora-action="angle"]')?.setAttribute("aria-expanded", "false");
+  return true;
+}
+
+async function submitCanvasAngleDialog() {
+  const state = canvasAngleDialogState;
+  if (!state) return false;
+  const node = state.node;
+  const submit = getCanvasAngleDialog()?.querySelector("[data-angle-submit]");
+  if (submit) submit.disabled = true;
+  closeCanvasAngleDialog();
+  try {
+    return await runCanvasImageTool(node, "angle");
+  } finally {
+    if (submit) submit.disabled = false;
+  }
+}
+
+window.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape" || !canvasAngleDialogState) return;
+  event.preventDefault();
+  closeCanvasAngleDialog();
+});
+
+function closeCanvasImageToolPanel(node) {
+  if (!node) return;
+  node.querySelectorAll(":scope > .flora-node-shell > .flora-node-tool-panel").forEach((panel) => panel.remove());
+  node.querySelectorAll('[data-flora-action="upscale"], [data-flora-action="outpaint"], [data-flora-action="angle"]')
+    .forEach((button) => button.setAttribute("aria-expanded", "false"));
+  delete node.dataset.floraToolPanel;
+}
+
+// 工具栏工具的参数面板：点按钮展开，面板里的「执行」才真正提交。
+// 面板挂在节点壳体里（与文字节点的工具菜单同一位置约定），
+// 这样扩图预览和换角度可视化仍能用节点级查询找到自己的元素。
+function openCanvasImageToolPanel(node, tool) {
+  if (!node?.classList?.contains("canvas-node")) return false;
+  if (node.dataset.floraToolPanel === tool && node.querySelector(":scope > .flora-node-shell > .flora-node-tool-panel")) {
+    closeCanvasImageToolPanel(node);
+    return true;
+  }
+  closeCanvasImageToolPanel(node);
+  const shell = node.querySelector(":scope > .flora-node-shell");
+  if (!shell) return false;
+
+  const panel = document.createElement("div");
+  panel.className = "flora-node-tool-panel";
+  panel.dataset.floraRegion = "tool-panel";
+  panel.dataset.floraTool = tool;
+  panel.setAttribute("role", "dialog");
+  panel.setAttribute("aria-label", CANVAS_IMAGE_TOOL_LABELS[tool] || "图片工具");
+  panel.addEventListener("pointerdown", (event) => event.stopPropagation());
+  panel.addEventListener("click", (event) => event.stopPropagation());
+
+  const head = document.createElement("div");
+  head.className = "flora-node-tool-panel-head";
+  const title = document.createElement("strong");
+  title.textContent = CANVAS_IMAGE_TOOL_LABELS[tool] || "图片工具";
+  const close = document.createElement("button");
+  close.type = "button";
+  close.className = "flora-node-tool-panel-close";
+  close.title = "关闭";
+  close.setAttribute("aria-label", "关闭");
+  close.innerHTML = '<i data-lucide="x" aria-hidden="true"></i>';
+  close.addEventListener("click", (event) => {
+    event.stopPropagation();
+    closeCanvasImageToolPanel(node);
+  });
+  head.append(title, close);
+
+  const body = document.createElement("div");
+  body.className = "flora-node-tool-panel-body";
+  if (tool === "upscale") {
+    const field = document.createElement("label");
+    field.className = "flora-node-tool-field";
+    const label = document.createElement("span");
+    label.textContent = "目标长边";
+    const select = document.createElement("select");
+    [["2048", "2K"], ["4096", "4K"]].forEach(([value, text]) => {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = text;
+      select.append(option);
+    });
+    select.value = normalizeCanvasComfyResolution(node.dataset.comfyResolution || "2048") === "2048" ? "2048" : "4096";
+    select.addEventListener("change", () => {
+      node.dataset.comfyResolution = select.value;
+      scheduleCanvasSave();
+    });
+    field.append(label, select);
+    body.append(field);
+  } else if (tool === "outpaint") {
+    const area = createCanvasComfyOutpaintArea(node);
+    area.hidden = false;
+    body.append(area);
+  } else if (tool === "angle") {
+    const area = createCanvasComfyQwenAngleFields(node, getCanvasComfyQwenAngle(node));
+    area.hidden = false;
+    body.append(area);
+  }
+
+  const actions = document.createElement("div");
+  actions.className = "flora-node-tool-panel-actions";
+  const cancel = document.createElement("button");
+  cancel.type = "button";
+  cancel.className = "flora-node-tool-panel-cancel";
+  cancel.textContent = "取消";
+  cancel.addEventListener("click", (event) => {
+    event.stopPropagation();
+    closeCanvasImageToolPanel(node);
+  });
+  const submit = document.createElement("button");
+  submit.type = "button";
+  submit.className = "flora-node-tool-panel-submit";
+  submit.dataset.floraToolSubmit = tool;
+  submit.textContent = "执行";
+  submit.addEventListener("click", async (event) => {
+    event.stopPropagation();
+    submit.disabled = true;
+    closeCanvasImageToolPanel(node);
+    await runCanvasImageTool(node, tool);
+  });
+  actions.append(cancel, submit);
+
+  panel.append(head, body, actions);
+  shell.append(panel);
+  node.dataset.floraToolPanel = tool;
+  node.querySelector(`[data-flora-action="${tool}"]`)?.setAttribute("aria-expanded", "true");
+  window.lucide?.createIcons?.({ root: panel, attrs: { "aria-hidden": "true", "stroke-width": 1.8 } });
+  // 扩图预览依赖真实排版，等一帧再量尺寸。
+  if (tool === "outpaint") requestAnimationFrame(() => updateCanvasComfyOutpaintPreview(node));
+  return true;
+}
+
+function resolveCanvasImageToolSource(node) {
+  if (!node?.classList?.contains("canvas-node")) return null;
+  const output = getCanvasNodeOutput(node);
+  const image = node.querySelector(".canvas-image-upload img, .canvas-node-result img, .canvas-media-shell img, img");
+  const url = node.dataset.resultSrc || output?.url || node.dataset.imageSrc || node.dataset.originalSrc
+    || image?.getAttribute?.("data-original-src") || image?.getAttribute?.("src") || "";
+  if (!url) return null;
+  return {
+    url,
+    name: output?.name || node.dataset.imageName || node.dataset.mediaName || "canvas_image_input.png",
+  };
+}
+
+// 图片工具（放大 / 扩图 / 换角度）的结果节点先落地再等结果：
+// 用户点提交后立刻在旁边看到「生成中 X% | 取消」，而不是盯着不动的画布。
+const canvasImageToolJobs = new Map();
+
+function findCanvasImageToolResultPoint(node, index = 0) {
+  return {
+    x: Number(node.dataset.x || 0) + (node.offsetWidth || 400) + 72,
+    y: Number(node.dataset.y || 0) + index * 24,
+  };
+}
+
+// 占位图按来源节点的比例生成，结果回来时节点尺寸不会突然跳一下。
+function createCanvasImagePendingPlaceholderUrl(node) {
+  const width = Math.max(1, Number(node.dataset.width || node.offsetWidth || 400));
+  const height = Math.max(1, Number(node.dataset.height || node.offsetHeight || 400));
+  const targetWidth = 800;
+  const targetHeight = Math.max(200, Math.min(1200, Math.round(targetWidth * (height / width))));
+  return `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="${targetWidth}" height="${targetHeight}"></svg>`)}`;
+}
+
+function mountCanvasImageGeneratingOverlay(node, label) {
+  const area = node.querySelector(".flora-node-result-area")
+    || node.querySelector(".flora-node-content")
+    || node;
+  let overlay = node.querySelector("[data-image-generating]");
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.className = "canvas-image-generating";
+    overlay.dataset.imageGenerating = "true";
+    overlay.innerHTML = `
+      <span class="canvas-image-generating-grid" aria-hidden="true"></span>
+      <div class="canvas-image-generating-meta">
+        <b data-image-generating-progress>生成中 0%</b>
+        <span aria-hidden="true">|</span>
+        <button type="button" data-image-generating-cancel>取消</button>
+      </div>
+    `;
+    area.append(overlay);
+  }
+  overlay.querySelector("[data-image-generating-cancel]")?.setAttribute("aria-label", `取消${label}`);
+  setCanvasNodeStatus(node, "生成中 0%");
+  return overlay;
+}
+
+function updateCanvasImageGeneratingProgress(node, percent, message = "") {
+  const overlay = node?.querySelector?.("[data-image-generating]");
+  if (!overlay) return;
+  const text = message || `生成中 ${Math.max(0, Math.round(Number(percent) || 0))}%`;
+  const progress = overlay.querySelector("[data-image-generating-progress]");
+  if (progress && progress.textContent !== text) progress.textContent = text;
+  setCanvasNodeStatus(node, text);
+}
+
+function closeCanvasImageGeneratingOverlay(node) {
+  node?.querySelector?.("[data-image-generating]")?.remove();
+  if (node?.dataset) delete node.dataset.generating;
+}
+
+function cancelCanvasImageToolJob(node) {
+  const job = canvasImageToolJobs.get(String(node?.dataset?.id || ""));
+  if (!job) return false;
+  job.controller.abort();
+  return true;
+}
+
+async function runCanvasImageTool(node, tool) {
+  const source = resolveCanvasImageToolSource(node);
+  if (!source) {
+    setCanvasNodeStatus(node, "请先让节点上有一张图片再使用这个工具。");
+    return false;
+  }
+  const apiUrl = ({
+    upscale: UPSCALE2_API_URL,
+    outpaint: OUTPAINT_API_URL,
+    angle: QWEN_EDIT_ANGLE_API_URL,
+  })[tool];
+  if (!apiUrl) return false;
+  const toolLabel = ({ upscale: "放大", outpaint: "扩图", angle: "换角度" })[tool];
+  const runButton = node.querySelector('[data-flora-action="upscale"], [data-flora-action="outpaint"], [data-flora-action="angle"]');
+  if (runButton) runButton.disabled = true;
+  setCanvasNodeStatus(node, `提交 ComfyUI ${toolLabel}...`);
+  // 结果节点先建出来，作为进行中的占位，进度和取消都挂在它身上。
+  const pending = addCanvasImage(
+    createCanvasImagePendingPlaceholderUrl(node),
+    `${toolLabel}结果.png`,
+    findCanvasImageToolResultPoint(node),
+  );
+  const pendingId = String(pending.dataset.id || "");
+  pending.dataset.generating = "true";
+  pending.dataset.imageName = `${toolLabel}结果.png`;
+  // 工具产生的图保持和来源节点连在一起，画布上能看出它是从哪张图来的。
+  connectCanvasNodes(String(node.dataset.id || ""), pendingId, "input", "output");
+  const controller = new AbortController();
+  canvasImageToolJobs.set(pendingId, { controller, node: pending, sourceNode: node, tool });
+  mountCanvasImageGeneratingOverlay(pending, toolLabel);
+  pending.querySelector("[data-image-generating-cancel]")?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    cancelCanvasImageToolJob(pending);
+  });
+  applyCanvasNodeSize(pending);
+  selectCanvasNode(pending);
+  setCanvasNodeStatus(node, `${toolLabel}进行中，结果会落在新节点。`);
+  try {
+    let body;
+    if (tool === "upscale") {
+      body = {
+        image: source.url,
+        name: source.name,
+        resolution: Number(node.dataset.comfyResolution || 2048),
+      };
+    } else if (tool === "outpaint") {
+      const expanded = await createOutpaintAlphaInput(source.url, getCanvasComfyPadding(node));
+      body = {
+        image: expanded.dataUrl,
+        name: "canvas_outpaint_alpha_input.png",
+        alphaMaskInput: true,
+        direction: "custom",
+        ...expanded.padding,
+      };
+    } else {
+      const angle = getCanvasComfyQwenAngle(node);
+      body = {
+        image: source.url,
+        name: source.name,
+        horizontal_angle: angle.horizontal,
+        vertical_angle: angle.vertical,
+        zoom: angle.zoom,
+      };
+    }
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data.error) throw new Error(data.error || data.message || `${response.status} ${response.statusText}`);
+    if (!data.task_id) throw new Error("后端没有返回 ComfyUI 任务 ID。");
+    const task = await waitForUpscaleTask(data.task_id, (value, message) => {
+      updateCanvasImageGeneratingProgress(pending, value, message);
+    }, { signal: controller.signal });
+    const images = (task.images || []).filter(Boolean);
+    if (!images.length) throw new Error("ComfyUI 没有返回图片。");
+    // 第一张填进占位节点，其余按顺序落在它下面。
+    closeCanvasImageGeneratingOverlay(pending);
+    renderCanvasImageNode(pending, {
+      src: images[0],
+      name: `${toolLabel}结果.png`,
+    });
+    applyCanvasNodeSize(pending);
+    refreshCanvasConnectedNodes(pending.dataset.id);
+    const created = [pending, ...images.slice(1).map((url, index) => addCanvasImage(
+      url,
+      `${toolLabel}结果 ${index + 2}.png`,
+      { x: findCanvasImageToolResultPoint(node).x, y: Number(node.dataset.y || 0) + (index + 1) * 24 },
+    ))];
+    await saveImageHistory(`${toolLabel}：${source.name || "图片"}`, images, `ComfyUI ${toolLabel}`, "canvas");
+    setCanvasNodeStatus(node, `已完成${toolLabel}，结果在新节点。`);
+    setCanvasNodeStatus(pending, `已完成${toolLabel}。`);
+    if (created.length) focusAgentCanvasNodesInViewport([node, ...created]);
+    scheduleCanvasSave();
+    return true;
+  } catch (error) {
+    const cancelled = error?.name === "AbortError";
+    closeCanvasImageGeneratingOverlay(pending);
+    canvasImageToolJobs.delete(pendingId);
+    // 用统一的删除通道回收占位节点，避免分页/虚拟存储里残留后又被重新挂回画布。
+    if (pending.isConnected) deleteCanvasNodes([pending]);
+    if (cancelled) {
+      selectCanvasNode(node);
+      setCanvasNodeStatus(node, `已取消${toolLabel}。`);
+      setCanvasStatus(`已取消${toolLabel}，未生成结果。`);
+      return false;
+    }
+    selectCanvasNode(node);
+    setCanvasNodeStatus(node, `${toolLabel}失败：${error.message}`);
+    setCanvasStatus(`${toolLabel}失败：${error.message}`);
+    return false;
+  } finally {
+    canvasImageToolJobs.delete(pendingId);
+    if (runButton) runButton.disabled = false;
   }
 }
 
@@ -12892,13 +15745,26 @@ function updateCanvasGenerationResult(node, image) {
   if (!src) return;
   node.dataset.resultSrc = src;
   node.dataset.resultDownloadUrl = savedUrl || src;
-  node.dataset.imageName = "编辑结果";
+  node.dataset.imageName = "生成结果";
+  // The Flora title band mirrors the legacy bar title, so keep that element in
+  // step and ask the shell to relabel: the name is generated, not an edit.
+  const legacyTitleText = node.querySelector(":scope > .canvas-node-bar .canvas-node-title:not(input)");
+  if (legacyTitleText) legacyTitleText.textContent = node.dataset.imageName;
+  const legacyTitleInput = node.querySelector(":scope > .canvas-node-bar input.canvas-node-title");
+  if (legacyTitleInput) legacyTitleInput.value = node.dataset.imageName;
+  window.CanvasFloraNodeShell?.syncLabel?.(node);
+  // 结果写入后同步分页存储里的模型快照：来源节点被卸载或回收时，
+  // 下游（参考带、生成请求）仍能解析到这次生成的素材。
+  if (canvasVirtualStore.has?.(node.dataset.id)) {
+    const model = syncCanvasNodeModel(node);
+    if (model) canvasVirtualStore.upsert(model);
+  }
   const media = node.querySelector(".canvas-image-upload");
   if (media && !node.dataset.imageSrc) media.hidden = true;
   const result = node.querySelector(".canvas-node-result");
   if (!result) return;
   const refs = node.querySelector(".canvas-node-refs");
-  if (refs && result.nextElementSibling !== refs) refs.before(result);
+  if (refs && node.dataset.floraKind !== "generator" && result.nextElementSibling !== refs) refs.before(result);
   result.innerHTML = "";
   result.hidden = false;
   const img = document.createElement("img");
@@ -12906,7 +15772,12 @@ function updateCanvasGenerationResult(node, image) {
   img.addEventListener("load", scheduleCanvasConnectionRender);
   registerCanvasDetailImage(img, src);
   result.append(img);
-  result.append(createCanvasResultDownload(node));
+  // A freshly generated result is a multi-megabyte local file, and the server
+  // builds its 640px webp on first request (0.1-0.9s for the big ones). Ask for
+  // it now, in the background, so the canvas never has to wait for that decode
+  // when the node is later panned back into view or the board is reopened.
+  void window.imageResources?.requestThumbnail?.(src);
+  window.CanvasFloraNodeShell?.syncToolbar?.(node);
   scheduleCanvasConnectionRender();
 }
 
@@ -12914,30 +15785,142 @@ function appendCanvasGenerationToGallery(sourceNode, image) {
   const src = typeof image === "string" ? image : image?.src;
   const savedUrl = typeof image === "string" ? image : image?.savedUrl || image?.src;
   if (!src) return null;
-  const gallery = getOrCreateCanvasAssetOutput(sourceNode, "image");
-  if (gallery.classList.contains("canvas-node-asset-collection")) {
-    const member = appendCanvasAssetCollectionMember(gallery, {
-      id: createId(), kind: "image", name: "生成图", src, savedUrl: savedUrl || src,
-      createdAt: new Date().toISOString(), source: "generation", sourceNodeId: sourceNode.dataset.id,
-    });
-    return { gallery, image: member };
-  }
-  const images = getCanvasGalleryContainerMembers(gallery);
   const nextImage = {
-    id: createId(),
-    name: `生成图 ${images.length + 1}`,
+    ...typeof image === "object" ? image : {},
+    id: image?.id || createId(), kind: "image",
+    name: "生成图",
     src,
     savedUrl: savedUrl || src,
     createdAt: new Date().toISOString(),
+    requestedSize: getCanvasImageRequestSummary(sourceNode) || getCanvasOutputSize(sourceNode),
+    ...(image?.width && image?.height ? { actualSize: { width: image.width, height: image.height } } : {}),
   };
-  images.push(nextImage);
-  setCanvasGalleryContainerMembers(gallery, images, nextImage.id);
-  refreshCanvasConnectedNodes(gallery.dataset.id);
+  updateCanvasGenerationResult(sourceNode, nextImage);
+  window.FloraGenerationHistory?.add(sourceNode, nextImage);
+  refreshCanvasConnectedNodes(sourceNode.dataset.id);
   scheduleCanvasConnectionRender();
   scheduleCanvasSave();
-  setCanvasStatus(`已追加到生成图集：${images.length} 张`);
-  return { gallery, image: nextImage };
+  return { gallery: null, image: nextImage };
 }
+
+async function loadCanvasAudioModels() {
+  const generation = ++canvasAudioCatalogRequest;
+  try {
+    const response = await fetch("/api/providers/audio-models", { credentials: "same-origin" });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "音频模型目录不可用，请检查服务或重新登录。");
+    if (!Array.isArray(data.models)) throw new Error("音频模型目录格式不正确。");
+    if (generation !== canvasAudioCatalogRequest) return;
+    canvasAudioModelCatalog = data.models;
+    document.querySelectorAll("#canvasPlane .canvas-node-audio-generator").forEach(node => window.CanvasAudioGenerator?.refreshModels(node));
+  } catch (error) {
+    if (generation !== canvasAudioCatalogRequest) return;
+    document.querySelectorAll("#canvasPlane .canvas-node-audio-generator").forEach(node => setCanvasNodeStatus(node, `音频模型加载失败：${error.message || "请稍后重试"}`));
+  }
+}
+
+function renderCanvasAudioGeneratorNode(node, state = {}) {
+  if (!window.CanvasAudioGenerator) throw new Error("音频生成组件未加载，请刷新工作台。");
+  const boardId = canvasState.activeBoardId;
+  const current = () => node.isConnected && canvasState.activeBoardId === boardId;
+  node.append(createCanvasPort("input"), createCanvasPort("output"), createCanvasNodeBar("音频生成"));
+  window.CanvasAudioGenerator.render(node, state, {
+    getModels: () => canvasAudioModelCatalog,
+    getPrompt: () => getCanvasGenerationPrompt(node, node.querySelector('.canvas-audio-generator-prompt')?.value),
+    onSave: () => { if (current()) scheduleCanvasSave(); },
+    onStatus: (target, text, state) => { if (current()) { if (state === "running") CanvasGenerationSound.arm(target); setCanvasNodeStatus(target, text); } },
+    onResult: (target, item) => {
+      if (!current()) return;
+      window.FloraGenerationHistory?.add(target, { ...item, id: createId(), src: item.url || item.src, model: item.modelId || "", kind: "audio" });
+      window.CanvasFloraNodeShell?.enhanceMedia?.(target);
+      CanvasGenerationSound.playComplete(target, `audio:${item.id || item.url || createId()}`);
+    },
+  });
+  node.append(createCanvasResizeHandle());
+}
+
+function syncCanvasAudioPromptState(node) {
+  const prompt = node.querySelector(".canvas-audio-generator-prompt");
+  if (!prompt) return;
+  prompt.readOnly = false; prompt.classList.remove('is-overridden'); prompt.title = '';
+}
+
+function addCanvasAudioGeneratorNode(point, options = {}) {
+  const node = createCanvasNode("audio-generator");
+  if (point) setCanvasNodePoint(node, point);
+  renderCanvasAudioGeneratorNode(node, options);
+  applyCanvasNodeSize(node); placeCanvasNode(node); scheduleCanvasSave();
+  void loadCanvasAudioModels();
+  return node;
+}
+
+function applyCanvasGenerationHistoryItem(node, item) {
+  if (!node?.isConnected) return;
+  if (node.classList.contains("canvas-node-audio-generator")) {
+    window.CanvasAudioGenerator?.showResult(node, item);
+  } else if (node.classList.contains("canvas-node-text")) {
+    // The editable surface is the result for a text node, so history entries are
+    // written straight back into it.
+    setCanvasTextValue(node, item?.text || "", { richHtml: item?.richHtml, preserveEditing: false });
+  } else if (node.classList.contains("canvas-node-llm")) {
+    node.dataset.llmOutput = item?.text || "";
+    let output = node.querySelector(".canvas-llm-output");
+    if (!output) {
+      output = document.createElement("div");
+      output.className = "canvas-llm-output canvas-text";
+      output.setAttribute("role", "textbox");
+      output.setAttribute("aria-label", "文本生成结果，双击编辑");
+      output.contentEditable = "false";
+      output.addEventListener("dblclick", event => { event.stopPropagation(); output.contentEditable = "true"; output.focus(); });
+      output.addEventListener("pointerdown", event => { if (output.isContentEditable) event.stopPropagation(); });
+      output.addEventListener("input", () => { node.dataset.llmOutput = output.textContent || ""; scheduleCanvasSave(); });
+      output.addEventListener("blur", () => {
+        output.contentEditable = "false";
+        const entries = window.FloraGenerationHistory?.serialize(node)?.generationHistory || [];
+        const current = entries.find(entry => entry.id === node.dataset.currentGenerationId);
+        if (current && current.text !== node.dataset.llmOutput) window.FloraGenerationHistory?.add(node, { ...current, text: node.dataset.llmOutput });
+        refreshCanvasConnectedNodes(node.dataset.id);
+        scheduleCanvasSave();
+      });
+      output.addEventListener("keydown", event => { if (event.key === "Escape") output.blur(); });
+      node.querySelector(".flora-node-result-area")?.append(output);
+    }
+    output.textContent = item?.text || "";
+  } else if (node.classList.contains("canvas-node-video-api") || node.classList.contains("canvas-node-minimax-h3")) {
+    node.dataset.generationVideoSrc = item?.src || "";
+    const area = node.querySelector(".flora-node-result-area");
+    if (!area) return;
+    let media = area.querySelector(".canvas-video-preview");
+    if (!media) {
+      const wrap = document.createElement("div");
+      wrap.className = "canvas-media-shell canvas-media-shell-video has-media";
+      media = document.createElement("video");
+      media.className = "canvas-video-preview";
+      media.controls = true;
+      media.preload = "metadata";
+      media.playsInline = true;
+      wrap.append(media); area.append(wrap);
+    }
+    media.pause();
+    if (item?.src) media.src = item.src;
+    else media.removeAttribute("src");
+    media.closest(".canvas-media-shell").hidden = !item?.src;
+    window.CanvasFloraNodeShell?.enhanceMedia?.(node);
+  } else if (item?.src) updateCanvasGenerationResult(node, item);
+  else {
+    delete node.dataset.resultSrc; delete node.dataset.resultDownloadUrl;
+    const result = node.querySelector(".canvas-node-result");
+    if (result) { result.replaceChildren(); result.hidden = true; }
+  }
+  window.FloraGeneratorComposer?.sync?.(node);
+  window.CanvasFloraNodeShell?.syncToolbar?.(node);
+  refreshCanvasConnectedNodes(node.dataset.id);
+}
+
+window.addEventListener("flora-generation-history-select", event => applyCanvasGenerationHistoryItem(event.detail?.node, event.detail?.item));
+window.addEventListener("flora-generation-history-change", event => {
+  if (event.detail?.node?.isConnected) scheduleCanvasSave();
+});
 
 function migrateLegacyCanvasResultsToGalleries(results) {
   if (!Array.isArray(results) || !results.length) return 0;
@@ -13024,7 +16007,13 @@ function ensureAgentCanvasImageInGallery(sourceNode, image, context) {
 }
 
 function openCanvasImageOriginalPreview(node, image) {
-  const source = image.getAttribute("data-original-src");
+  const source = image?.getAttribute?.("data-original-src")
+    || image?.getAttribute?.("src")
+    || node?.dataset?.originalSrc
+    || node?.dataset?.imageSrc
+    || node?.dataset?.resultSrc
+    || node?.dataset?.videoSrc
+    || node?.dataset?.audioSrc;
   if (!source) return;
   const gallery = node.classList.contains("canvas-node-gallery-container")
     ? getCanvasGalleryContainerMembers(node).filter(isCanvasGalleryImageReady) : [];
@@ -13054,6 +16043,9 @@ function deleteCanvasImageSelection(node, image) {
   setCanvasStatus("已删除选中的图片，可按 Ctrl+Z 撤销。");
 }
 
+// Kept for the host generator renderer's plugin contract. Flora nodes hide it
+// and expose the same action from the node toolbar instead of the result
+// corner, where it used to sit under the generation-history badge.
 function createCanvasResultDownload(node) {
   const button = document.createElement("button");
   button.type = "button";
@@ -13078,6 +16070,10 @@ function setCanvasNodeStatus(node, message) {
   if (text) target.title = text;
   else target.removeAttribute("title");
   syncCanvasNodeFooterVisibility(node);
+  // 壳体的状态行是从节点状态镜像过来的，而它只监听节点的直接子节点变化，只改文字不会同步；
+  // 这里直接写状态行，不调整节点同步 —— 同步流程里还会回写节点状态，会形成循环刷新。
+  const shellStatus = node.querySelector(":scope > .flora-node-shell > .flora-node-live-status");
+  if (shellStatus && shellStatus.textContent !== text) shellStatus.textContent = text;
 }
 
 function refreshCanvasConnectedNodes(sourceId) {
@@ -13111,11 +16107,27 @@ function getCanvasNode(id) {
   return canvasVirtualStore.getMounted(String(id || ""));
 }
 
+// Result downloads span pictures, video and audio, so derive the extension from
+// the media type first and the URL second instead of assuming PNG.
+const CANVAS_DOWNLOAD_EXTENSIONS = Object.freeze({
+  "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp", "image/gif": "gif", "image/avif": "avif",
+  "video/mp4": "mp4", "video/webm": "webm", "video/quicktime": "mov",
+  "audio/mpeg": "mp3", "audio/mp3": "mp3", "audio/wav": "wav", "audio/x-wav": "wav",
+  "audio/ogg": "ogg", "audio/opus": "opus", "audio/aac": "aac", "audio/flac": "flac",
+});
+
+function canvasDownloadFileName(name, mimeType, source) {
+  const cleaned = String(name || "素材").replace(/[\\/:*?"<>|]+/g, "-").trim() || "素材";
+  if (/\.[a-z0-9]{2,5}$/i.test(cleaned)) return cleaned;
+  const type = String(mimeType || "").split(";")[0].trim().toLowerCase();
+  const fromUrl = String(source || "").split(/[?#]/)[0].match(/\.([a-z0-9]{2,5})$/i)?.[1]?.toLowerCase();
+  return `${cleaned}.${CANVAS_DOWNLOAD_EXTENSIONS[type] || fromUrl || "png"}`;
+}
+
 async function downloadCanvasImage(node, trigger) {
   const src = node?.dataset.imageSrc;
   if (!src) return;
-  const name = (node.dataset.imageName || "canvas-image").replace(/[\\/:*?"<>|]+/g, "-");
-  await downloadAsset(src, name.includes(".") ? name : `${name}.png`, trigger);
+  await downloadAsset(src, canvasDownloadFileName(node.dataset.imageName || "canvas-image", "", src), trigger);
 }
 
 async function downloadAsset(src, filename = "image.png", trigger) {
@@ -13205,6 +16217,11 @@ function unmountCanvasVirtualNode(id, node) {
   window.imageResources?.disconnect(node);
   canvasNodeResizeObserver?.unobserve(node);
   if (canvasState.activeNode === node) canvasState.activeNode = null;
+  window.FloraGenerationHistory?.unmount?.(node);
+  window.FloraNodeTags?.unmount(node);
+  window.CanvasFloraNodeShell?.unmount?.(node);
+  window.CanvasAudioGenerator?.unmount?.(node);
+  node.querySelectorAll(".canvas-node-model").forEach(releaseCanvasImageModelPicker);
   node.remove();
 }
 
@@ -13248,14 +16265,26 @@ function removeCanvasNodeModels(ids) {
 }
 
 function clearCanvasPlane() {
+  window.FloraNodeTags?.close();
   canvasViewportDataSource.cancel();
   closeCanvasCropWorkbench();
   hideCanvasAlignmentGuides();
   const plane = document.querySelector("#canvasPlane");
   if (canvasTransformFrame) cancelAnimationFrame(canvasTransformFrame);
   canvasTransformFrame = 0;
+  if (canvasNodePositionPaintFrame) cancelAnimationFrame(canvasNodePositionPaintFrame);
+  canvasNodePositionPaintFrame = 0;
+  canvasDeferredNodePositions.clear();
   canvasTransformSavePending = false;
+  canvasAppliedViewport = null;
+  window.CanvasAppliedViewport = null;
+  canvasConnectionRenderSignature = "";
+  canvasWarmedThumbnailSources.clear();
+  if (canvasThumbnailSweepTimer) window.clearTimeout(canvasThumbnailSweepTimer);
+  canvasThumbnailSweepTimer = 0;
+  releaseCanvasRestoreMountBudget();
   canvasState.externalClipboard = null;
+  canvasState.externalFilePasteCount = 0;
   canvasState.externalClipboardEpoch = (canvasState.externalClipboardEpoch || 0) + 1;
   if (plane) window.imageResources?.disconnect(plane);
   clearTimeout(canvasDetailTimer);
@@ -13266,6 +16295,11 @@ function clearCanvasPlane() {
   canvasVirtualizer.reset();
   plane?.querySelectorAll(".canvas-node").forEach((node) => {
     canvasNodeResizeObserver?.unobserve(node);
+    window.FloraGenerationHistory?.unmount?.(node);
+    window.CanvasAudioGenerator?.unmount?.(node);
+    window.FloraNodeTags?.unmount(node);
+    window.CanvasFloraNodeShell?.unmount?.(node);
+    node.querySelectorAll(".canvas-node-model").forEach(releaseCanvasImageModelPicker);
     node.remove();
   });
   canvasVirtualStore.clear();
@@ -13280,6 +16314,7 @@ function clearCanvasPlane() {
   document.querySelector("#infiniteCanvas")?.classList.remove("has-scene-layer");
   canvasPersistedNodes.clear();
   canvasPersistedConnections.clear();
+  canvasIncomingOutputCache.clear();
   canvasVisibleConnectionBaselineIds = new Set();
   canvasVirtualBoard = null;
   canvasVirtualRestoreContext = null;
@@ -13308,6 +16343,7 @@ function serializeCanvasBoard() {
     viewport: { x: canvasState.x, y: canvasState.y, scale: canvasState.scale },
     nodes,
     connections: canvasState.connections,
+    labelDefinitions: window.FloraNodeTags?.definitions() || [],
   };
 }
 
@@ -13320,11 +16356,24 @@ function serializeCanvasNode(node) {
       width: Number(node.dataset.width || 0),
       height: Number(node.dataset.height || 0),
     };
+  base.nodeLabelId = node.dataset.nodeLabelId || "";
+  base.nodeTitle = node.dataset.nodeTitle || "";
   if (node.dataset.assetId) base.assetId = node.dataset.assetId;
+  Object.assign(base, window.FloraGenerationHistory?.serialize(node) || {});
+  if (node.dataset.generationVideoSrc) base.generationVideoSrc = node.dataset.generationVideoSrc;
   if (node.dataset.zOrder !== undefined) base.zOrder = Number(node.dataset.zOrder) || 0;
-  if (base.kind === "text") {
+  if (base.kind === "audio-generator") {
+    base.audioGeneration = window.CanvasAudioGenerator?.serialize(node) || {};
+  } else if (base.kind === "text") {
     base.text = getCanvasTextValue(node);
+    base.textRichHtml = window.CanvasTextNodeRenderer?.getRichHtml(node) || "";
     base.textName = node.dataset.textName || "文字";
+    base.textBackground = window.FloraTextTools?.normalize(node.dataset.textBackground) || "default";
+    // A text node also carries the language-model composer, so its instruction,
+    // model and reference images travel with the node.
+    base.llmPrompt = node.querySelector(".canvas-llm-prompt")?.value || node.dataset.llmPrompt || "";
+    base.llmModel = node.querySelector(".canvas-llm-model")?.value || node.dataset.llmModel || "";
+    base.llmImages = getCanvasLlmImages(node);
     } else if (base.kind === "note") {
       base.text = node.querySelector(".canvas-note-text")?.textContent || "";
       base.noteColor = normalizeCanvasNoteColor(node.dataset.noteColor);
@@ -13332,6 +16381,9 @@ function serializeCanvasNode(node) {
       base.groupTitle = node.dataset.groupTitle || "图片组";
       base.groupMembers = getCanvasGroupMemberIds(node);
       base.groupImages = getCanvasGroupImages(node);
+      // 颜色与布局跟着组一起存：刷新、复制、撤销重做之后组框还是同一个样子。
+      base.groupColor = node.dataset.groupColor || "";
+      base.groupLayout = node.dataset.groupLayout || "";
     } else if (base.kind === "gallery-container") {
       base.galleryContainer = getCanvasGalleryContainer(node);
     } else if (base.kind === "asset-collection") {
@@ -13351,6 +16403,7 @@ function serializeCanvasNode(node) {
       base.minimaxH3Duration = Number(node.dataset.minimaxH3Duration || 12);
       base.minimaxH3RefImageSize = node.dataset.minimaxH3RefImageSize || "match";
       base.minimaxH3Seed = node.dataset.minimaxH3Seed || "";
+      base.minimaxH3Mode = normalizeCanvasH3Mode(node.dataset.minimaxH3Mode);
       base.minimaxH3ImageOrder = getCanvasH3ReferenceOrder(node, "images");
       base.minimaxH3VideoOrder = getCanvasH3ReferenceOrder(node, "videos");
       base.minimaxH3AudioOrder = getCanvasH3ReferenceOrder(node, "audios");
@@ -13371,6 +16424,7 @@ function serializeCanvasNode(node) {
       base.imageJobId = node.dataset.imageJobId || "";
       base.imageJobState = node.dataset.imageJobState || "";
       base.imageJobCommittedId = node.dataset.imageJobCommittedId || "";
+      base.imageJobMidjourneyParameters = node.dataset.imageJobMidjourneyParameters || "";
       base.refOrder = getCanvasNodeRefOrder(node);
     } else if (base.kind === "video-output") {
       Object.assign(base, serializeCanvasVideoOutputState(node));
@@ -13384,10 +16438,16 @@ function serializeCanvasNode(node) {
       base.mediaMimeType = node.dataset.mediaMimeType || "";
       base.mediaDuration = Number(node.dataset.mediaDuration || 0);
     } else if (base.kind === "comfy") {
-      base.comfyMode = node.querySelector(".canvas-comfy-mode")?.value || node.dataset.comfyMode || "upscale2";
+      base.comfyMode = node.querySelector(".canvas-comfy-mode")?.value || node.dataset.comfyMode || "qwen-image21";
       if (isCanvasComfyResolutionMode(base.comfyMode)) base.comfyResolution = node.querySelector(".canvas-comfy-resolution")?.value || node.dataset.comfyResolution || "2048";
+      base.comfyAspectRatio = node.querySelector(".canvas-comfy-aspect")?.value || node.dataset.comfyAspectRatio || "";
+      base.comfyMegapixels = node.querySelector(".canvas-comfy-megapixels")?.value || node.dataset.comfyMegapixels || "";
+      // 分辨率档（1K/2K/4K）是用户选的那个刻度；像素档是按比例换算出来的提交值。
+      base.comfyTier = node.dataset.comfyTier || "";
       base.comfyPrompt = node.dataset.comfyPrompt || "";
       base.canvasGenerationPrompt = node.dataset.canvasGenerationPrompt || base.comfyPrompt;
+      base.resultSrc = node.dataset.resultSrc || "";
+      base.resultDownloadUrl = node.dataset.resultDownloadUrl || "";
       base.comfyPadding = getCanvasComfyPadding(node);
       base.comfyQwenAngle = getCanvasComfyQwenAngle(node);
       base.refOrder = getCanvasNodeRefOrder(node);
@@ -13409,12 +16469,14 @@ function serializeCanvasNode(node) {
       base.imageJobId = node.dataset.imageJobId || "";
       base.imageJobState = node.dataset.imageJobState || "";
       base.imageJobCommittedId = node.dataset.imageJobCommittedId || "";
+      base.imageJobMidjourneyParameters = node.dataset.imageJobMidjourneyParameters || "";
       base.prompt = node.querySelector(".canvas-node-prompt")?.value || "";
       base.model = node.querySelector(".canvas-node-model")?.value || node.dataset.canvasModel || "";
       base.engine = "api";
       base.platform = getImageModelPlatform(base.model) || node.dataset.canvasPlatform || "";
       base.modelSelection = node.querySelector(".canvas-node-model")?.dataset.modelSelection || node.dataset.modelSelection || "exact";
       base.size = node.querySelector(".canvas-node-size")?.value || node.dataset.canvasSize || "1024x1024";
+      if (base.size === "custom" && /^\d+x\d+$/.test(node.dataset.canvasSize || "")) base.size = node.dataset.canvasSize;
       base.resolution = node.querySelector(".canvas-node-resolution")?.value || node.dataset.canvasResolution || "1";
       base.midjourneyVersion = node.querySelector(".canvas-midjourney-version")?.value || node.dataset.canvasMidjourneyVersion || MIDJOURNEY_DEFAULT_OPTIONS.version;
       base.midjourneyMode = node.querySelector(".canvas-midjourney-mode")?.value || node.dataset.canvasMidjourneyMode || MIDJOURNEY_DEFAULT_OPTIONS.mode;
@@ -13423,6 +16485,10 @@ function serializeCanvasNode(node) {
       base.midjourneyStyle = node.querySelector(".canvas-midjourney-style")?.value || node.dataset.canvasMidjourneyStyle || MIDJOURNEY_DEFAULT_OPTIONS.style;
       base.midjourneyStylize = Number(node.querySelector(".canvas-midjourney-stylize")?.value || node.dataset.canvasMidjourneyStylize || MIDJOURNEY_DEFAULT_OPTIONS.stylize);
       base.modelParameters = readCanvasModelParameters(node);
+      if (window.FloraMidjourneySettings) {
+        const parameters = window.FloraMidjourneySettings.read(node);
+        if (isMidjourneyModel(base.model) || Object.keys(parameters).length) base.midjourneyParameters = parameters;
+      }
       base.refOrder = getCanvasNodeRefOrder(node);
   }
   return base;
@@ -13454,6 +16520,12 @@ function recordCanvasUndo(command) {
 
 function syncCanvasNodeNameFromModel(node, model) {
   if (!node || !model) return;
+  node.dataset.nodeTitle = String(model.nodeTitle || "");
+  if (node.classList.contains("canvas-node-text")) {
+    node.dataset.textBackground = window.FloraTextTools?.normalize(model.textBackground) || "default";
+    window.FloraTextTools?.sync(node);
+  }
+  window.CanvasFloraNodeShell?.syncLabel(node);
   const isTextNode = node.classList.contains("canvas-node-text");
   const nextName = isTextNode
     ? String(model.textName || "文字").replace(/\s+/g, " ").trim().slice(0, 80) || "文字"
@@ -13478,12 +16550,18 @@ function applyCanvasOperationLocally(operation) {
     const mounted = canvasPagedStore.getMounted(entityId);
     if (mounted) {
       canvasNodeResizeObserver?.unobserve(mounted);
+      window.FloraGenerationHistory?.unmount?.(mounted);
+      window.CanvasAudioGenerator?.unmount?.(mounted);
+      window.FloraNodeTags?.unmount(mounted);
+      window.CanvasFloraNodeShell?.unmount?.(mounted);
       mounted.remove();
       canvasPagedStore.setMounted(entityId, null);
     }
   } else if (operation.type === "node.upsert" && operation.after) {
     const mounted = canvasPagedStore.getMounted(entityId);
     if (mounted) {
+      mounted.dataset.nodeLabelId = String(operation.after.nodeLabelId || "");
+      window.FloraNodeTags?.sync(mounted);
       syncCanvasNodeNameFromModel(mounted, operation.after);
       if (operation.after.kind === "asset-collection" && operation.after.assetCollection) {
         renderCanvasAssetCollectionNode(mounted, operation.after.assetCollection);
@@ -13494,12 +16572,18 @@ function applyCanvasOperationLocally(operation) {
         if (operation.after[field] !== undefined) mounted.dataset[field] = String(operation.after[field]);
       });
       if (operation.after.text !== undefined) {
-        setCanvasTextValue(mounted, operation.after.text);
+        setCanvasTextValue(mounted, operation.after.text, { richHtml: operation.after.textRichHtml, preserveEditing: false });
+        window.FloraGenerationHistory?.hydrate(mounted, operation.after.generationHistory || [], operation.after.currentGenerationId);
       }
       updateCanvasNodePosition(mounted);
       syncCanvasNodeStacking();
     } else {
       canvasVirtualizer.schedule();
+    }
+  } else if (operation.type === "board.patch" && operation.after?.labelDefinitions !== undefined) {
+    window.FloraNodeTags?.setDefinitions(operation.after.labelDefinitions);
+    for (const board of canvasState.boards) {
+      if (String(board.id) === String(canvasState.activeBoardId)) board.labelDefinitions = window.FloraNodeTags?.definitions();
     }
   } else if (String(operation.type || "").startsWith("connection.")) {
     syncVisibleCanvasConnections();
@@ -13512,8 +16596,9 @@ function applyCanvasOperationLocally(operation) {
 function stageCanvasOperation(operation, options = {}) {
   if (!operation || typeof operation !== "object") return null;
   const entityId = String(operation.entityId || operation.after?.id || operation.before?.id || canvasState.activeBoardId || "");
-  const pending = canvasPagedStore.getPendingOperations();
-  const existing = pending.find((item) => (
+  const pending = options.pendingByEntity ? null : canvasPagedStore.getPendingOperations();
+  const operationKey = `${operation.type}\u0000${entityId}`;
+  const existing = options.pendingByEntity?.get(operationKey) || pending?.find((item) => (
     item.type === operation.type && String(item.entityId || "") === entityId
   ));
   const next = {
@@ -13522,7 +16607,9 @@ function stageCanvasOperation(operation, options = {}) {
     operationId: existing?.operationId || operation.operationId || createId(),
     before: existing?.before ?? operation.before ?? null,
   };
+  if (next.type === "board.patch") next.after = { ...(existing?.after || {}), ...(operation.after || {}) };
   canvasPagedStore.stageOperation(next);
+  options.pendingByEntity?.set(operationKey, next);
   if (options.applyLocal) applyCanvasOperationLocally(next);
   canvasState.hasUnsavedChanges = true;
   clearTimeout(canvasState.saveTimer);
@@ -13567,6 +16654,7 @@ function undoCanvasChange(event) {
 }
 
 function getCanvasNodeKind(node) {
+  if (node.classList.contains("canvas-node-audio-generator")) return "audio-generator";
   if (node.classList.contains("canvas-node-note")) return "note";
   if (node.classList.contains("canvas-node-text")) return "text";
   if (node.classList.contains("canvas-node-grid-editor")) return "grid-editor";
@@ -13618,6 +16706,14 @@ function sameCanvasOperationValue(left, right) {
 function collectCanvasDirtyOperations({ recordUndo = true } = {}) {
   if (canvasState.isRestoring) return [];
   const staged = [];
+  // One snapshot per synchronous collection, rather than deep-cloning every
+  // pending node and its histories for each node/connection in this batch.
+  const pendingByEntity = new Map();
+  for (const item of canvasPagedStore.getPendingOperations()) {
+    const key = `${item.type}\u0000${String(item.entityId || "")}`;
+    // Match the previous find() even if restored pending data has duplicates.
+    if (!pendingByEntity.has(key)) pendingByEntity.set(key, item);
+  }
   canvasPagedStore.mountedElements().forEach((node) => {
     if (!node?.dataset?.id) return;
     const model = syncCanvasNodeModel(node);
@@ -13628,15 +16724,13 @@ function collectCanvasDirtyOperations({ recordUndo = true } = {}) {
       ? toCanvasOperationNode(canvasPersistedNodes.get(id))
       : null;
     if (sameCanvasOperationValue(before, after)) return;
-    const alreadyPending = canvasPagedStore.getPendingOperations().some((item) => (
-      item.type === "node.upsert" && String(item.entityId) === id
-    ));
+    const alreadyPending = pendingByEntity.has(`node.upsert\u0000${id}`);
     const operation = stageCanvasOperation({
       type: "node.upsert",
       entityId: id,
       before,
       after,
-    });
+    }, { pendingByEntity });
     if (operation) staged.push(operation);
     if (!alreadyPending && recordUndo) {
       recordCanvasUndo({
@@ -13663,7 +16757,7 @@ function collectCanvasDirtyOperations({ recordUndo = true } = {}) {
       entityId: id,
       before: cloneCanvasOperationValue(before),
       after: cloneCanvasOperationValue(after),
-    });
+    }, { pendingByEntity });
     if (operation) staged.push(operation);
   });
   canvasVisibleConnectionBaselineIds.forEach((id) => {
@@ -13675,7 +16769,7 @@ function collectCanvasDirtyOperations({ recordUndo = true } = {}) {
       entityId: id,
       before: cloneCanvasOperationValue(before),
       after: null,
-    });
+    }, { pendingByEntity });
     if (operation) staged.push(operation);
   });
   return staged;
@@ -13890,6 +16984,7 @@ function applyCanvasCollabOperations(operations) {
   for (const operation of list) {
     if (operation.type === "board.patch") {
       if (operation.after?.title !== undefined) title = String(operation.after.title);
+      if (operation.after?.labelDefinitions !== undefined) applyCanvasOperationLocally(operation);
       continue;
     }
     entityOperations.push(operation);
@@ -14321,6 +17416,7 @@ function prepareBlankCanvasLanding() {
   clearCanvasPlane();
   resetCanvasView();
   canvasState.activeBoardId = null;
+  window.FloraNodeTags?.hydrate(null);
   canvasState.activeBoardTitle = "";
   canvasState.activeBoardCreatedAt = null;
   canvasState.activeBoardRevision = 0;
@@ -14344,6 +17440,7 @@ function beginCanvasBoardRestore(board) {
   canvasState.activeBoardRevision = Number(board.revision || 0);
   canvasState.activeBoardPersisted = Number.isFinite(Number(board.revision));
   canvasVirtualBoard = board;
+  window.FloraNodeTags?.hydrate(board);
   canvasVirtualRestoreContext = {
     maxId: 0,
     legacyResults: [],
@@ -14372,6 +17469,8 @@ function restoreCanvasBoardNode(item, board, context) {
   const legacyComfyGenerator = isLegacyCanvasComfyGenerator(item);
   const node = createCanvasNode(legacyComfyGenerator ? "comfy" : getCanvasCreateKindFromSerialized(item.kind));
   node.dataset.id = String(item.id);
+  node.dataset.nodeLabelId = String(item.nodeLabelId || "");
+  node.dataset.nodeTitle = String(item.nodeTitle || "");
   node.dataset.zOrder = String(Number(item.zOrder ?? item.z) || 0);
   canvasNodeStackClock = Math.max(canvasNodeStackClock, Number(node.dataset.zOrder));
   node.dataset.x = String(Number(item.x || 0));
@@ -14380,8 +17479,15 @@ function restoreCanvasBoardNode(item, board, context) {
   if (item.height) node.dataset.height = String(item.height);
   if (item.assetId) node.dataset.assetId = String(item.assetId);
   context.maxId = Math.max(context.maxId, Number(item.id) || 0);
-  if (item.kind === "text") {
+  if (item.kind === "audio-generator") {
+    renderCanvasAudioGeneratorNode(node, item.audioGeneration || {});
+  } else if (item.kind === "text") {
     node.dataset.textName = String(item.textName || "文字").replace(/\s+/g, " ").trim().slice(0, 80) || "文字";
+    node.dataset.textBackground = window.FloraTextTools?.normalize(item.textBackground) || "default";
+    node.dataset.llmPrompt = String(item.llmPrompt || "");
+    node.dataset.llmModel = String(item.llmModel || "");
+    node.dataset.llmImages = JSON.stringify(Array.isArray(item.llmImages) ? item.llmImages : []);
+    if (typeof item.textRichHtml === "string") node.dataset.textRichHtml = item.textRichHtml;
     renderCanvasTextNode(node, item.text || "写下一个想法");
   } else if (item.kind === "note") {
     renderCanvasNoteNode(node, { text: item.text || "", color: item.noteColor });
@@ -14390,6 +17496,8 @@ function restoreCanvasBoardNode(item, board, context) {
       title: item.groupTitle || "图片组",
       memberIds: Array.isArray(item.groupMembers) ? item.groupMembers : [],
       images: Array.isArray(item.groupImages) ? item.groupImages : [],
+      color: item.groupColor || "",
+      layout: item.groupLayout || "",
     });
   } else if (item.kind === "gallery-container") {
     renderCanvasGalleryContainerNode(node, item.galleryContainer || {});
@@ -14412,6 +17520,7 @@ function restoreCanvasBoardNode(item, board, context) {
       steps: item.minimaxH3Steps ?? 4,
       duration: item.minimaxH3Duration ?? 12,
       refImageSize: item.minimaxH3RefImageSize || "match",
+      mode: normalizeCanvasH3Mode(item.minimaxH3Mode),
       seed: item.minimaxH3Seed ?? "",
     });
     node.dataset.minimaxH3ImageOrder = JSON.stringify(item.minimaxH3ImageOrder || []);
@@ -14440,6 +17549,7 @@ function restoreCanvasBoardNode(item, board, context) {
       node.dataset.imageJobId = item.imageJobId;
       node.dataset.imageJobState = item.imageJobState || "unknown";
       if (item.imageJobCommittedId) node.dataset.imageJobCommittedId = item.imageJobCommittedId;
+      if (item.imageJobMidjourneyParameters) node.dataset.imageJobMidjourneyParameters = item.imageJobMidjourneyParameters;
       queueMicrotask(() => resumeCanvasImageNodeJob(node));
     }
   } else if (item.kind === "video-output") {
@@ -14466,13 +17576,18 @@ function restoreCanvasBoardNode(item, board, context) {
     });
   } else if (item.kind === "comfy" || legacyComfyGenerator) {
     renderCanvasComfyNode(node, {
-      mode: item.comfyMode || item.comfyWorkflow || "upscale2",
+      mode: item.comfyMode || item.comfyWorkflow || "qwen-image21",
       resolution: isCanvasComfyResolutionMode(item.comfyMode || item.comfyWorkflow) ? (item.comfyResolution || item.resolution || "2048") : "2048",
+      aspectRatio: item.comfyAspectRatio,
+      megapixels: item.comfyMegapixels,
+      tier: item.comfyTier,
       padding: item.comfyPadding,
       qwenAngle: item.comfyQwenAngle,
     });
     node.dataset.comfyPrompt = item.comfyPrompt || item.prompt || "";
     node.dataset.canvasGenerationPrompt = item.canvasGenerationPrompt || node.dataset.comfyPrompt || "";
+    node.dataset.resultSrc = item.resultSrc || "";
+    node.dataset.resultDownloadUrl = item.resultDownloadUrl || item.resultSrc || "";
     if (Array.isArray(item.refOrder)) setCanvasNodeRefOrder(node, item.refOrder);
   } else if (item.kind === "loop") {
     renderCanvasLoopNode(node);
@@ -14503,6 +17618,7 @@ function restoreCanvasBoardNode(item, board, context) {
       node.dataset.imageJobId = item.imageJobId;
       node.dataset.imageJobState = item.imageJobState || "unknown";
       if (item.imageJobCommittedId) node.dataset.imageJobCommittedId = item.imageJobCommittedId;
+      if (item.imageJobMidjourneyParameters) node.dataset.imageJobMidjourneyParameters = item.imageJobMidjourneyParameters;
       queueMicrotask(() => resumeCanvasImageNodeJob(node));
     }
     if (item.originalSrc) node.dataset.originalSrc = item.originalSrc;
@@ -14540,14 +17656,14 @@ function restoreCanvasBoardNode(item, board, context) {
       if (size && item.size) {
         fillCanvasNodeSizeSelect(size, item.size, node.dataset.canvasModel || model?.value || item.model);
         size.value = item.size;
-        node.dataset.canvasSize = size.value;
+        node.dataset.canvasSize = size.value || item.size;
       }
       const resolution = node.querySelector(".canvas-node-resolution");
       if (resolution && item.resolution) {
         resolution.value = item.resolution;
         node.dataset.canvasResolution = resolution.value;
       }
-      syncCanvasMidjourneyOptions(node, node.dataset.canvasModel || model?.value || item.model || "", {
+      syncCanvasMidjourneyOptions(node, node.dataset.canvasModel || model?.value || item.model || "", item.midjourneyParameters ? { ...item.midjourneyParameters, __replace: true } : {
         version: item.midjourneyVersion,
         mode: item.midjourneyMode,
         speed: item.midjourneySpeed,
@@ -14564,7 +17680,33 @@ function restoreCanvasBoardNode(item, board, context) {
   placeCanvasNode(node);
   delete node.dataset.virtualMounting;
   applyCanvasNodeSize(node);
+  restoreCanvasGenerationHistory(node, item);
   return node;
+}
+
+function restoreCanvasGenerationHistory(node, item) {
+  const hasHistory = Object.hasOwn(item, "generationHistory");
+  let items = Array.isArray(item.generationHistory) ? item.generationHistory : [];
+  if (node.classList.contains("canvas-node-llm") && Object.hasOwn(item, "llmOutput") && items.length) {
+    const selectedId = items.find(value => value.id === item.currentGenerationId)?.id || items[items.length - 1]?.id;
+    items = items.map(value => value.id === selectedId && value.kind === "text" ? { ...value, text: item.llmOutput || "" } : value);
+  }
+  if (!hasHistory) {
+    const base = { id: `legacy:${item.id || node.dataset.id}`, createdAt: item.updatedAt || item.createdAt };
+    if (node.classList.contains("canvas-node-llm") && item.llmOutput) items = [{ ...base, kind: "text", text: item.llmOutput, prompt: item.llmPrompt, model: item.llmModel }];
+    else if (item.generationVideoSrc) items = [{ ...base, kind: "video", src: item.generationVideoSrc }];
+    else if (item.kind === "audio-generator" && item.audioGeneration?.result) {
+      const result = item.audioGeneration.result;
+      items = [{ ...result, ...base, kind: "audio", src: result.url || result.src, prompt: item.audioGeneration.prompt, model: item.audioGeneration.modelId }];
+    } else if (item.resultSrc) items = [{ ...base, kind: "image", src: item.resultSrc, savedUrl: item.resultDownloadUrl || item.resultSrc, prompt: item.prompt || item.comfyPrompt, model: item.model }];
+  }
+  window.FloraGenerationHistory?.hydrate(node, items, item.currentGenerationId);
+  const restored = window.FloraGenerationHistory?.serialize(node);
+  if (restored?.generationHistory.length) {
+    const current = restored.generationHistory.find(value => value.id === restored.currentGenerationId);
+    applyCanvasGenerationHistoryItem(node, item.kind === "text" && current?.kind === "text"
+      ? { ...current, text: item.text ?? current.text, richHtml: item.textRichHtml ?? current.richHtml } : current);
+  } else if (hasHistory && item.kind !== "text") applyCanvasGenerationHistoryItem(node, null);
 }
 
 function prepareCanvasBoardRestoreFinalState(board, context) {
@@ -14578,9 +17720,18 @@ function prepareCanvasBoardRestoreFinalState(board, context) {
 function completeCanvasBoardRestore(context, { refsAlreadyRefreshed = false } = {}) {
   if (!refsAlreadyRefreshed) refreshAllCanvasRefs();
   refreshCanvasImageModelSelects();
+  void loadCanvasAudioModels();
   syncCanvasWorkspaceState();
   canvasState.isRestoring = false;
   scheduleCanvasConnectionRender();
+  // The board has finished restoring, so the canvas is idle by definition.
+  // Unlock the detail pass here instead of waiting for the user to pan or zoom:
+  // before this, a freshly opened board never reached the idle state, so images
+  // that rely on the quality pass stayed empty until the first gesture.
+  canvasDetailReady = true;
+  scheduleCanvasImageQualityUpdate();
+  warmCanvasViewportThumbnails();
+  scheduleCanvasThumbnailSweep();
   if (context.migratedLegacyCount) scheduleCanvasSave();
   if (!canvasState.isUndoing) resetCanvasUndoHistory();
   setCanvasStatus(`已打开：${canvasState.activeBoardTitle}`);
@@ -14598,6 +17749,7 @@ function restoreCanvasBoardVirtually(board) {
   const nodes = Array.isArray(board.nodes) ? board.nodes : [];
   nodes.forEach((item) => addCanvasBoardModelToVirtualStore(item, board, context));
   prepareCanvasBoardRestoreFinalState(board, context);
+  applyCanvasRestoreMountBudget();
   canvasVirtualizer.flushNow();
   completeCanvasBoardRestore(context);
   return true;
@@ -14660,10 +17812,49 @@ async function restoreCanvasBoardProgressively(board, onProgress) {
   completeCanvasBoardRestore(context, { refsAlreadyRefreshed: true });
 }
 
+// A board fills in one virtualized batch per animation frame, and a rich node
+// can cost more than the interactive 8ms slice on its own, so a fresh board
+// reveals roughly one node per frame. While the initial fill is running (and
+// before the user touches the viewport) allow a wider slice so the board
+// arrives in far fewer frames; the interactive values come back the moment the
+// fill finishes or a pan/zoom/drag starts.
+// Declared with `var` so the helpers stay safe if a shell path calls them
+// before this statement runs during script evaluation.
+var CANVAS_RESTORE_MOUNT_BUDGET_MS = 50;
+var CANVAS_RESTORE_MOUNT_BATCH = 48;
+var canvasMountInteractiveBudget = null;
+var canvasRestoreMountBudgetActive = false;
+
+function applyCanvasRestoreMountBudget() {
+  const rules = window.CanvasVirtualizationRules;
+  if (!rules || canvasRestoreMountBudgetActive) return;
+  // Capture the interactive defaults the first time, before overriding them.
+  canvasMountInteractiveBudget ||= {
+    ms: Number(rules.FRAME_BUDGET_MS) || 8,
+    batch: Number(rules.MAX_MOUNTS_PER_FRAME) || 12,
+  };
+  canvasRestoreMountBudgetActive = true;
+  rules.FRAME_BUDGET_MS = CANVAS_RESTORE_MOUNT_BUDGET_MS;
+  rules.MAX_MOUNTS_PER_FRAME = CANVAS_RESTORE_MOUNT_BATCH;
+}
+
+function releaseCanvasRestoreMountBudget() {
+  const rules = window.CanvasVirtualizationRules;
+  if (!rules || !canvasRestoreMountBudgetActive) return;
+  canvasRestoreMountBudgetActive = false;
+  if (!canvasMountInteractiveBudget) return;
+  rules.FRAME_BUDGET_MS = canvasMountInteractiveBudget.ms;
+  rules.MAX_MOUNTS_PER_FRAME = canvasMountInteractiveBudget.batch;
+}
+
 async function mountCanvasBoardViewportProgressively() {
   // Keep the loader responsive and allow layout/paint between rich-node
   // batches. A synchronous flush only measures JS, hiding deferred paint cost.
   canvasPendingRestoreRefsBoardId = canvasState.activeBoardId;
+  // The first batch runs behind the "正在打开画布" overlay, so a longer slice
+  // costs the user nothing visually and lets far more nodes arrive before the
+  // board is revealed. Post-open panning keeps the interactive budget.
+  applyCanvasRestoreMountBudget();
   canvasVirtualizer.flushNow({ ignoreBudget: false });
   await waitForCanvasRestorePaint();
   // The virtualizer continues the remaining batches itself. Unlock after the
@@ -14720,6 +17911,12 @@ async function openCanvasBoardFromHistory(board) {
   showCanvasEditor();
   setCanvasBoardLoading(true, { title: canvasState.activeBoardTitle, progress: 0 });
   try {
+    // The library list can remain cached while this board is edited. Reload
+    // metadata before hydration so newly saved/custom labels survive reopening.
+    const metaResponse = await fetch(`${CANVAS_BOARDS_API_URL}/${encodeURIComponent(board.id)}/meta`);
+    const meta = await metaResponse.json().catch(() => ({}));
+    if (!metaResponse.ok) throw new Error(meta.error || "画布标签与设置读取失败，请重试。");
+    board = { ...board, ...meta };
     clearCanvasPlane();
     canvasState.activeBoardId = String(board.id);
     canvasState.activeBoardTitle = board.title || "未命名画布";
@@ -14729,6 +17926,7 @@ async function openCanvasBoardFromHistory(board) {
     canvasPagedStore.boardRevision = canvasState.activeBoardRevision;
     Object.assign(canvasState, CanvasViewRules.normalizeViewport(board.viewport));
     canvasVirtualBoard = board;
+    window.FloraNodeTags?.hydrate(board);
     canvasVirtualRestoreContext = { maxId: 0, legacyResults: [], migratedLegacyCount: 0 };
     applyCanvasTransformNow();
     let page;
@@ -14759,6 +17957,9 @@ async function openCanvasBoardFromHistory(board) {
 function getSafeCanvasImageGenerationError(error, fallbackCode = "generation_failed") {
   const text = String(error?.message || error || "").toLowerCase();
   const errorCode = String(error?.code || "");
+  if (errorCode === "UPSTREAM_PROTOCOL" && error?.parameterValidation === true && /^Midjourney「/.test(String(error?.message || ""))) {
+    return { ok: false, code: "invalid_midjourney_parameter", error: String(error.message) };
+  }
   if (["image_task_pending", "image_job_not_submitted"].includes(errorCode)) {
     return { ok: false, code: errorCode, error: String(error.message) };
   }
@@ -14808,6 +18009,7 @@ async function createNewCanvasBoard(title = `画布 ${canvasState.boards.length 
   const boardTitle = normalizeCanvasBoardTitle(title) || `画布 ${canvasState.boards.length + 1}`;
   canvasState.isRestoring = true;
   clearCanvasPlane();
+  window.FloraNodeTags?.hydrate(null);
   resetCanvasView();
   canvasState.activeBoardId = createId();
   canvasState.activeProjectId = canvasState.activeProjectId || "";
@@ -15090,8 +18292,9 @@ function renderCanvasBoardList() {
   }
   boards.forEach((board) => {
     const canManage = board.isOwner !== false;
-    const card = document.createElement("button");
-    card.type = "button";
+    const card = document.createElement("article");
+    card.setAttribute("tabindex", "0");
+    card.setAttribute("role", "button");
     card.className = `canvas-board-item${board.id === canvasState.activeBoardId ? " active" : ""}`;
     card.dataset.boardId = board.id;
     const title = document.createElement("strong");
@@ -15106,7 +18309,8 @@ function renderCanvasBoardList() {
       ? `来自 ${board.ownerDisplayName || "协同成员"}`
       : canvasState.projects.find((item) => item.id === board.projectId)?.name || "未分类";
     card.append(createCanvasBoardPreview(board));
-    const remove = document.createElement("i");
+    const remove = document.createElement("button");
+    remove.type = "button";
     remove.className = "canvas-board-action canvas-board-delete";
     remove.title = isTrash ? "彻底删除" : "移入回收站";
     remove.setAttribute("aria-label", isTrash ? "彻底删除画布" : "把画布移入回收站");
@@ -15114,7 +18318,8 @@ function renderCanvasBoardList() {
     remove.hidden = !canManage;
     const removeIcon = canvasBoardActionIcon("Trash2");
     if (removeIcon) remove.append(removeIcon);
-    const share = document.createElement("i");
+    const share = document.createElement("button");
+    share.type = "button";
     share.className = "canvas-board-action canvas-board-share";
     share.title = "共享设置";
     share.setAttribute("aria-label", "共享设置");
@@ -15125,7 +18330,8 @@ function renderCanvasBoardList() {
     if (shareIcon) share.append(shareIcon);
     card.append(projectBadge, badge, title, meta, share, remove);
     if (isTrash) {
-      const restore = document.createElement("em");
+      const restore = document.createElement("button");
+      restore.type = "button";
       restore.className = "canvas-board-restore";
       restore.title = "恢复画布";
       restore.setAttribute("aria-label", "恢复画布");
@@ -15144,7 +18350,7 @@ function renderCanvasBoardList() {
       event.stopPropagation();
       if (!isTrash && canManage) showCanvasBoardMenu(board.id, event.clientX, event.clientY);
     });
-    card.addEventListener("click", async (event) => {
+    const activateCard = async (event) => {
       event.preventDefault();
       const action = event.target?.closest?.("[data-board-action]")?.dataset.boardAction || "";
       if (action === "share") {
@@ -15167,6 +18373,10 @@ function renderCanvasBoardList() {
       }
       if (isTrash) return;
       await openCanvasBoardFromHistory(board);
+    };
+    card.addEventListener("click", activateCard);
+    card.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") activateCard(event);
     });
     list.append(card);
   });
@@ -15212,8 +18422,11 @@ function createCanvasBoardPreview(board) {
   if (!images.length) {
     const empty = document.createElement("div");
     empty.className = "canvas-board-preview-empty";
-    empty.textContent = board.title || "未命名画布";
-    preview.append(empty);
+    const icon = canvasBoardActionIcon("Workflow", 20);
+    if (icon) empty.append(icon);
+    const label = document.createElement("span");
+    label.textContent = "暂无预览";
+    empty.append(label);
     return preview;
   }
   const grid = document.createElement("div");
@@ -15374,6 +18587,13 @@ function getCanvasCopySourceNode() {
   return document.querySelector("#canvasPlane .canvas-node-image:hover");
 }
 
+function markCanvasClipboardNodes() {
+  canvasState.clipboardNativeToken = `ai-os-canvas:${crypto.randomUUID()}`;
+  navigator.clipboard?.writeText(canvasState.clipboardNativeToken).catch(() => {
+    setCanvasStatus("系统剪贴板不可用，可使用画布菜单中的粘贴。");
+  });
+}
+
 function copySelectedCanvasNodes(event) {
   if (isCanvasTypingTarget(document.activeElement)) return;
   if (hasCanvasSceneSelection()) {
@@ -15401,10 +18621,12 @@ function copySelectedCanvasNodes(event) {
     .filter((item) => ids.has(String(item.from)) !== ids.has(String(item.to)))
     .map((item) => ({ ...item, selectedSide: ids.has(String(item.from)) ? "from" : "to" }));
   canvasState.clipboard = { selectedId, nodes, connections: internalConnections, externalConnections, pasteCount: 0 };
+  markCanvasClipboardNodes();
   setCanvasStatus(`已复制 ${nodes.length} 个节点。`);
 }
 
 function getCanvasCreateKindFromSerialized(kind) {
+  if (kind === "audio-generator") return kind;
   if (kind === "gallery") return "gallery-container";
   if (kind === "director-3d") return "director3d";
   if (["text", "note", "group", "gallery-container", "asset-collection", "grid-editor", "llm", "comfy", "loop", "video", "audio", "minimax-h3", "midjourney", "video-api", "video-output"].includes(kind)) return kind;
@@ -15651,12 +18873,21 @@ function pasteCanvasNodes(event) {
     const legacyComfyGenerator = isLegacyCanvasComfyGenerator(item);
     const node = createCanvasNode(legacyComfyGenerator ? "comfy" : getCanvasCreateKindFromSerialized(item.kind));
     idMap.set(String(item.id), node.dataset.id);
+    node.dataset.nodeLabelId = String(item.nodeLabelId || "");
+    node.dataset.nodeTitle = String(item.nodeTitle || "");
     node.dataset.x = String(Number(item.x || 0) + offset);
     node.dataset.y = String(Number(item.y || 0) + offset);
     if (item.width) node.dataset.width = String(item.width);
     if (item.height) node.dataset.height = String(item.height);
-    if (item.kind === "text") {
+    if (item.kind === "audio-generator") {
+      renderCanvasAudioGeneratorNode(node, item.audioGeneration || {});
+    } else if (item.kind === "text") {
       node.dataset.textName = String(item.textName || "文字").replace(/\s+/g, " ").trim().slice(0, 80) || "文字";
+      node.dataset.textBackground = window.FloraTextTools?.normalize(item.textBackground) || "default";
+      node.dataset.llmPrompt = String(item.llmPrompt || "");
+      node.dataset.llmModel = String(item.llmModel || "");
+      node.dataset.llmImages = JSON.stringify(Array.isArray(item.llmImages) ? item.llmImages : []);
+      if (typeof item.textRichHtml === "string") node.dataset.textRichHtml = item.textRichHtml;
       renderCanvasTextNode(node, item.text || "写下一个想法");
     } else if (item.kind === "note") {
       renderCanvasNoteNode(node, { text: item.text || "", color: item.noteColor });
@@ -15665,6 +18896,8 @@ function pasteCanvasNodes(event) {
         title: item.groupTitle || "图片组",
         memberIds: Array.isArray(item.groupMembers) ? item.groupMembers : [],
         images: Array.isArray(item.groupImages) ? item.groupImages : [],
+        color: item.groupColor || "",
+        layout: item.groupLayout || "",
       });
     } else if (item.kind === "gallery-container") {
       renderCanvasGalleryContainerNode(node, item.galleryContainer || {});
@@ -15687,6 +18920,7 @@ function pasteCanvasNodes(event) {
         steps: item.minimaxH3Steps ?? 4,
         duration: item.minimaxH3Duration ?? 12,
         refImageSize: item.minimaxH3RefImageSize || "match",
+        mode: normalizeCanvasH3Mode(item.minimaxH3Mode),
         seed: item.minimaxH3Seed ?? "",
       });
       node.dataset.minimaxH3ImageOrder = JSON.stringify(item.minimaxH3ImageOrder || []);
@@ -15735,13 +18969,18 @@ function pasteCanvasNodes(event) {
       });
     } else if (item.kind === "comfy" || legacyComfyGenerator) {
       renderCanvasComfyNode(node, {
-        mode: item.comfyMode || item.comfyWorkflow || "upscale2",
+        mode: item.comfyMode || item.comfyWorkflow || "qwen-image21",
         resolution: isCanvasComfyResolutionMode(item.comfyMode || item.comfyWorkflow) ? (item.comfyResolution || item.resolution || "2048") : "2048",
+        aspectRatio: item.comfyAspectRatio,
+        megapixels: item.comfyMegapixels,
+        tier: item.comfyTier,
         padding: item.comfyPadding,
         qwenAngle: item.comfyQwenAngle,
       });
       node.dataset.comfyPrompt = item.comfyPrompt || item.prompt || "";
       node.dataset.canvasGenerationPrompt = item.canvasGenerationPrompt || node.dataset.comfyPrompt || "";
+      node.dataset.resultSrc = item.resultSrc || "";
+      node.dataset.resultDownloadUrl = item.resultDownloadUrl || item.resultSrc || "";
       if (Array.isArray(item.refOrder)) setCanvasNodeRefOrder(node, item.refOrder);
     } else if (item.kind === "loop") {
       renderCanvasLoopNode(node);
@@ -15780,15 +19019,16 @@ function pasteCanvasNodes(event) {
         }
         const size = node.querySelector(".canvas-node-size");
         if (size && item.size) {
+          fillCanvasNodeSizeSelect(size, item.size, node.dataset.canvasModel || model?.value || item.model);
           size.value = item.size;
-          node.dataset.canvasSize = size.value;
+          node.dataset.canvasSize = size.value || item.size;
         }
         const resolution = node.querySelector(".canvas-node-resolution");
         if (resolution && item.resolution) {
           resolution.value = item.resolution;
           node.dataset.canvasResolution = resolution.value;
         }
-        syncCanvasMidjourneyOptions(node, node.dataset.canvasModel || model?.value || item.model || "", {
+      syncCanvasMidjourneyOptions(node, node.dataset.canvasModel || model?.value || item.model || "", item.midjourneyParameters ? { ...item.midjourneyParameters, __replace: true } : {
           version: item.midjourneyVersion,
           mode: item.midjourneyMode,
           speed: item.midjourneySpeed,
@@ -15800,6 +19040,7 @@ function pasteCanvasNodes(event) {
     }
     applyCanvasNodeSize(node);
     placeCanvasNode(node);
+    restoreCanvasGenerationHistory(node, item);
     pasted.push(node);
   });
   canvasState.clipboard.connections
@@ -15828,6 +19069,7 @@ function pasteCanvasNodes(event) {
     }
     updateCanvasNodeRefs(node);
   });
+  if (pasted.some(node => node.classList.contains("canvas-node-audio-generator"))) void loadCanvasAudioModels();
   const selectedCloneId = idMap.get(String(canvasState.clipboard.selectedId));
   clearCanvasSelection();
   pasted.forEach((node) => addCanvasNodeToSelection(node));
@@ -15841,6 +19083,20 @@ async function handleCanvasClipboardPaste(event) {
   if (!document.querySelector("#canvasView.active") || isCanvasTypingTarget(document.activeElement)) return;
   const clipboard = event.clipboardData;
   if (!clipboard) return;
+  const externalFiles = window.CanvasFileImport?.files(clipboard) || [];
+  if (externalFiles.length) {
+    event.preventDefault();
+    const center = getCanvasViewportCenterPoint();
+    const count = canvasState.externalFilePasteCount || 0;
+    canvasState.externalFilePasteCount = count + 1;
+    try { await window.CanvasFileImport.importFiles(externalFiles, { x: center.x + count * 28, y: center.y + count * 28 }); }
+    catch (error) { setCanvasStatus(`文件导入失败：${error.message}`); }
+    return;
+  }
+  if (clipboard.getData('text/plain') === canvasState.clipboardNativeToken && canvasState.clipboardNativeToken) {
+    pasteCanvasNodes(event);
+    return;
+  }
   const itemFiles = Array.from(clipboard.items || [])
     .filter((item) => item.kind === "file" && item.type.startsWith("image/"))
     .map((item) => item.getAsFile())
@@ -15947,7 +19203,7 @@ function createCanvasGroupFromSelection(event) {
   node.dataset.width = String(Math.max(280, Math.round(bounds.right - bounds.left + paddingX * 2)));
   node.dataset.height = String(Math.max(180, Math.round(bounds.bottom - bounds.top + paddingTop + paddingBottom)));
   renderCanvasGroupNode(node, {
-    title: "GROUP",
+    title: "图片组",
     memberIds: ordered.map((item) => item.dataset.id),
   });
   applyCanvasNodeSize(node);
@@ -16008,9 +19264,10 @@ function mergeGroupedImageConnectionsByIds(groupNode, ids) {
   renderCanvasConnections();
 }
 
-function renderCanvasGroupNode(node, { title = "GROUP", memberIds = [], images = [] } = {}) {
+function renderCanvasGroupNode(node, { title = "图片组", memberIds = [], images = [], color = "", layout = "" } = {}) {
   node.innerHTML = "";
-  node.dataset.groupTitle = title || "GROUP";
+  node.dataset.groupTitle = title || "图片组";
+  if (layout) node.dataset.groupLayout = String(layout);
   setCanvasGroupMemberIds(node, memberIds);
   if (images.length) setCanvasGroupImages(node, images);
   const outputPort = createCanvasPort("output");
@@ -16021,16 +19278,292 @@ function renderCanvasGroupNode(node, { title = "GROUP", memberIds = [], images =
     titleText.contentEditable = "true";
     titleText.textContent = node.dataset.groupTitle;
     titleText.addEventListener("input", () => {
-      node.dataset.groupTitle = titleText.textContent.trim() || "GROUP";
+      node.dataset.groupTitle = titleText.textContent.trim() || "图片组";
       scheduleCanvasSave();
     });
   }
   const count = document.createElement("div");
   count.className = "canvas-group-count";
   count.textContent = `${getCanvasGroupImages(node).length} 张图`;
+  // 组上方工具栏：颜色、布局、解组。挂在节点栏里，和其它节点的头部保持同一套外观。
+  const tools = document.createElement("div");
+  tools.className = "canvas-group-tools";
+  tools.dataset.groupTools = String(node.dataset.id || "");
+  tools.innerHTML = `
+    <button type="button" class="canvas-group-tool" data-group-tool="color" aria-haspopup="menu" aria-label="组颜色" title="组颜色"><span class="canvas-group-swatch" aria-hidden="true"></span></button>
+    <button type="button" class="canvas-group-tool" data-group-tool="layout" aria-haspopup="menu" aria-label="布局" title="布局"><i data-lucide="layout-grid" aria-hidden="true"></i><span>布局</span><i data-lucide="chevron-down" aria-hidden="true"></i></button>
+    <button type="button" class="canvas-group-tool" data-group-tool="ungroup" aria-label="解组" title="解组"><i data-lucide="ungroup" aria-hidden="true"></i><span>解组</span></button>
+  `;
+  const removeButton = bar.querySelector(".canvas-node-delete");
+  // 工具栏浮在组框上方正中间（参考图那种位置），挂在节点上跟着组一起动。
+  node.append(tools);
+  // 组不要右上角的删除叉：解组按钮已经能把组拆掉，标题栏里多一个叉只是多一层遮挡。
+  removeButton?.remove();
+  if (node.dataset.groupToolsBound !== "true") {
+    node.dataset.groupToolsBound = "true";
+    node.addEventListener("click", handleCanvasGroupToolClick);
+  }
+  setCanvasGroupColor(node, color || node.dataset.groupColor || "", { save: false });
   node.append(outputPort, bar, count, createCanvasResizeHandle());
+  window.lucide?.createIcons?.({ root: tools, attrs: { "aria-hidden": "true", "stroke-width": 1.8 } });
   scheduleCanvasConnectionRender();
 }
+
+// 组的工具栏：颜色 / 布局 / 解组。
+const CANVAS_GROUP_LAYOUTS = Object.freeze([
+  ["grid", "宫格布局", "按方阵排开"],
+  ["horizontal", "水平布局", "并排一行"],
+  ["vertical", "垂直布局", "竖着一列"],
+]);
+// 组颜色：沿用参考图色板的顺序与色相（默认空心圈、红、橙、金、橄榄、青、蓝、紫）。
+const CANVAS_GROUP_COLORS = Object.freeze([
+  ["", "默认"],
+  ["#ef4444", "红"],
+  ["#f97316", "橙"],
+  ["#eab308", "金"],
+  ["#84cc16", "橄榄"],
+  ["#14b8a6", "青"],
+  ["#3b82f6", "蓝"],
+  ["#a855f7", "紫"],
+]);
+
+// 菜单挂在 body 上：组内成员节点层级更高，菜单留在组里会被自己的组框和成员盖住。
+function getCanvasGroupMenu() {
+  let menu = document.querySelector("#canvasGroupMenu");
+  if (menu) return menu;
+  menu = document.createElement("div");
+  menu.id = "canvasGroupMenu";
+  menu.className = "canvas-group-menu";
+  menu.hidden = true;
+  // 菜单在 body 上，点它不会再经过组的点击处理器，所以在这里单独接一次。
+  menu.addEventListener("click", (event) => {
+    // 菜单有两种目标：组自己的工具栏，和框选后的选择工具条（只排列、不打组）。
+    const selectionTarget = menu.dataset.groupMenuTarget === "selection";
+    const group = selectionTarget ? null : getCanvasNode(menu.dataset.groupId || "");
+    if (!selectionTarget && !group) {
+      closeCanvasGroupMenu();
+      return;
+    }
+    const layout = event.target.closest("[data-group-layout]")?.dataset.groupLayout;
+    if (layout) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (selectionTarget) layoutCanvasSelection(layout);
+      else layoutCanvasGroupMembers(group, layout);
+      closeCanvasGroupMenu();
+      return;
+    }
+    const color = event.target.closest("[data-group-color]");
+    if (color && group) {
+      event.preventDefault();
+      event.stopPropagation();
+      setCanvasGroupColor(group, color.dataset.groupColor);
+      renderCanvasGroupMenu(group, "color");
+    }
+  });
+  document.body.append(menu);
+  return menu;
+}
+
+function closeCanvasGroupMenu() {
+  const menu = document.querySelector("#canvasGroupMenu");
+  if (!menu) return;
+  menu.hidden = true;
+  menu.dataset.groupMenu = "";
+  menu.dataset.groupMenuTarget = "";
+  menu.dataset.groupId = "";
+  document.querySelector('[data-selection-action="layout"]')?.setAttribute("aria-expanded", "false");
+}
+
+function renderCanvasGroupMenu(group, panel) {
+  const menu = getCanvasGroupMenu();
+  if (panel === "layout") {
+    menu.innerHTML = CANVAS_GROUP_LAYOUTS.map(([key, label, hint]) => (
+      `<button type="button" data-group-layout="${key}" aria-pressed="${group?.dataset.groupLayout === key}" class="${group?.dataset.groupLayout === key ? "is-active" : ""}"><span><b>${label}</b><em>${hint}</em></span></button>`
+    )).join("");
+    return;
+  }
+  menu.innerHTML = CANVAS_GROUP_COLORS.map(([value, label]) => (
+    `<button type="button" class="canvas-group-swatch-button${(group?.dataset.groupColor || "") === value ? " is-active" : ""}" data-group-color="${value}" title="${label}" aria-label="${label}" aria-pressed="${(group?.dataset.groupColor || "") === value}"><span class="canvas-group-swatch" style="--canvas-group-swatch: ${value || "var(--canvas-neon-muted)"}"></span></button>`
+  )).join("");
+}
+
+function openCanvasGroupMenu(group, panel, anchor, { selection = false } = {}) {
+  const menu = getCanvasGroupMenu();
+  renderCanvasGroupMenu(group, panel);
+  menu.dataset.groupMenu = panel;
+  menu.dataset.groupMenuTarget = selection ? "selection" : "group";
+  menu.dataset.groupId = selection ? "" : String(group?.dataset.id || "");
+  menu.hidden = false;
+  window.lucide?.createIcons?.({ root: menu, attrs: { "aria-hidden": "true", "stroke-width": 1.8 } });
+  const box = anchor?.getBoundingClientRect?.();
+  if (!box) return;
+  // 竖排色板接近屏幕高，横排布局菜单也靠边，统一夹在视口内，别被裁掉。
+  const size = menu.getBoundingClientRect();
+  const left = Math.min(Math.max(8, Math.round(box.left)), Math.max(8, window.innerWidth - size.width - 8));
+  const top = Math.min(Math.round(box.bottom + 6), Math.max(8, window.innerHeight - size.height - 8));
+  menu.style.top = `${Math.round(top)}px`;
+  menu.style.left = `${Math.round(left)}px`;
+  menu.style.right = "auto";
+}
+
+function setCanvasGroupColor(group, value, { save = true } = {}) {
+  if (!group?.classList?.contains("canvas-node-group")) return "";
+  const color = String(value || "");
+  if (color) group.dataset.groupColor = color;
+  else delete group.dataset.groupColor;
+  group.style.setProperty("--canvas-group-tint", color || "transparent");
+  group.querySelectorAll(".canvas-group-swatch").forEach((swatch) => {
+    swatch.style.setProperty("--canvas-group-swatch", color || "var(--canvas-neon-border)");
+  });
+  if (save) scheduleCanvasSave();
+  return color;
+}
+
+// 组的框按成员的真实包围盒重算，布局变化后框跟着走。
+function fitCanvasGroupToMembers(group, members = null) {
+  if (!group?.classList?.contains("canvas-node-group")) return false;
+  const list = (members || getCanvasGroupMemberIds(group).map((id) => getCanvasNode(id)))
+    .filter((node) => node && !node.classList.contains("canvas-node-group"));
+  const bounds = getCanvasNodesBounds(list);
+  if (!bounds) return false;
+  const paddingX = 36;
+  const paddingTop = 58;
+  const paddingBottom = 34;
+  setCanvasNodePoint(group, { x: bounds.left - paddingX, y: bounds.top - paddingTop });
+  group.dataset.width = String(Math.max(280, Math.round(bounds.right - bounds.left + paddingX * 2)));
+  group.dataset.height = String(Math.max(180, Math.round(bounds.bottom - bounds.top + paddingTop + paddingBottom)));
+  applyCanvasNodeSize(group);
+  placeCanvasNode(group);
+  refreshCanvasConnectedNodes(group.dataset.id);
+  return true;
+}
+
+const CANVAS_GROUP_LAYOUT_GAP = 32;
+
+function getCanvasGroupLayoutLabel(mode) {
+  return CANVAS_GROUP_LAYOUTS.find(([key]) => key === mode)?.[1] || "布局";
+}
+
+// 三个布局共用的排列：列数由布局决定，格子取最大节点尺寸，整批位置一次落定。
+function placeCanvasNodesInLayout(nodes, origin, mode, gap = CANVAS_GROUP_LAYOUT_GAP) {
+  const list = Array.from(nodes || []);
+  if (!list.length) return false;
+  const columns = mode === "vertical" ? 1 : mode === "horizontal" ? list.length : Math.ceil(Math.sqrt(list.length));
+  const cellWidth = Math.max(...list.map((node) => node.offsetWidth || Number(node.dataset.width || 400)));
+  const cellHeight = Math.max(...list.map((node) => node.offsetHeight || Number(node.dataset.height || 400)));
+  list.forEach((node, index) => {
+    const column = index % columns;
+    const row = Math.floor(index / columns);
+    setCanvasNodePoint(node, {
+      x: origin.x + column * (cellWidth + gap),
+      y: origin.y + row * (cellHeight + gap),
+    });
+    placeCanvasNode(node);
+  });
+  return true;
+}
+
+function captureCanvasLayoutSnapshot(nodes) {
+  return Array.from(nodes || []).map((node) => toCanvasOperationNode(syncCanvasNodeModel(node) || serializeCanvasNode(node)));
+}
+
+// 排列收成一条撤销记录：Ctrl+Z 把整批位置还原。
+function recordCanvasLayoutUndo(label, before, after) {
+  if (!before?.length || before.length !== after?.length) return;
+  const forward = createCanvasGalleryMemberTransferOperations(
+    before.map((item, index) => ({ id: item.id, before: item, after: after[index] })),
+    canvasState.connections,
+    canvasState.connections,
+  );
+  recordCanvasGalleryMemberTransferUndo({ label, forward });
+}
+
+function layoutCanvasGroupMembers(group, mode) {
+  if (!group?.classList?.contains("canvas-node-group")) return false;
+  const members = getCanvasGroupMemberIds(group)
+    .map((id) => getCanvasNode(id))
+    .filter((node) => node && !node.classList.contains("canvas-node-group"));
+  if (!members.length) return false;
+  const ordered = sortCanvasNodesByPosition(members);
+  const before = captureCanvasLayoutSnapshot([...ordered, group]);
+  const box = getCanvasNodeBox(group);
+  placeCanvasNodesInLayout(ordered, { x: box.left + 36, y: box.top + 58 }, mode);
+  group.dataset.groupLayout = mode;
+  fitCanvasGroupToMembers(group, ordered);
+  recordCanvasLayoutUndo("排列组内图片", before, captureCanvasLayoutSnapshot([...ordered, group]));
+  scheduleCanvasConnectionRender();
+  scheduleCanvasSave();
+  setCanvasStatus(`已按${getCanvasGroupLayoutLabel(mode)}排列组内图片。`);
+  return true;
+}
+
+// 框选后的「布局」：只按布局排列选中的节点，不打组（打组是另一个按钮的事）。
+function layoutCanvasSelection(mode) {
+  const nodes = getSelectedCanvasNodes()
+    .filter((node) => !node.classList.contains("canvas-node-group") && !node.closest(".canvas-node-group"));
+  if (nodes.length < 2) {
+    setCanvasStatus("请先框选两个以上的节点，再选布局。");
+    return false;
+  }
+  const ordered = sortCanvasNodesByPosition(nodes);
+  const bounds = getCanvasNodesBounds(ordered);
+  if (!bounds) return false;
+  const before = captureCanvasLayoutSnapshot(ordered);
+  placeCanvasNodesInLayout(ordered, { x: bounds.left, y: bounds.top }, mode);
+  recordCanvasLayoutUndo("排列选中节点", before, captureCanvasLayoutSnapshot(ordered));
+  scheduleCanvasConnectionRender();
+  scheduleCanvasSave();
+  updateCanvasSelectionFrame();
+  setCanvasStatus(`已按${getCanvasGroupLayoutLabel(mode)}排列选中的 ${ordered.length} 个节点，未打组。`);
+  return true;
+}
+
+function ungroupCanvasNode(group) {
+  if (!group?.classList?.contains("canvas-node-group")) return false;
+  const id = String(group.dataset.id || "");
+  const members = getCanvasGroupMemberIds(group).map((nodeId) => getCanvasNode(nodeId)).filter(Boolean);
+  canvasState.connections = canvasState.connections.filter((item) => String(item.from) !== id && String(item.to) !== id);
+  deleteCanvasNodes([group]);
+  clearCanvasSelection();
+  members.forEach((node) => addCanvasNodeToSelection(node));
+  scheduleCanvasSave();
+  setCanvasStatus("已解组，图片保持原位。");
+  return true;
+}
+
+function handleCanvasGroupToolClick(event) {
+  const group = event.target.closest?.(".canvas-node-group");
+  if (!group) return;
+  const tool = event.target.closest("[data-group-tool]")?.dataset.groupTool;
+  if (tool === "ungroup") {
+    event.preventDefault();
+    event.stopPropagation();
+    ungroupCanvasNode(group);
+    return;
+  }
+  if (tool) {
+    event.preventDefault();
+    event.stopPropagation();
+    const menu = getCanvasGroupMenu();
+    const open = menu.hidden || menu.dataset.groupMenu !== tool || menu.dataset.groupId !== String(group.dataset.id || "");
+    if (!open) {
+      closeCanvasGroupMenu();
+      return;
+    }
+    openCanvasGroupMenu(group, tool, event.target.closest("[data-group-tool]"));
+    return;
+  }
+}
+
+// 菜单挂在 body 上，点击落在组工具栏或菜单内部以外的地方就收起。
+document.addEventListener("pointerdown", (event) => {
+  const menu = document.querySelector("#canvasGroupMenu");
+  if (!menu || menu.hidden) return;
+  // 组工具栏和框选工具条都是菜单的锚点：点它们的按钮交给按钮自己的开合逻辑。
+  if (event.target.closest?.("#canvasGroupMenu, .canvas-group-tools, .canvas-selection-tools")) return;
+  closeCanvasGroupMenu();
+}, true);
 
 function getCanvasGroupMemberIds(node) {
   try {
@@ -16374,6 +19907,7 @@ function getCanvasNodePluginContext() {
     MIDJOURNEY_IMAGE_RATIOS,
     MIDJOURNEY_STANDARD_VERSIONS,
     MINIMAX_H3_ASPECT_RATIOS,
+    MINIMAX_H3_LOCAL_MODELS,
     canvasImageModelPickers,
     canvasState,
     cardWidth: CANVAS_DIRECTOR3D_CARD_WIDTH,
@@ -16406,6 +19940,22 @@ function getCanvasNodePluginContext() {
     isCanvasComfyResolutionMode,
     scheduleCanvasConnectionRender,
     scheduleCanvasSave,
+    captureCanvasTextEdit: node => toCanvasOperationNode(syncCanvasNodeModel(node)),
+    commitCanvasTextEdit: (node, before) => {
+      if (!node || !before) return;
+      const text = getCanvasTextValue(node);
+      const richHtml = window.CanvasTextNodeRenderer?.getRichHtml(node) || "";
+      if (before.text === text && before.textRichHtml === richHtml) return;
+      const entries = window.FloraGenerationHistory?.serialize(node)?.generationHistory || [];
+      const current = entries.find(entry => entry.id === node.dataset.currentGenerationId);
+      if (current?.kind === "text") window.FloraGenerationHistory.add(node, { ...current, text, richHtml });
+      const after = toCanvasOperationNode(syncCanvasNodeModel(node));
+      const operation = { type: "node.upsert", entityId: node.dataset.id, before, after };
+      recordCanvasUndo({ label: "编辑文字", forward: [operation], inverse: [{ ...operation, before: after, after: before }] });
+      stageCanvasOperation(operation);
+      refreshCanvasConnectedNodes(node.dataset.id);
+      scheduleCanvasConnectionRender();
+    },
     stopCanvasTextWheel,
     syncCanvasNodeModel,
     deleteCanvasNodes,
@@ -16806,6 +20356,8 @@ function ensureCanvasNodeChrome(node) {
   if (!node?.querySelector) return node;
   const kind = resolveCanvasNodeKind(node);
   const meta = CANVAS_NODE_KIND_META[kind] || null;
+  if (kind) node.dataset.canvasNodeKind = kind;
+  if (meta) node.dataset.canvasNodeTone = meta.tone === "accent" ? "accent" : "neutral";
   const bar = node.querySelector(":scope > .canvas-node-bar");
   const title = bar?.querySelector(".canvas-node-title") || null;
   if (meta && bar && title) {
@@ -16871,11 +20423,13 @@ function createCanvasNodeBar(label, { editable = false, editableKind = "image" }
   remove.type = "button";
   remove.className = "canvas-node-delete";
   remove.textContent = "×";
+  remove.title = "删除节点";
+  remove.setAttribute("aria-label", "删除节点");
   remove.addEventListener("click", (event) => {
     event.stopPropagation();
     const node = bar.closest(".canvas-node");
     if (!node) return;
-    if (node.classList.contains("canvas-node-gallery-container")) requestCanvasGalleryNodeDelete(node);
+    if (node.classList.contains("canvas-node-gallery-container")) deleteCanvasGalleryNode(node);
     else deleteCanvasNodes([node]);
   });
   let nameInput = null;
@@ -17308,12 +20862,17 @@ function applyAgentCanvasNodeChanges(node, changes = {}) {
   if (node.classList.contains("canvas-node-comfy") && [
     changes.comfy_mode,
     changes.comfy_resolution,
+    changes.comfy_aspect_ratio,
+    changes.comfy_megapixels,
     changes.comfy_padding,
     changes.comfy_qwen_angle,
   ].some((value) => value !== null && value !== undefined)) {
     renderCanvasComfyNode(node, {
-      mode: changes.comfy_mode ?? node.querySelector(".canvas-comfy-mode")?.value ?? node.dataset.comfyMode ?? "upscale2",
+      mode: changes.comfy_mode ?? node.querySelector(".canvas-comfy-mode")?.value ?? node.dataset.comfyMode ?? "qwen-image21",
       resolution: changes.comfy_resolution ?? node.querySelector(".canvas-comfy-resolution")?.value ?? node.dataset.comfyResolution ?? "2048",
+      aspectRatio: changes.comfy_aspect_ratio ?? node.querySelector(".canvas-comfy-aspect")?.value ?? node.dataset.comfyAspectRatio ?? "",
+      megapixels: changes.comfy_megapixels ?? node.querySelector(".canvas-comfy-megapixels")?.value ?? node.dataset.comfyMegapixels ?? "",
+      tier: changes.comfy_tier ?? node.dataset.comfyTier ?? "",
       padding: changes.comfy_padding ?? getCanvasComfyPadding(node),
       qwenAngle: changes.comfy_qwen_angle ?? getCanvasComfyQwenAngle(node),
     });
@@ -17597,7 +21156,7 @@ async function removeAgentCanvasImageBackground(args = {}, context) {
   const applied = await requestCanvasBackgroundRemoval("/api/background-removal/apply", {
     token: prepared.token,
     mode,
-    name: appendNameSuffix(sourceNode.dataset.imageName || "image.png", "抠图"),
+    name: sourceNode.dataset.imageName || "image.png",
   });
   assertCanvasAgentContext(context);
   const targetNode = placeCanvasCutoutResult(sourceNode, applied);
@@ -17673,7 +21232,7 @@ function groupAgentCanvasNodes(args = {}, context) {
     setCanvasNodePoint(group, { x: bounds.left - 36, y: bounds.top - 58 });
     group.dataset.width = String(Math.max(280, Math.round(bounds.right - bounds.left + 72)));
     group.dataset.height = String(Math.max(180, Math.round(bounds.bottom - bounds.top + 92)));
-    renderCanvasGroupNode(group, { title: String(args.title || "GROUP"), memberIds: members.map((node) => node.dataset.id) });
+    renderCanvasGroupNode(group, { title: String(args.title || "图片组"), memberIds: members.map((node) => node.dataset.id) });
     applyCanvasNodeSize(group);
     placeCanvasNode(group);
   } else {
@@ -18213,16 +21772,263 @@ const CanvasAgentCanvasApi = Object.freeze({
 });
 window.CanvasAgentCanvasApi = CanvasAgentCanvasApi;
 
+// Flora text tools operate on the existing text node renderer instead of
+// creating a second editor surface.  The shell owns the menu; the canvas
+// bridge owns serialization, node creation and status feedback.
+window.addEventListener("flora-text-action", (event) => {
+  const node = event.detail?.node;
+  const action = String(event.detail?.action || "");
+  if (!node?.classList?.contains("canvas-node-text")) return;
+  const text = getCanvasTextValue(node);
+  if (action === "copy") {
+    const write = window.navigator?.clipboard?.writeText?.(text);
+    Promise.resolve(write).then(() => setCanvasStatus("已复制文字内容。"), () => setCanvasStatus("复制失败，请检查剪贴板权限。"));
+    return;
+  }
+  if (action === "clear") {
+    setCanvasTextValue(node, "");
+    node.querySelector(".canvas-text")?.dispatchEvent(new Event("input", { bubbles: true }));
+    scheduleCanvasSave();
+    setCanvasStatus("已清空文字节点。");
+    return;
+  }
+  if (action === "replace") {
+    const find = String(event.detail?.payload?.find || "");
+    const replacement = String(event.detail?.payload?.replacement || "");
+    if (!find) {
+      setCanvasStatus("请输入要查找的文字。");
+      return;
+    }
+    if (!text.includes(find)) {
+      setCanvasStatus("当前节点没有找到匹配文字。");
+      return;
+    }
+    setCanvasTextValue(node, text.split(find).join(replacement));
+    node.querySelector(".canvas-text")?.dispatchEvent(new Event("input", { bubbles: true }));
+    scheduleCanvasSave();
+    setCanvasStatus("已完成文字替换。");
+    return;
+  }
+  if (action === "split") {
+    const parts = text.split(/\r?\n+/).map((part) => part.trim()).filter(Boolean);
+    if (parts.length < 2) {
+      setCanvasStatus("拆分文字至少需要两行内容。");
+      return;
+    }
+    const baseX = Number(node.dataset.x || 0);
+    const baseY = Number(node.dataset.y || 0);
+    const gap = 72;
+    const width = Math.max(400, Number(node.offsetWidth || node.dataset.width || 400));
+    parts.forEach((part, index) => addCanvasText({ x: baseX + (width + gap) * (index + 1), y: baseY }, { text: part, focus: false }));
+    scheduleCanvasSave();
+    setCanvasStatus(`已拆分为 ${parts.length} 个文字节点。`);
+  }
+});
+
+// Flora media actions keep the real file inputs and asset collection state in
+// the canvas bridge. The shell only presents the interaction; it never clones
+// or replaces the upload controls owned by the legacy renderer.
+window.addEventListener("flora-generator-reveal", (event) => {
+  const node = event.detail?.node;
+  if (!node?.isConnected || node.dataset.floraComposer !== "true"
+    || canvasState.selectedIds.size !== 1 || !canvasState.selectedIds.has(node.dataset.id)) return;
+  const deltaY = Number(event.detail?.screenDeltaY);
+  const deltaX = Number(event.detail?.screenDeltaX);
+  let moved = false;
+  if (Number.isFinite(deltaY) && deltaY < -0.5) {
+    canvasState.y += deltaY;
+    moved = true;
+  }
+  if (Number.isFinite(deltaX) && Math.abs(deltaX) > 0.5) {
+    canvasState.x += deltaX;
+    moved = true;
+  }
+  if (moved) applyCanvasTransformNow();
+});
+
+window.addEventListener("flora-generator-prompt-change", (event) => {
+  const node = event.detail?.node;
+  if (!node?.isConnected || !node.classList.contains("canvas-node-comfy")) return;
+  node.dataset.comfyPrompt = String(event.detail.prompt ?? "");
+  node.dataset.canvasGenerationPrompt = node.dataset.comfyPrompt;
+  scheduleCanvasSave();
+});
+
+window.addEventListener("flora-generator-reference-upload", async (event) => {
+  const node = event.detail?.node;
+  const files = Array.from(event.detail?.files || []);
+  if (!node?.isConnected || node.dataset.floraComposer !== "true" || !files.length) return;
+  if (node.dataset.floraReferenceUploading === "true") return;
+  const boardId = canvasState.activeBoardId;
+  const add = node.querySelector(".flora-generator-add-reference");
+  node.dataset.floraReferenceUploading = "true";
+  if (add) add.disabled = true;
+  let phase = "上传";
+  try {
+    setCanvasNodeStatus(node, "正在添加参考素材…");
+    for (const [index, file] of files.entries()) {
+      phase = "上传";
+      const type = window.CanvasFileImport?.kind?.(file) || "";
+      const point = {
+        x: Number(node.dataset.x || 0) - 472,
+        y: Number(node.dataset.y || 0) + index * 464,
+      };
+      let reference;
+      if (type === "image") {
+        const src = await uploadCanvasImageFile(file);
+        reference = addCanvasImage(src, file.name || "参考图", point);
+      } else if (type === "video" || type === "audio") {
+        const extension = String(file.name || "").split(".").pop()?.toLowerCase() || "bin";
+        const subtype = ({ mp4: "mp4", webm: "webm", mov: "quicktime", wmv: "x-ms-wmv", mkv: "x-matroska", avi: "x-msvideo", mp3: "mpeg", wav: "wav", m4a: "mp4", aac: "aac", flac: "flac", ogg: "ogg", opus: "opus" })[extension] || extension;
+        const mediaFile = file.type ? file : new File([file], file.name || `${type}.${extension}`, { type: `${type}/${subtype}`, lastModified: file.lastModified });
+        const uploaded = await uploadCanvasMediaFile(mediaFile);
+        const options = { src: uploaded.url, name: file.name || uploaded.filename || `${type}参考`, mimeType: uploaded.mimeType || file.type };
+        reference = type === "video" ? addCanvasVideoNode(point, options) : addCanvasAudioNode(point, options);
+      } else if (["txt", "md", "docx", "pdf"].includes(type) && window.CanvasFileImport?.importFiles) {
+        const created = await window.CanvasFileImport.importFiles([file], point);
+        reference = created?.[0];
+      } else {
+        throw new Error("请选择图片、视频、音频或 TXT、MD、DOCX、PDF 文件。");
+      }
+      phase = "连接";
+      if (!node.isConnected || canvasState.activeBoardId !== boardId) throw new Error("画布已切换，参考素材未添加。");
+      if (!reference?.dataset?.id) throw new Error("参考素材节点创建失败。");
+      connectCanvasNodes(reference.dataset.id, node.dataset.id);
+      if (!canvasState.connections.some(connection => connection.from === reference.dataset.id && connection.to === node.dataset.id)) {
+        const compatibility = getCanvasConnectionCompatibility(reference, node, getCanvasNodeOutput(reference));
+        throw new Error(`参考素材已添加，但未能连接到当前节点：${compatibility.ok ? "请检查节点的输入端口。" : compatibility.message}`);
+      }
+      selectCanvasNode(node);
+    }
+    updateCanvasNodeRefs(node);
+    setCanvasNodeStatus(node, "参考素材已添加");
+    scheduleCanvasSave();
+  } catch (error) {
+    setCanvasNodeStatus(node, `参考素材${phase}失败：${error.message || "请稍后重试。"}`);
+  } finally {
+    delete node.dataset.floraReferenceUploading;
+    if (add) add.disabled = false;
+  }
+});
+
+window.addEventListener("flora-media-action", async (event) => {
+  const node = event.detail?.node;
+  const kind = String(event.detail?.kind || "");
+  const action = String(event.detail?.action || "");
+  const image = event.detail?.image || event.detail?.media || null;
+  if (!node?.classList?.contains("canvas-node")) return;
+  selectCanvasNode(node);
+  const collection = kind === "asset-collection" || node.classList.contains("canvas-node-asset-collection");
+  const state = collection ? getCanvasAssetCollection(node) : { members: [], activeMemberId: "" };
+  const activeMember = state.members.find((member) => String(member.id) === String(event.detail?.memberId || state.activeMemberId))
+    || state.members[0];
+  const source = image?.getAttribute?.("data-original-src")
+    || image?.getAttribute?.("src")
+    || activeMember?.savedUrl
+    || activeMember?.src
+    || activeMember?.url
+    || node.dataset.originalSrc
+    || node.dataset.imageSrc
+    || node.dataset.resultSrc
+    || node.dataset.videoSrc
+    || node.dataset.audioSrc
+    || "";
+
+  if (action === "preview") {
+    if (source) openCanvasImageOriginalPreview(node, image || { getAttribute: (name) => name === "data-original-src" ? source : "" });
+    return;
+  }
+  if (action === "download") {
+    if (source) {
+      // Result nodes cover pictures, video and audio, so the saved name has to
+      // carry the real media extension instead of always ending in .png.
+      const base = image?.alt || activeMember?.name || node.dataset.imageName
+        || node.dataset.mediaName || node.dataset.videoName || "素材";
+      const mime = activeMember?.mimeType || node.dataset.mediaMimeType || node.dataset.videoMimeType || "";
+      void downloadAsset(source, canvasDownloadFileName(base, mime, source));
+    }
+    return;
+  }
+  if (action === "delete") {
+    // The unified toolbar is node-level: deleting from it removes the node and
+    // its connections, regardless of whether the node currently shows media.
+    deleteCanvasNodes([node]);
+    return;
+  }
+  // 抠图仍是独立弹窗；裁剪改走下面的节点内联模式。
+  if (action === "cutout") {
+    const memberId = String(event.detail?.memberId || activeMember?.id || "");
+    await openCanvasCutoutWorkbench(node, memberId);
+    return;
+  }
+  if (action === "angle") {
+    // 换角度用拖拽方块对话框（拖拽即调角度，滑杆与方位预设一起给），提交仍走同一份参数。
+    openCanvasAngleDialog(node);
+    return;
+  }
+  if (action === "outpaint") {
+    // 扩图直接在原节点上拖外框（扩出区域用棋盘格表示），确认后再新建结果节点。
+    openCanvasInlineOutpaint(node);
+    return;
+  }
+  if (action === "crop") {
+    // 裁剪也改成节点内联：仅裁剪 / 创建分镜格子都在原节点上选，确认后出新图或图集。
+    openCanvasInlineCrop(node);
+    return;
+  }
+  if (action === "upscale") {
+    // 放大只有分辨率一项，保持节点上的参数面板：点按钮展开，面板里的「执行」才提交。
+    openCanvasImageToolPanel(node, action);
+    return;
+  }
+  if (action === "replace" || action === "media-upload" || action === "add" || action === "upload") {
+    if (collection) {
+      if (action === "replace" && (event.detail?.memberId || activeMember?.id)) {
+        node.dataset.assetReplaceMemberId = String(event.detail?.memberId || activeMember?.id || "");
+      }
+      const picker = document.querySelector("#canvasNodeAssetInput");
+      if (picker) {
+        picker.dataset.nodeId = String(node.dataset.id || "");
+        picker.click();
+      }
+      return;
+    }
+    const inputId = kind === "video" || kind === "asset-video"
+      ? "#canvasNodeVideoInput"
+      : kind === "audio" || kind === "asset-audio"
+        ? "#canvasNodeAudioInput"
+        : "#canvasNodeImageInput";
+    document.querySelector(inputId)?.click();
+    return;
+  }
+});
+
+// 图片工具的参数面板：点面板和工具栏以外的地方、或按 Esc 时收起。
+window.addEventListener("pointerdown", (event) => {
+  const open = document.querySelector(".canvas-node[data-flora-tool-panel]");
+  if (!open) return;
+  if (event.target.closest?.(".flora-node-tool-panel, .flora-node-toolbar")) return;
+  closeCanvasImageToolPanel(open);
+}, true);
+window.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") return;
+  const open = document.querySelector(".canvas-node[data-flora-tool-panel]");
+  if (open) closeCanvasImageToolPanel(open);
+});
+
 function placeCanvasNode(node) {
-  // The node skeleton (identity badge, purpose line, status band) is applied
-  // here because every mount path — new node, board restore, virtualised
-  // remount — funnels through this function.
+  // Every mount path — new node, board restore and virtualised remount — now
+  // enters the Flora shell adapter before the legacy renderer is exposed. The
+  // adapter owns the visible shell while the existing children remain the
+  // compatibility surface for serialization and node-specific actions.
   ensureCanvasNodeChrome(node);
+  window.CanvasFloraNodeShell?.mount?.(node);
   // A generation card always offers its engine choice, whichever engine it
   // currently mounts, so the two cards stay the single place to manage image or
   // video generation.
   insertCanvasGenerationEngineSwitch(node);
   document.querySelector("#canvasPlane")?.append(node);
+  window.FloraNodeTags?.mount(node);
   canvasVirtualStore.setMounted(node.dataset.id, node, node.dataset.virtualLevel || "full");
   if (node.dataset.virtualManaged !== "true") {
     canvasVirtualStore.mergeSerialized(node.dataset.id, serializeCanvasNode(node));
@@ -18234,17 +22040,23 @@ function placeCanvasNode(node) {
 }
 
 function beginCanvasPan(event) {
-  if (event.button !== 0 && event.button !== 1) return;
+  // 平移只认中键：左键留给框选与拖节点。
+  if (event.button !== 1) return;
   const pointerId = event.pointerId;
-  const buttonMask = event.button === 1 ? 4 : 1;
+  const buttonMask = 4;
   const target = event.currentTarget;
   const start = { x: event.clientX, y: event.clientY, offsetX: canvasState.x, offsetY: canvasState.y };
   event.preventDefault();
   target?.setPointerCapture?.(pointerId);
+  // While the pointer button is held for a pan no node can be clicked, so the
+  // node layer can stop participating in hit-testing for the duration. The gate
+  // is lifted on release, so every click outside a pan behaves exactly as before.
+  target?.classList?.add("is-canvas-panning");
   let active = true;
   const stop = () => {
     if (!active) return;
     active = false;
+    target?.classList?.remove("is-canvas-panning");
     target?.releasePointerCapture?.(pointerId);
     window.removeEventListener("pointermove", move);
     window.removeEventListener("pointerup", up);
@@ -18280,7 +22092,7 @@ function beginCanvasPan(event) {
 }
 
 function beginCanvasNodeDrag(event, node, { initialMove = null, initialEnd = null } = {}) {
-  if (event.target.closest("button, textarea, select, input, .canvas-text, .canvas-resize-handle, .canvas-group-thumb")) return;
+  if (event.target.closest('button, textarea, select, input, .canvas-text[contenteditable="true"], .canvas-resize-handle, .canvas-group-thumb')) return;
   if (event.button !== 0) return;
   event.preventDefault();
   event.stopPropagation();
@@ -18322,7 +22134,7 @@ function beginCanvasNodeDrag(event, node, { initialMove = null, initialEnd = nul
     start.nodes.forEach((item) => {
       item.node.dataset.x = String(item.x + deltaX);
       item.node.dataset.y = String(item.y + deltaY);
-      updateCanvasNodePosition(item.node);
+      updateCanvasNodePosition(item.node, { deferPaint: true });
     });
     showCanvasAlignmentGuides(alignment);
   };
@@ -18463,9 +22275,27 @@ function getCanvasNodeCenter(node) {
   return CanvasGeometryRules.rectCenter(getCanvasNodeBox(node));
 }
 
+function isCanvasAdaptiveMaterialNode(node) {
+  if (!node?.classList || node.classList.contains("canvas-node-generator")) return false;
+  if (node.classList.contains("canvas-node-asset-single-audio") || node.classList.contains("canvas-node-media-audio")) return false;
+  if (node.classList.contains("canvas-node-asset-single-image") || node.classList.contains("canvas-node-asset-single-video")) return true;
+  if (node.classList.contains("canvas-node-video") || node.classList.contains("canvas-node-media-video")) return true;
+  return node.classList.contains("canvas-node-image") && Boolean(node.dataset.uploadOnly === "true" || node.dataset.imageSrc);
+}
+
 function getCanvasNodeBox(node) {
   const x = Number(node.dataset.x || 0);
   const y = Number(node.dataset.y || 0);
+  if (node.dataset.floraNode === "true") {
+    const bodyWidth = Number(node.offsetWidth || node.dataset.width || node.dataset.renderedWidth || 400);
+    const bodyHeight = Number(node.offsetHeight || (Number(node.dataset.height || 400) + 48));
+    return CanvasGeometryRules.rectFromPointSize(
+      { x, y },
+      bodyWidth,
+      bodyHeight,
+      { fallbackWidth: 400, fallbackHeight: 400 },
+    );
+  }
   if (node.classList.contains("canvas-node-frameless") && node.dataset.imageSrc) {
     return getCanvasImageContentRect({ ...node.dataset, kind: "image", x, y });
   }
@@ -18580,7 +22410,7 @@ function getCanvasNodeMinWidth(node) {
   if (node.classList.contains("canvas-node-gallery-container")) {
     const container = getCanvasGalleryContainer(node);
     const layout = getCanvasGalleryContainerSizeForRequest(node, node.offsetWidth || Number(node.dataset.width || 0), 0).layout;
-    return getCanvasGalleryMinimumWidthForColumns(layout.columns, container.gap ?? 16);
+    return getCanvasGalleryMinimumWidthForColumns(layout.columns, container.gap ?? CANVAS_GALLERY_CELL_GAP);
   }
   if (node.classList.contains("canvas-node-grid-editor")) return 420;
   if (node.classList.contains("canvas-node-generator")) return 320;
@@ -18726,6 +22556,18 @@ function getCanvasImageContentRect(model, envelope = null) {
 }
 
 function applyCanvasNodeSize(node) {
+  if (isCanvasAdaptiveMaterialNode(node)) {
+    const media = node.querySelector(".canvas-image-upload img:not(.canvas-image-mask-preview), .canvas-media-shell-video video, video.canvas-video-preview");
+    const width = Number(media?.dataset.originalWidth || media?.naturalWidth || media?.videoWidth);
+    const height = Number(media?.dataset.originalHeight || media?.naturalHeight || media?.videoHeight);
+    if (width > 0 && height > 0) {
+      applyCanvasAdaptiveMediaSize(node, width, height);
+    } else {
+      node.style.left = "";
+      node.style.top = "";
+    }
+    return;
+  }
   if (node.classList.contains("canvas-node-frameless") && node.dataset.imageSrc) {
     const img = node.querySelector(".canvas-image-upload img:not(.canvas-image-mask-preview)");
     const width = Number(img?.dataset.originalWidth || img?.naturalWidth);
@@ -18770,6 +22612,167 @@ function applyCanvasNodeSize(node) {
   }
 }
 
+function applyCanvasAdaptiveMediaSize(node, intrinsicWidth, intrinsicHeight) {
+  if (!isCanvasAdaptiveMaterialNode(node)) return false;
+  const sourceWidth = Number(intrinsicWidth);
+  const sourceHeight = Number(intrinsicHeight);
+  if (!(sourceWidth > 0 && sourceHeight > 0)) return false;
+  const shortEdge = 400;
+  const scale = shortEdge / Math.min(sourceWidth, sourceHeight);
+  const nextWidth = Math.max(shortEdge, Math.round(sourceWidth * scale));
+  const nextHeight = Math.max(shortEdge, Math.round(sourceHeight * scale));
+  const changed = Number(node.dataset.width || 0) !== nextWidth || Number(node.dataset.height || 0) !== nextHeight;
+  if (node.dataset.imageSrc) canvasImageDimensions.set(node.dataset.imageSrc, { width: sourceWidth, height: sourceHeight });
+  node.dataset.width = String(nextWidth);
+  node.dataset.height = String(nextHeight);
+  node.dataset.renderedWidth = String(nextWidth);
+  node.dataset.renderedHeight = String(nextHeight + 48);
+  node.dataset.floraSize = `${nextWidth}x${nextHeight}`;
+  node.dataset.floraBodySize = `${nextWidth}x${nextHeight}`;
+  node.dataset.floraMediaRatio = `${sourceWidth}:${sourceHeight}`;
+  node.style.left = "";
+  node.style.top = "";
+  node.style.width = `${nextWidth}px`;
+  node.style.height = `${nextHeight + 48}px`;
+  node.style.setProperty("--flora-node-width", `${nextWidth}px`);
+  node.style.setProperty("--flora-node-height", `${nextHeight}px`);
+  updateCanvasNodePosition(node);
+  scheduleCanvasSceneRender();
+  if (changed) scheduleCanvasSave();
+  return changed;
+}
+
+window.addEventListener("flora-media-dimensions", (event) => {
+  const node = event.detail?.node;
+  if (!node?.isConnected) return;
+  applyCanvasAdaptiveMediaSize(node, event.detail?.width, event.detail?.height);
+});
+
+window.addEventListener("flora-image-preview-resized", (event) => {
+  const node = event.detail?.node;
+  if (!node?.isConnected) return;
+  updateCanvasNodePosition(node);
+  scheduleCanvasSceneRender();
+  scheduleCanvasSave();
+});
+
+// Labels share the board's operation/permission pipeline. The UI never owns a
+// second persistence store, and pending board patches keep viewport and labels.
+window.addEventListener("flora-node-rename", event => {
+  const { node, title } = event.detail || {};
+  if (!node?.isConnected || canvasState.isRestoring || canvasState.boardOpening) return;
+  const next = String(title || "").replace(/\s+/g, " ").trim().slice(0, 80);
+  if (!next || next === node.dataset.nodeTitle) return;
+  const before = toCanvasOperationNode(syncCanvasNodeModel(node) || serializeCanvasNode(node));
+  const after = { ...before, nodeTitle: next };
+  const forward = { type: "node.upsert", entityId: node.dataset.id, before, after };
+  const inverse = { type: "node.upsert", entityId: node.dataset.id, before: after, after: before };
+  recordCanvasUndo({ label: "重命名节点", forward: [forward], inverse: [inverse] });
+  stageCanvasOperation(forward, { applyLocal: true });
+  refreshCanvasConnectedNodes(node.dataset.id);
+  scheduleCanvasSave();
+  scheduleCanvasSceneRender();
+});
+
+const canvasTagReadyBoards = new Set();
+window.FloraTextTools?.setHost({
+  setBackground(node, background) {
+    if (!node?.isConnected || canvasState.isRestoring || canvasState.boardOpening) return;
+    const before = toCanvasOperationNode(syncCanvasNodeModel(node) || serializeCanvasNode(node));
+    const after = { ...before, textBackground: window.FloraTextTools.normalize(background) };
+    if (before.textBackground === after.textBackground) return;
+    const operation = { type: "node.upsert", entityId: node.dataset.id, before, after };
+    recordCanvasUndo({ label: "修改文字背景色", forward: [operation], inverse: [{ ...operation, before: after, after: before }] });
+    stageCanvasOperation(operation, { applyLocal: true });
+    scheduleCanvasSave();
+  },
+});
+window.CanvasFileImport?.setHost({
+  scope: () => `${canvasState.activeBoardId}:${canvasState.externalClipboardEpoch || 0}:${canvasState.boardOpening}`,
+  prepare: () => window.AiOsModuleLoader.ensure(['canvas-node-text', 'canvas-node-asset-collection', 'canvas-node-media']),
+  create(file, media, point) {
+    const node = media ? addCanvasMaterialPlaceholder(point) : addCanvasText(point, { name: file.name || '文档', focus: false });
+    node.dataset.nodeTitle = String(file.name || (media ? '素材' : '文档')).slice(0, 80);
+    window.CanvasFloraNodeShell?.syncLabel(node);
+    return node;
+  },
+  async fillMedia(node, file) {
+    const boardId = canvasState.activeBoardId;
+    await fillCanvasAssetCollectionFromFile(node, file);
+    if (!getCanvasAssetCollection(node).members.length) throw new Error('素材上传失败，请检查文件或重试。');
+    if (!node.isConnected || boardId !== canvasState.activeBoardId) return;
+    const media = node.querySelector('.flora-node-result-area img, .flora-node-result-area video');
+    if (!media) return; // Audio retains its compact, fixed size.
+    const ready = () => Number(media.naturalWidth || media.videoWidth) > 0 && Number(media.naturalHeight || media.videoHeight) > 0;
+    if (!ready()) await new Promise((resolve, reject) => {
+      const done = error => {
+        clearTimeout(timeout); media.removeEventListener('load', loaded); media.removeEventListener('loadedmetadata', loaded); media.removeEventListener('error', failed);
+        error ? reject(error) : resolve();
+      };
+      const loaded = () => { if (ready()) done(); };
+      const failed = () => done(new Error('素材预览读取失败，请检查文件格式后重试。'));
+      const timeout = setTimeout(() => done(new Error('素材预览加载超时，请重试。')), 15000);
+      media.addEventListener('load', loaded); media.addEventListener('loadedmetadata', loaded); media.addEventListener('error', failed);
+      if (media.error || (media.tagName === 'IMG' && media.complete && !media.naturalWidth)) failed();
+      else loaded();
+    });
+    if (node.isConnected && boardId === canvasState.activeBoardId) applyCanvasAdaptiveMediaSize(node, media.naturalWidth || media.videoWidth, media.naturalHeight || media.videoHeight);
+  },
+  fillText(node, { text, markdown }) {
+    const escape = value => value.replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]));
+    setCanvasTextValue(node, text, markdown ? {} : { richHtml: `<p>${escape(text).replace(/\n/g, '<br>')}</p>` });
+    syncCanvasNodeModel(node);
+  },
+  size: node => ({ width: Number(node.dataset.width) || 400, height: Number(node.dataset.height) + 48 || 448 }),
+  nodeStatus: setCanvasNodeStatus,
+  status: setCanvasStatus,
+  finish(nodes) {
+    clearCanvasSelection();
+    nodes.filter(node => node.isConnected).forEach(addCanvasNodeToSelection);
+    scheduleCanvasSave();
+  },
+});
+window.FloraNodeTags?.setHost({
+  async commit({ definitions, node, labelId }) {
+    if (canvasState.isRestoring || canvasState.boardOpening) throw new Error("画布正在恢复，请稍后再修改标签。");
+    await ensureCanvasBoardPersisted();
+    const boardId = String(canvasState.activeBoardId);
+    if (!canvasTagReadyBoards.has(boardId)) {
+      const response = await fetch(`${CANVAS_BOARDS_API_URL}/${encodeURIComponent(boardId)}/meta`);
+      const meta = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(meta.error || "标签加载失败，请重试。");
+      if (!Object.prototype.hasOwnProperty.call(meta, "labelDefinitions")) {
+        throw new Error("标签保存服务已更新，请从托盘完全退出并重新打开应用后重试。");
+      }
+      canvasTagReadyBoards.add(boardId);
+    }
+    if (String(canvasState.activeBoardId) !== boardId) throw new Error("画布已切换，请重新选择节点。");
+    if (node && (!node.isConnected || !canvasPagedStore.getMounted(node.dataset.id))) throw new Error("节点已移除，请重新选择节点。");
+    const forward = [], inverse = [];
+    const beforeDefinitions = window.FloraNodeTags.definitions();
+    const afterDefinitions = window.CanvasNodeTagRules.validate(definitions ?? beforeDefinitions);
+    // Include the initial defaults in the first assignment, so the board owns
+    // its library explicitly even if no definition has been edited yet.
+    if (definitions !== undefined || node) {
+      forward.push({ type: "board.patch", entityId: boardId, after: { labelDefinitions: afterDefinitions } });
+      inverse.unshift({ type: "board.patch", entityId: boardId, after: { labelDefinitions: beforeDefinitions } });
+    }
+    if (node) {
+      if (labelId && !afterDefinitions.some(item => item.id === labelId)) throw new Error("所选标签已删除，请重新选择。");
+      const before = toCanvasOperationNode(syncCanvasNodeModel(node) || serializeCanvasNode(node));
+      const after = { ...before, nodeLabelId: String(labelId || "") };
+      forward.push({ type: "node.upsert", entityId: node.dataset.id, before, after });
+      inverse.unshift({ type: "node.upsert", entityId: node.dataset.id, before: after, after: before });
+    }
+    recordCanvasUndo({ label: node ? "修改节点标签" : "管理标签", forward, inverse });
+    forward.forEach(operation => stageCanvasOperation(operation, { applyLocal: true }));
+    // Surface real persistence failures in the initiating picker/dialog.
+    collectCanvasDirtyOperations({ recordUndo: false });
+    await flushCanvasOperations();
+    scheduleCanvasSceneRender();
+  },
+});
+
 function getCanvasNodeBodyHeight(node) {
   const sized = node.querySelector(".canvas-grid-editor-shell, .canvas-node-result:not([hidden]), .canvas-image-upload:not([hidden]), .canvas-assets-body, .canvas-media-shell, .canvas-node-prompt, .canvas-text");
   return sized?.offsetHeight || 180;
@@ -18796,7 +22799,15 @@ function nextCanvasNodeZOrder() {
 
 function syncCanvasNodeStacking() {
   const nodes = canvasVirtualStore.mountedElements().filter(node => node?.isConnected);
-  nodes.sort((a, b) => (Number(a.dataset.zOrder) || 0) - (Number(b.dataset.zOrder) || 0));
+  // 选中的节点永远排在最后（z-index 最高），这样它的悬浮工具栏与底部操作区不会
+  // 被上板顺序更靠后的节点盖住；同组内部仍按上板顺序。
+  const isActiveNode = (node) => node.classList.contains("is-selected")
+    || node.classList.contains("selected")
+    || node.classList.contains("is-connecting")
+    || node.matches?.(":focus-within");
+  nodes.sort((a, b) => (Number(isActiveNode(a)) - Number(isActiveNode(b)))
+    || ((Number(a.dataset.zOrder) || 0) - (Number(b.dataset.zOrder) || 0)));
+  sortCanvasGroupsBelowMembers(nodes);
   nodes.forEach((node, index) => {
     // CSS z-index is a 32-bit integer; use compact display ranks rather than
     // the durable order. Changing a style leaves decoded images in place.
@@ -18804,6 +22815,25 @@ function syncCanvasNodeStacking() {
     if (node.style.zIndex !== level) node.style.zIndex = level;
     node.style.setProperty("--canvas-stack-level", level);
   });
+}
+
+// 组框是成员的地板：半透明的组框底色画在成员之上会把组里的图片整片压暗，
+// 所以组永远排在自己成员之前（显示层级更低）。组自己被选中时同样如此——
+// 组的名称与工具栏都在成员区域之外，选中状态不靠压在图片上表达。
+// 这一步只改显示层级，不动保存下来的 zOrder。
+function sortCanvasGroupsBelowMembers(nodes) {
+  nodes.forEach((group) => {
+    if (!group.classList.contains("canvas-node-group")) return;
+    const memberIds = new Set(getCanvasGroupMemberIds(group));
+    if (!memberIds.size) return;
+    const memberIndex = nodes.findIndex((node) => node !== group && memberIds.has(String(node.dataset.id || "")));
+    if (memberIndex < 0) return;
+    const groupIndex = nodes.indexOf(group);
+    if (groupIndex < memberIndex) return;
+    nodes.splice(groupIndex, 1);
+    nodes.splice(memberIndex, 0, group);
+  });
+  return nodes;
 }
 
 function bringCanvasNodeToFront(node) {
@@ -18845,6 +22875,7 @@ function selectCanvasNode(node) {
   addCanvasNodeToSelection(node);
   canvasState.activeNode = node;
   dispatchCanvasSelectionChange();
+  scheduleCanvasConnectionRender({ trailing: false });
 }
 
 function clearCanvasSelection() {
@@ -18861,6 +22892,7 @@ function clearCanvasSelection() {
   updateCanvasSelectionFrame();
   dispatchCanvasSelectionChange();
   scheduleCanvasSceneRender();
+  scheduleCanvasConnectionRender({ trailing: false });
 }
 
 function addCanvasNodeToSelection(node) {
@@ -18953,6 +22985,7 @@ async function copyCanvasSceneSelection() {
       .map(item => ({ ...item, selectedSide: ids.has(String(item.from)) ? "from" : "to" })),
   };
   setCanvasStatus(`已复制 ${selected.nodes.length} 个节点。`);
+  markCanvasClipboardNodes();
 }
 
 async function deleteCanvasSceneSelection() {
@@ -19022,7 +23055,7 @@ async function createCanvasSceneGroup() {
   setCanvasNodePoint(group, { x: bounds.left - 36, y: bounds.top - 58 });
   group.dataset.width = String(Math.max(280, Math.round(bounds.right - bounds.left + 72)));
   group.dataset.height = String(Math.max(180, Math.round(bounds.bottom - bounds.top + 92)));
-  renderCanvasGroupNode(group, { title: "GROUP", memberIds: images.map(model => String(model.id)),
+  renderCanvasGroupNode(group, { title: "图片组", memberIds: images.map(model => String(model.id)),
     images: images.map(model => ({ name: model.imageName || "参考图", url: model.resultSrc || model.imageSrc })) });
   applyCanvasNodeSize(group);
   placeCanvasNode(group);
@@ -19070,7 +23103,10 @@ async function beginCanvasSceneSelectionDrag(event, { initialMove = null, initia
     });
     renderCanvasSceneLayer();
     updateCanvasSelectionFrame();
-    scheduleCanvasConnectionRender();
+    // Multi-select drag already runs inside a single animation frame, so paint
+    // the paths here instead of waiting one more frame and letting the wires
+    // trail the selected nodes.
+    renderCanvasConnectionsNow();
     showCanvasAlignmentGuides(alignment);
   };
   const move = next => {
@@ -19203,6 +23239,8 @@ function beginCanvasMarquee(event) {
     x: toSystemDelta(event.clientX - rect.left),
     y: toSystemDelta(event.clientY - rect.top),
   };
+  // 框选期间换掉画布上的抓手光标：那会儿不是在平移，手型会让人以为在拖画布。
+  viewport.classList.add("is-marquee-selecting");
   event.preventDefault();
   box.hidden = false;
   box.classList.add("is-marquee");
@@ -19226,6 +23264,7 @@ function beginCanvasMarquee(event) {
     window.removeEventListener("pointermove", move);
     window.removeEventListener("pointerup", up);
     window.removeEventListener("pointercancel", up);
+    viewport.classList.remove("is-marquee-selecting");
     box.classList.remove("is-marquee");
     updateCanvasSelectionFrame();
   };
@@ -19283,6 +23322,7 @@ function blurActiveCanvasText() {
   // floating colour palette visible after the user clicks the blank canvas.
   const isNodeEditor = active.classList?.contains("canvas-text")
     || active.classList?.contains("canvas-note-text")
+    || active.classList?.contains("flora-node-title-editor")
     || active.classList?.contains("canvas-node-title-input");
   if (!isNodeEditor || !active.closest?.("#canvasPlane")) return;
   active.blur();
@@ -19290,10 +23330,49 @@ function blurActiveCanvasText() {
 
 function registerCanvasDetailImage(img, source) {
   if (!img || !source) return img;
+  // A failing thumbnail lookup does not always surface as an error event:
+  // image-resource-manager's showThumbnail() chains requestThumbnail().then(...)
+  // with no .catch(), and requestThumbnail() rejects when the HTTP call fails
+  // ("Thumbnail lookup failed: 500") or when a local source has no preview yet
+  // ("Local thumbnail is unavailable."). In that case neither fallbackToOriginal
+  // nor markImageError runs, so no "image-resource-state" error is dispatched and
+  // the element is left with no src at all - a permanently blank node, which is
+  // exactly the symptom reported. Watchdog: if nothing has painted after a
+  // generous grace period, fall back to the original once.
+  const fallbackToOriginalOnce = () => {
+    if (!img.isConnected || img.getAttribute("src")) return;
+    if (img.dataset.canvasDirectFallback === "true") return;
+    img.dataset.canvasDirectFallback = "true";
+    const original = img.getAttribute("data-original-src") || source;
+    if (original && window.imageResources?.showOriginal) {
+      void window.imageResources.showOriginal(img);
+    } else if (original) {
+      img.src = original;
+    }
+  };
+  const thumbnailWatchdog = window.setTimeout(fallbackToOriginalOnce, canvasThumbnailWatchdogMs);
+  img.addEventListener("load", () => window.clearTimeout(thumbnailWatchdog), { once: true });
+  // Local output files such as BMP may not have a server thumbnail yet. The
+  // canvas resource manager intentionally avoids downloading originals during
+  // normal demand loading, but a visible material must never remain as alt
+  // text when its thumbnail lookup fails. Retry the original once after the
+  // manager reports an exhausted thumbnail request.
+  img.addEventListener("image-resource-state", (event) => {
+    if (event.detail?.state !== "error" || img.dataset.canvasDirectFallback === "true") return;
+    img.dataset.canvasDirectFallback = "true";
+    const original = img.getAttribute("data-original-src") || source;
+    if (original && window.imageResources?.showOriginal) {
+      void window.imageResources.showOriginal(img);
+    } else if (original) {
+      img.src = original;
+    }
+  });
   img.addEventListener("load", () => {
     const node = img.closest(".canvas-node-frameless");
     if (node) {
-      applyCanvasNodeSize(node);
+      if (isCanvasAdaptiveMaterialNode(node)) {
+        applyCanvasAdaptiveMediaSize(node, img.naturalWidth || img.dataset.originalWidth, img.naturalHeight || img.dataset.originalHeight);
+      } else applyCanvasNodeSize(node);
       scheduleCanvasConnectionRender();
       scheduleCanvasSceneRender();
       canvasImageToolbar?.refresh();
@@ -19302,6 +23381,15 @@ function registerCanvasDetailImage(img, source) {
   });
   img.draggable = false;
   img.decoding = "async";
+  // Every canvas image, including local "/output/" results, goes through the
+  // resource manager: it loads a server thumbnail first and only upgrades to the
+  // original on demand (detail view, download, or the quality pass once the
+  // viewport is idle and zoomed in). Local outputs were previously sent straight
+  // to their original file, which put full-size bitmaps in the canvas and made
+  // panning paint far more pixels than it needed to. The server thumbnail
+  // service is built for exactly these sources (sharp -> webp, cached, bounded
+  // concurrency); the "image-resource-state" listener above still falls back to
+  // the original once if no thumbnail can be produced for the format.
   if (window.imageResources) window.imageResources.registerCanvasImage(img, source);
   else {
     img.loading = "lazy";
@@ -19370,9 +23458,81 @@ function scheduleCanvasMediaImage(img, quality, priority = 0) {
   return key;
 }
 
+// Start the thumbnail for any canvas image that has no source yet. Used while a
+// viewport gesture is running, when the full quality pass deliberately skips its
+// per-image measurements. scheduleCanvasMediaImage already de-duplicates, so
+// repeating this on every frame is cheap.
+// The first request for a local source makes the server generate a 640px webp
+// with sharp, which measures 0.1-0.9s for the big outputs in data/output (a
+// 6400x6400 png here). The result is cached forever, but a node that scrolls
+// into view mid-pan would otherwise sit empty until its turn came. Warm the
+// thumbnails for the images just outside the viewport while the canvas is idle,
+// so a later pan reveals an already-generated image. requestThumbnail caches,
+// de-duplicates and queues client-side, and the set below keeps this bounded.
+function warmCanvasViewportThumbnails() {
+  const resources = window.imageResources;
+  const viewport = document.querySelector("#infiniteCanvas");
+  const rules = window.ImageLoadingRules;
+  if (!resources?.requestThumbnail || !viewport || !rules) return 0;
+  const size = getCachedCanvasViewportSize(viewport);
+  const scale = Math.max(0.01, Number(canvasState.scale) || 1);
+  const centerX = (size.width / 2 - Number(canvasState.x || 0)) / scale;
+  const centerY = (size.height / 2 - Number(canvasState.y || 0)) / scale;
+  const candidates = [];
+  canvasVirtualStore.values().forEach((model) => {
+    const x = Number(model.x) || 0;
+    const y = Number(model.y) || 0;
+    const centerOfNodeX = x + (Number(model.width) || 320) / 2;
+    const centerOfNodeY = y + (Number(model.height) || 320) / 2;
+    const distance = (centerOfNodeX - centerX) ** 2 + (centerOfNodeY - centerY) ** 2;
+    [model.resultSrc, model.imageSrc, model.previewSource].forEach((source) => {
+      const value = String(source || "");
+      if (!value || value.startsWith("data:") || value.startsWith("blob:")) return;
+      if (canvasWarmedThumbnailSources.has(value)) return;
+      candidates.push({ value, distance });
+    });
+  });
+  if (!candidates.length) return 0;
+  // Nearest to the viewport centre first, so the images the user is about to
+  // pan onto are cached before the far side of the board.
+  candidates.sort((a, b) => a.distance - b.distance || (a.value < b.value ? -1 : 1));
+  const picked = candidates.slice(0, CANVAS_THUMBNAIL_WARM_LIMIT);
+  picked.forEach((item) => {
+    canvasWarmedThumbnailSources.add(item.value);
+    void resources.requestThumbnail(item.value);
+  });
+  return picked.length;
+}
+
+// Keep filling the board's thumbnail cache while the canvas is idle, in bounded
+// batches, so a board whose images were never thumbnailed (the canvas used to
+// load them as originals) becomes fully cached in the background instead of one
+// blank image at a time as the user pans onto them.
+function scheduleCanvasThumbnailSweep() {
+  if (canvasThumbnailSweepTimer) return;
+  canvasThumbnailSweepTimer = window.setTimeout(() => {
+    canvasThumbnailSweepTimer = 0;
+    if (!canvasDetailReady) return;
+    if (warmCanvasViewportThumbnails() > 0) scheduleCanvasThumbnailSweep();
+  }, CANVAS_THUMBNAIL_SWEEP_DELAY_MS);
+}
+
+function startPendingCanvasImageThumbnails() {
+  canvasVirtualStore.mountedElements().forEach((mountedNode) => {
+    mountedNode.querySelectorAll("img[data-canvas-original-src]").forEach((img) => {
+      if (img.dataset.canvasDirectOriginal === "true") return;
+      const quality = img.dataset.imageQuality;
+      if (quality === "thumbnail" || quality === "original") return;
+      scheduleCanvasMediaImage(img, "thumbnail", 60);
+    });
+  });
+}
+
 function scheduleCanvasImageQualityUpdate() {
   if (canvasImageQualityFrame) return;
-  canvasImageQualityFrame = requestAnimationFrame(updateCanvasImageQualities);
+  canvasImageQualityFrame = requestAnimationFrame(() => {
+    updateCanvasImageQualities();
+  });
 }
 
 function updateCanvasImageQualities() {
@@ -19383,12 +23543,30 @@ function updateCanvasImageQualities() {
   const rules = window.ImageLoadingRules;
   const resources = window.imageResources;
   if (!viewport || !rules || !resources || document.body.classList.contains("canvas-overlay-open")) return;
+  if (!canvasDetailReady) {
+    // A gesture is running (or the board has not reached its idle state yet).
+    // The full pass below measures every mounted image, which forces a layout of
+    // the whole plane, and while detailReady is false chooseCanvasImageQuality
+    // can only keep an existing original or fall back to a thumbnail — it never
+    // promotes. So skip the measurement, but still give an image that has no
+    // source yet its thumbnail: that decision needs no measurement, and without
+    // it nodes would sit empty until the user stopped moving.
+    startPendingCanvasImageThumbnails();
+    return;
+  }
   const visibleRect = rules.getCanvasVisibleRect(
-    { width: viewport.clientWidth, height: viewport.clientHeight },
+    getCachedCanvasViewportSize(viewport),
     canvasState,
     280,
   );
+  // Measure every image first, then act. Applying while still measuring
+  // interleaved getBoundingClientRect() with media-scheduler calls that swap
+  // img.src, so each image forced its own reflow of the whole plane. This runs
+  // on every virtualizer flush, i.e. once per movement during a pan.
+  const viewportRect = viewport.getBoundingClientRect();
+  const decisions = [];
   canvasVirtualStore.mountedElements().forEach((mountedNode) => mountedNode.querySelectorAll("img[data-canvas-original-src]").forEach((img) => {
+    if (img.dataset.canvasDirectOriginal === "true") return;
     const node = img.closest(".canvas-node");
     if (!node) return;
     const x = Number(node.dataset.x || 0);
@@ -19403,7 +23581,7 @@ function updateCanvasImageQualities() {
     });
     // Use the on-screen size of each image; gallery bounds include many small images.
     const imageRect = img.getBoundingClientRect();
-    const imageVisible = visible && rules.rectsIntersect(imageRect, viewport.getBoundingClientRect());
+    const imageVisible = visible && rules.rectsIntersect(imageRect, viewportRect);
     const sourceWidth = Number(img.dataset.originalWidth || img.naturalWidth);
     const sourceHeight = Number(img.dataset.originalHeight || img.naturalHeight);
     const fit = sourceWidth && sourceHeight
@@ -19417,12 +23595,15 @@ function updateCanvasImageQualities() {
       currentQuality: img.complete && img.naturalWidth > 0 ? img.dataset.imageQuality : "loading",
       displayedMaxSide: displayedMaxSide * (window.devicePixelRatio || 1),
     });
+    decisions.push({ img, quality, visible });
+  }));
+  decisions.forEach(({ img, quality, visible }) => {
     if (img.dataset.canvasForceOriginal === "true" || quality === "original") {
       scheduleCanvasMediaImage(img, "original", visible ? 100 : 10);
     } else if (quality === "thumbnail") {
       scheduleCanvasMediaImage(img, "thumbnail", visible ? 80 : 5);
     } else cancelCanvasMediaImage(img);
-  }));
+  });
 }
 
 function clearCanvasImageRecoveryAction(node) {
@@ -19542,6 +23723,7 @@ document.addEventListener("canvas-image-original-ready", (event) => {
 
 function markCanvasViewportInteraction() {
   const rules = window.ImageLoadingRules;
+  releaseCanvasRestoreMountBudget();
   beginCanvasRasterInteraction();
   canvasDetailReady = false;
   canvasMediaScheduler.setInteractionActive(true);
@@ -19559,6 +23741,10 @@ function markCanvasViewportInteraction() {
     canvasVirtualizer.schedule();
     scheduleCanvasConnectionRender({ trailing: false });
     scheduleCanvasImageQualityUpdate();
+    // The user has stopped moving: warm the ring of images just outside the
+    // viewport so the next pan does not land on an un-generated thumbnail.
+    warmCanvasViewportThumbnails();
+    scheduleCanvasThumbnailSweep();
     scheduleCanvasRasterRefresh("interaction-idle");
   }, rules.DETAIL_IDLE_MS);
 }
@@ -19584,15 +23770,31 @@ function suspendCanvasImageLoading() {
   });
 }
 
-function updateCanvasNodePosition(node) {
-  node.style.transform = `translate(${Number(node.dataset.x)}px, ${Number(node.dataset.y)}px)`;
+function updateCanvasNodePosition(node, options = {}) {
+  const deferPaint = options.deferPaint === true;
+  if (!deferPaint) {
+    canvasDeferredNodePositions.delete(node);
+    node.style.transform = `translate(${Number(node.dataset.x)}px, ${Number(node.dataset.y)}px)`;
+  }
   if (canvasVirtualStore.has(node.dataset.id)) {
+    const floraNode = node.dataset.floraNode === "true";
+    const geometryWidth = floraNode
+      ? Number(node.offsetWidth || node.dataset.width || node.dataset.renderedWidth || 400)
+      : Number(node.dataset.width || (node.classList.contains("canvas-node-frameless") ? 0 : node.dataset.renderedWidth) || 0);
+    const geometryHeight = floraNode
+      ? Number(node.offsetHeight || (Number(node.dataset.height || 400) + 48))
+      : Number(node.dataset.height || (node.classList.contains("canvas-node-frameless") ? 0 : node.dataset.renderedHeight) || 0);
     canvasVirtualStore.setGeometry(node.dataset.id, {
       x: Number(node.dataset.x || 0),
       y: Number(node.dataset.y || 0),
-      width: Number(node.dataset.width || (node.classList.contains("canvas-node-frameless") ? 0 : node.dataset.renderedWidth) || 0),
-      height: Number(node.dataset.height || (node.classList.contains("canvas-node-frameless") ? 0 : node.dataset.renderedHeight) || 0),
+      width: geometryWidth,
+      height: geometryHeight,
     });
+  }
+  if (deferPaint) {
+    canvasDeferredNodePositions.add(node);
+    scheduleCanvasNodePositionPaint();
+    return;
   }
   scheduleCanvasConnectionRender({ trailing: false });
   scheduleCanvasImageQualityUpdate();
@@ -19604,11 +23806,28 @@ function applyCanvasTransformNow() {
   const plane = document.querySelector("#canvasPlane");
   const viewport = document.querySelector("#infiniteCanvas");
   if (!plane) return;
+  window.FloraConnectionInteraction?.clear();
+  // Port points are stored in world space and are converted with the applied
+  // viewport, so panning and zooming do not change them. Clearing the cache here
+  // used to force a getBoundingClientRect() for every port on the next wire
+  // render, i.e. a full layout of the plane mid-gesture. Real geometry changes
+  // (node move, resize, mount) already invalidate the affected entries through
+  // canvasVirtualStore revisions.
   plane.style.transform = `translate(${canvasState.x}px, ${canvasState.y}px) scale(${canvasState.scale}) translateZ(0)`;
+  canvasAppliedViewport = { x: canvasState.x, y: canvasState.y, scale: canvasState.scale };
+  // Read-only mirror for canvas-space overlays (for example the generator
+  // composer) so they can project node geometry without measuring the DOM,
+  // which would force a reflow of the whole plane on every pan/zoom frame.
+  window.CanvasAppliedViewport = canvasAppliedViewport;
   // Remote cursors live in world space so they follow pan and zoom for free;
   // the counter-scale keeps the pointer and its name label a constant size
   // instead of growing with the board.
-  plane.style.setProperty("--collab-inverse-scale", String(1 / canvasState.scale));
+  if (window.CanvasFloraNodeShell?.syncScale) {
+    // Only chrome, ports, paths and cursors consume this value. Inheriting it
+    // from the plane restyles every prompt/control/media descendant on zoom.
+    if (plane.style.getPropertyValue("--collab-inverse-scale")) plane.style.removeProperty("--collab-inverse-scale");
+    window.CanvasFloraNodeShell.syncScale(1 / canvasState.scale);
+  } else plane.style.setProperty("--collab-inverse-scale", String(1 / canvasState.scale));
   // Re-anchor screen-space overlays immediately after the parent transform.
   // Waiting for the deferred image-quality pass makes them visibly drift
   // during zoom/pan because the image has already moved while the overlay
@@ -19626,6 +23845,7 @@ function applyCanvasTransformNow() {
   if (zoom && zoom.textContent !== zoomLabel) zoom.textContent = zoomLabel;
   reprojectCanvasSceneLayer();
   updateCanvasSelectionFrame();
+  window.FloraGeneratorComposer?.syncViewport?.();
 }
 
 function scheduleCanvasTransform({ saveViewport = false } = {}) {
@@ -19900,6 +24120,16 @@ function screenToCanvas(x, y) {
   return CanvasViewRules.screenToCanvas({ x, y }, canvasState);
 }
 
+function getCanvasAppliedViewport() {
+  return canvasAppliedViewport || { x: canvasState.x, y: canvasState.y, scale: canvasState.scale };
+}
+
+// Screen point (viewport-local) to world coordinates using the transform that
+// is currently painted, for conversions of measured DOM rectangles.
+function screenPointToCanvas(x, y) {
+  return CanvasViewRules.screenToCanvas({ x, y }, getCanvasAppliedViewport());
+}
+
 function getCanvasPointFromClient(clientX, clientY) {
   const rect = document.querySelector("#infiniteCanvas").getBoundingClientRect();
   return screenToCanvas(toSystemDelta(clientX - rect.left), toSystemDelta(clientY - rect.top));
@@ -20028,6 +24258,7 @@ function copyAllCanvasNodes() {
     pasteCount: 0,
   };
   setCanvasStatus(`已复制 ${models.length} 个节点。`);
+  markCanvasClipboardNodes();
   return true;
 }
 
@@ -20042,7 +24273,10 @@ function showCanvasImageMenu(event, node, memberId = "") {
   canvasState.imageContextMemberId = String(memberId || "");
   const isGalleryMember = node.classList.contains("canvas-node-gallery-container") && Boolean(memberId);
   menu.querySelectorAll("[data-image-menu-action]").forEach((button) => {
-    button.hidden = isGalleryMember && !["crop", "cutout"].includes(button.dataset.imageMenuAction);
+    const action = button.dataset.imageMenuAction;
+    // 图片节点的抠图/裁剪已移到节点工具栏；图集成员没有对应工具栏，继续在菜单里提供。
+    if (action === "cutout" || action === "crop") button.hidden = !isGalleryMember;
+    else button.hidden = isGalleryMember;
   });
   menu.hidden = false;
 }
@@ -20207,10 +24441,6 @@ function appendNameSuffix(name, suffix) {
   const dot = value.lastIndexOf(".");
   if (dot > 0) return `${value.slice(0, dot)}-${suffix}${value.slice(dot)}`;
   return `${value}-${suffix}.png`;
-}
-
-function clamp(value, min, max) {
-  return Math.max(min, Math.min(max, value));
 }
 
 function updateCanvasOrigin() {
@@ -21650,6 +25880,7 @@ function openPreview(src, downloadUrl, options = {}) {
   lightboxImage.src = src;
   lightboxDownload.href = downloadUrl || src;
   updatePreviewGalleryControls();
+  mountPreviewOverlay();
   lightbox.hidden = false;
 }
 
@@ -21688,6 +25919,27 @@ function closePreview() {
   previewState.gallery = null;
   updatePreviewGalleryControls();
   resetPreviewTransform();
+  releasePreviewOverlay();
+}
+
+// The fullscreen engine surface is a body-level layer at z-index 2147483000,
+// while the desktop lightbox is only 9600 and lives inside the desktop shell.
+// A preview opened from a canvas node therefore painted behind the canvas and
+// looked like a dead button. Host it beside the surface, above it, while the
+// canvas is open, and put it back where it belongs afterwards.
+let lightboxHome = null;
+function mountPreviewOverlay() {
+  if (!lightboxHome) lightboxHome = lightbox.parentElement;
+  const engine = document.getElementById("neonEngineSurface");
+  const overCanvas = Boolean(engine?.isConnected && !engine.hidden);
+  lightbox.classList.toggle("is-over-canvas", overCanvas);
+  const host = overCanvas ? document.body : (lightboxHome?.isConnected ? lightboxHome : document.body);
+  if (lightbox.parentElement !== host) host.append(lightbox);
+}
+
+function releasePreviewOverlay() {
+  lightbox.classList.remove("is-over-canvas");
+  if (lightboxHome?.isConnected && lightbox.parentElement !== lightboxHome) lightboxHome.append(lightbox);
 }
 
 function normalizePreviewGallery(images) {
@@ -23116,6 +27368,7 @@ function inferImagePlatform(model = "") {
 }
 
 function isMidjourneyModel(model = "") {
+  if (window.MidjourneyParameterRules) return window.MidjourneyParameterRules.isMidjourney(getCanvasImageCatalogModel(model));
   return String(model || "").trim().toLowerCase() === "midjourney";
 }
 
@@ -23145,6 +27398,11 @@ function supportsMidjourneyHd(version, mode = "standard") {
 }
 
 function getMidjourneyPayload(container) {
+  const node = container?.closest('.canvas-node');
+  if (node && window.FloraMidjourneySettings) {
+    syncCanvasMidjourneyOptions(node, node.querySelector('.canvas-node-model')?.value || node.dataset.canvasModel || '');
+    return window.FloraMidjourneySettings.payload(node);
+  }
   const options = readMidjourneyOptions(container);
   const payload = {
     version: options.version,
@@ -23492,3 +27750,4 @@ function getSavedSettings(key) {
     return null;
   }
 }
+

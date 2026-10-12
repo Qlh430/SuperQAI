@@ -5,11 +5,8 @@
   display: grid;
   place-items: center;
   overflow: hidden;
-  color: #172033;
-  background:
-    radial-gradient(circle at 16% 10%, rgba(61, 132, 226, 0.18), transparent 34%),
-    radial-gradient(circle at 88% 88%, rgba(17, 166, 160, 0.14), transparent 38%),
-    #eef3f8;
+  color: var(--neon-foreground, oklch(0.97 0.005 250));
+  background: var(--neon-background, oklch(0.145 0.01 264));
   opacity: 1;
   transition: opacity 220ms ease, visibility 220ms ease;
 }
@@ -44,10 +41,10 @@ html[data-ai-os-dev-refresh="true"] #aiOsStartupGate {
   display: flex;
   align-items: center;
   gap: 10px;
-  border: 1px solid rgba(148, 163, 184, 0.34);
+  border: 1px solid var(--neon-border, oklch(1 0 0 / .09));
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow: 0 10px 28px rgba(30, 41, 59, 0.16);
+  background: var(--neon-card, oklch(0.18 0.012 264));
+  box-shadow: 0 10px 28px oklch(0 0 0 / .35);
 }
 
 #aiOsStartupGate.is-dev-reload .ai-os-startup-brand,
@@ -90,10 +87,10 @@ html[data-ai-os-dev-refresh="true"] #aiOsStartupGate {
   height: 50px;
   place-items: center;
   border-radius: 15px;
-  color: #fff;
+  color: var(--neon-primary-foreground, oklch(0.18 0.04 150));
   font: 700 28px/1 Georgia, serif;
-  background: linear-gradient(145deg, #246ad6, #188f9b);
-  box-shadow: 0 13px 32px rgba(36, 106, 214, 0.24);
+  background: var(--neon-primary, oklch(0.86 0.22 145));
+  box-shadow: none;
 }
 
 .ai-os-startup-brand strong,
@@ -108,7 +105,7 @@ html[data-ai-os-dev-refresh="true"] #aiOsStartupGate {
 
 .ai-os-startup-brand span {
   margin-top: 3px;
-  color: #63748a;
+  color: var(--neon-muted-foreground, oklch(0.66 0.012 258));
   font-size: 12px;
 }
 
@@ -127,8 +124,8 @@ html[data-ai-os-dev-refresh="true"] #aiOsStartupGate {
   width: 20px;
   height: 20px;
   flex: 0 0 auto;
-  border: 2px solid #c4d3e5;
-  border-top-color: #246ad6;
+  border: 2px solid var(--neon-border, oklch(1 0 0 / .09));
+  border-top-color: var(--neon-primary, oklch(0.86 0.22 145));
   border-radius: 50%;
   animation: ai-os-startup-spin 760ms linear infinite;
 }
@@ -136,7 +133,7 @@ html[data-ai-os-dev-refresh="true"] #aiOsStartupGate {
 .ai-os-startup-detail {
   min-height: 22px;
   margin: 10px 0 18px;
-  color: #63748a;
+  color: var(--neon-muted-foreground, oklch(0.66 0.012 258));
   font-size: 13px;
 }
 
@@ -144,14 +141,14 @@ html[data-ai-os-dev-refresh="true"] #aiOsStartupGate {
   height: 6px;
   overflow: hidden;
   border-radius: 999px;
-  background: #d7e2ef;
+  background: var(--neon-muted, oklch(0.2 0.012 264));
 }
 
 .ai-os-startup-progress {
   width: 6%;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #246ad6, #16a4a5);
+  background: var(--neon-primary, oklch(0.86 0.22 145));
   transition: width 220ms ease;
 }
 
@@ -162,7 +159,7 @@ html[data-ai-os-dev-refresh="true"] #aiOsStartupGate {
   gap: 18px;
   min-height: 34px;
   margin-top: 14px;
-  color: #8190a3;
+  color: var(--neon-muted-foreground, oklch(0.66 0.012 258));
   font-size: 11px;
 }
 
@@ -171,9 +168,9 @@ html[data-ai-os-dev-refresh="true"] #aiOsStartupGate {
   border: 0;
   border-radius: 9px;
   padding: 8px 12px;
-  color: #fff;
+  color: var(--neon-primary-foreground, oklch(0.18 0.04 150));
   font: 700 12px/1 "Segoe UI", "Microsoft YaHei UI", sans-serif;
-  background: #246ad6;
+  background: var(--neon-primary, oklch(0.86 0.22 145));
   cursor: pointer;
 }
 
@@ -184,13 +181,13 @@ html[data-ai-os-dev-refresh="true"] #aiOsStartupGate {
 }
 
 #aiOsStartupGate.is-degraded .ai-os-startup-spinner {
-  border-color: #e7cf9b;
-  border-top-color: #c28a20;
+  border-color: var(--neon-border, oklch(1 0 0 / .09));
+  border-top-color: var(--neon-warning, oklch(0.8 0.15 80));
 }
 
 #aiOsStartupGate.has-error .ai-os-startup-spinner {
-  border-color: #e5a49a;
-  border-top-color: #c84f3d;
+  border-color: var(--neon-border, oklch(1 0 0 / .09));
+  border-top-color: var(--neon-destructive, oklch(0.62 0.23 25));
   animation-duration: 1.4s;
 }
 
@@ -202,4 +199,9 @@ html[data-ai-os-dev-refresh="true"] #aiOsStartupGate {
   .ai-os-startup-panel {
     padding: 30px 24px 26px;
   }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #aiOsStartupGate, .ai-os-startup-progress { transition: none; }
+  .ai-os-startup-spinner { animation: none; }
 }

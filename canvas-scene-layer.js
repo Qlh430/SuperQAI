@@ -158,7 +158,7 @@
       );
     }
 
-    drawNode(context, node, transform, textured, resolveTexture, resolveNodeBounds) {
+    drawNode(context, node, transform, textured, resolveTexture, resolveNodeBounds, resolveNodeLabel, renderBounds) {
       const imageNode = ["image", "upload"].includes(String(node.kind || ""));
       const texture = node.previewSource && typeof resolveTexture === "function"
         ? resolveTexture(node.previewSource, node, { cachedOnly: !textured }) : null;
@@ -171,6 +171,12 @@
       const scale = Math.max(0.000001, finite(transform.scale, 1));
       const width = Math.max(0.25, (rect.right - rect.left) * scale);
       const height = Math.max(0.25, (rect.bottom - rect.top) * scale);
+      if (renderBounds && (
+        topLeft.x + width < renderBounds.left
+        || topLeft.y + height < renderBounds.top
+        || topLeft.x > renderBounds.right
+        || topLeft.y > renderBounds.bottom
+      )) return false;
       if (!imageNode) {
         context.fillStyle = SURFACES[String(node.kind || "")] || "#25262a";
         context.fillRect(topLeft.x, topLeft.y, width, height);
@@ -187,6 +193,21 @@
         context.font = `${Math.max(8, Math.min(13, 11 * scale))}px system-ui, sans-serif`;
         context.fillText(String(node.title).slice(0, 80), topLeft.x + 6, topLeft.y + 16, width - 12);
       }
+      const label = resolveNodeLabel?.(node);
+      if (label && (width < 48 || scale < .25)) {
+        const radius = Math.max(1, Math.min(4, 4 * scale));
+        context.fillStyle = label.color; context.beginPath();
+        context.arc(topLeft.x + width - radius, topLeft.y - radius * 2, radius, 0, Math.PI * 2); context.fill();
+      }
+      if (label && width >= 48 && scale >= .25) {
+        const font = Math.max(8, Math.min(14, 14 * scale));
+        context.font = `500 ${font}px system-ui, sans-serif`;
+        const text = String(label.name), badgeWidth = Math.min(width, context.measureText(text).width + 16 * scale);
+        const badgeHeight = 28 * scale, left = topLeft.x + width - badgeWidth, top = topLeft.y - badgeHeight - 8 * scale;
+        context.fillStyle = label.color;
+        context.beginPath(); context.roundRect(left, top, badgeWidth, badgeHeight, 8 * scale); context.fill();
+        context.fillStyle = label.foreground; context.fillText(text, left + 8 * scale, top + badgeHeight * .72, badgeWidth - 12 * scale);
+      }
       this.hitRegions.push({
         id: String(node.id),
         item: node,
@@ -197,9 +218,10 @@
         right: topLeft.x + width - this.padding,
         bottom: topLeft.y + height - this.padding,
       });
+      return true;
     }
 
-    render({ visualNodes = [], visualConnections = [], texturedNodeIds = [], selectedIds = new Set(), transform = {}, resolveTexture, resolveNodeBounds } = {}) {
+    render({ visualNodes = [], visualConnections = [], texturedNodeIds = [], selectedIds = new Set(), transform = {}, resolveTexture, resolveNodeBounds, resolveNodeLabel } = {}) {
       const context = this.bufferContext;
       const drawTransform = {
         ...transform,
@@ -228,11 +250,33 @@
       ))
         .sort((left, right) => finite(left.zOrder) - finite(right.zOrder));
       const textured = new Set(Array.isArray(texturedNodeIds) ? texturedNodeIds.map(String) : []);
+      const renderBounds = {
+        left: -32,
+        top: -32,
+        right: this.rasterWidth + 32,
+        bottom: this.rasterHeight + 32,
+      };
+      const connectionVisible = (fromX, fromY, toX, toY) => {
+        const start = this.toScreen(fromX, fromY, drawTransform);
+        const end = this.toScreen(toX, toY, drawTransform);
+        const distance = Math.max(24, Math.abs(end.x - start.x) * 0.45);
+        const left = Math.min(start.x, end.x, start.x + distance, end.x - distance);
+        const right = Math.max(start.x, end.x, start.x + distance, end.x - distance);
+        const top = Math.min(start.y, end.y);
+        const bottom = Math.max(start.y, end.y);
+        return !(right < renderBounds.left || bottom < renderBounds.top
+          || left > renderBounds.right || top > renderBounds.bottom);
+      };
+      let renderedConnectionCount = 0;
       if (connectionCount) {
         context.beginPath();
         if (compactConnections) {
           for (let index = 0; index < connectionCount; index += 1) {
             const offset = index * 4;
+            if (!connectionVisible(
+              connections[offset], connections[offset + 1],
+              connections[offset + 2], connections[offset + 3],
+            )) continue;
             this.drawConnectionSegment(
               context,
               connections[offset],
@@ -241,16 +285,34 @@
               connections[offset + 3],
               drawTransform,
             );
+            renderedConnectionCount += 1;
           }
         } else {
-          connections.forEach((item) => this.drawConnection(context, item, drawTransform));
+          connections.forEach((item) => {
+            const fromX = item.fromX ?? item.from?.x;
+            const fromY = item.fromY ?? item.from?.y;
+            const toX = item.toX ?? item.to?.x;
+            const toY = item.toY ?? item.to?.y;
+            if (!connectionVisible(fromX, fromY, toX, toY)) return;
+            this.drawConnection(context, item, drawTransform);
+            renderedConnectionCount += 1;
+          });
         }
-        context.strokeStyle = "rgba(110, 129, 168, 0.38)";
-        context.lineWidth = 1;
-        context.stroke();
+        if (renderedConnectionCount) {
+          const style = this.canvas.ownerDocument?.defaultView?.getComputedStyle?.(this.canvas);
+          const lineColor = style?.getPropertyValue("--canvas-neon-muted").trim();
+          context.strokeStyle = lineColor || "#888";
+          context.lineWidth = 2.5;
+          context.setLineDash([7, 5]);
+          context.stroke();
+          context.setLineDash([]);
+        }
       }
+      let renderedNodeCount = 0;
       nodes.forEach(node => {
-        this.drawNode(context, node, drawTransform, textured.has(String(node.id)), resolveTexture, resolveNodeBounds);
+        const rendered = this.drawNode(context, node, drawTransform, textured.has(String(node.id)), resolveTexture, resolveNodeBounds, resolveNodeLabel, renderBounds);
+        if (!rendered) return;
+        renderedNodeCount += 1;
         const region = this.hitRegions.at(-1);
         if (region?.id === String(node.id) && selectedIds.has(region.id)) {
           context.strokeStyle = "#6691ff";
@@ -278,11 +340,11 @@
         y: finite(transform.y),
         scale: Math.max(0.000001, finite(transform.scale, 1)),
       };
-      this.spriteCount = nodes.length;
+      this.spriteCount = renderedNodeCount;
       this.currentTransform = { ...this.lastTransform };
       this.connectionCount = connectionCount;
-      this.renderedGeometryCount = nodes.length;
-      return { nodeCount: nodes.length, connectionCount };
+      this.renderedGeometryCount = renderedNodeCount;
+      return { nodeCount: renderedNodeCount, connectionCount: renderedConnectionCount };
     }
 
     hitTest(x, y) {

@@ -665,7 +665,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  if (await serverComponents.handle(req, res)) return;
+if (await serverComponents.handle(req, res)) return;
 
   if (req.method === "POST" && req.url === "/api/canvas/media/cleanup") {
     await handleCanvasGalleryMediaCleanup(req, res);

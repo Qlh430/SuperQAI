@@ -1,0 +1,15 @@
+const assert = require('node:assert/strict')
+const fs = require('node:fs')
+const path = require('node:path')
+
+const root = path.join(__dirname, 'design-sources')
+const css = fs.readFileSync(path.join(root, 'flora-node-shell.css'), 'utf8')
+const h3 = fs.readFileSync(path.join(root, 'canvas-h3-node-renderer.js'), 'utf8')
+const parameters = fs.readFileSync(path.join(root, 'flora-generator-parameters.js'), 'utf8')
+
+assert.match(css, /\.flora-generator-reference-area\s*>\s*:is\(\.canvas-node-refs, \.canvas-llm-images, \.canvas-h3-reference-grid, \.canvas-audio-generator-refs\)[\s\S]{0,120}display:\s*none\s*!important/)
+assert.doesNotMatch(css, /\.flora-generator-composer\s+\.flora-generator-reference-area\s*>\s*\.canvas-h3-reference-grid[\s\S]{0,180}display:\s*grid\s*!important/)
+assert.match(h3, /createCanvasH3Select\("模型",\s*modelChoices/)
+assert.match(h3, /MINIMAX_H3_LOCAL_MODELS/)
+assert.match(parameters, /modelCaption/)
+console.log(JSON.stringify({ ok: true, checks: ['comfy-reference-area', 'minimax-h3-model-selector'] }))

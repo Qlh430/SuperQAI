@@ -1,4 +1,5 @@
 const fs = require("node:fs");
+const { validate: validateLabels } = require("./canvas-node-tag-rules");
 const os = require("node:os");
 const path = require("node:path");
 const { parentPort, workerData } = require("node:worker_threads");
@@ -121,7 +122,7 @@ function finiteNumber(value, fallback, label) {
 function boardRow(boardId) {
   const id = requiredId(boardId, "Board");
   const row = prepare(`
-    SELECT pk, external_id, project_id, title, viewport_json, revision, schema_version,
+    SELECT pk, external_id, project_id, title, viewport_json, label_definitions_json, revision, schema_version,
            migration_state, validation_hash, created_at, updated_at, deleted_at
       FROM boards
      WHERE external_id = ?
@@ -137,6 +138,7 @@ function toBoardMeta(row) {
     projectId: row.project_id || "",
     title: row.title,
     viewport: parseJson(row.viewport_json, { x: 0, y: 0, scale: 1 }),
+    labelDefinitions: parseJson(row.label_definitions_json, null),
     revision: Number(row.revision),
     schemaVersion: Number(row.schema_version),
     migrationState: row.migration_state,
@@ -156,11 +158,12 @@ function syncNodePreview(boardPk, nodeId, zOrder, payload, updatedAt) {
   const source = extractNodePreviewSources(payload)[0] || "";
   const title = extractNodeSceneTitle(payload);
   prepare(`
-    INSERT INTO node_previews(board_pk, node_id, source, title, z_order, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?)
+    INSERT INTO node_previews(board_pk, node_id, source, title, label_id, z_order, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(board_pk, node_id) DO UPDATE SET
       source = excluded.source,
       title = excluded.title,
+      label_id = excluded.label_id,
       z_order = excluded.z_order,
       updated_at = excluded.updated_at
   `).run(
@@ -168,6 +171,7 @@ function syncNodePreview(boardPk, nodeId, zOrder, payload, updatedAt) {
     String(nodeId),
     source,
     title,
+    String(payload?.nodeLabelId || ""),
     Math.trunc(Number(zOrder) || 0),
     String(updatedAt || nowIso()),
   );
@@ -480,8 +484,14 @@ function patchBoard(board, operation, timestamp) {
   const viewportJson = after.viewport === undefined
     ? board.viewport_json
     : JSON.stringify(after.viewport || { x: 0, y: 0, scale: 1 });
-  prepare(`UPDATE boards SET title = ?, viewport_json = ?, updated_at = ? WHERE pk = ?`)
-    .run(title, viewportJson, timestamp, board.pk);
+  let labelsJson = board.label_definitions_json ?? null;
+  if (after.labelDefinitions !== undefined) {
+    try { labelsJson = JSON.stringify(validateLabels(after.labelDefinitions)); }
+    catch (error) { throw codedError("invalid_labels", error.message); }
+  }
+  prepare(`UPDATE boards SET title = ?, viewport_json = ?, label_definitions_json = ?, updated_at = ? WHERE pk = ?`)
+    .run(title, viewportJson, labelsJson, timestamp, board.pk);
+  board.label_definitions_json = labelsJson;
   board.title = title;
   board.viewport_json = viewportJson;
   return { entityId: board.external_id, entityRevision: Number(board.revision) + 1 };
@@ -552,7 +562,8 @@ function viewportVisualRows(boardPk, bounds) {
   const statement = prepare(`
     SELECT n.external_id, n.z_order, n.kind, n.x, n.y, n.width, n.height,
            COALESCE(p.source, '') AS preview_source,
-           COALESCE(p.title, n.kind) AS title
+           COALESCE(p.title, n.kind) AS title,
+           COALESCE(p.label_id, '') AS node_label_id
       FROM node_spatial s
       CROSS JOIN nodes n INDEXED BY nodes_viewport_geometry_idx ON n.pk = s.pk
       LEFT JOIN node_previews p
@@ -568,8 +579,8 @@ function viewportVisualRows(boardPk, bounds) {
     bounds.left, bounds.right, bounds.top, bounds.bottom,
     boardPk,
     bounds.left, bounds.right, bounds.top, bounds.bottom,
-  ).map(([external_id, z_order, kind, x, y, width, height, preview_source, title]) => (
-    { external_id, z_order, kind, x, y, width, height, preview_source, title }
+  ).map(([external_id, z_order, kind, x, y, width, height, preview_source, title, node_label_id]) => (
+    { external_id, z_order, kind, x, y, width, height, preview_source, title, nodeLabelId: node_label_id }
   ));
 }
 
@@ -626,6 +637,7 @@ function packVisualNodes(nodes) {
     Number(node.zOrder || 0),
     String(node.previewSource || ""),
     String(node.title || "节点"),
+    String(node.nodeLabelId || ""),
   ]));
 }
 
