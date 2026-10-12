@@ -86,7 +86,7 @@ assert.match(envExample, /^CANVAS_AGENT_TOTAL_TIMEOUT_SECONDS=90$/m);
 assert.ok(portableManifest.files.includes(filename), `portable manifest should include ${filename}`);
 });
 assert.match(portableBuild, /(?:copy-portable-runtime|build-electron-portable)\.js/i, "portable build should use the shared runtime copier");
-assert.deepEqual(portableManifest.directories, ["assets", "bundled-skills", "workflows", "skills", "desktop", "runtime", "node_modules/electron/dist"]);
+assert.deepEqual(portableManifest.directories, ["assets", "bundled-skills", "workflows", "skills", "desktop", "runtime", "canvas-pdf-cmaps", "canvas-pdf-fonts", "node_modules/electron/dist"]);
 
 const catalog = runtime.loadCanvasSkills(skillsDirectory);
 assert.equal(catalog.core.id, "canvas-agent-core");

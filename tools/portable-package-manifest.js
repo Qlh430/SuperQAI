@@ -25,6 +25,8 @@ const PORTABLE_DIRECTORIES = Object.freeze([
   "skills",
   "desktop",
   "runtime",
+  "canvas-pdf-cmaps",
+  "canvas-pdf-fonts",
   "node_modules/electron/dist",
 ]);
 

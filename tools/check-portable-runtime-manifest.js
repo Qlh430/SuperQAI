@@ -115,7 +115,7 @@ try {
   assert.ok(manifest.files.includes("node_modules/transitive-package"), "transitive dependencies must ship with the runtime");
   assert.ok(manifest.files.includes("node_modules/native-addon"), "installed optional native binaries must ship with the runtime");
   assert.ok(!manifest.files.includes("node_modules/other-platform-addon"), "uninstalled platform binaries are optional");
-  assert.deepEqual(manifest.directories, ["assets", "bundled-skills", "workflows", "skills", "desktop", "runtime", "node_modules/electron/dist"]);
+  assert.deepEqual(manifest.directories, ["assets", "bundled-skills", "workflows", "skills", "desktop", "runtime", "canvas-pdf-cmaps", "canvas-pdf-fonts", "node_modules/electron/dist"]);
 
   copyPortableRuntimeFiles(fixtureRoot, targetRoot);
   [
