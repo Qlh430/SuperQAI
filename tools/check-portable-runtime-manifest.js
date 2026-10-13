@@ -53,6 +53,7 @@ try {
   fs.writeFileSync(path.join(fixtureRoot, "new-browser.js"), "window.fixture = true;");
   fs.writeFileSync(path.join(fixtureRoot, "new-root.js"), "module.exports = true;");
   fs.writeFileSync(path.join(fixtureRoot, "new-root.css"), "body { color: black; }");
+  fs.writeFileSync(path.join(fixtureRoot, "new-root-page.html"), "<html><body>fixture page</body></html>");
   fs.mkdirSync(path.join(fixtureRoot, "theme"), { recursive: true });
   fs.writeFileSync(path.join(fixtureRoot, "theme", "linked.css"), "body { background: white; }");
   fs.writeFileSync(
@@ -97,6 +98,7 @@ try {
   const manifest = collectPortablePackageManifest(fixtureRoot);
   assert.ok(manifest.files.includes("new-root.js"), "new root runtime files must be discovered");
   assert.ok(manifest.files.includes("new-root.css"), "root CSS themes must be discovered");
+  assert.ok(manifest.files.includes("new-root-page.html"), "root HTML entry pages must be discovered");
   assert.ok(manifest.files.includes("theme/linked.css"), "linked browser stylesheets must be discovered");
   assert.ok(manifest.files.includes("new-browser.js"), "browser scripts must be discovered");
   assert.ok(
@@ -121,6 +123,7 @@ try {
   [
     "new-root.js",
     "new-root.css",
+    "new-root-page.html",
     "theme/linked.css",
     "new-browser.js",
     "new-server-dependency.js",

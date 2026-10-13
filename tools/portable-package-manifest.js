@@ -160,8 +160,11 @@ function collectPortablePackageManifest(sourceRoot) {
   const root = path.resolve(sourceRoot);
   const requiredPaths = new Set(FIXED_PORTABLE_FILES);
 
+  // Root pages ship like root scripts: the host page loads sibling HTML entry
+  // points at runtime (neon-host-bridge.js opens neon-workbench.html in an
+  // iframe), so a page left out of this list surfaces as a bare 404 in the app.
   for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
-    if (entry.isFile() && [".js", ".css"].includes(path.extname(entry.name).toLowerCase())) {
+    if (entry.isFile() && [".js", ".css", ".html"].includes(path.extname(entry.name).toLowerCase())) {
       requiredPaths.add(entry.name);
     }
   }
