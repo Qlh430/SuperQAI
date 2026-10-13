@@ -1,6 +1,6 @@
 {
   "name": "ai-studio-local",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "private": true,
   "description": "Local AI image/chat/canvas studio",
   "main": "server.js",
