@@ -1,6 +1,6 @@
 export type User = { id: string; username: string; displayName: string; role: string; status: string; lastLoginAt?: string; mustChangePassword?: boolean }
 export type Project = { id: string; name: string; canvasCount: number; updatedAt?: string }
-export type Board = { id: string; name?: string; title?: string; projectId?: string; resourceId?: string; isOwner?: boolean; nodeCount: number; updatedAt?: string; thumbnail?: string; deletedAt?: string }
+export type Board = { id: string; name?: string; title?: string; projectId?: string; resourceId?: string; isOwner?: boolean; nodeCount: number; updatedAt?: string; thumbnail?: string; deletedAt?: string; revision?: number; previewImages?: string[]; visibility?: string; permission?: string; share?: { id?: string; visibility?: string } }
 export type Resource = { resource: { id: string; type: string; title: string; ownerUserId: string; refId?: string; storagePath?: string }; preview?: { kind: string; url: string }; access: { locked?: boolean; capabilities?: { share?: boolean; delete?: boolean }; share?: { id: string; visibility: string } }; stats?: { nodeCount: number } }
 export type RecordItem = { id: string; title?: string; prompt?: string; model?: string; createdAt?: string | number; updatedAt?: number; timestamp?: number; images?: (string | { src: string; savedUrl?: string })[]; messages?: { role: string; content: string }[]; type?: string }
 export type Preferences = { appearance: { theme: string; scale: number; animations: string } }

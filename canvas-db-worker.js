@@ -133,6 +133,13 @@ function boardRow(boardId) {
 
 function toBoardMeta(row) {
   const previewImages = parseJson(row.preview_images_json, []);
+  // node_previews 只在部分节点上有 source；画布里已经有图片时用 media_refs 兜底，
+  // 让项目页的画布卡片拿得到封面图，而不是一直空着。
+  const mediaImages = parseJson(row.media_images_json, []);
+  const images = [...new Set([
+    ...(Array.isArray(previewImages) ? previewImages : []),
+    ...(Array.isArray(mediaImages) ? mediaImages : []),
+  ].map(String).filter(Boolean))].slice(0, 4);
   return {
     id: row.external_id,
     projectId: row.project_id || "",
@@ -148,9 +155,7 @@ function toBoardMeta(row) {
     deletedAt: row.deleted_at || "",
     nodeCount: Number(row.node_count || 0),
     connectionCount: Number(row.connection_count || 0),
-    previewImages: Array.isArray(previewImages)
-      ? [...new Set(previewImages.map(String).filter(Boolean))].slice(0, 4)
-      : [],
+    previewImages: images,
   };
 }
 
@@ -778,7 +783,18 @@ const handlers = {
                     ORDER BY p.z_order DESC, p.updated_at DESC
                     LIMIT 4
                  )
-             ), '[]') AS preview_images_json
+               ), '[]') AS preview_images_json,
+               COALESCE((
+                 SELECT json_group_array(image_url)
+                   FROM (
+                     SELECT COALESCE(NULLIF(m.thumbnail_url, ''), m.original_url) AS image_url
+                       FROM media_refs m
+                      WHERE m.board_pk = b.pk
+                        AND COALESCE(NULLIF(m.thumbnail_url, ''), m.original_url) <> ''
+                      ORDER BY m.pk DESC
+                      LIMIT 4
+                   )
+               ), '[]') AS media_images_json
         FROM boards b
        WHERE b.migration_state = 'active'
          AND (? = '' OR b.project_id = ?)
