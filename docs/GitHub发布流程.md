@@ -407,3 +407,41 @@ $mismatch = @($localMap.Keys | Where-Object {
 - `assets/models/background-removal/ben2-base-1.0.0.onnx`（约 213 MB，`assets` 目录整体入包）
 - `node_modules`（`node_modules/electron/dist` 作为运行时外壳，`sharp`、`undici`、
   `onnxruntime-node` 作为生产依赖）
+
+## 17. 本次 2.0.2 发布记录
+
+- GitHub 仓库：`Qlh430/SuperQAI`
+- 源码分支：`main`
+- 源码提交：`89de6fcd9e4713f45fde1bdebd0bc25d3054d74d`（含打包白名单修复 `3a013aea1eca3f38f0f9bb70c872cce984dbde09`）
+- 版本标签：`v2.0.2`
+- Release 状态：正式版、Latest、非草稿、非预发布
+- 上传资产：52 个
+- Portable：`AI-OS-Portable-2.0.2-win-x64.zip`，477,460,241 字节
+- Runtime：`AI-OS-Runtime-2.0.2-win-x64.zip`，477,300,434 字节
+- Runtime SHA-256：`2ecdcd7a62593dc3175e3a7cfcfe5b96d0b1a4c33709e079e3d7d5b6948140a4`
+- 组件清单 SHA-256：`10c6d96dd7ce9ca71ed0314ad6c28e370fec8b9ca505339b445a29dc4f4d9243`
+- Release 地址：`https://github.com/Qlh430/SuperQAI/releases/tag/v2.0.2`
+
+本次远程资产与本地资产文件名、大小全部一致（本地 52、远程 52、缺失 0、大小不符 0），
+`ai-os-update.json` 中的 Runtime 大小与 SHA-256、组件清单大小与 SHA-256 均与本地文件一致。
+
+### 本次同步的源码变更
+
+1. `fix: ship root entry pages with the portable runtime`：`tools/portable-package-manifest.js`
+   的根目录扫描由 `.js/.css` 扩展为 `.js/.css/.html`。此前根级 HTML 只固定收录 `index.html`，
+   `neon-workbench.html`、`neon-showcase.html` 既没进 Portable/Runtime 包，也没进任何组件包；
+   宿主页 `index.html` 由 `neon-host-bridge.js` 插入 `./neon-workbench.html` 的 iframe，文件缺失时
+   静态服务返回 `{"error":"Not found"}`，工作台整块空白（2.0.1 的实际故障）。
+   `tools/check-portable-runtime-manifest.js` 增加根级 HTML 夹具、清单断言与拷贝断言。
+2. `release: AI OS 2.0.2`：根 `package.json` 与 `package-lock.json` 升到 `2.0.2`。
+
+### 组件更新影响面
+
+2.0.1 → 2.0.2 组件清单对比：组件数 48 → 48，无新增、无移除，仅 `platform-core` 哈希变化
+（文件 72 → 74，新增 `neon-workbench.html` 与 `neon-showcase.html`）。停在 2.0.1 的机器
+只需下载约 0.7 MB 的 `AI-OS-Component-2.0.2-platform-core.zip` 即可修复，不必下载完整 Runtime。
+
+### 2.0.1 下架
+
+`v2.0.1` 的 Release 与标签已删除（`gh release delete v2.0.1 --cleanup-tag`），
+避免新电脑继续装到打不开工作台的版本；源码提交 `13f2141` 仍保留在 `main` 历史中。
