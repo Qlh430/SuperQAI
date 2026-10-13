@@ -111,6 +111,13 @@
     if (event.data?.type !== "neon:action") return;
     const { action, params } = event.data;
     if (action === "logout" || action === "sessionExpired") { location.reload(); return; }
+      if (action === "hostDesktop") {
+        // 工作台页面自己起不来时，至少让用户能回到宿主桌面再决定重开还是退出，
+        // 不要把整块黑色 iframe 留在屏幕上。
+        if (frame) frame.hidden = true;
+        window.AiOsDesktop?.toast?.("已回到 AI OS 桌面，可从启动台重新打开工作台。");
+        return;
+      }
     if (pending) return;
     if (action !== "canvas") return;
     pending = true;

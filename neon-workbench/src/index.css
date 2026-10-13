@@ -302,6 +302,13 @@ html[data-motion="reduced"] *, html[data-motion="reduced"] *::before, html[data-
 }
 .neon-resource-preview[data-kind="video"] { aspect-ratio: 16 / 10; }
 .neon-resource-preview[data-kind="audio"] { min-height: 10rem; }
+
+/* 概览的“最近素材”：列数由 Home 按容器宽度算出来（能放几张就放几张，正好铺满一行），
+   每张卡片的图片保持素材自身比例，只给一个高度上限。 */
+.neon-recent-grid .neon-resource-preview img {
+  max-height: 20rem;
+}
+
 @media (max-width: 767px) {
   .neon-asset-library-layout { grid-template-columns: 1fr; gap: 1rem; }
   .neon-asset-directory { position: static; }

@@ -161,7 +161,7 @@ export default function App() {
       {visitedCreative.current.image && <div className={page === "image" ? "flex min-h-0 flex-1 flex-col" : "hidden"}><ImageWorkspace key={reuseVersion.image} onSettings={configure} notify={setNotice} onComplete={() => void refresh()} /></div>}
       {visitedCreative.current.chat && <div className={page === "chat" ? "flex min-h-0 flex-1 flex-col" : "hidden"}><ChatWorkspace key={reuseVersion.chat} records={records.filter(r => r.type === "chat")} onSettings={configure} notify={setNotice} onComplete={() => void refresh()} /></div>}
       <main ref={content} hidden={page === "image" || page === "chat"} className="min-h-0 flex-1 overflow-y-auto px-4 py-8 sm:px-8 xl:px-12">
-        <div className="mx-auto max-w-[80rem]">{toolbar}{page === "settings" && settingsSource && <Button variant="ghost" className="mb-4" onClick={() => go(settingsSource)}><ArrowLeft className="size-4" />返回{labels[settingsSource]}</Button>}
+        <div className="w-full">{toolbar}{page === "settings" && settingsSource && <Button variant="ghost" className="mb-4" onClick={() => go(settingsSource)}><ArrowLeft className="size-4" />返回{labels[settingsSource]}</Button>}
           {!ready && loading ? <Busy /> : error ? <ErrorPanel message={error} onRetry={() => void refresh()} /> : [...visitedPages.current].filter(id => id !== "image" && id !== "chat").map(id => <section key={id} hidden={id !== page} aria-label={labels[id]}>
               {passwordGate ? <Card><CardContent className="flex flex-wrap items-center gap-4 p-6" role="alert"><CircleAlert className="size-5 shrink-0 text-destructive" /><p className="min-w-0 flex-1 text-sm">首次登录需要先修改临时密码，改完密码后这里的数据会自动加载。</p><Button className="min-h-11" onClick={() => setPasswordOpen(true)}>修改密码</Button></CardContent></Card> : pageErrors[id] ? <ErrorPanel message={pageErrors[id]!} onRetry={() => void refresh()} /> :
               id === "home" ? <Home boards={boards.filter(b => !b.deletedAt)} resources={resources} go={go} openCanvas={openCanvas} create={openCreate} user={user} /> :
@@ -184,11 +184,28 @@ export default function App() {
 }
 
 function Home({ boards, resources, go, openCanvas, create, user }: { boards: Board[]; resources: Resource[]; go: (page: Page) => void; openCanvas: (id?: string) => void; create: () => void; user: User | null }) {
+  const gridRef = useRef<HTMLDivElement>(null)
+  const [recentCount, setRecentCount] = useState(4)
+  // 最近素材按容器实际宽度决定放几张：能铺满一行就铺满，不固定张数。
+  useEffect(() => {
+    const node = gridRef.current
+    if (!node) return
+    const measure = () => {
+      const gap = 16, minTile = 190, maxColumns = 12
+      const width = node.clientWidth || 0
+      setRecentCount(Math.min(maxColumns, Math.max(2, Math.floor((width + gap) / (minTile + gap)))))
+    }
+    measure()
+    if (typeof ResizeObserver === "undefined") return
+    const observer = new ResizeObserver(measure)
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [])
   return <><Heading title="今天想创作什么？" description={`${user?.displayName || "欢迎回来"}，从最近的画布继续，或开始一次新的探索。`} />
     <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(17.5rem,1fr)]">
       <Card><CardHeader><CardTitle>继续创作</CardTitle><CardDescription>最近编辑的画布</CardDescription></CardHeader><CardContent>{boards.length ? <div className="space-y-2">{boards.slice(0, 4).map(board => <Button key={board.id} variant="ghost" className="flex h-auto w-full justify-between gap-4 whitespace-normal py-4 text-left" onClick={() => openCanvas(board.id)}><span className="flex min-w-0 items-center gap-3"><Workflow className="size-5 shrink-0 text-primary" /><span className="min-w-0"><span className="block truncate text-sm text-foreground">{board.name || board.title || "未命名画布"}</span><span className="mt-1 block text-xs font-normal text-muted-foreground">{board.nodeCount || 0} 个节点，{dateLabel(board.updatedAt)}</span></span></span><ArrowUpRight className="size-4 shrink-0" /></Button>)}</div> : <div className="flex min-h-48 flex-col items-center justify-center gap-4 text-center"><Workflow className="size-6 text-muted-foreground" /><p className="text-sm text-muted-foreground">创建项目，组织你的第一个创作方案。</p><Button onClick={create}><Plus className="size-4" /> 创建项目</Button></div>}</CardContent></Card>
       <Card><CardHeader><CardTitle>选择创作方式</CardTitle><CardDescription>按目标直接进入工具</CardDescription></CardHeader><CardContent className="space-y-3"><Tool icon={<ImagePlus />} title="生成图片" text="输入提示词，添加参考图" onClick={() => go("image")} /><Tool icon={<MessageSquare />} title="讨论想法" text="从一个问题开始，逐步完善内容" onClick={() => go("chat")} /><Tool icon={<Workflow />} title="进入无限画布" text="组织节点，连接创作关系" onClick={() => openCanvas()} /></CardContent></Card>
-    </div><section className="mt-8"><div className="mb-4 flex items-center justify-between"><h2 className="text-xl font-semibold">最近素材</h2><Button variant="ghost" onClick={() => go("assets")}>打开素材库 <ArrowUpRight className="size-4" /></Button></div>{resources.length ? <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">{resources.slice(0, 4).map(entry => <ResourceCard key={entry.resource.id} entry={entry} onClick={() => go("assets")} />)}</div> : <p className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">生成结果和导入的参考图将在素材库中集中保存。</p>}</section></>
+    </div><section className="mt-8"><div className="mb-4 flex items-center justify-between"><h2 className="text-xl font-semibold">最近素材</h2><Button variant="ghost" onClick={() => go("assets")}>打开素材库 <ArrowUpRight className="size-4" /></Button></div>{resources.length ? <div ref={gridRef} className="neon-recent-grid grid gap-4" style={{ gridTemplateColumns: `repeat(${recentCount}, minmax(0, 1fr))` }}>{resources.slice(0, recentCount * 2).map(entry => <ResourceCard key={entry.resource.id} entry={entry} onClick={() => go("assets")} />)}</div> : <p className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">生成结果和导入的参考图将在素材库中集中保存。</p>}</section></>
 }
 function Tool({ icon, title, text, onClick }: { icon: React.ReactNode; title: string; text: string; onClick: () => void }) { return <Button variant="outline" onClick={onClick} className="h-auto w-full justify-start gap-4 whitespace-normal py-4 text-left"><span className="text-primary [&>svg]:size-5">{icon}</span><span><span className="block text-sm">{title}</span><span className="mt-1 block text-xs font-normal leading-5 text-muted-foreground">{text}</span></span></Button> }
 

@@ -207,8 +207,58 @@ if (!storage.includes(deletedResourceGuard)) {
   storage = storage.replace('["forbidden", "share_password_required"].includes(error?.code)', '["forbidden", "share_password_required", "resource_not_found"].includes(error?.code)')
   writeFileSync(storagePath, storage, "utf8")
 }
+// The host shows this page as a full-window iframe with a near-black backdrop,
+// so a page that fails to boot looks like a dead black window with no way out.
+// Ship a static Chinese fallback that reports the real reason and offers a reload.
 writeFileSync(join(runtime, "neon-workbench.html"), `<!doctype html>
-<html lang="zh-CN" class="dark"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AI OS 工作台</title><link rel="stylesheet" href="./neon-workbench.css?v=20261008-node-tags"></head><body><div id="root"></div><script src="./neon-workbench.js?v=20261008-node-tags"></script></body></html>`, "utf8")
+<html lang="zh-CN" class="dark"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AI OS 工作台</title><link rel="stylesheet" href="./neon-workbench.css?v=20261008-node-tags">
+<style>
+  #neonBootFallback { display: none; position: fixed; inset: 0; z-index: 10; padding: 48px 40px; color: #e8ecf2; background: #080a0e; font: 15px/1.75 system-ui, "Microsoft YaHei", sans-serif; }
+  #neonBootFallback[data-visible="true"] { display: block; }
+  #neonBootFallback h1 { margin: 0 0 10px; font-size: 19px; }
+  #neonBootFallback p { margin: 0 0 16px; max-width: 46rem; color: #9aa4b2; }
+  #neonBootFallback button { margin-right: 12px; border: 0; border-radius: 10px; padding: 11px 20px; font: 600 14px/1 inherit; background: #7cf03f; color: #08130a; cursor: pointer; }
+  #neonBootFallback button.secondary { background: #242a33; color: #e8ecf2; }
+  #neonBootFallback pre { margin: 18px 0 0; max-width: 52rem; max-height: 180px; overflow: auto; border-radius: 10px; background: #12161c; color: #8b95a3; padding: 12px 14px; font-size: 12px; white-space: pre-wrap; }
+</style>
+</head><body><div id="root"></div>
+<div id="neonBootFallback" role="alert">
+  <h1>工作台没有正常显示</h1>
+  <p>本机服务仍在运行，账号、画布和素材都没有受影响。先点“重新加载工作台”；如果仍然空白，请关闭 AI OS 窗口后重新打开，或从托盘选择“退出并停止服务”再启动。</p>
+  <button type="button" id="neonBootReload">重新加载工作台</button>
+  <button type="button" class="secondary" id="neonBootDesktop">回到 AI OS 桌面</button>
+  <pre id="neonBootDetail" hidden></pre>
+</div>
+<script>
+(function () {
+  var root = document.getElementById("root");
+  var fallback = document.getElementById("neonBootFallback");
+  var detail = document.getElementById("neonBootDetail");
+  var shown = false;
+  function booted() { return Boolean(root && root.childElementCount > 0); }
+  function show(reason) {
+    if (shown || booted()) return;
+    shown = true;
+    if (reason) { detail.hidden = false; detail.textContent = String(reason).slice(0, 600); }
+    fallback.dataset.visible = "true";
+    // 应用稍后恢复时不要让提示压在工作台上。
+    setInterval(function () { if (booted()) fallback.dataset.visible = "false"; }, 1000);
+  }
+  window.addEventListener("error", function (event) { show((event && (event.message || (event.error && event.error.message))) || "页面脚本执行失败"); });
+  window.addEventListener("unhandledrejection", function (event) { show((event && event.reason && (event.reason.message || event.reason)) || "页面脚本异常中断"); });
+  var waited = 0;
+  var timer = setInterval(function () {
+    if (booted()) { clearInterval(timer); return; }
+    waited += 500;
+    if (waited >= 12000) { clearInterval(timer); show("工作台脚本没有在 12 秒内启动，可能是文件缺失或缓存不一致。"); }
+  }, 500);
+  document.getElementById("neonBootReload").addEventListener("click", function () { location.reload(); });
+  document.getElementById("neonBootDesktop").addEventListener("click", function () {
+    try { window.parent.postMessage({ type: "neon:action", action: "hostDesktop" }, location.origin); } catch (error) {}
+  });
+})();
+</script>
+<script src="./neon-workbench.js?v=20261008-node-tags"></script></body></html>`, "utf8")
 const indexPath = join(runtime, "index.html")
 let html = readFileSync(indexPath, "utf8")
 if (!existsSync(join(source, "design-sources/runtime-index-before-isolation.html"))) writeFileSync(join(source, "design-sources/runtime-index-before-isolation.html"), html)
