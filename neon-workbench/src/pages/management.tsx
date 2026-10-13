@@ -127,6 +127,39 @@ function SystemPage() {
   </div>
 }
 
+// 首次登录的临时密码必须换掉，密码规则在这里和宿主的“修改登录密码”保持同一套文字。
+// 表单加 noValidate：否则浏览器会用原生校验静默拦住提交，用户只看到按钮没反应。
+export function PasswordDialog({ open, onClose, notify, onDone }: { open: boolean; onClose: () => void; notify: (text: string) => void; onDone: () => void }) {
+  const [currentPassword, setCurrentPassword] = useState("")
+  const [newPassword, setNewPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState("")
+  useEffect(() => { if (open) { setCurrentPassword(""); setNewPassword(""); setConfirmPassword(""); setError("") } }, [open])
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault(); setError("")
+    if (!currentPassword) { setError("请输入当前密码。"); return }
+    if (newPassword.trim().length < 8) { setError("新密码至少需要 8 位字符，且不能只包含空格。"); return }
+    if (newPassword === currentPassword) { setError("新密码不能与当前密码相同。"); return }
+    if (newPassword !== confirmPassword) { setError("两次输入的新密码不一致。"); return }
+    setSaving(true)
+    try {
+      await request("/api/auth/change-password", "POST", { currentPassword, newPassword })
+      notify("密码已更新，其他设备上的旧会话已退出。")
+      onDone()
+    } catch (e) { setError((e as Error).message) } finally { setSaving(false) }
+  }
+  return <Modal open={open} title="修改密码" description="首次登录的临时密码需要换成只有你自己知道的密码。" onClose={() => { if (!saving) onClose() }}>
+    <form onSubmit={submit} noValidate className="space-y-4">
+      {([["当前密码", currentPassword, setCurrentPassword, "current-password"], ["新密码", newPassword, setNewPassword, "new-password"], ["确认新密码", confirmPassword, setConfirmPassword, "new-password"]] as const).map(([label, value, setter, autoComplete]) =>
+        <label key={label} className="block text-sm">{label}<Input type="password" className="mt-2" autoComplete={autoComplete} value={value} onChange={e => setter(e.target.value)} /></label>)}
+      <p className="text-xs text-muted-foreground">新密码至少 8 位，不能只包含空格，也不能与当前密码相同。</p>
+      {error && <p className="text-sm text-destructive" role="alert">{error}</p>}
+      <Button type="submit" disabled={saving}>{saving ? "保存中…" : "更新密码"}</Button>
+    </form>
+  </Modal>
+}
+
 export function AccountsPage({ user, notify, onUpdate }: Props & { onUpdate: () => void }) {
   const [users, setUsers] = useState<User[]>([])
   const [error, setError] = useState("")
@@ -136,20 +169,16 @@ export function AccountsPage({ user, notify, onUpdate }: Props & { onUpdate: () 
   const [selected, setSelected] = useState<User | null>(null)
   const [name, setName] = useState("")
   const [displayName, setDisplayName] = useState("")
-  const [currentPassword, setCurrentPassword] = useState("")
-  const [newPassword, setNewPassword] = useState("")
-  const [confirmPassword, setConfirmPassword] = useState("")
   const [temporary, setTemporary] = useState("")
   const [dialogError, setDialogError] = useState("")
   const admin = user?.role === "superadmin"
   const load = useCallback(async () => { setBusy(true); setError(""); try { setUsers((await request<{ users: User[] }>(admin ? "/api/admin/users" : "/api/users/directory")).users || []) } catch (e) { setError((e as Error).message) } finally { setBusy(false) } }, [admin])
   useEffect(() => { void load() }, [load])
-  const open = (kind: typeof dialog, target?: User) => { setDialog(kind); setSelected(target || null); setName(""); setDisplayName(target?.displayName || ""); setCurrentPassword(""); setNewPassword(""); setConfirmPassword(""); setTemporary(""); setDialogError("") }
+  const open = (kind: typeof dialog, target?: User) => { setDialog(kind); setSelected(target || null); setName(""); setDisplayName(target?.displayName || ""); setTemporary(""); setDialogError("") }
   const submit = async (event: React.FormEvent) => {
     event.preventDefault(); setSaving(true); setDialogError("")
     try {
       if (dialog === "create") { const result = await request<{ temporaryPassword: string }>("/api/admin/users", "POST", { username: name, displayName }); setTemporary(result.temporaryPassword); await load() }
-      else if (dialog === "password") { if (newPassword !== confirmPassword) throw new Error("两次输入的新密码不一致。"); await request("/api/auth/change-password", "POST", { currentPassword, newPassword }); setDialog(null); notify("密码已更新。"); onUpdate() }
       else if (dialog === "manage" && selected) { await request(`/api/admin/users/${encodeURIComponent(selected.id)}`, "PATCH", { displayName }); setDialog(null); await load(); onUpdate(); notify("账户资料已保存。") }
     } catch (e) { setDialogError((e as Error).message) } finally { setSaving(false) }
   }
@@ -157,12 +186,12 @@ export function AccountsPage({ user, notify, onUpdate }: Props & { onUpdate: () 
     <Card className="mb-8"><CardContent className="flex flex-wrap items-center justify-between gap-6 pt-6"><div className="flex items-center gap-4"><ShieldCheck className="size-6 text-primary" /><div><h2 className="text-base font-medium">{user?.displayName}</h2><p className="mt-1 text-sm text-muted-foreground">{user?.username}，{admin ? "超级管理员" : "普通账户"}</p></div></div><div className="flex flex-wrap gap-3"><Button variant="outline" onClick={() => open("password")}><KeyRound className="size-4" />修改密码</Button><Button variant="ghost" onClick={() => open("logout")}><LogOut className="size-4" />退出登录</Button></div></CardContent></Card>
     <h2 className="mb-4 text-xl font-semibold">{admin ? "全部账户" : "账户目录"}</h2>
     {busy ? <Busy /> : error ? <ErrorPanel message={error} onRetry={() => void load()} /> : !users.length ? <Empty icon={<Users />} title="暂无账户" description="管理员可以添加账户。" /> : <Card><CardContent className="divide-y divide-border p-0">{users.map(item => <div key={item.id} className="flex flex-wrap items-center justify-between gap-4 px-5 py-5"><div className="min-w-0"><p className="text-sm font-medium">{item.displayName || item.username}</p><p className="mt-1 text-xs text-muted-foreground">{item.username}，{item.role === "superadmin" ? "管理员" : "普通账户"}</p></div><div className="flex items-center gap-3"><Badge variant="secondary">{item.status === "disabled" ? "已停用" : "正常"}</Badge>{admin && <Button variant="outline" size="sm" onClick={() => open("manage", item)}>管理</Button>}</div></div>)}</CardContent></Card>}
-    <Modal open={Boolean(dialog)} title={dialog === "create" ? "新增账户" : dialog === "password" ? "修改密码" : dialog === "logout" ? "退出登录" : "管理账户"} description={dialog === "logout" ? "退出前请确认创作内容已保存。" : dialog === "create" ? "新账户首次登录必须修改临时密码。" : "账户权限由本机服务进行校验。"} onClose={() => { if (!saving) { setDialog(null); setTemporary("") } }}>
+      <PasswordDialog open={dialog === "password"} onClose={() => setDialog(null)} notify={notify} onDone={() => { setDialog(null); onUpdate() }} />
+      <Modal open={Boolean(dialog) && dialog !== "password"} title={dialog === "create" ? "新增账户" : dialog === "logout" ? "退出登录" : "管理账户"} description={dialog === "logout" ? "退出前请确认创作内容已保存。" : dialog === "create" ? "新账户首次登录必须把临时密码改成至少 8 位的自己的密码。" : "账户权限由本机服务进行校验。"} onClose={() => { if (!saving) { setDialog(null); setTemporary("") } }}>
       {dialog === "logout" ? <Button disabled={saving} onClick={async () => { setSaving(true); try { await request("/api/auth/logout", "POST", {}); hostAction("logout") } catch (e) { setDialogError((e as Error).message) } finally { setSaving(false) } }}>确认退出</Button> :
       temporary ? <div className="space-y-3"><p className="text-sm">临时密码仅在本次操作中显示，请安全交给账户本人。</p><Input readOnly aria-label="临时密码" value={temporary} /><Button onClick={() => { setTemporary(""); setDialog(null) }}>已记录，关闭</Button></div> :
       <form onSubmit={submit} className="space-y-4">{dialog === "create" && <label className="block text-sm">登录名<Input required className="mt-2" value={name} onChange={e => setName(e.target.value)} /></label>}
         {(dialog === "create" || dialog === "manage") && <label className="block text-sm">显示名称<Input required className="mt-2" value={displayName} onChange={e => setDisplayName(e.target.value)} /></label>}
-        {dialog === "password" && <>{[["当前密码", currentPassword, setCurrentPassword], ["新密码", newPassword, setNewPassword], ["确认新密码", confirmPassword, setConfirmPassword]].map(([label, value, setter], index) => <label key={String(label)} className="block text-sm">{String(label)}<Input type="password" required minLength={index ? 8 : undefined} autoComplete={index ? "new-password" : "current-password"} className="mt-2" value={String(value)} onChange={e => (setter as (s: string) => void)(e.target.value)} /></label>)}</>}
         {dialogError && <p className="text-sm text-destructive" role="alert">{dialogError}</p>}
         <div className="flex flex-wrap gap-3">{dialog === "manage" && selected && selected.id !== user?.id && <><Button variant="outline" disabled={saving} onClick={async () => { setSaving(true); try { const data = await request<{ temporaryPassword: string }>(`/api/admin/users/${encodeURIComponent(selected.id)}/reset-password`, "POST", {}); setTemporary(data.temporaryPassword) } catch (e) { setDialogError((e as Error).message) } finally { setSaving(false) } }}>重置登录密码</Button><Button variant="outline" disabled={saving} onClick={async () => { setSaving(true); try { await request(`/api/admin/users/${encodeURIComponent(selected.id)}`, "PATCH", { status: selected.status === "disabled" ? "active" : "disabled" }); setDialog(null); await load() } catch (e) { setDialogError((e as Error).message) } finally { setSaving(false) } }}>{selected.status === "disabled" ? "启用账户" : "停用账户"}</Button></>}<Button type="submit" disabled={saving}>{saving ? "保存中…" : dialog === "create" ? "创建账户" : "保存"}</Button></div>
       </form>}

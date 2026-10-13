@@ -1096,6 +1096,18 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
 <link rel="stylesheet" href="./neon-canvas-surface.css?v=20261008-material-image" />
 <link rel="stylesheet" href="./canvas-audio-generator.css?v=20261008-node-tags" />
 <link rel="stylesheet" href="./flora-generation-history.css?v=20261008-node-tags" />
@@ -1856,10 +1868,12 @@
       </dialog>
 
       <dialog class="ai-os-dialog" id="aiOsPasswordDialog">
-        <form method="dialog" id="aiOsPasswordForm">
+        <form method="dialog" id="aiOsPasswordForm" novalidate>
           <header><div><p class="ai-os-eyebrow">SECURITY</p><h2>修改登录密码</h2></div><button value="cancel" formnovalidate aria-label="关闭">×</button></header>
           <label><span>当前密码</span><input name="currentPassword" type="password" autocomplete="current-password" required /></label>
           <label><span>新密码</span><input name="newPassword" type="password" autocomplete="new-password" minlength="8" required /></label>
+          <p class="ai-os-dialog-hint">新密码至少 8 位，不能只包含空格，也不能与当前密码相同。</p>
+          <p class="ai-os-dialog-error" id="aiOsPasswordError" role="alert" hidden></p>
           <footer><button value="cancel" formnovalidate>取消</button><button type="submit" value="default">更新密码</button></footer>
         </form>
       </dialog>
@@ -3289,6 +3303,28 @@
     
 
 
+    
+    
+    
+    
+    
+    
+    
+    
+    
+
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+
+
     <script src="./flora-connection-interaction.js?v=20261008-material-image"></script>
     <script src="./canvas-node-tag-rules.js?v=20261008-node-tags"></script>
     <script src="./flora-node-tags.js?v=20261008-node-tags"></script>
@@ -3538,6 +3574,10 @@
 
 
 
+
+
+
+
 <script src="./midjourney-parameter-rules.js?v=20261009-reference-material-sections"></script>
 <script src="./flora-midjourney-settings.js?v=20261009-reference-material-sections"></script>
 <script src="./script.js?v=20261010-qwen-image21"></script>
@@ -3548,6 +3588,8 @@
       <script src="./canvas-theme.js?v=20260918-bendo-canvas5"></script>
     </template>
       
+
+
 
 
 

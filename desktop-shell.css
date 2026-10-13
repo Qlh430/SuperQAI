@@ -161,6 +161,22 @@ body::after {
   gap: 14px;
 }
 
+.ai-os-dialog .ai-os-dialog-hint {
+  margin: 0;
+  color: var(--os-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.ai-os-dialog .ai-os-dialog-error {
+  margin: 0;
+  border-radius: 10px;
+  color: #9d2525;
+  background: rgba(255, 95, 87, 0.12);
+  padding: 10px 12px;
+  font-size: 12px;
+}
+
 .ai-os-auth-form label,
 .ai-os-dialog label {
   display: grid;

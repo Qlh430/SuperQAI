@@ -651,7 +651,7 @@ const server = http.createServer(async (req, res) => {
     req.auth = auth;
     if (auth.user.mustChangePassword) {
       sendJson(res, 403, {
-        error: "Change the temporary password before using this system.",
+        error: "首次登录需要先修改临时密码，改密后即可正常使用。",
         code: "password_change_required",
       });
       return;

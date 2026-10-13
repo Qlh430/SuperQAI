@@ -879,13 +879,31 @@
       event.preventDefault();
       const passwordForm = event.currentTarget;
       const form = new FormData(passwordForm);
+        const currentPassword = String(form.get("currentPassword") || "");
+        const newPassword = String(form.get("newPassword") || "");
+        // 依赖原生 minlength 时表单会静默拒绝提交，用户只看到按钮没反应；
+        // 这里自己校验并给出中文提示，规则与表单上写的一致。
+        const showPasswordError = (message) => {
+          const box = el("#aiOsPasswordError");
+          if (box) { box.textContent = message; box.hidden = false; }
+          toast(message);
+          return undefined;
+        };
+        const errorBox = el("#aiOsPasswordError");
+        if (errorBox) { errorBox.hidden = true; errorBox.textContent = ""; }
+        if (!currentPassword) return showPasswordError("请输入当前密码。");
+        if (newPassword.trim().length < 8) return showPasswordError("新密码至少需要 8 位字符，且不能只包含空格。");
+        if (newPassword === currentPassword) return showPasswordError("新密码不能与当前密码相同。");
       try {
-        const data = await authRequest("/api/auth/change-password", { method: "POST", body: { currentPassword: form.get("currentPassword"), newPassword: form.get("newPassword") } });
+          const data = await authRequest("/api/auth/change-password", { method: "POST", body: { currentPassword, newPassword } });
         passwordForm.reset();
         el("#aiOsPasswordDialog").close();
         activateSession(data);
+          // 工作台 iframe 之前拿到的是“必须先改临时密码”的 403，改密成功后要它重新取数，
+          // 否则概览会一直停在旧提示上。
+          document.getElementById("aiOsNeonFrame")?.contentWindow?.postMessage({ type: "neon:refresh" }, location.origin);
         toast("密码已更新，其他设备上的旧会话已退出");
-      } catch (error) { toast(error.message); }
+        } catch (error) { showPasswordError(error?.message || "修改密码失败，请重试。"); }
     });
     el("#aiOsPasswordDialog")?.addEventListener("cancel", (event) => { if (event.currentTarget.dataset.forced === "true") event.preventDefault(); });
     document.addEventListener("keydown", (event) => { if (event.key === "Escape") closeLaunchpad(); });

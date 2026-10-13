@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react"
-import { ArrowLeft, ArrowUpRight, Boxes, Clock3, FileImage, Folder, ImagePlus, LayoutDashboard, Menu, MessageSquare, MoreHorizontal, PanelLeftClose, Plus, RefreshCw, Settings2, Users, Workflow, X, Image as ImageIcon, Video, Music2, Globe2, UserRound, UsersRound } from "lucide-react"
+import { ArrowLeft, ArrowUpRight, Boxes, CircleAlert, Clock3, FileImage, Folder, ImagePlus, LayoutDashboard, Menu, MessageSquare, MoreHorizontal, PanelLeftClose, Plus, RefreshCw, Settings2, Users, Workflow, X, Image as ImageIcon, Video, Music2, Globe2, UserRound, UsersRound } from "lucide-react"
 import { Sidebar, SidebarHeader, SidebarContent, SidebarFooter, SidebarItem, SidebarGroup, SidebarGroupLabel } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -11,7 +11,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Heading, Empty, Busy, ErrorPanel, SearchBox, Modal, Notice } from "@/components/workbench"
 import { dateLabel, hostAction, request } from "@/lib/api"
 import type { Board, Project, Resource, RecordItem, User } from "@/lib/api"
-import { SettingsPage, AccountsPage } from "@/pages/management"
+import { SettingsPage, AccountsPage, PasswordDialog } from "@/pages/management"
 import { ImageWorkspace, ChatWorkspace } from "@/pages/creative"
 import { AssetActions, BoardActions } from "@/components/resource-actions"
 import { uploadImage } from "@/pages/creative"
@@ -44,6 +44,8 @@ export default function App() {
   const [name, setName] = useState("")
   const [saving, setSaving] = useState(false)
   const [dialogError, setDialogError] = useState("")
+  const [passwordGate, setPasswordGate] = useState(false)
+  const [passwordOpen, setPasswordOpen] = useState(false)
   const [settingsSource, setSettingsSource] = useState<Page | null>(null)
   const [reuseVersion, setReuseVersion] = useState({ image: 0, chat: 0 })
   const visitedCreative = useRef({ image: page === "image", chat: page === "chat" })
@@ -65,6 +67,11 @@ export default function App() {
         request<{ records: RecordItem[] }>("/api/history/chat"),
         request<{ preferences?: { appearance?: { scale?: number; animations?: string } } }>("/api/preferences"),
       ])
+        // 未改临时密码时服务端会拦住所有业务接口；这时候不能只说“加载失败”，
+        // 要直接告诉用户去改密码，并在这里给出改密入口。
+        const needsPasswordChange = [projectData, boardData, resourceData, imageData, chatData, preferenceData]
+          .some(result => result.status === "rejected" && (result.reason as { code?: string })?.code === "password_change_required")
+        setPasswordGate(needsPasswordChange)
       const nextErrors: Partial<Record<Page, string>> = {}
       if (projectData.status === "fulfilled") setProjects(projectData.value.projects || [])
       else nextErrors.projects = projectData.reason.message
@@ -78,8 +85,8 @@ export default function App() {
       if (preferenceData.status === "fulfilled") {
         document.documentElement.style.fontSize = `${16 * (preferenceData.value.preferences?.appearance?.scale || 1)}px`
         document.documentElement.dataset.motion = preferenceData.value.preferences?.appearance?.animations || "full"
-      } else setNotice("外观偏好读取失败，暂时使用默认外观。")
-      if (Object.values(nextErrors).length) nextErrors.home = "部分工作空间数据加载失败，可以进入其他页面操作，或重试加载。"
+        } else if (!needsPasswordChange) setNotice("外观偏好读取失败，暂时使用默认外观。")
+        if (Object.values(nextErrors).length && !needsPasswordChange) nextErrors.home = "部分工作空间数据加载失败，可以进入其他页面操作，或重试加载。"
       setPageErrors(nextErrors); setReady(true)
     } catch (e) { setError((e as Error).message) }
     finally { setLoading(false) }
@@ -156,7 +163,7 @@ export default function App() {
       <main ref={content} hidden={page === "image" || page === "chat"} className="min-h-0 flex-1 overflow-y-auto px-4 py-8 sm:px-8 xl:px-12">
         <div className="mx-auto max-w-[80rem]">{toolbar}{page === "settings" && settingsSource && <Button variant="ghost" className="mb-4" onClick={() => go(settingsSource)}><ArrowLeft className="size-4" />返回{labels[settingsSource]}</Button>}
           {!ready && loading ? <Busy /> : error ? <ErrorPanel message={error} onRetry={() => void refresh()} /> : [...visitedPages.current].filter(id => id !== "image" && id !== "chat").map(id => <section key={id} hidden={id !== page} aria-label={labels[id]}>
-            {pageErrors[id] ? <ErrorPanel message={pageErrors[id]!} onRetry={() => void refresh()} /> :
+              {passwordGate ? <Card><CardContent className="flex flex-wrap items-center gap-4 p-6" role="alert"><CircleAlert className="size-5 shrink-0 text-destructive" /><p className="min-w-0 flex-1 text-sm">首次登录需要先修改临时密码，改完密码后这里的数据会自动加载。</p><Button className="min-h-11" onClick={() => setPasswordOpen(true)}>修改密码</Button></CardContent></Card> : pageErrors[id] ? <ErrorPanel message={pageErrors[id]!} onRetry={() => void refresh()} /> :
               id === "home" ? <Home boards={boards.filter(b => !b.deletedAt)} resources={resources} go={go} openCanvas={openCanvas} create={openCreate} user={user} /> :
               id === "projects" ? <Projects projects={projects} boards={boards} refresh={refresh} notify={setNotice} openCanvas={openCanvas} create={openCreate} /> :
               id === "assets" ? <Assets resources={resources} userId={user?.id || ""} refresh={refresh} notify={setNotice} /> :
@@ -172,6 +179,7 @@ export default function App() {
       <form onSubmit={create} className="space-y-5"><label className="block text-sm">项目名称<Input autoFocus required maxLength={120} value={name} onChange={e => setName(e.target.value)} className="mt-2" placeholder="例如：新品视觉方案" /></label>{dialogError && <p className="text-sm text-destructive" role="alert">{dialogError}</p>}<div className="flex justify-end gap-3"><Button variant="outline" disabled={saving} onClick={() => setCreateOpen(false)}>取消</Button><Button type="submit" disabled={saving || !name.trim()}>{saving ? "正在创建…" : "创建项目"}</Button></div></form>
     </Modal>
     <Notice message={notice} onClose={() => setNotice("")} />
+      <PasswordDialog open={passwordOpen} onClose={() => setPasswordOpen(false)} notify={setNotice} onDone={() => { setPasswordOpen(false); void refresh() }} />
   </div>
 }
 

@@ -31,7 +31,7 @@ export async function request<T>(path: string, method = "GET", body?: unknown, s
   if (!response.ok) {
     if (response.status === 401 && window.parent !== window) window.parent.postMessage({ type: "neon:action", action: "sessionExpired" }, location.origin)
     const code = data.code
-    const message = response.status === 401 ? "登录已过期，请返回登录页重新登录。" : response.status === 403 ? "当前账户没有操作权限。" : code === "host_setup_required" ? "此操作需要在主机上完成。" : code === "canvas_route_not_found" ? `画布接口未匹配：${path}。请检查服务版本后重试。` : typeof data.error === "string" && /[\u4e00-\u9fff]/.test(data.error) ? data.error : `请求 ${path} 失败（${response.status}），请检查服务配置后重试。`
+      const message = response.status === 401 ? "登录已过期，请返回登录页重新登录。" : code === "password_change_required" ? "首次登录需要先修改临时密码，改密后即可使用。" : response.status === 403 ? "当前账户没有操作权限。" : code === "host_setup_required" ? "此操作需要在主机上完成。" : code === "canvas_route_not_found" ? `画布接口未匹配：${path}。请检查服务版本后重试。` : typeof data.error === "string" && /[\u4e00-\u9fff]/.test(data.error) ? data.error : `请求 ${path} 失败（${response.status}），请检查服务配置后重试。`
     throw Object.assign(new Error(message), { code: typeof code === "string" ? code : "", status: response.status, guidance: typeof data.guidance === "string" ? data.guidance : "" })
   }
   return data as T

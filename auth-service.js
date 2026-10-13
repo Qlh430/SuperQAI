@@ -6,9 +6,28 @@ const { createOpaqueToken, hashPassword, verifyPassword } = require("./auth-cryp
 
 const SESSION_COOKIE_NAME = "ai_os_session";
 const DEFAULT_SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const PASSWORD_MIN_LENGTH = 8;
+const PASSWORD_MAX_LENGTH = 200;
 
 function authError(code, message, statusCode = 400) {
   return Object.assign(new Error(message), { code, statusCode });
+}
+
+// One policy for every entry point that sets a password: the first
+// administrator, an administrator-created account and a user's own change.
+// The browser form states the same rule; the server is what enforces it.
+function assertPasswordPolicy(password, { currentPassword = "", field = "新密码" } = {}) {
+  const value = typeof password === "string" ? password : "";
+  if (value.trim().length < PASSWORD_MIN_LENGTH) {
+    throw authError("weak_password", `${field}至少需要 ${PASSWORD_MIN_LENGTH} 位字符，且不能只包含空格。`, 400);
+  }
+  if (value.length > PASSWORD_MAX_LENGTH) {
+    throw authError("weak_password", `${field}不能超过 ${PASSWORD_MAX_LENGTH} 位字符。`, 400);
+  }
+  if (currentPassword && value === currentPassword) {
+    throw authError("weak_password", `${field}不能与当前密码相同。`, 400);
+  }
+  return value;
 }
 
 function toDate(value) {
@@ -85,8 +104,9 @@ function createAuthService({ db, sessionTtlMs = DEFAULT_SESSION_TTL_MS, now = ()
 
   async function bootstrapSuperAdmin(input = {}) {
     if (db.countUsers() !== 0) {
-      throw authError("already_initialized", "The system already has an administrator.", 409);
+      throw authError("already_initialized", "系统已经有超级管理员，请直接登录。", 409);
     }
+    assertPasswordPolicy(input.password, { field: "管理员密码" });
     const passwordHash = await hashPassword(input.password);
     const user = db.insertUser({
       username: input.username,
@@ -110,10 +130,10 @@ function createAuthService({ db, sessionTtlMs = DEFAULT_SESSION_TTL_MS, now = ()
     const password = typeof input.password === "string" ? input.password : "";
     const user = db.getUserByUsername(username);
     if (!user || !(await verifyPassword(password, user.passwordHash))) {
-      throw authError("invalid_credentials", "Username or password is incorrect.", 401);
+      throw authError("invalid_credentials", "账号或密码不正确。", 401);
     }
     if (user.status !== "active") {
-      throw authError("account_disabled", "This account has been disabled.", 403);
+      throw authError("account_disabled", "该账户已被停用，请联系管理员。", 403);
     }
 
     const issuedAt = currentDate();
@@ -176,11 +196,12 @@ function createAuthService({ db, sessionTtlMs = DEFAULT_SESSION_TTL_MS, now = ()
 
   async function changePassword(input = {}) {
     const auth = await resolveSession(input.token);
-    if (!auth) throw authError("unauthorized", "Authentication is required.", 401);
+    if (!auth) throw authError("unauthorized", "登录状态已失效，请重新登录。", 401);
     const user = db.getUserById(auth.user.id);
     if (!user || !(await verifyPassword(input.currentPassword, user.passwordHash))) {
-      throw authError("invalid_credentials", "Current password is incorrect.", 401);
+      throw authError("invalid_credentials", "当前密码不正确。", 401);
     }
+    assertPasswordPolicy(input.newPassword, { currentPassword: input.currentPassword });
     const passwordHash = await hashPassword(input.newPassword);
     const updatedUser = db.updateUser(user.id, {
       passwordHash,
@@ -197,10 +218,10 @@ function createAuthService({ db, sessionTtlMs = DEFAULT_SESSION_TTL_MS, now = ()
   }
 
   function requireRole(auth, requiredRole) {
-    if (!auth?.user) throw authError("unauthorized", "Authentication is required.", 401);
+    if (!auth?.user) throw authError("unauthorized", "登录状态已失效，请重新登录。", 401);
     const acceptedRoles = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
     if (!acceptedRoles.includes(auth.user.role)) {
-      throw authError("forbidden", "This account does not have permission for that action.", 403);
+      throw authError("forbidden", "当前账户没有执行该操作的权限。", 403);
     }
     return auth;
   }
@@ -212,6 +233,8 @@ function createAuthService({ db, sessionTtlMs = DEFAULT_SESSION_TTL_MS, now = ()
     resolveSession,
     changePassword,
     requireRole,
+    assertPasswordPolicy,
+    PASSWORD_MIN_LENGTH,
   };
 }
 

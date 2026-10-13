@@ -251,7 +251,7 @@ function createAuthHttpApi({
       if (!userId && req.method === "POST") {
         const payload = await readJson(req);
         const temporaryPassword = typeof payload.password === "string" && payload.password.length
-          ? payload.password
+          ? authService.assertPasswordPolicy(payload.password, { field: "临时密码" })
           : createToken(12);
         const user = systemDb.insertUser({
           username: payload.username,
@@ -302,7 +302,7 @@ function createAuthHttpApi({
       if (req.method === "POST" && action === "reset-password") {
         const payload = await readJson(req);
         const temporaryPassword = typeof payload.password === "string" && payload.password.length
-          ? payload.password
+          ? authService.assertPasswordPolicy(payload.password, { field: "临时密码" })
           : createToken(12);
         const user = systemDb.updateUser(userId, {
           passwordHash: await hashUserPassword(temporaryPassword),
