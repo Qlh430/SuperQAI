@@ -412,7 +412,7 @@ $mismatch = @($localMap.Keys | Where-Object {
 
 - GitHub 仓库：`Qlh430/SuperQAI`
 - 源码分支：`main`
-- 源码提交：`89de6fcd9e4713f45fde1bdebd0bc25d3054d74d`（含打包白名单修复 `3a013aea1eca3f38f0f9bb70c872cce984dbde09`）
+- 源码提交：`a907f2c9d363eed7ddcd4e52fd4bef96ae0a1c69`（含打包白名单修复 `da745e695c33a9e0e71214f026576feecff08770`）
 - 版本标签：`v2.0.2`
 - Release 状态：正式版、Latest、非草稿、非预发布
 - 上传资产：52 个
@@ -445,3 +445,10 @@ $mismatch = @($localMap.Keys | Where-Object {
 
 `v2.0.1` 的 Release 与标签已删除（`gh release delete v2.0.1 --cleanup-tag`），
 避免新电脑继续装到打不开工作台的版本；源码提交 `13f2141` 仍保留在 `main` 历史中。
+
+### 提交署名修正
+
+本次发布与主页更新的五个提交最初误以 `Codex <codex@local>` 署名，随后重写作者为仓库账号
+`SuperQ7 <92498934+SuperQ7@users.noreply.github.com>`（内容未改动），`main` 与 `v2.0.2` 标签
+已同步重指向。旧提交号：`3a013ae`、`89de6fc`、`40c7615`、`c089577`、`a51a261`；
+新提交号：`da745e6`、`a907f2c`、`c340eb7`、`5916c63`、`339996f`。
