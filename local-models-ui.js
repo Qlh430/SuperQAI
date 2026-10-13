@@ -71,7 +71,7 @@
 
     function statusOf(entry) {
       if (!entry) return ["读取中", "pending"];
-      if (!entry.installed) return ["不可用", "error"];
+      if (!entry.installed) return ["未下载", "warning"];
       if (pendingUpdate(entry)) return ["可更新", "warning"];
       return ["已就绪", "success"];
     }
@@ -145,11 +145,11 @@
           ${progressMarkup()}
           <footer>
             <button type="button" data-local-model-check ${busy ? "disabled" : ""}>${state.remote ? "重新检查" : "检查更新"}</button>
-            ${canUpdate || updatable ? `<button type="button" class="settings-primary-button" data-local-model-update ${busy ? "disabled" : ""}>下载更新</button>` : ""}
+              ${!entry.installed || canUpdate || updatable ? `<button type="button" class="settings-primary-button" data-local-model-update ${busy ? "disabled" : ""}>${entry.installed ? "下载更新" : `下载模型（${formatBytes(entry.size)}）`}</button>` : ""}
             ${entry.stored && entry.bundledAvailable ? `<button type="button" data-local-model-reset ${busy ? "disabled" : ""}>恢复内置版本</button>` : ""}
           </footer>
         </article>
-        <p class="settings-update-message">更新只替换数据目录里的权重，不会改动应用自带的文件；校验不过的下载会被整份丢弃。不方便联网时，可以在能联网的机器上下好权重，再到抠图工作台用「导入本地模型」放进来。</p>
+          <p class="settings-update-message">${entry.installed ? "更新只替换数据目录里的权重，不会改动应用自带的文件；校验不过的下载会被整份丢弃。不方便联网时，可以在能联网的机器上下好权重，再到抠图工作台用「导入本地模型」放进来。" : `这个版本不再随安装包内置这份权重（约 ${formatBytes(entry.size)}），第一次用本地抠图前点上面的按钮下载一次即可，下载按出厂校验值验证。连不上网时，也可以在能联网的机器上下好权重，再到抠图工作台用「导入本地模型」放进来。`}</p>
       </section>`;
     }
 

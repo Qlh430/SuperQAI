@@ -37,6 +37,17 @@ const EXCLUDED_PORTABLE_FILES = Object.freeze(new Set([
   DEV_RELOAD_COMPAT_FILE,
 ]));
 
+// 本地模型权重（*.onnx）不随安装包分发：默认从项目发布镜像按需下载，
+// 规则与 build-electron-portable 的 excludeAppPath 共用一个入口。
+const EXCLUDED_PORTABLE_PATTERNS = Object.freeze([
+  /^assets\/models\/.*\.onnx$/i,
+]);
+
+function isExcludedPortablePath(relative) {
+  const value = toPortablePath(String(relative || ""));
+  return EXCLUDED_PORTABLE_FILES.has(value) || EXCLUDED_PORTABLE_PATTERNS.some((pattern) => pattern.test(value));
+}
+
 function toPortablePath(filePath) {
   return filePath.split(path.sep).join("/");
 }
@@ -188,7 +199,7 @@ function collectPortablePackageManifest(sourceRoot) {
 function copyPortableEntry(sourcePath, targetPath, options = {}) {
   const root = path.resolve(options.root || sourcePath);
   const relative = toPortablePath(path.relative(root, sourcePath));
-  if (EXCLUDED_PORTABLE_FILES.has(relative)) return;
+  if (isExcludedPortablePath(relative)) return;
   if (fs.lstatSync(sourcePath).isSymbolicLink()) {
     throw new Error(`Portable source must not contain symbolic links: ${sourcePath}`);
   }
@@ -244,6 +255,8 @@ function writeDevReloadCompatibilityFile(targetRoot) {
 module.exports = {
   FIXED_PORTABLE_FILES,
   EXCLUDED_PORTABLE_FILES,
+  EXCLUDED_PORTABLE_PATTERNS,
+  isExcludedPortablePath,
   PORTABLE_DIRECTORIES,
   DEV_RELOAD_COMPAT_FILE,
   DEV_RELOAD_COMPAT_CONTENT,

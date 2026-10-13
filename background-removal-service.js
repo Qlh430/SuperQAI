@@ -39,6 +39,13 @@ const MODEL_DEFINITIONS = Object.freeze([
     size: 222932053,
     sha256: "22cea62108ff53b7ccc20f7a008bf30494228d84b1687f29ecbe76936a998101",
     fileName: "ben2-base-1.0.0.onnx",
+      // 本项目发布里镜像了同一份官方权重（放在 pre-release 里，更新器的 /releases/latest
+      // 会跳过它），默认从这里下载：国内网络比 HuggingFace 稳。可用环境变量覆盖成别的镜像。
+      mirror: Object.freeze({
+        label: "本项目发布（镜像）",
+        manifestUrl: "https://github.com/Qlh430/SuperQAI/releases/download/models-ben2-v1/ben2-base-1.0.0.json",
+        downloadUrl: "https://github.com/Qlh430/SuperQAI/releases/download/models-ben2-v1/BEN2_Base.onnx",
+      }),
     // 上游出处：Prama LLC 的 BEN2（MIT）。更新检查与下载都走这里，可用环境变量换成镜像。
     upstream: Object.freeze({
       repository: "PramaLLC/BEN2",
@@ -585,6 +592,49 @@ function createBackgroundRemovalService(options = {}) {
     };
   }
 
+    // 项目自己发布的镜像（默认源）。清单只是一份 { size, sha256 }，必须和出厂值一致，
+    // 否则当成无效来源，退回官方上游。
+    function mirrorSource(definition) {
+      const mirror = definition.mirror || {};
+      const downloadUrl = String(process.env.AI_OS_BACKGROUND_REMOVAL_DOWNLOAD_URL || mirror.downloadUrl || "").trim();
+      if (!downloadUrl) return null;
+      return {
+        label: mirror.label || "项目发布镜像",
+        manifestUrl: String(process.env.AI_OS_BACKGROUND_REMOVAL_MIRROR_MANIFEST_URL || mirror.manifestUrl || "").trim(),
+        downloadUrl,
+      };
+    }
+
+    async function fetchMirrorRecord(definition, mirror, fetchFn) {
+      let size = definition.size;
+      let sha256 = definition.sha256;
+      let publishedAt = "";
+      if (mirror.manifestUrl) {
+        const response = await fetchFn(mirror.manifestUrl, { headers: { accept: "application/json" }, signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS) });
+        if (!response.ok) throw Object.assign(new Error(`镜像清单返回 HTTP ${response.status}。`), { code: "mirror_unreachable" });
+        const manifest = await response.json().catch(() => null);
+        const declaredSha = String(manifest?.sha256 || "").toLowerCase();
+        const declaredSize = Number(manifest?.size) || 0;
+        if (!/^[a-f0-9]{64}$/.test(declaredSha) || declaredSize <= 0) throw Object.assign(new Error("镜像清单内容无效。"), { code: "mirror_invalid" });
+        if (declaredSha !== definition.sha256) throw Object.assign(new Error("镜像清单与出厂校验值不一致。"), { code: "mirror_mismatch" });
+        size = declaredSize;
+        sha256 = declaredSha;
+        publishedAt = String(manifest?.publishedAt || "");
+      }
+      return {
+        repository: definition.upstream.repository,
+        fileName: definition.upstream.fileName,
+        sha256,
+        size,
+        downloadUrl: mirror.downloadUrl,
+        revision: "",
+        publishedAt,
+        origin: "mirror",
+        label: mirror.label,
+        checkedAt: new Date(now()).toISOString(),
+      };
+    }
+
   function requireFetch() {
     if (typeof fetchImpl !== "function") {
       throw Object.assign(new Error("当前运行环境不支持联网检查更新。"), { code: "upstream_unavailable", statusCode: 400 });
@@ -592,10 +642,8 @@ function createBackgroundRemovalService(options = {}) {
     return fetchImpl;
   }
 
-  // 读取上游官方发布信息。用发布源给出的 sha256 作为版本标识，比自造版本号更可靠。
-  async function fetchUpstream(definition) {
-    const fetchFn = requireFetch();
-    const urls = upstreamUrls(definition);
+    // 读取上游官方发布信息。用发布源给出的 sha256 作为版本标识，比自造版本号更可靠。
+    async function fetchUpstreamOfficial(definition, urls, fetchFn) {
     let response;
     try {
       response = await fetchFn(urls.apiUrl, { headers: { accept: "application/json" }, signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS) });
@@ -636,6 +684,39 @@ function createBackgroundRemovalService(options = {}) {
     };
   }
 
+    // 源优先级：项目发布镜像 → 官方上游 → 出厂校验值兜底。这样第一台机器即使连不上上游，
+    // 也能从本项目发布里下载并按出厂 sha256 校验。
+    async function fetchUpstream(definition) {
+      const fetchFn = requireFetch();
+      const urls = upstreamUrls(definition);
+      const mirror = mirrorSource(definition);
+      if (mirror) {
+        try {
+          return await fetchMirrorRecord(definition, mirror, fetchFn);
+        } catch (error) {
+          /* 镜像清单不可用时退回官方上游，不影响更新检查 */
+        }
+      }
+      try {
+        return await fetchUpstreamOfficial(definition, urls, fetchFn);
+      } catch (error) {
+        if (!mirror) throw error;
+        return {
+          repository: definition.upstream.repository,
+          fileName: definition.upstream.fileName,
+          sha256: definition.sha256,
+          size: definition.size,
+          downloadUrl: mirror.downloadUrl,
+          revision: "",
+          publishedAt: "",
+          origin: "mirror-fallback",
+          label: mirror.label,
+          note: `上游发布源暂时连不上（${error.message}），改用项目发布镜像。`,
+          checkedAt: new Date(now()).toISOString(),
+        };
+      }
+    }
+
   // 上游信息带缓存，避免每点一次按钮都去打发布源。
   async function upstreamRecord(definition, { force = false } = {}) {
     const cached = upstreamCache.value;
@@ -663,8 +744,14 @@ function createBackgroundRemovalService(options = {}) {
     const temporary = `${target}.update`;
     const total = remote.size || definition.size;
     onProgress?.({ phase: "downloading", received: 0, total });
-    try {
-      const response = await fetchFn(remote.downloadUrl, { redirect: "follow", signal: AbortSignal.timeout(UPDATE_TIMEOUT_MS) });
+      // 逐个候选源试：项目发布镜像 → 当前记录里的地址 → 官方上游。任何一个成功就停。
+      const officialUrls = upstreamUrls(definition);
+      const mirror = mirrorSource(definition);
+      const candidates = [...new Set([remote.downloadUrl, officialUrls.downloadUrl, mirror?.downloadUrl].filter(Boolean))];
+      let lastError = null;
+      for (const downloadUrl of candidates) {
+      try {
+        const response = await fetchFn(downloadUrl, { redirect: "follow", signal: AbortSignal.timeout(UPDATE_TIMEOUT_MS) });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const handle = await fs.promises.open(temporary, "w");
       let received = 0;
@@ -691,7 +778,7 @@ function createBackgroundRemovalService(options = {}) {
         version: definition.version,
         sha256: actual,
         size: stats.size,
-        source: remote.downloadUrl,
+          source: downloadUrl,
         origin: "update",
         revision: remote.revision,
         publishedAt: remote.publishedAt,
@@ -699,11 +786,13 @@ function createBackgroundRemovalService(options = {}) {
       });
       sessionCache.clear();
       onProgress?.({ phase: "done", received, total });
-      return { model: modelStatus(definition), remote };
+        return { model: modelStatus(definition), remote: { ...remote, downloadUrl } };
     } catch (error) {
       fs.rmSync(temporary, { force: true });
-      throw Object.assign(new Error(`模型更新失败：${error.message}`), { code: error.code || "model_download_failed", statusCode: error.statusCode || 400 });
+        lastError = error;
     }
+      }
+      throw Object.assign(new Error(`模型更新失败：${lastError?.message || "没有可用的下载源"}`), { code: lastError?.code || "model_download_failed", statusCode: lastError?.statusCode || 400 });
   }
 
   // 删掉数据目录里的更新/导入副本，回落到随应用内置的那份。

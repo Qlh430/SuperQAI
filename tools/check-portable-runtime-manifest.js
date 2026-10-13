@@ -8,6 +8,7 @@ const path = require("node:path");
 const {
   collectPortablePackageManifest,
   copyPortableRuntimeFiles,
+  isExcludedPortablePath,
   DEV_RELOAD_COMPAT_CONTENT,
 } = require("./portable-package-manifest");
 
@@ -76,6 +77,9 @@ try {
     fs.mkdirSync(path.join(fixtureRoot, directory), { recursive: true });
     fs.writeFileSync(path.join(fixtureRoot, directory, "fixture.txt"), directory);
   });
+  // 本地模型权重必须留在包外：默认从项目发布镜像按需下载。
+  fs.mkdirSync(path.join(fixtureRoot, "assets", "models"), { recursive: true });
+  fs.writeFileSync(path.join(fixtureRoot, "assets", "models", "demo-model.onnx"), "fixture");
   fs.writeFileSync(path.join(fixtureRoot, "desktop", "dev-reload.js"), "module.exports = 'development only';");
   fs.mkdirSync(path.join(fixtureRoot, "tools"), { recursive: true });
   fs.writeFileSync(path.join(fixtureRoot, "tools", "ignored.js"), "module.exports = false;");
@@ -114,6 +118,8 @@ try {
     "production dependency directories must be discovered",
   );
   assert.ok(!manifest.files.includes("tools/ignored.js"), "development tools must stay excluded");
+  assert.equal(isExcludedPortablePath("assets/models/demo-model.onnx"), true, "bundled model weights must stay out of the package");
+  assert.equal(isExcludedPortablePath("assets/logo.png"), false, "other assets must still ship");
   assert.ok(manifest.files.includes("node_modules/transitive-package"), "transitive dependencies must ship with the runtime");
   assert.ok(manifest.files.includes("node_modules/native-addon"), "installed optional native binaries must ship with the runtime");
   assert.ok(!manifest.files.includes("node_modules/other-platform-addon"), "uninstalled platform binaries are optional");
@@ -138,6 +144,8 @@ try {
   ].forEach((relativePath) => {
     assert.ok(fs.existsSync(path.join(targetRoot, relativePath)), `${relativePath} was not copied`);
   });
+  assert.ok(fs.existsSync(path.join(targetRoot, "assets", "fixture.txt")), "assets must still be copied");
+  assert.ok(!fs.existsSync(path.join(targetRoot, "assets", "models", "demo-model.onnx")), "bundled model weights must not be copied into the runtime");
   const compatibilityReloadPath = path.join(targetRoot, "desktop", "dev-reload.js");
   assert.ok(fs.existsSync(compatibilityReloadPath), "the update compatibility file must be copied into runtime packages");
   assert.equal(fs.readFileSync(compatibilityReloadPath, "utf8"), DEV_RELOAD_COMPAT_CONTENT, "runtime packages must contain only the inert dev-reload compatibility file");

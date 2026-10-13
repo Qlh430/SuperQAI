@@ -6,6 +6,7 @@ const crypto = require("node:crypto");
 const { execFileSync } = require("node:child_process");
 const {
   collectPortablePackageManifest,
+  isExcludedPortablePath,
   writeDevReloadCompatibilityFile,
   DEV_RELOAD_COMPAT_FILE,
   DEV_RELOAD_COMPAT_CONTENT,
@@ -72,6 +73,8 @@ function copyTree(source, target, { root = source, exclude = () => false } = {})
 }
 
 function excludeAppPath(relative) {
+  // 本地模型权重的排除规则由清单统一维护，构建与单独复制保持一致。
+  if (isExcludedPortablePath(relative)) return true;
   if (/(?:^|\/)node_modules\/electron(?:\/|$)/i.test(relative)) return true;
   if (/(?:^|\/)(?:\.git|\.github|\.codex|\.agents|\.cache|coverage|test|tests|__tests__)(?:\/|$)/i.test(relative)) return true;
   if (/(?:^|\/)\.env(?:$|\.(?!example$))/i.test(relative) || /\.(?:log|pdb|cs|map)$/i.test(relative)) return true;
