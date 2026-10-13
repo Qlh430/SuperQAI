@@ -11,7 +11,7 @@
   </p>
 </div>
 
-![AI OS 桌面](./docs/assets/readme/desktop.webp)
+![AI OS 工作台](./docs/assets/readme/desktop.webp)
 
 ## 下载即用
 
@@ -62,38 +62,38 @@ Portable 包已经携带 Electron 和 Node 24，目标电脑不需要安装 Node
 <table>
   <tr>
     <td width="50%">
-      <img src="./docs/assets/readme/canvas-workflows.webp" alt="无限画布节点工作流" />
+      <img src="./docs/assets/readme/canvas.webp" alt="无限画布节点工作流" />
       <br /><strong>节点式无限画布</strong><br />
-      把文字、图片、视频、模型和工作流放在同一张画布上。
+      参考素材直接连到生成节点，节点操作栏就地处理图片。
     </td>
     <td width="50%">
-      <img src="./docs/assets/readme/canvas-agent.webp" alt="画布 Agent" />
-      <br /><strong>画布 Agent</strong><br />
-      用自然语言完成任务，结果直接进入当前画布。
-    </td>
-  </tr>
-  <tr>
-    <td width="50%">
-      <img src="./docs/assets/readme/files.webp" alt="文件" />
-      <br /><strong>文件</strong><br />
-      集中查看画布、图片、视频、音频和对话资源。
-    </td>
-    <td width="50%">
-      <img src="./docs/assets/readme/video-workflows.webp" alt="视频与多模态参考素材" />
-      <br /><strong>视频与多模态工作流</strong><br />
-      图片、视频、音频和文字可以在节点之间组合传递。
+      <img src="./docs/assets/readme/image-studio.webp" alt="在线生图" />
+      <br /><strong>在线生图</strong><br />
+      画面描述、参考图、模型与比例集中在同一栏，结果进入历史记录。
     </td>
   </tr>
   <tr>
     <td width="50%">
-      <img src="./docs/assets/readme/director3d.webp" alt="3D 导演台" />
-      <br /><strong>3D 导演台</strong><br />
-      摆放角色、相机和道具，生成镜头关键帧并保存场景。
+      <img src="./docs/assets/readme/assets.webp" alt="素材库" />
+      <br /><strong>素材库</strong><br />
+      参考素材与创作产物统一管理，可打开、复用和共享。
     </td>
     <td width="50%">
-      <img src="./docs/assets/readme/desktop.webp" alt="AI OS 桌面" />
-      <br /><strong>桌面式工作空间</strong><br />
-      Dock、浮动窗口、应用切换和账户级外观设置。
+      <img src="./docs/assets/readme/chat.webp" alt="AI 对话" />
+      <br /><strong>AI 对话</strong><br />
+      讨论方案、完善提示词，消息与回复一并进入历史记录。
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <img src="./docs/assets/readme/settings.webp" alt="设置" />
+      <br /><strong>设置</strong><br />
+      外观、模型服务、协议、本地模型、技能、工作流与备份。
+    </td>
+    <td width="50%">
+      <img src="./docs/assets/readme/desktop.webp" alt="工作台概览" />
+      <br /><strong>工作台概览</strong><br />
+      最近画布、创作工具与最近素材集中在一屏。
     </td>
   </tr>
 </table>
