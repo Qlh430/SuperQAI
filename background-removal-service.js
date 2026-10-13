@@ -16,6 +16,8 @@ const DEFAULT_MODEL_ID = "ben2-base";
 // 内置权重目录：assets 已随便携包一起分发，所以这里放一份就能开箱即用。
 const BUNDLED_MODEL_DIRECTORY = path.join("assets", "models", "background-removal");
 const MODEL_STORE_DIRECTORY = path.join("models", "background-removal");
+// 镜像清单里声明的体积极小说明清单坏了；模型本体是几百兆。
+const MIN_MIRROR_BYTES = 1024 * 1024;
 const RUNTIME_PROBE_TIMEOUT_MS = 15000;
 const UPSTREAM_TIMEOUT_MS = 20000;
 const UPDATE_TIMEOUT_MS = 30 * 60 * 1000;
@@ -616,7 +618,9 @@ function createBackgroundRemovalService(options = {}) {
         const declaredSha = String(manifest?.sha256 || "").toLowerCase();
         const declaredSize = Number(manifest?.size) || 0;
         if (!/^[a-f0-9]{64}$/.test(declaredSha) || declaredSize <= 0) throw Object.assign(new Error("镜像清单内容无效。"), { code: "mirror_invalid" });
-        if (declaredSha !== definition.sha256) throw Object.assign(new Error("镜像清单与出厂校验值不一致。"), { code: "mirror_mismatch" });
+        // 清单是我们自己的更新通道：允许它给出比出厂值更新的权重（模型升级就靠这一步），
+        // 下载后仍按清单里的 sha256 校验。出厂值只在清单取不到时兜底。
+        if (declaredSize < MIN_MIRROR_BYTES) throw Object.assign(new Error("镜像清单体积异常。"), { code: "mirror_invalid" });
         size = declaredSize;
         sha256 = declaredSha;
         publishedAt = String(manifest?.publishedAt || "");
