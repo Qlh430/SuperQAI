@@ -1,0 +1,63 @@
+[
+  {
+    "candidate": "dev-preview-3.0.2-1792755198807-1eb1a04e",
+    "receipt": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\dev-preview\\1792755198807-1eb1a04e.json",
+    "phase": "active",
+    "treeHash": "4bf38168359871980f2b2ee5f86ed02345aa8942e8df5831790053b119a35a72",
+    "files": 1274,
+    "bad": [],
+    "extra": [],
+    "missing": [],
+    "previous": "dev-preview-3.0.2-1792753884005-a67fed82"
+  },
+  {
+    "candidate": "dev-preview-3.0.2-1792753884005-a67fed82",
+    "receipt": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\dev-preview\\1792753884005-a67fed82.json",
+    "phase": "active",
+    "treeHash": "a316fcb5debcfb9d16ecaa6b08d9e23324c0718ca0f2bfd414b70bba2fa47077",
+    "files": 1274,
+    "bad": [],
+    "extra": [],
+    "missing": [],
+    "previous": "dev-preview-3.0.2-1792751891350-1a0ebb54"
+  },
+  {
+    "candidate": "dev-preview-3.0.2-1792495559912-e4286100",
+    "receipt": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\dev-preview\\1792495559912-e4286100.json",
+    "phase": "active",
+    "treeHash": "fa2b53efb795076d26aec76d0ef6fe1db0194cd4b04546ffa33fa71a5f20eff9",
+    "files": 1274,
+    "bad": [],
+    "extra": [],
+    "missing": [],
+    "previous": "dev-preview-3.0.2-1792476637356-9768011c"
+  },
+  {
+    "candidate": "dev-preview-3.0.1-1792425106358-2f5d80a5",
+    "receipt": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\dev-preview\\1792425106358-2f5d80a5.json",
+    "phase": "active",
+    "treeHash": "eaaaad4f46866786d986e7a2b2d291d3a9073a989f27e7776c89535754ab86c1",
+    "files": 1275,
+    "bad": [],
+    "extra": [],
+    "missing": [],
+    "previous": "dev-preview-3.0.1-1792420091938-c28cd86e"
+  },
+  {
+    "candidate": "dev-preview-3.0.2-1792578763499-1e6a0822",
+    "receipt": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\dev-preview\\1792578763499-1e6a0822.json",
+    "phase": "active",
+    "treeHash": "a3a1f6ba7afdbb22de45a40be6e56f5dd4b8d9abddd4ee74999ec2adf5ae88f2",
+    "files": 1274,
+    "bad": [],
+    "extra": [
+      "resources/app/data/backups/snapshot-2026-10-22T03-19-28-999Z/manifest.json",
+      "resources/app/data/backups/snapshot-2026-10-22T03-19-28-999Z/system.sqlite",
+      "resources/app/data/system.sqlite",
+      "resources/app/data/system.sqlite-shm",
+      "resources/app/data/system.sqlite-wal"
+    ],
+    "missing": [],
+    "previous": "dev-preview-3.0.2-1792577639944-ccbe52a1"
+  }
+]

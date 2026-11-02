@@ -1,0 +1,443 @@
+{
+  "10": {
+    "inputs": {
+      "image": "TTP-flux2-8k-input.png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Load source image"
+    }
+  },
+  "11": {
+    "inputs": {
+      "aspect_ratio": "original",
+      "proportional_width": 1,
+      "proportional_height": 1,
+      "fit": "letterbox",
+      "method": "lanczos",
+      "round_to_multiple": "8",
+      "scale_to_side": "longest",
+      "scale_to_length": 2048,
+      "background_color": "#000000",
+      "image": [
+        "10",
+        0
+      ]
+    },
+    "class_type": "LayerUtility: ImageScaleByAspectRatio V2",
+    "_meta": {
+      "title": "Pre-scale longest edge to 2048"
+    }
+  },
+  "12": {
+    "inputs": {
+      "model_name": "4xNomos8kSCHAT-L.safetensors"
+    },
+    "class_type": "UpscaleModelLoader",
+    "_meta": {
+      "title": "Load 4x Nomos upscale model"
+    }
+  },
+  "14": {
+    "inputs": {
+      "upscale_model": [
+        "12",
+        0
+      ],
+      "image": [
+        "11",
+        0
+      ]
+    },
+    "class_type": "ImageUpscaleWithModel",
+    "_meta": {
+      "title": "Create 8K pixel-space base"
+    }
+  },
+  "15": {
+    "inputs": {
+      "width_factor": 6,
+      "height_factor": 4,
+      "overlap_rate": 0.125,
+      "image": [
+        "14",
+        0
+      ]
+    },
+    "class_type": "TTP_Tile_image_size",
+    "_meta": {
+      "title": "TTP tile size - landscape 6x4"
+    }
+  },
+  "16": {
+    "inputs": {
+      "tile_width": [
+        "15",
+        0
+      ],
+      "tile_height": [
+        "15",
+        1
+      ],
+      "image": [
+        "14",
+        0
+      ]
+    },
+    "class_type": "TTP_Image_Tile_Batch",
+    "_meta": {
+      "title": "TTP split overlapping tiles"
+    }
+  },
+  "17": {
+    "inputs": {
+      "images": [
+        "16",
+        0
+      ]
+    },
+    "class_type": "PreviewImage",
+    "_meta": {
+      "title": "Preview source tiles"
+    }
+  },
+  "18": {
+    "inputs": {
+      "image": [
+        "16",
+        0
+      ]
+    },
+    "class_type": "ImpactImageBatchToImageList",
+    "_meta": {
+      "title": "Tile batch to image list"
+    }
+  },
+  "32": {
+    "inputs": {
+      "filename_prefix": "TTP_Flux2_Klein_9B_8K",
+      "images": [
+        "34",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "Save final 8K image"
+    }
+  },
+  "33": {
+    "inputs": {
+      "padding": 96,
+      "tiles": [
+        "45",
+        0
+      ],
+      "positions": [
+        "16",
+        1
+      ],
+      "original_size": [
+        "16",
+        2
+      ],
+      "grid_size": [
+        "16",
+        3
+      ]
+    },
+    "class_type": "TTP_Image_Assy",
+    "_meta": {
+      "title": "TTP assemble restored tiles"
+    }
+  },
+  "34": {
+    "inputs": {
+      "aspect_ratio": "original",
+      "proportional_width": 1,
+      "proportional_height": 1,
+      "fit": "letterbox",
+      "method": "lanczos",
+      "round_to_multiple": "8",
+      "scale_to_side": "longest",
+      "scale_to_length": 8192,
+      "background_color": "#000000",
+      "image": [
+        "33",
+        0
+      ]
+    },
+    "class_type": "LayerUtility: ImageScaleByAspectRatio V2",
+    "_meta": {
+      "title": "Final longest edge 8192"
+    }
+  },
+  "35": {
+    "inputs": {
+      "images": [
+        "34",
+        0
+      ]
+    },
+    "class_type": "PreviewImage",
+    "_meta": {
+      "title": "Preview final 8K image"
+    }
+  },
+  "45": {
+    "inputs": {
+      "images": [
+        "158",
+        0
+      ]
+    },
+    "class_type": "ImageListToImageBatch",
+    "_meta": {
+      "title": "Restored image list to tile batch"
+    }
+  },
+  "103": {
+    "inputs": {
+      "unet_name": "flux-2-klein-9b.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "Load FLUX.2 Klein 9B"
+    }
+  },
+  "104": {
+    "inputs": {
+      "clip_name": "qwen_3_8b.safetensors",
+      "type": "flux2",
+      "device": "default"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": "Load Qwen 3 8B text encoder"
+    }
+  },
+  "105": {
+    "inputs": {
+      "vae_name": "flux2-vae.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "Load FLUX.2 VAE"
+    }
+  },
+  "110": {
+    "inputs": {
+      "text": [
+        "117",
+        0
+      ],
+      "clip": [
+        "104",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "Encode faithful restoration instruction"
+    }
+  },
+  "117": {
+    "inputs": {
+      "text": "Faithfully restore and enhance fine details. Preserve the exact geometry, identity, text, colors, materials, lighting and composition. Remove blur, noise and compression artifacts. Do not add, remove, redesign or reinterpret any object."
+    },
+    "class_type": "CR Text",
+    "_meta": {
+      "title": "Strict preservation instruction"
+    }
+  },
+  "148": {
+    "inputs": {
+      "conditioning": [
+        "110",
+        0
+      ]
+    },
+    "class_type": "ConditioningZeroOut",
+    "_meta": {
+      "title": "Zero negative conditioning"
+    }
+  },
+  "149": {
+    "inputs": {
+      "width": [
+        "157",
+        0
+      ],
+      "height": [
+        "157",
+        1
+      ],
+      "batch_size": 1
+    },
+    "class_type": "EmptyFlux2LatentImage",
+    "_meta": {
+      "title": "Create tile-sized FLUX.2 latent"
+    }
+  },
+  "150": {
+    "inputs": {
+      "sampler_name": "euler"
+    },
+    "class_type": "KSamplerSelect",
+    "_meta": {
+      "title": "Euler sampler"
+    }
+  },
+  "151": {
+    "inputs": {
+      "steps": 8,
+      "width": [
+        "157",
+        0
+      ],
+      "height": [
+        "157",
+        1
+      ]
+    },
+    "class_type": "Flux2Scheduler",
+    "_meta": {
+      "title": "FLUX.2 8-step scheduler"
+    }
+  },
+  "152": {
+    "inputs": {
+      "noise": [
+        "159",
+        0
+      ],
+      "guider": [
+        "154",
+        0
+      ],
+      "sampler": [
+        "150",
+        0
+      ],
+      "sigmas": [
+        "151",
+        0
+      ],
+      "latent_image": [
+        "149",
+        0
+      ]
+    },
+    "class_type": "SamplerCustomAdvanced",
+    "_meta": {
+      "title": "Restore each tile with FLUX.2"
+    }
+  },
+  "153": {
+    "inputs": {
+      "pixels": [
+        "18",
+        0
+      ],
+      "vae": [
+        "105",
+        0
+      ]
+    },
+    "class_type": "VAEEncode",
+    "_meta": {
+      "title": "Encode tile as reference latent"
+    }
+  },
+  "154": {
+    "inputs": {
+      "cfg": 1,
+      "model": [
+        "103",
+        0
+      ],
+      "positive": [
+        "156",
+        0
+      ],
+      "negative": [
+        "155",
+        0
+      ]
+    },
+    "class_type": "CFGGuider",
+    "_meta": {
+      "title": "FLUX.2 reference guider"
+    }
+  },
+  "155": {
+    "inputs": {
+      "conditioning": [
+        "148",
+        0
+      ],
+      "latent": [
+        "153",
+        0
+      ]
+    },
+    "class_type": "ReferenceLatent",
+    "_meta": {
+      "title": "Negative reference latent"
+    }
+  },
+  "156": {
+    "inputs": {
+      "conditioning": [
+        "110",
+        0
+      ],
+      "latent": [
+        "153",
+        0
+      ]
+    },
+    "class_type": "ReferenceLatent",
+    "_meta": {
+      "title": "Positive reference latent"
+    }
+  },
+  "157": {
+    "inputs": {
+      "image": [
+        "18",
+        0
+      ]
+    },
+    "class_type": "GetImageSize",
+    "_meta": {
+      "title": "Read tile dimensions"
+    }
+  },
+  "158": {
+    "inputs": {
+      "samples": [
+        "152",
+        0
+      ],
+      "vae": [
+        "105",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "Decode restored tile"
+    }
+  },
+  "159": {
+    "inputs": {
+      "noise_seed": 20260723001
+    },
+    "class_type": "RandomNoise",
+    "_meta": {
+      "title": "Tile restoration seed"
+    }
+  }
+}

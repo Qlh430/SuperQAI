@@ -1,0 +1,4577 @@
+{
+  "source": "Better Design inspect_spacing, deployed 20261007-generator-separated at http://127.0.0.1:3199/",
+  "batches": [
+    {
+      "status": "completed",
+      "score": 0,
+      "summary": {
+        "critical": 0,
+        "serious": 0,
+        "moderate": 21,
+        "total": 21
+      },
+      "findings": [
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "legacy-parameters-390",
+          "severity": "moderate",
+          "message": "输入端口，拖动连接 measures 28x28px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-generator-39"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 28,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 28,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-1"
+        },
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "legacy-parameters-390",
+          "severity": "moderate",
+          "message": "结果输出，拖动连接 measures 28x28px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-generator-40"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 28,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 28,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-2"
+        },
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "legacy-parameters-390",
+          "severity": "moderate",
+          "message": "选择生成模型 measures 32x32px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-generator-43"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 32,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 32,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-3"
+        },
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "legacy-parameters-390",
+          "severity": "moderate",
+          "message": "显示或隐藏节点参数 measures 32x32px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-generator-51"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 32,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 32,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-4"
+        },
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "legacy-parameters-390",
+          "severity": "moderate",
+          "message": "删除节点 measures 32x32px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-generator-63"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 32,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 32,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-5"
+        },
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "legacy-parameters-390",
+          "severity": "moderate",
+          "message": "重命名图片生成节点 measures 44x44px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-generator-242"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 44,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 44,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-6"
+        },
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "legacy-parameters-768",
+          "severity": "moderate",
+          "message": "输入端口，拖动连接 measures 28x28px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-generator-39"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 28,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 28,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-7"
+        },
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "legacy-parameters-768",
+          "severity": "moderate",
+          "message": "结果输出，拖动连接 measures 28x28px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-generator-40"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 28,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 28,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-8"
+        },
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "legacy-parameters-768",
+          "severity": "moderate",
+          "message": "选择生成模型 measures 32x32px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-generator-43"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 32,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 32,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-9"
+        },
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "legacy-parameters-768",
+          "severity": "moderate",
+          "message": "显示或隐藏节点参数 measures 32x32px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-generator-51"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 32,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 32,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-10"
+        },
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "legacy-parameters-768",
+          "severity": "moderate",
+          "message": "删除节点 measures 32x32px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-generator-63"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 32,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 32,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-11"
+        },
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "legacy-parameters-1440",
+          "severity": "moderate",
+          "message": "输入端口，拖动连接 measures 28x28px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-generator-39"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 28,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 28,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-12"
+        },
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "legacy-parameters-1440",
+          "severity": "moderate",
+          "message": "结果输出，拖动连接 measures 28x28px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-generator-40"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 28,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 28,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-13"
+        },
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "legacy-parameters-1440",
+          "severity": "moderate",
+          "message": "选择生成模型 measures 32x32px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-generator-43"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 32,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 32,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-14"
+        },
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "legacy-parameters-1440",
+          "severity": "moderate",
+          "message": "显示或隐藏节点参数 measures 32x32px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-generator-51"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 32,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 32,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-15"
+        },
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "legacy-parameters-1440",
+          "severity": "moderate",
+          "message": "删除节点 measures 32x32px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-generator-63"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 32,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 32,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-16"
+        },
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "legacy-parameters-1728",
+          "severity": "moderate",
+          "message": "输入端口，拖动连接 measures 28x28px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-generator-39"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 28,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 28,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-17"
+        },
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "legacy-parameters-1728",
+          "severity": "moderate",
+          "message": "结果输出，拖动连接 measures 28x28px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-generator-40"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 28,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 28,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-18"
+        },
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "legacy-parameters-1728",
+          "severity": "moderate",
+          "message": "选择生成模型 measures 32x32px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-generator-43"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 32,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 32,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-19"
+        },
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "legacy-parameters-1728",
+          "severity": "moderate",
+          "message": "显示或隐藏节点参数 measures 32x32px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-generator-51"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 32,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 32,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-20"
+        },
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "legacy-parameters-1728",
+          "severity": "moderate",
+          "message": "删除节点 measures 32x32px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-generator-63"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 32,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 32,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-21"
+        }
+      ],
+      "states": [
+        {
+          "name": "legacy-parameters-390",
+          "viewport": {
+            "width": 390,
+            "height": 960,
+            "devicePixelRatio": 1
+          },
+          "elements": [
+            {
+              "id": "qa-generator-39",
+              "label": "输入端口，拖动连接",
+              "rect": {
+                "x": 32.79999923706055,
+                "y": 227.1999969482422,
+                "width": 28.000003814697266,
+                "height": 27.999984741210938
+              }
+            },
+            {
+              "id": "qa-generator-40",
+              "label": "结果输出，拖动连接",
+              "rect": {
+                "x": 329.1999816894531,
+                "y": 227.1999969482422,
+                "width": 28,
+                "height": 27.999984741210938
+              }
+            },
+            {
+              "id": "qa-generator-42",
+              "label": "节点工具栏",
+              "rect": {
+                "x": 136.99998474121094,
+                "y": 24.005470275878906,
+                "width": 116.00001525878906,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-43",
+              "label": "选择生成模型",
+              "rect": {
+                "x": 143,
+                "y": 30.005468368530273,
+                "width": 32,
+                "height": 32
+              }
+            },
+            {
+              "id": "qa-generator-51",
+              "label": "显示或隐藏节点参数",
+              "rect": {
+                "x": 178.99998474121094,
+                "y": 30.005468368530273,
+                "width": 32.00001525878906,
+                "height": 32
+              }
+            },
+            {
+              "id": "qa-generator-63",
+              "label": "删除节点",
+              "rect": {
+                "x": 214.99998474121094,
+                "y": 30.005468368530273,
+                "width": 32.00001525878906,
+                "height": 32
+              }
+            },
+            {
+              "id": "qa-generator-72",
+              "label": "图片生成操作区",
+              "rect": {
+                "x": 16.006248474121094,
+                "y": 387.1960754394531,
+                "width": 357.9999694824219,
+                "height": 358.0000305175781
+              }
+            },
+            {
+              "id": "qa-generator-73",
+              "label": "参考图",
+              "rect": {
+                "x": 33.006248474121094,
+                "y": 404.196044921875,
+                "width": 324,
+                "height": 44.000030517578125
+              }
+            },
+            {
+              "id": "qa-generator-74",
+              "label": "添加参考图",
+              "rect": {
+                "x": 33.006248474121094,
+                "y": 404.196044921875,
+                "width": 44,
+                "height": 44.000030517578125
+              }
+            },
+            {
+              "id": "qa-generator-80",
+              "label": "提示词",
+              "rect": {
+                "x": 33.006248474121094,
+                "y": 464.1960754394531,
+                "width": 324,
+                "height": 95.99996948242188
+              }
+            },
+            {
+              "id": "qa-generator-81",
+              "label": "节点输入",
+              "rect": {
+                "x": 33.006248474121094,
+                "y": 464.1960754394531,
+                "width": 324,
+                "height": 95.99996948242188
+              }
+            },
+            {
+              "id": "qa-generator-83",
+              "label": "生成参数",
+              "rect": {
+                "x": 33.006248474121094,
+                "y": 576.196044921875,
+                "width": 324,
+                "height": 96.00006103515625
+              }
+            },
+            {
+              "id": "qa-generator-84",
+              "label": "生成方式",
+              "rect": {
+                "x": 33.006248474121094,
+                "y": 576.196044921875,
+                "width": 127.9999771118164,
+                "height": 44.00006103515625
+              }
+            },
+            {
+              "id": "qa-generator-88",
+              "label": "生成方式",
+              "rect": {
+                "x": 33.006248474121094,
+                "y": 576.196044921875,
+                "width": 127.9999771118164,
+                "height": 44.00006103515625
+              }
+            },
+            {
+              "id": "qa-generator-93",
+              "label": "选择图片模型，当前：gpt-image-1",
+              "rect": {
+                "x": 33.006248474121094,
+                "y": 628.196044921875,
+                "width": 134.09375,
+                "height": 44.00006103515625
+              }
+            },
+            {
+              "id": "qa-generator-121",
+              "label": "尺寸与分辨率，当前：1:1 · 2K",
+              "rect": {
+                "x": 175.09999084472656,
+                "y": 628.196044921875,
+                "width": 98.54689025878906,
+                "height": 44.00006103515625
+              }
+            },
+            {
+              "id": "qa-generator-125",
+              "label": "图片尺寸与分辨率",
+              "rect": {
+                "x": 16,
+                "y": 282.1875,
+                "width": 358,
+                "height": 338
+              }
+            },
+            {
+              "id": "qa-generator-128",
+              "label": "关闭图片参数",
+              "rect": {
+                "x": 313,
+                "y": 299.1875,
+                "width": 44,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-132",
+              "label": "选择比例",
+              "rect": {
+                "x": 33,
+                "y": 359.1875,
+                "width": 324,
+                "height": 156
+              }
+            },
+            {
+              "id": "qa-generator-135",
+              "label": "自适应",
+              "rect": {
+                "x": 33,
+                "y": 387.1875,
+                "width": 78,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-142",
+              "label": "1:1",
+              "rect": {
+                "x": 115,
+                "y": 387.1875,
+                "width": 78,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-146",
+              "label": "3:2",
+              "rect": {
+                "x": 197,
+                "y": 387.1875,
+                "width": 78,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-150",
+              "label": "2:3",
+              "rect": {
+                "x": 279,
+                "y": 387.1875,
+                "width": 78,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-154",
+              "label": "16:9",
+              "rect": {
+                "x": 33,
+                "y": 453.1875,
+                "width": 78,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-158",
+              "label": "9:16",
+              "rect": {
+                "x": 115,
+                "y": 453.1875,
+                "width": 78,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-162",
+              "label": "自定义",
+              "rect": {
+                "x": 197,
+                "y": 453.1875,
+                "width": 78,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-170",
+              "label": "选择分辨率",
+              "rect": {
+                "x": 33,
+                "y": 531.1875,
+                "width": 324,
+                "height": 72
+              }
+            },
+            {
+              "id": "qa-generator-173",
+              "label": "1K",
+              "rect": {
+                "x": 33,
+                "y": 559.1875,
+                "width": 105.328125,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-175",
+              "label": "2K",
+              "rect": {
+                "x": 142.328125,
+                "y": 559.1875,
+                "width": 105.328125,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-177",
+              "label": "4K",
+              "rect": {
+                "x": 251.65625,
+                "y": 559.1875,
+                "width": 105.34375,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-226",
+              "label": "生成操作",
+              "rect": {
+                "x": 313.0062561035156,
+                "y": 684.1961059570312,
+                "width": 44,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-228",
+              "label": "生成图片",
+              "rect": {
+                "x": 313.0062561035156,
+                "y": 684.1961059570312,
+                "width": 44,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-242",
+              "label": "重命名图片生成节点",
+              "rect": {
+                "x": 79.94999694824219,
+                "y": 80,
+                "width": 43.99687194824219,
+                "height": 43.99687194824219
+              }
+            }
+          ]
+        },
+        {
+          "name": "legacy-parameters-768",
+          "viewport": {
+            "width": 768,
+            "height": 960,
+            "devicePixelRatio": 1
+          },
+          "elements": [
+            {
+              "id": "qa-generator-39",
+              "label": "输入端口，拖动连接",
+              "rect": {
+                "x": 142,
+                "y": 314,
+                "width": 28,
+                "height": 28
+              }
+            },
+            {
+              "id": "qa-generator-40",
+              "label": "结果输出，拖动连接",
+              "rect": {
+                "x": 598,
+                "y": 314,
+                "width": 28,
+                "height": 28
+              }
+            },
+            {
+              "id": "qa-generator-42",
+              "label": "节点工具栏",
+              "rect": {
+                "x": 326,
+                "y": 24,
+                "width": 116,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-43",
+              "label": "选择生成模型",
+              "rect": {
+                "x": 332,
+                "y": 30,
+                "width": 32,
+                "height": 32
+              }
+            },
+            {
+              "id": "qa-generator-51",
+              "label": "显示或隐藏节点参数",
+              "rect": {
+                "x": 368,
+                "y": 30,
+                "width": 32,
+                "height": 32
+              }
+            },
+            {
+              "id": "qa-generator-63",
+              "label": "删除节点",
+              "rect": {
+                "x": 404,
+                "y": 30,
+                "width": 32,
+                "height": 32
+              }
+            },
+            {
+              "id": "qa-generator-72",
+              "label": "图片生成操作区",
+              "rect": {
+                "x": 16,
+                "y": 544,
+                "width": 736,
+                "height": 250
+              }
+            },
+            {
+              "id": "qa-generator-73",
+              "label": "参考图",
+              "rect": {
+                "x": 33,
+                "y": 561,
+                "width": 702,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-74",
+              "label": "添加参考图",
+              "rect": {
+                "x": 33,
+                "y": 561,
+                "width": 44,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-80",
+              "label": "提示词",
+              "rect": {
+                "x": 33,
+                "y": 621,
+                "width": 702,
+                "height": 96
+              }
+            },
+            {
+              "id": "qa-generator-81",
+              "label": "节点输入",
+              "rect": {
+                "x": 33,
+                "y": 621,
+                "width": 702,
+                "height": 96
+              }
+            },
+            {
+              "id": "qa-generator-83",
+              "label": "生成参数",
+              "rect": {
+                "x": 33,
+                "y": 733,
+                "width": 646,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-84",
+              "label": "生成方式",
+              "rect": {
+                "x": 33,
+                "y": 733,
+                "width": 128,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-88",
+              "label": "生成方式",
+              "rect": {
+                "x": 33,
+                "y": 733,
+                "width": 128,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-93",
+              "label": "选择图片模型，当前：gpt-image-1",
+              "rect": {
+                "x": 169,
+                "y": 733,
+                "width": 134.09375,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-121",
+              "label": "尺寸与分辨率，当前：1:1 · 2K",
+              "rect": {
+                "x": 311.09375,
+                "y": 733,
+                "width": 98.546875,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-125",
+              "label": "图片尺寸与分辨率",
+              "rect": {
+                "x": 272,
+                "y": 387,
+                "width": 480,
+                "height": 338
+              }
+            },
+            {
+              "id": "qa-generator-128",
+              "label": "关闭图片参数",
+              "rect": {
+                "x": 691,
+                "y": 404,
+                "width": 44,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-132",
+              "label": "选择比例",
+              "rect": {
+                "x": 289,
+                "y": 464,
+                "width": 446,
+                "height": 156
+              }
+            },
+            {
+              "id": "qa-generator-135",
+              "label": "自适应",
+              "rect": {
+                "x": 289,
+                "y": 492,
+                "width": 71,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-142",
+              "label": "1:1",
+              "rect": {
+                "x": 364,
+                "y": 492,
+                "width": 71,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-146",
+              "label": "3:2",
+              "rect": {
+                "x": 439,
+                "y": 492,
+                "width": 71,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-150",
+              "label": "2:3",
+              "rect": {
+                "x": 514,
+                "y": 492,
+                "width": 71,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-154",
+              "label": "16:9",
+              "rect": {
+                "x": 589,
+                "y": 492,
+                "width": 71,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-158",
+              "label": "9:16",
+              "rect": {
+                "x": 664,
+                "y": 492,
+                "width": 71,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-162",
+              "label": "自定义",
+              "rect": {
+                "x": 289,
+                "y": 558,
+                "width": 71,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-170",
+              "label": "选择分辨率",
+              "rect": {
+                "x": 289,
+                "y": 636,
+                "width": 446,
+                "height": 72
+              }
+            },
+            {
+              "id": "qa-generator-173",
+              "label": "1K",
+              "rect": {
+                "x": 289,
+                "y": 664,
+                "width": 146,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-175",
+              "label": "2K",
+              "rect": {
+                "x": 439,
+                "y": 664,
+                "width": 146,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-177",
+              "label": "4K",
+              "rect": {
+                "x": 589,
+                "y": 664,
+                "width": 146,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-226",
+              "label": "生成操作",
+              "rect": {
+                "x": 691,
+                "y": 733,
+                "width": 44,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-228",
+              "label": "生成图片",
+              "rect": {
+                "x": 691,
+                "y": 733,
+                "width": 44,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-242",
+              "label": "重命名图片生成节点",
+              "rect": {
+                "x": 207,
+                "y": 82,
+                "width": 64,
+                "height": 44
+              }
+            }
+          ]
+        },
+        {
+          "name": "legacy-parameters-1440",
+          "viewport": {
+            "width": 1440,
+            "height": 960,
+            "devicePixelRatio": 1
+          },
+          "elements": [
+            {
+              "id": "qa-generator-39",
+              "label": "输入端口，拖动连接",
+              "rect": {
+                "x": 478,
+                "y": 314,
+                "width": 28,
+                "height": 28
+              }
+            },
+            {
+              "id": "qa-generator-40",
+              "label": "结果输出，拖动连接",
+              "rect": {
+                "x": 934,
+                "y": 314,
+                "width": 28,
+                "height": 28
+              }
+            },
+            {
+              "id": "qa-generator-42",
+              "label": "节点工具栏",
+              "rect": {
+                "x": 662,
+                "y": 24,
+                "width": 116,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-43",
+              "label": "选择生成模型",
+              "rect": {
+                "x": 668,
+                "y": 30,
+                "width": 32,
+                "height": 32
+              }
+            },
+            {
+              "id": "qa-generator-51",
+              "label": "显示或隐藏节点参数",
+              "rect": {
+                "x": 704,
+                "y": 30,
+                "width": 32,
+                "height": 32
+              }
+            },
+            {
+              "id": "qa-generator-63",
+              "label": "删除节点",
+              "rect": {
+                "x": 740,
+                "y": 30,
+                "width": 32,
+                "height": 32
+              }
+            },
+            {
+              "id": "qa-generator-72",
+              "label": "图片生成操作区",
+              "rect": {
+                "x": 340,
+                "y": 544,
+                "width": 760,
+                "height": 250
+              }
+            },
+            {
+              "id": "qa-generator-73",
+              "label": "参考图",
+              "rect": {
+                "x": 357,
+                "y": 561,
+                "width": 726,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-74",
+              "label": "添加参考图",
+              "rect": {
+                "x": 357,
+                "y": 561,
+                "width": 44,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-80",
+              "label": "提示词",
+              "rect": {
+                "x": 357,
+                "y": 621,
+                "width": 726,
+                "height": 96
+              }
+            },
+            {
+              "id": "qa-generator-81",
+              "label": "节点输入",
+              "rect": {
+                "x": 357,
+                "y": 621,
+                "width": 726,
+                "height": 96
+              }
+            },
+            {
+              "id": "qa-generator-83",
+              "label": "生成参数",
+              "rect": {
+                "x": 357,
+                "y": 733,
+                "width": 670,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-84",
+              "label": "生成方式",
+              "rect": {
+                "x": 357,
+                "y": 733,
+                "width": 128,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-88",
+              "label": "生成方式",
+              "rect": {
+                "x": 357,
+                "y": 733,
+                "width": 128,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-93",
+              "label": "选择图片模型，当前：gpt-image-1",
+              "rect": {
+                "x": 493,
+                "y": 733,
+                "width": 134.09375,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-121",
+              "label": "尺寸与分辨率，当前：1:1 · 2K",
+              "rect": {
+                "x": 635.09375,
+                "y": 733,
+                "width": 98.546875,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-125",
+              "label": "图片尺寸与分辨率",
+              "rect": {
+                "x": 635.09375,
+                "y": 387,
+                "width": 480,
+                "height": 338
+              }
+            },
+            {
+              "id": "qa-generator-128",
+              "label": "关闭图片参数",
+              "rect": {
+                "x": 1054.09375,
+                "y": 404,
+                "width": 44,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-132",
+              "label": "选择比例",
+              "rect": {
+                "x": 652.09375,
+                "y": 464,
+                "width": 446,
+                "height": 156
+              }
+            },
+            {
+              "id": "qa-generator-135",
+              "label": "自适应",
+              "rect": {
+                "x": 652.09375,
+                "y": 492,
+                "width": 71,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-142",
+              "label": "1:1",
+              "rect": {
+                "x": 727.09375,
+                "y": 492,
+                "width": 71,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-146",
+              "label": "3:2",
+              "rect": {
+                "x": 802.09375,
+                "y": 492,
+                "width": 71,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-150",
+              "label": "2:3",
+              "rect": {
+                "x": 877.09375,
+                "y": 492,
+                "width": 71,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-154",
+              "label": "16:9",
+              "rect": {
+                "x": 952.09375,
+                "y": 492,
+                "width": 71,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-158",
+              "label": "9:16",
+              "rect": {
+                "x": 1027.09375,
+                "y": 492,
+                "width": 71,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-162",
+              "label": "自定义",
+              "rect": {
+                "x": 652.09375,
+                "y": 558,
+                "width": 71,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-170",
+              "label": "选择分辨率",
+              "rect": {
+                "x": 652.09375,
+                "y": 636,
+                "width": 446,
+                "height": 72
+              }
+            },
+            {
+              "id": "qa-generator-173",
+              "label": "1K",
+              "rect": {
+                "x": 652.09375,
+                "y": 664,
+                "width": 146,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-175",
+              "label": "2K",
+              "rect": {
+                "x": 802.09375,
+                "y": 664,
+                "width": 146,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-177",
+              "label": "4K",
+              "rect": {
+                "x": 952.09375,
+                "y": 664,
+                "width": 146,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-226",
+              "label": "生成操作",
+              "rect": {
+                "x": 1039,
+                "y": 733,
+                "width": 44,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-228",
+              "label": "生成图片",
+              "rect": {
+                "x": 1039,
+                "y": 733,
+                "width": 44,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-242",
+              "label": "重命名图片生成节点",
+              "rect": {
+                "x": 543,
+                "y": 82,
+                "width": 64,
+                "height": 44
+              }
+            }
+          ]
+        },
+        {
+          "name": "legacy-parameters-1728",
+          "viewport": {
+            "width": 1728,
+            "height": 960,
+            "devicePixelRatio": 1
+          },
+          "elements": [
+            {
+              "id": "qa-generator-39",
+              "label": "输入端口，拖动连接",
+              "rect": {
+                "x": 622,
+                "y": 314,
+                "width": 28,
+                "height": 28
+              }
+            },
+            {
+              "id": "qa-generator-40",
+              "label": "结果输出，拖动连接",
+              "rect": {
+                "x": 1078,
+                "y": 314,
+                "width": 28,
+                "height": 28
+              }
+            },
+            {
+              "id": "qa-generator-42",
+              "label": "节点工具栏",
+              "rect": {
+                "x": 806,
+                "y": 24,
+                "width": 116,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-43",
+              "label": "选择生成模型",
+              "rect": {
+                "x": 812,
+                "y": 30,
+                "width": 32,
+                "height": 32
+              }
+            },
+            {
+              "id": "qa-generator-51",
+              "label": "显示或隐藏节点参数",
+              "rect": {
+                "x": 848,
+                "y": 30,
+                "width": 32,
+                "height": 32
+              }
+            },
+            {
+              "id": "qa-generator-63",
+              "label": "删除节点",
+              "rect": {
+                "x": 884,
+                "y": 30,
+                "width": 32,
+                "height": 32
+              }
+            },
+            {
+              "id": "qa-generator-72",
+              "label": "图片生成操作区",
+              "rect": {
+                "x": 484,
+                "y": 544,
+                "width": 760,
+                "height": 250
+              }
+            },
+            {
+              "id": "qa-generator-73",
+              "label": "参考图",
+              "rect": {
+                "x": 501,
+                "y": 561,
+                "width": 726,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-74",
+              "label": "添加参考图",
+              "rect": {
+                "x": 501,
+                "y": 561,
+                "width": 44,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-80",
+              "label": "提示词",
+              "rect": {
+                "x": 501,
+                "y": 621,
+                "width": 726,
+                "height": 96
+              }
+            },
+            {
+              "id": "qa-generator-81",
+              "label": "节点输入",
+              "rect": {
+                "x": 501,
+                "y": 621,
+                "width": 726,
+                "height": 96
+              }
+            },
+            {
+              "id": "qa-generator-83",
+              "label": "生成参数",
+              "rect": {
+                "x": 501,
+                "y": 733,
+                "width": 670,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-84",
+              "label": "生成方式",
+              "rect": {
+                "x": 501,
+                "y": 733,
+                "width": 128,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-88",
+              "label": "生成方式",
+              "rect": {
+                "x": 501,
+                "y": 733,
+                "width": 128,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-93",
+              "label": "选择图片模型，当前：gpt-image-1",
+              "rect": {
+                "x": 637,
+                "y": 733,
+                "width": 134.09375,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-121",
+              "label": "尺寸与分辨率，当前：1:1 · 2K",
+              "rect": {
+                "x": 779.09375,
+                "y": 733,
+                "width": 98.546875,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-125",
+              "label": "图片尺寸与分辨率",
+              "rect": {
+                "x": 779.09375,
+                "y": 387,
+                "width": 480,
+                "height": 338
+              }
+            },
+            {
+              "id": "qa-generator-128",
+              "label": "关闭图片参数",
+              "rect": {
+                "x": 1198.09375,
+                "y": 404,
+                "width": 44,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-132",
+              "label": "选择比例",
+              "rect": {
+                "x": 796.09375,
+                "y": 464,
+                "width": 446,
+                "height": 156
+              }
+            },
+            {
+              "id": "qa-generator-135",
+              "label": "自适应",
+              "rect": {
+                "x": 796.09375,
+                "y": 492,
+                "width": 71,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-142",
+              "label": "1:1",
+              "rect": {
+                "x": 871.09375,
+                "y": 492,
+                "width": 71,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-146",
+              "label": "3:2",
+              "rect": {
+                "x": 946.09375,
+                "y": 492,
+                "width": 71,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-150",
+              "label": "2:3",
+              "rect": {
+                "x": 1021.09375,
+                "y": 492,
+                "width": 71,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-154",
+              "label": "16:9",
+              "rect": {
+                "x": 1096.09375,
+                "y": 492,
+                "width": 71,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-158",
+              "label": "9:16",
+              "rect": {
+                "x": 1171.09375,
+                "y": 492,
+                "width": 71,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-162",
+              "label": "自定义",
+              "rect": {
+                "x": 796.09375,
+                "y": 558,
+                "width": 71,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-170",
+              "label": "选择分辨率",
+              "rect": {
+                "x": 796.09375,
+                "y": 636,
+                "width": 446,
+                "height": 72
+              }
+            },
+            {
+              "id": "qa-generator-173",
+              "label": "1K",
+              "rect": {
+                "x": 796.09375,
+                "y": 664,
+                "width": 146,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-175",
+              "label": "2K",
+              "rect": {
+                "x": 946.09375,
+                "y": 664,
+                "width": 146,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-177",
+              "label": "4K",
+              "rect": {
+                "x": 1096.09375,
+                "y": 664,
+                "width": 146,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-226",
+              "label": "生成操作",
+              "rect": {
+                "x": 1183,
+                "y": 733,
+                "width": 44,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-228",
+              "label": "生成图片",
+              "rect": {
+                "x": 1183,
+                "y": 733,
+                "width": 44,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-242",
+              "label": "重命名图片生成节点",
+              "rect": {
+                "x": 687,
+                "y": 82,
+                "width": 64,
+                "height": 44
+              }
+            }
+          ]
+        }
+      ],
+      "capturedWidths": [
+        390,
+        768,
+        1440,
+        1728
+      ],
+      "missingWidths": [],
+      "rubric": [
+        {
+          "id": "review-rules-visual-design",
+          "title": "Visual Design"
+        }
+      ],
+      "rubricStatus": "loaded"
+    },
+    {
+      "status": "completed",
+      "score": 0,
+      "summary": {
+        "critical": 0,
+        "serious": 0,
+        "moderate": 31,
+        "total": 31
+      },
+      "findings": [
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "parameters-open-390",
+          "severity": "moderate",
+          "message": "输入端口，拖动连接 measures 28x28px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-generator-39"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 28,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 28,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-1"
+        },
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "parameters-open-390",
+          "severity": "moderate",
+          "message": "结果输出，拖动连接 measures 28x28px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-generator-40"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 28,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 28,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-2"
+        },
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "parameters-open-390",
+          "severity": "moderate",
+          "message": "选择生成模型 measures 32x32px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-generator-43"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 32,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 32,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-3"
+        },
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "parameters-open-390",
+          "severity": "moderate",
+          "message": "显示或隐藏节点参数 measures 32x32px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-generator-51"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 32,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 32,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-4"
+        },
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "parameters-open-390",
+          "severity": "moderate",
+          "message": "删除节点 measures 32x32px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-generator-63"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 32,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 32,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-5"
+        },
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "parameters-open-390",
+          "severity": "moderate",
+          "message": "重命名图片生成节点 measures 44x44px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-generator-258"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 44,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 44,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-6"
+        },
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "parameters-open-768",
+          "severity": "moderate",
+          "message": "输入端口，拖动连接 measures 28x28px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-generator-39"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 28,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 28,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-7"
+        },
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "parameters-open-768",
+          "severity": "moderate",
+          "message": "结果输出，拖动连接 measures 28x28px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-generator-40"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 28,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 28,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-8"
+        },
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "parameters-open-768",
+          "severity": "moderate",
+          "message": "选择生成模型 measures 32x32px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-generator-43"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 32,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 32,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-9"
+        },
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "parameters-open-768",
+          "severity": "moderate",
+          "message": "显示或隐藏节点参数 measures 32x32px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-generator-51"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 32,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 32,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-10"
+        },
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "parameters-open-768",
+          "severity": "moderate",
+          "message": "删除节点 measures 32x32px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-generator-63"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 32,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 32,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-11"
+        },
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "parameters-open-1440",
+          "severity": "moderate",
+          "message": "输入端口，拖动连接 measures 28x28px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-generator-39"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 28,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 28,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-12"
+        },
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "parameters-open-1440",
+          "severity": "moderate",
+          "message": "结果输出，拖动连接 measures 28x28px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-generator-40"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 28,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 28,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-13"
+        },
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "parameters-open-1440",
+          "severity": "moderate",
+          "message": "选择生成模型 measures 32x32px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-generator-43"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 32,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 32,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-14"
+        },
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "parameters-open-1440",
+          "severity": "moderate",
+          "message": "显示或隐藏节点参数 measures 32x32px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-generator-51"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 32,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 32,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-15"
+        },
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "parameters-open-1440",
+          "severity": "moderate",
+          "message": "删除节点 measures 32x32px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-generator-63"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 32,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 32,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-16"
+        },
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "parameters-open-1728",
+          "severity": "moderate",
+          "message": "输入端口，拖动连接 measures 28x28px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-generator-39"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 28,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 28,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-17"
+        },
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "parameters-open-1728",
+          "severity": "moderate",
+          "message": "结果输出，拖动连接 measures 28x28px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-generator-40"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 28,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 28,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-18"
+        },
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "parameters-open-1728",
+          "severity": "moderate",
+          "message": "选择生成模型 measures 32x32px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-generator-43"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 32,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 32,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-19"
+        },
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "parameters-open-1728",
+          "severity": "moderate",
+          "message": "显示或隐藏节点参数 measures 32x32px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-generator-51"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 32,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 32,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-20"
+        },
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "parameters-open-1728",
+          "severity": "moderate",
+          "message": "删除节点 measures 32x32px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-generator-63"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 32,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 32,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-21"
+        },
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "hover-1440",
+          "severity": "moderate",
+          "message": "输入端口，拖动连接 measures 28x28px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-generator-39"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 28,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 28,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-22"
+        },
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "hover-1440",
+          "severity": "moderate",
+          "message": "结果输出，拖动连接 measures 28x28px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-generator-40"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 28,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 28,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-23"
+        },
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "hover-1440",
+          "severity": "moderate",
+          "message": "选择生成模型 measures 32x32px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-generator-43"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 32,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 32,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-24"
+        },
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "hover-1440",
+          "severity": "moderate",
+          "message": "显示或隐藏节点参数 measures 32x32px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-generator-51"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 32,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 32,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-25"
+        },
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "hover-1440",
+          "severity": "moderate",
+          "message": "删除节点 measures 32x32px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-generator-63"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 32,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 32,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-26"
+        },
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "focus-1440",
+          "severity": "moderate",
+          "message": "输入端口，拖动连接 measures 28x28px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-generator-39"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 28,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 28,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-27"
+        },
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "focus-1440",
+          "severity": "moderate",
+          "message": "结果输出，拖动连接 measures 28x28px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-generator-40"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 28,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 28,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-28"
+        },
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "focus-1440",
+          "severity": "moderate",
+          "message": "选择生成模型 measures 32x32px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-generator-43"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 32,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 32,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-29"
+        },
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "focus-1440",
+          "severity": "moderate",
+          "message": "显示或隐藏节点参数 measures 32x32px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-generator-51"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 32,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 32,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-30"
+        },
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "focus-1440",
+          "severity": "moderate",
+          "message": "删除节点 measures 32x32px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-generator-63"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 32,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 32,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-31"
+        }
+      ],
+      "states": [
+        {
+          "name": "parameters-open-390",
+          "viewport": {
+            "width": 390,
+            "height": 960,
+            "devicePixelRatio": 1
+          },
+          "elements": [
+            {
+              "id": "qa-generator-39",
+              "label": "输入端口，拖动连接",
+              "rect": {
+                "x": 32.79999542236328,
+                "y": 227.1999969482422,
+                "width": 28.00000762939453,
+                "height": 27.999984741210938
+              }
+            },
+            {
+              "id": "qa-generator-40",
+              "label": "结果输出，拖动连接",
+              "rect": {
+                "x": 329.1999816894531,
+                "y": 227.1999969482422,
+                "width": 28,
+                "height": 27.999984741210938
+              }
+            },
+            {
+              "id": "qa-generator-42",
+              "label": "节点工具栏",
+              "rect": {
+                "x": 136.99998474121094,
+                "y": 24.005470275878906,
+                "width": 116.00001525878906,
+                "height": 43.99999237060547
+              }
+            },
+            {
+              "id": "qa-generator-43",
+              "label": "选择生成模型",
+              "rect": {
+                "x": 143,
+                "y": 30.00546646118164,
+                "width": 32,
+                "height": 32.000003814697266
+              }
+            },
+            {
+              "id": "qa-generator-51",
+              "label": "显示或隐藏节点参数",
+              "rect": {
+                "x": 178.99998474121094,
+                "y": 30.00546646118164,
+                "width": 32,
+                "height": 32.000003814697266
+              }
+            },
+            {
+              "id": "qa-generator-63",
+              "label": "删除节点",
+              "rect": {
+                "x": 214.99998474121094,
+                "y": 30.00546646118164,
+                "width": 32.00001525878906,
+                "height": 32.000003814697266
+              }
+            },
+            {
+              "id": "qa-generator-72",
+              "label": "图片生成操作区",
+              "rect": {
+                "x": 16.006248474121094,
+                "y": 387.1960754394531,
+                "width": 357.9999694824219,
+                "height": 358.0000305175781
+              }
+            },
+            {
+              "id": "qa-generator-73",
+              "label": "参考图",
+              "rect": {
+                "x": 33.006248474121094,
+                "y": 404.196044921875,
+                "width": 324,
+                "height": 44.000030517578125
+              }
+            },
+            {
+              "id": "qa-generator-74",
+              "label": "添加参考图",
+              "rect": {
+                "x": 33.006248474121094,
+                "y": 404.196044921875,
+                "width": 44,
+                "height": 44.000030517578125
+              }
+            },
+            {
+              "id": "qa-generator-80",
+              "label": "提示词",
+              "rect": {
+                "x": 33.006248474121094,
+                "y": 464.1960754394531,
+                "width": 324,
+                "height": 95.99996948242188
+              }
+            },
+            {
+              "id": "qa-generator-81",
+              "label": "节点输入",
+              "rect": {
+                "x": 33.006248474121094,
+                "y": 464.1960754394531,
+                "width": 324,
+                "height": 95.99996948242188
+              }
+            },
+            {
+              "id": "qa-generator-83",
+              "label": "生成参数",
+              "rect": {
+                "x": 33.006248474121094,
+                "y": 576.196044921875,
+                "width": 324,
+                "height": 96.00006103515625
+              }
+            },
+            {
+              "id": "qa-generator-84",
+              "label": "生成方式",
+              "rect": {
+                "x": 33.006248474121094,
+                "y": 576.196044921875,
+                "width": 127.9999771118164,
+                "height": 44.00006103515625
+              }
+            },
+            {
+              "id": "qa-generator-88",
+              "label": "生成方式",
+              "rect": {
+                "x": 33.006248474121094,
+                "y": 576.196044921875,
+                "width": 127.9999771118164,
+                "height": 44.00006103515625
+              }
+            },
+            {
+              "id": "qa-generator-93",
+              "label": "选择图片模型，当前：自动选择",
+              "rect": {
+                "x": 33.006248474121094,
+                "y": 628.196044921875,
+                "width": 119.99999237060547,
+                "height": 44.00006103515625
+              }
+            },
+            {
+              "id": "qa-generator-123",
+              "label": "尺寸与分辨率，当前：1:1 · 1K",
+              "rect": {
+                "x": 161.0062255859375,
+                "y": 628.196044921875,
+                "width": 98.546875,
+                "height": 44.00006103515625
+              }
+            },
+            {
+              "id": "qa-generator-127",
+              "label": "图片尺寸与分辨率",
+              "rect": {
+                "x": 16,
+                "y": 146.1875,
+                "width": 358,
+                "height": 474
+              }
+            },
+            {
+              "id": "qa-generator-130",
+              "label": "关闭图片参数",
+              "rect": {
+                "x": 313,
+                "y": 163.1875,
+                "width": 44,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-134",
+              "label": "选择比例",
+              "rect": {
+                "x": 33,
+                "y": 223.1875,
+                "width": 324,
+                "height": 222
+              }
+            },
+            {
+              "id": "qa-generator-137",
+              "label": "自适应",
+              "rect": {
+                "x": 33,
+                "y": 251.1875,
+                "width": 78,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-144",
+              "label": "1:1",
+              "rect": {
+                "x": 115,
+                "y": 251.1875,
+                "width": 78,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-148",
+              "label": "2:3",
+              "rect": {
+                "x": 197,
+                "y": 251.1875,
+                "width": 78,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-152",
+              "label": "3:2",
+              "rect": {
+                "x": 279,
+                "y": 251.1875,
+                "width": 78,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-156",
+              "label": "3:4",
+              "rect": {
+                "x": 33,
+                "y": 317.1875,
+                "width": 78,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-160",
+              "label": "4:3",
+              "rect": {
+                "x": 115,
+                "y": 317.1875,
+                "width": 78,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-164",
+              "label": "4:5",
+              "rect": {
+                "x": 197,
+                "y": 317.1875,
+                "width": 78,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-168",
+              "label": "5:4",
+              "rect": {
+                "x": 279,
+                "y": 317.1875,
+                "width": 78,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-172",
+              "label": "9:16",
+              "rect": {
+                "x": 33,
+                "y": 383.1875,
+                "width": 78,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-176",
+              "label": "16:9",
+              "rect": {
+                "x": 115,
+                "y": 383.1875,
+                "width": 78,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-180",
+              "label": "21:9",
+              "rect": {
+                "x": 197,
+                "y": 383.1875,
+                "width": 78,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-184",
+              "label": "选择分辨率",
+              "rect": {
+                "x": 33,
+                "y": 461.1875,
+                "width": 324,
+                "height": 86
+              }
+            },
+            {
+              "id": "qa-generator-187",
+              "label": "1K",
+              "rect": {
+                "x": 33,
+                "y": 489.1875,
+                "width": 78,
+                "height": 58
+              }
+            },
+            {
+              "id": "qa-generator-189",
+              "label": "2K",
+              "rect": {
+                "x": 115,
+                "y": 489.1875,
+                "width": 78,
+                "height": 58
+              }
+            },
+            {
+              "id": "qa-generator-191",
+              "label": "4K（1:1 不支持）",
+              "rect": {
+                "x": 197,
+                "y": 489.1875,
+                "width": 78,
+                "height": 58
+              }
+            },
+            {
+              "id": "qa-generator-193",
+              "label": "最大方图 2880×2880",
+              "rect": {
+                "x": 279,
+                "y": 489.1875,
+                "width": 78,
+                "height": 58
+              }
+            },
+            {
+              "id": "qa-generator-242",
+              "label": "生成操作",
+              "rect": {
+                "x": 313.0062561035156,
+                "y": 684.1961059570312,
+                "width": 44,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-244",
+              "label": "生成图片",
+              "rect": {
+                "x": 313.0062561035156,
+                "y": 684.1961059570312,
+                "width": 44,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-258",
+              "label": "重命名图片生成节点",
+              "rect": {
+                "x": 79.94999694824219,
+                "y": 80,
+                "width": 43.99687194824219,
+                "height": 43.99687194824219
+              }
+            }
+          ]
+        },
+        {
+          "name": "parameters-open-768",
+          "viewport": {
+            "width": 768,
+            "height": 960,
+            "devicePixelRatio": 1
+          },
+          "elements": [
+            {
+              "id": "qa-generator-39",
+              "label": "输入端口，拖动连接",
+              "rect": {
+                "x": 142,
+                "y": 314,
+                "width": 28,
+                "height": 28
+              }
+            },
+            {
+              "id": "qa-generator-40",
+              "label": "结果输出，拖动连接",
+              "rect": {
+                "x": 598,
+                "y": 314,
+                "width": 28,
+                "height": 28
+              }
+            },
+            {
+              "id": "qa-generator-42",
+              "label": "节点工具栏",
+              "rect": {
+                "x": 326,
+                "y": 24,
+                "width": 116,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-43",
+              "label": "选择生成模型",
+              "rect": {
+                "x": 332,
+                "y": 30,
+                "width": 32,
+                "height": 32
+              }
+            },
+            {
+              "id": "qa-generator-51",
+              "label": "显示或隐藏节点参数",
+              "rect": {
+                "x": 368,
+                "y": 30,
+                "width": 32,
+                "height": 32
+              }
+            },
+            {
+              "id": "qa-generator-63",
+              "label": "删除节点",
+              "rect": {
+                "x": 404,
+                "y": 30,
+                "width": 32,
+                "height": 32
+              }
+            },
+            {
+              "id": "qa-generator-72",
+              "label": "图片生成操作区",
+              "rect": {
+                "x": 16,
+                "y": 544,
+                "width": 736,
+                "height": 250
+              }
+            },
+            {
+              "id": "qa-generator-73",
+              "label": "参考图",
+              "rect": {
+                "x": 33,
+                "y": 561,
+                "width": 702,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-74",
+              "label": "添加参考图",
+              "rect": {
+                "x": 33,
+                "y": 561,
+                "width": 44,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-80",
+              "label": "提示词",
+              "rect": {
+                "x": 33,
+                "y": 621,
+                "width": 702,
+                "height": 96
+              }
+            },
+            {
+              "id": "qa-generator-81",
+              "label": "节点输入",
+              "rect": {
+                "x": 33,
+                "y": 621,
+                "width": 702,
+                "height": 96
+              }
+            },
+            {
+              "id": "qa-generator-83",
+              "label": "生成参数",
+              "rect": {
+                "x": 33,
+                "y": 733,
+                "width": 646,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-84",
+              "label": "生成方式",
+              "rect": {
+                "x": 33,
+                "y": 733,
+                "width": 128,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-88",
+              "label": "生成方式",
+              "rect": {
+                "x": 33,
+                "y": 733,
+                "width": 128,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-93",
+              "label": "选择图片模型，当前：自动选择",
+              "rect": {
+                "x": 169,
+                "y": 733,
+                "width": 120,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-123",
+              "label": "尺寸与分辨率，当前：1:1 · 1K",
+              "rect": {
+                "x": 297,
+                "y": 733,
+                "width": 98.546875,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-127",
+              "label": "图片尺寸与分辨率",
+              "rect": {
+                "x": 272,
+                "y": 317,
+                "width": 480,
+                "height": 408
+              }
+            },
+            {
+              "id": "qa-generator-130",
+              "label": "关闭图片参数",
+              "rect": {
+                "x": 691,
+                "y": 334,
+                "width": 44,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-134",
+              "label": "选择比例",
+              "rect": {
+                "x": 289,
+                "y": 394,
+                "width": 446,
+                "height": 156
+              }
+            },
+            {
+              "id": "qa-generator-137",
+              "label": "自适应",
+              "rect": {
+                "x": 289,
+                "y": 422,
+                "width": 71,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-144",
+              "label": "1:1",
+              "rect": {
+                "x": 364,
+                "y": 422,
+                "width": 71,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-148",
+              "label": "2:3",
+              "rect": {
+                "x": 439,
+                "y": 422,
+                "width": 71,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-152",
+              "label": "3:2",
+              "rect": {
+                "x": 514,
+                "y": 422,
+                "width": 71,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-156",
+              "label": "3:4",
+              "rect": {
+                "x": 589,
+                "y": 422,
+                "width": 71,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-160",
+              "label": "4:3",
+              "rect": {
+                "x": 664,
+                "y": 422,
+                "width": 71,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-164",
+              "label": "4:5",
+              "rect": {
+                "x": 289,
+                "y": 488,
+                "width": 71,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-168",
+              "label": "5:4",
+              "rect": {
+                "x": 364,
+                "y": 488,
+                "width": 71,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-172",
+              "label": "9:16",
+              "rect": {
+                "x": 439,
+                "y": 488,
+                "width": 71,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-176",
+              "label": "16:9",
+              "rect": {
+                "x": 514,
+                "y": 488,
+                "width": 71,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-180",
+              "label": "21:9",
+              "rect": {
+                "x": 589,
+                "y": 488,
+                "width": 71,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-184",
+              "label": "选择分辨率",
+              "rect": {
+                "x": 289,
+                "y": 566,
+                "width": 446,
+                "height": 86
+              }
+            },
+            {
+              "id": "qa-generator-187",
+              "label": "1K",
+              "rect": {
+                "x": 289,
+                "y": 594,
+                "width": 108.5,
+                "height": 58
+              }
+            },
+            {
+              "id": "qa-generator-189",
+              "label": "2K",
+              "rect": {
+                "x": 401.5,
+                "y": 594,
+                "width": 108.5,
+                "height": 58
+              }
+            },
+            {
+              "id": "qa-generator-191",
+              "label": "4K（1:1 不支持）",
+              "rect": {
+                "x": 514,
+                "y": 594,
+                "width": 108.5,
+                "height": 58
+              }
+            },
+            {
+              "id": "qa-generator-193",
+              "label": "最大方图 2880×2880",
+              "rect": {
+                "x": 626.5,
+                "y": 594,
+                "width": 108.5,
+                "height": 58
+              }
+            },
+            {
+              "id": "qa-generator-242",
+              "label": "生成操作",
+              "rect": {
+                "x": 691,
+                "y": 733,
+                "width": 44,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-244",
+              "label": "生成图片",
+              "rect": {
+                "x": 691,
+                "y": 733,
+                "width": 44,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-258",
+              "label": "重命名图片生成节点",
+              "rect": {
+                "x": 207,
+                "y": 82,
+                "width": 64,
+                "height": 44
+              }
+            }
+          ]
+        },
+        {
+          "name": "parameters-open-1440",
+          "viewport": {
+            "width": 1440,
+            "height": 960,
+            "devicePixelRatio": 1
+          },
+          "elements": [
+            {
+              "id": "qa-generator-39",
+              "label": "输入端口，拖动连接",
+              "rect": {
+                "x": 478,
+                "y": 314,
+                "width": 28,
+                "height": 28
+              }
+            },
+            {
+              "id": "qa-generator-40",
+              "label": "结果输出，拖动连接",
+              "rect": {
+                "x": 934,
+                "y": 314,
+                "width": 28,
+                "height": 28
+              }
+            },
+            {
+              "id": "qa-generator-42",
+              "label": "节点工具栏",
+              "rect": {
+                "x": 662,
+                "y": 24,
+                "width": 116,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-43",
+              "label": "选择生成模型",
+              "rect": {
+                "x": 668,
+                "y": 30,
+                "width": 32,
+                "height": 32
+              }
+            },
+            {
+              "id": "qa-generator-51",
+              "label": "显示或隐藏节点参数",
+              "rect": {
+                "x": 704,
+                "y": 30,
+                "width": 32,
+                "height": 32
+              }
+            },
+            {
+              "id": "qa-generator-63",
+              "label": "删除节点",
+              "rect": {
+                "x": 740,
+                "y": 30,
+                "width": 32,
+                "height": 32
+              }
+            },
+            {
+              "id": "qa-generator-72",
+              "label": "图片生成操作区",
+              "rect": {
+                "x": 340,
+                "y": 544,
+                "width": 760,
+                "height": 250
+              }
+            },
+            {
+              "id": "qa-generator-73",
+              "label": "参考图",
+              "rect": {
+                "x": 357,
+                "y": 561,
+                "width": 726,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-74",
+              "label": "添加参考图",
+              "rect": {
+                "x": 357,
+                "y": 561,
+                "width": 44,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-80",
+              "label": "提示词",
+              "rect": {
+                "x": 357,
+                "y": 621,
+                "width": 726,
+                "height": 96
+              }
+            },
+            {
+              "id": "qa-generator-81",
+              "label": "节点输入",
+              "rect": {
+                "x": 357,
+                "y": 621,
+                "width": 726,
+                "height": 96
+              }
+            },
+            {
+              "id": "qa-generator-83",
+              "label": "生成参数",
+              "rect": {
+                "x": 357,
+                "y": 733,
+                "width": 670,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-84",
+              "label": "生成方式",
+              "rect": {
+                "x": 357,
+                "y": 733,
+                "width": 128,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-88",
+              "label": "生成方式",
+              "rect": {
+                "x": 357,
+                "y": 733,
+                "width": 128,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-93",
+              "label": "选择图片模型，当前：自动选择",
+              "rect": {
+                "x": 493,
+                "y": 733,
+                "width": 120,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-123",
+              "label": "尺寸与分辨率，当前：1:1 · 1K",
+              "rect": {
+                "x": 621,
+                "y": 733,
+                "width": 98.546875,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-127",
+              "label": "图片尺寸与分辨率",
+              "rect": {
+                "x": 621,
+                "y": 317,
+                "width": 480,
+                "height": 408
+              }
+            },
+            {
+              "id": "qa-generator-130",
+              "label": "关闭图片参数",
+              "rect": {
+                "x": 1040,
+                "y": 334,
+                "width": 44,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-134",
+              "label": "选择比例",
+              "rect": {
+                "x": 638,
+                "y": 394,
+                "width": 446,
+                "height": 156
+              }
+            },
+            {
+              "id": "qa-generator-137",
+              "label": "自适应",
+              "rect": {
+                "x": 638,
+                "y": 422,
+                "width": 71,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-144",
+              "label": "1:1",
+              "rect": {
+                "x": 713,
+                "y": 422,
+                "width": 71,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-148",
+              "label": "2:3",
+              "rect": {
+                "x": 788,
+                "y": 422,
+                "width": 71,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-152",
+              "label": "3:2",
+              "rect": {
+                "x": 863,
+                "y": 422,
+                "width": 71,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-156",
+              "label": "3:4",
+              "rect": {
+                "x": 938,
+                "y": 422,
+                "width": 71,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-160",
+              "label": "4:3",
+              "rect": {
+                "x": 1013,
+                "y": 422,
+                "width": 71,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-164",
+              "label": "4:5",
+              "rect": {
+                "x": 638,
+                "y": 488,
+                "width": 71,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-168",
+              "label": "5:4",
+              "rect": {
+                "x": 713,
+                "y": 488,
+                "width": 71,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-172",
+              "label": "9:16",
+              "rect": {
+                "x": 788,
+                "y": 488,
+                "width": 71,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-176",
+              "label": "16:9",
+              "rect": {
+                "x": 863,
+                "y": 488,
+                "width": 71,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-180",
+              "label": "21:9",
+              "rect": {
+                "x": 938,
+                "y": 488,
+                "width": 71,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-184",
+              "label": "选择分辨率",
+              "rect": {
+                "x": 638,
+                "y": 566,
+                "width": 446,
+                "height": 86
+              }
+            },
+            {
+              "id": "qa-generator-187",
+              "label": "1K",
+              "rect": {
+                "x": 638,
+                "y": 594,
+                "width": 108.5,
+                "height": 58
+              }
+            },
+            {
+              "id": "qa-generator-189",
+              "label": "2K",
+              "rect": {
+                "x": 750.5,
+                "y": 594,
+                "width": 108.5,
+                "height": 58
+              }
+            },
+            {
+              "id": "qa-generator-191",
+              "label": "4K（1:1 不支持）",
+              "rect": {
+                "x": 863,
+                "y": 594,
+                "width": 108.5,
+                "height": 58
+              }
+            },
+            {
+              "id": "qa-generator-193",
+              "label": "最大方图 2880×2880",
+              "rect": {
+                "x": 975.5,
+                "y": 594,
+                "width": 108.5,
+                "height": 58
+              }
+            },
+            {
+              "id": "qa-generator-242",
+              "label": "生成操作",
+              "rect": {
+                "x": 1039,
+                "y": 733,
+                "width": 44,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-244",
+              "label": "生成图片",
+              "rect": {
+                "x": 1039,
+                "y": 733,
+                "width": 44,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-258",
+              "label": "重命名图片生成节点",
+              "rect": {
+                "x": 543,
+                "y": 82,
+                "width": 64,
+                "height": 44
+              }
+            }
+          ]
+        },
+        {
+          "name": "parameters-open-1728",
+          "viewport": {
+            "width": 1728,
+            "height": 960,
+            "devicePixelRatio": 1
+          },
+          "elements": [
+            {
+              "id": "qa-generator-39",
+              "label": "输入端口，拖动连接",
+              "rect": {
+                "x": 622,
+                "y": 314,
+                "width": 28,
+                "height": 28
+              }
+            },
+            {
+              "id": "qa-generator-40",
+              "label": "结果输出，拖动连接",
+              "rect": {
+                "x": 1078,
+                "y": 314,
+                "width": 28,
+                "height": 28
+              }
+            },
+            {
+              "id": "qa-generator-42",
+              "label": "节点工具栏",
+              "rect": {
+                "x": 806,
+                "y": 24,
+                "width": 116,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-43",
+              "label": "选择生成模型",
+              "rect": {
+                "x": 812,
+                "y": 30,
+                "width": 32,
+                "height": 32
+              }
+            },
+            {
+              "id": "qa-generator-51",
+              "label": "显示或隐藏节点参数",
+              "rect": {
+                "x": 848,
+                "y": 30,
+                "width": 32,
+                "height": 32
+              }
+            },
+            {
+              "id": "qa-generator-63",
+              "label": "删除节点",
+              "rect": {
+                "x": 884,
+                "y": 30,
+                "width": 32,
+                "height": 32
+              }
+            },
+            {
+              "id": "qa-generator-72",
+              "label": "图片生成操作区",
+              "rect": {
+                "x": 484,
+                "y": 544,
+                "width": 760,
+                "height": 250
+              }
+            },
+            {
+              "id": "qa-generator-73",
+              "label": "参考图",
+              "rect": {
+                "x": 501,
+                "y": 561,
+                "width": 726,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-74",
+              "label": "添加参考图",
+              "rect": {
+                "x": 501,
+                "y": 561,
+                "width": 44,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-80",
+              "label": "提示词",
+              "rect": {
+                "x": 501,
+                "y": 621,
+                "width": 726,
+                "height": 96
+              }
+            },
+            {
+              "id": "qa-generator-81",
+              "label": "节点输入",
+              "rect": {
+                "x": 501,
+                "y": 621,
+                "width": 726,
+                "height": 96
+              }
+            },
+            {
+              "id": "qa-generator-83",
+              "label": "生成参数",
+              "rect": {
+                "x": 501,
+                "y": 733,
+                "width": 670,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-84",
+              "label": "生成方式",
+              "rect": {
+                "x": 501,
+                "y": 733,
+                "width": 128,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-88",
+              "label": "生成方式",
+              "rect": {
+                "x": 501,
+                "y": 733,
+                "width": 128,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-93",
+              "label": "选择图片模型，当前：自动选择",
+              "rect": {
+                "x": 637,
+                "y": 733,
+                "width": 120,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-123",
+              "label": "尺寸与分辨率，当前：1:1 · 1K",
+              "rect": {
+                "x": 765,
+                "y": 733,
+                "width": 98.546875,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-127",
+              "label": "图片尺寸与分辨率",
+              "rect": {
+                "x": 765,
+                "y": 317,
+                "width": 480,
+                "height": 408
+              }
+            },
+            {
+              "id": "qa-generator-130",
+              "label": "关闭图片参数",
+              "rect": {
+                "x": 1184,
+                "y": 334,
+                "width": 44,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-134",
+              "label": "选择比例",
+              "rect": {
+                "x": 782,
+                "y": 394,
+                "width": 446,
+                "height": 156
+              }
+            },
+            {
+              "id": "qa-generator-137",
+              "label": "自适应",
+              "rect": {
+                "x": 782,
+                "y": 422,
+                "width": 71,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-144",
+              "label": "1:1",
+              "rect": {
+                "x": 857,
+                "y": 422,
+                "width": 71,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-148",
+              "label": "2:3",
+              "rect": {
+                "x": 932,
+                "y": 422,
+                "width": 71,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-152",
+              "label": "3:2",
+              "rect": {
+                "x": 1007,
+                "y": 422,
+                "width": 71,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-156",
+              "label": "3:4",
+              "rect": {
+                "x": 1082,
+                "y": 422,
+                "width": 71,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-160",
+              "label": "4:3",
+              "rect": {
+                "x": 1157,
+                "y": 422,
+                "width": 71,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-164",
+              "label": "4:5",
+              "rect": {
+                "x": 782,
+                "y": 488,
+                "width": 71,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-168",
+              "label": "5:4",
+              "rect": {
+                "x": 857,
+                "y": 488,
+                "width": 71,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-172",
+              "label": "9:16",
+              "rect": {
+                "x": 932,
+                "y": 488,
+                "width": 71,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-176",
+              "label": "16:9",
+              "rect": {
+                "x": 1007,
+                "y": 488,
+                "width": 71,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-180",
+              "label": "21:9",
+              "rect": {
+                "x": 1082,
+                "y": 488,
+                "width": 71,
+                "height": 62
+              }
+            },
+            {
+              "id": "qa-generator-184",
+              "label": "选择分辨率",
+              "rect": {
+                "x": 782,
+                "y": 566,
+                "width": 446,
+                "height": 86
+              }
+            },
+            {
+              "id": "qa-generator-187",
+              "label": "1K",
+              "rect": {
+                "x": 782,
+                "y": 594,
+                "width": 108.5,
+                "height": 58
+              }
+            },
+            {
+              "id": "qa-generator-189",
+              "label": "2K",
+              "rect": {
+                "x": 894.5,
+                "y": 594,
+                "width": 108.5,
+                "height": 58
+              }
+            },
+            {
+              "id": "qa-generator-191",
+              "label": "4K（1:1 不支持）",
+              "rect": {
+                "x": 1007,
+                "y": 594,
+                "width": 108.5,
+                "height": 58
+              }
+            },
+            {
+              "id": "qa-generator-193",
+              "label": "最大方图 2880×2880",
+              "rect": {
+                "x": 1119.5,
+                "y": 594,
+                "width": 108.5,
+                "height": 58
+              }
+            },
+            {
+              "id": "qa-generator-242",
+              "label": "生成操作",
+              "rect": {
+                "x": 1183,
+                "y": 733,
+                "width": 44,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-244",
+              "label": "生成图片",
+              "rect": {
+                "x": 1183,
+                "y": 733,
+                "width": 44,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-258",
+              "label": "重命名图片生成节点",
+              "rect": {
+                "x": 687,
+                "y": 82,
+                "width": 64,
+                "height": 44
+              }
+            }
+          ]
+        },
+        {
+          "name": "hover-1440",
+          "viewport": {
+            "width": 1440,
+            "height": 960,
+            "devicePixelRatio": 1
+          },
+          "elements": [
+            {
+              "id": "qa-generator-39",
+              "label": "输入端口，拖动连接",
+              "rect": {
+                "x": 478,
+                "y": 314,
+                "width": 28,
+                "height": 28
+              }
+            },
+            {
+              "id": "qa-generator-40",
+              "label": "结果输出，拖动连接",
+              "rect": {
+                "x": 934,
+                "y": 314,
+                "width": 28,
+                "height": 28
+              }
+            },
+            {
+              "id": "qa-generator-42",
+              "label": "节点工具栏",
+              "rect": {
+                "x": 662,
+                "y": 24,
+                "width": 116,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-43",
+              "label": "选择生成模型",
+              "rect": {
+                "x": 668,
+                "y": 30,
+                "width": 32,
+                "height": 32
+              }
+            },
+            {
+              "id": "qa-generator-51",
+              "label": "显示或隐藏节点参数",
+              "rect": {
+                "x": 704,
+                "y": 30,
+                "width": 32,
+                "height": 32
+              }
+            },
+            {
+              "id": "qa-generator-63",
+              "label": "删除节点",
+              "rect": {
+                "x": 740,
+                "y": 30,
+                "width": 32,
+                "height": 32
+              }
+            },
+            {
+              "id": "qa-generator-72",
+              "label": "图片生成操作区",
+              "rect": {
+                "x": 340,
+                "y": 544,
+                "width": 760,
+                "height": 250
+              }
+            },
+            {
+              "id": "qa-generator-73",
+              "label": "参考图",
+              "rect": {
+                "x": 357,
+                "y": 561,
+                "width": 726,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-74",
+              "label": "添加参考图",
+              "rect": {
+                "x": 357,
+                "y": 561,
+                "width": 44,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-80",
+              "label": "提示词",
+              "rect": {
+                "x": 357,
+                "y": 621,
+                "width": 726,
+                "height": 96
+              }
+            },
+            {
+              "id": "qa-generator-81",
+              "label": "节点输入",
+              "rect": {
+                "x": 357,
+                "y": 621,
+                "width": 726,
+                "height": 96
+              }
+            },
+            {
+              "id": "qa-generator-83",
+              "label": "生成参数",
+              "rect": {
+                "x": 357,
+                "y": 733,
+                "width": 670,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-84",
+              "label": "生成方式",
+              "rect": {
+                "x": 357,
+                "y": 733,
+                "width": 128,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-88",
+              "label": "生成方式",
+              "rect": {
+                "x": 357,
+                "y": 733,
+                "width": 128,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-93",
+              "label": "选择图片模型，当前：自动选择",
+              "rect": {
+                "x": 493,
+                "y": 733,
+                "width": 120,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-123",
+              "label": "尺寸与分辨率，当前：1:1 · 1K",
+              "rect": {
+                "x": 621,
+                "y": 733,
+                "width": 98.546875,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-242",
+              "label": "生成操作",
+              "rect": {
+                "x": 1039,
+                "y": 733,
+                "width": 44,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-244",
+              "label": "生成图片",
+              "rect": {
+                "x": 1039,
+                "y": 733,
+                "width": 44,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-258",
+              "label": "重命名图片生成节点",
+              "rect": {
+                "x": 543,
+                "y": 82,
+                "width": 64,
+                "height": 44
+              }
+            }
+          ]
+        },
+        {
+          "name": "focus-1440",
+          "viewport": {
+            "width": 1440,
+            "height": 960,
+            "devicePixelRatio": 1
+          },
+          "elements": [
+            {
+              "id": "qa-generator-39",
+              "label": "输入端口，拖动连接",
+              "rect": {
+                "x": 478,
+                "y": 314,
+                "width": 28,
+                "height": 28
+              }
+            },
+            {
+              "id": "qa-generator-40",
+              "label": "结果输出，拖动连接",
+              "rect": {
+                "x": 934,
+                "y": 314,
+                "width": 28,
+                "height": 28
+              }
+            },
+            {
+              "id": "qa-generator-42",
+              "label": "节点工具栏",
+              "rect": {
+                "x": 662,
+                "y": 24,
+                "width": 116,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-43",
+              "label": "选择生成模型",
+              "rect": {
+                "x": 668,
+                "y": 30,
+                "width": 32,
+                "height": 32
+              }
+            },
+            {
+              "id": "qa-generator-51",
+              "label": "显示或隐藏节点参数",
+              "rect": {
+                "x": 704,
+                "y": 30,
+                "width": 32,
+                "height": 32
+              }
+            },
+            {
+              "id": "qa-generator-63",
+              "label": "删除节点",
+              "rect": {
+                "x": 740,
+                "y": 30,
+                "width": 32,
+                "height": 32
+              }
+            },
+            {
+              "id": "qa-generator-72",
+              "label": "图片生成操作区",
+              "rect": {
+                "x": 340,
+                "y": 544,
+                "width": 760,
+                "height": 250
+              }
+            },
+            {
+              "id": "qa-generator-73",
+              "label": "参考图",
+              "rect": {
+                "x": 357,
+                "y": 561,
+                "width": 726,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-74",
+              "label": "添加参考图",
+              "rect": {
+                "x": 357,
+                "y": 561,
+                "width": 44,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-80",
+              "label": "提示词",
+              "rect": {
+                "x": 357,
+                "y": 621,
+                "width": 726,
+                "height": 96
+              }
+            },
+            {
+              "id": "qa-generator-81",
+              "label": "节点输入",
+              "rect": {
+                "x": 357,
+                "y": 621,
+                "width": 726,
+                "height": 96
+              }
+            },
+            {
+              "id": "qa-generator-83",
+              "label": "生成参数",
+              "rect": {
+                "x": 357,
+                "y": 733,
+                "width": 670,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-84",
+              "label": "生成方式",
+              "rect": {
+                "x": 357,
+                "y": 733,
+                "width": 128,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-88",
+              "label": "生成方式",
+              "rect": {
+                "x": 357,
+                "y": 733,
+                "width": 128,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-93",
+              "label": "选择图片模型，当前：自动选择",
+              "rect": {
+                "x": 493,
+                "y": 733,
+                "width": 120,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-123",
+              "label": "尺寸与分辨率，当前：1:1 · 1K",
+              "rect": {
+                "x": 621,
+                "y": 733,
+                "width": 98.546875,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-242",
+              "label": "生成操作",
+              "rect": {
+                "x": 1039,
+                "y": 733,
+                "width": 44,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-244",
+              "label": "生成图片",
+              "rect": {
+                "x": 1039,
+                "y": 733,
+                "width": 44,
+                "height": 44
+              }
+            },
+            {
+              "id": "qa-generator-258",
+              "label": "重命名图片生成节点",
+              "rect": {
+                "x": 543,
+                "y": 82,
+                "width": 64,
+                "height": 44
+              }
+            }
+          ]
+        }
+      ],
+      "capturedWidths": [
+        390,
+        768,
+        1440,
+        1728
+      ],
+      "missingWidths": [],
+      "rubric": [
+        {
+          "id": "review-rules-visual-design",
+          "title": "Visual Design"
+        }
+      ],
+      "rubricStatus": "loaded"
+    }
+  ]
+}

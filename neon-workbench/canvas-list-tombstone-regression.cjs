@@ -1,0 +1,35 @@
+"use strict";
+const assert = require("node:assert/strict"), fs=require("node:fs"),path=require("node:path"),os=require("node:os"),vm=require("node:vm");
+const runtime=path.resolve(__dirname,"../AI-OS-Portable-1.0.5-win-x64/.ai-runtime/versions/1.0.5-win-x64/resources/app");
+const directory=fs.mkdtempSync(path.join(os.tmpdir(),"neon-tombstone-test-"));
+const { createSystemDb } = require(path.join(runtime,"system-db.js"));
+const { patchAssetServer } = require("./design-sources/asset-history-deploy-patches.cjs");
+const { createCanvasStorageHttpApi } = require(path.join(runtime,"canvas-storage-http-api.js"));
+const db=createSystemDb({dbPath:path.join(directory,"system.sqlite")});db.migrate();
+async function main(){
+ db.insertUser({id:"owner",username:"owner",displayName:"测试账户",passwordHash:"test",status:"active"});
+ const project=db.createCanvasProject({ownerUserId:"owner",name:"测试项目"});
+ for(const id of ["deleted","live"]) db.registerResource({id,ownerUserId:"owner",type:"canvas",title:"旧名称",refType:"canvas",refId:id});
+ db.deleteResource("deleted");
+ const tombstoneBefore=db.getResource("deleted");
+ const boards=[{id:"deleted",projectId:project.id,title:"已删除画布"},{id:"live",projectId:project.id,title:"保留画布"}];
+ const repository={getBoardMeta:async id=>boards.find(board=>board.id===id)};
+ const context={systemDb:db,getCanvasStorage:()=>({repository}),getLegacyOwnerUserId:()=>"owner",resourceAccess:{registerResource:async input=>db.registerResource(input)}};
+ const code=patchAssetServer(fs.readFileSync(path.join(runtime,"server.js"),"utf8").replaceAll("\r\n","\n"));
+ assert.equal(patchAssetServer(code),code,"补丁须可重复部署");
+ const start=code.indexOf("async function ensureReferencedResource(");
+ const end=code.indexOf("\nfunction getUserDataDirectory(",start);
+ vm.createContext(context);vm.runInContext(code.slice(start,end),context);
+ const {createResourceAccess}=require(path.join(runtime,"resource-access.js"));
+ const {createCanvasProjectService}=require(path.join(runtime,"canvas-project-service.js"));
+ const access=createResourceAccess({db});const service=createCanvasProjectService({db});
+ const api=createCanvasStorageHttpApi({db,projectService:service,resourceAccess:access,getCanvasStorage:()=>({repository,queryService:{listBoards:async()=>({boards:boards.map(board=>({...board})),trash:[]})}}),ensureReferencedResource:context.ensureReferencedResource,validateCanvasMediaReferences:async()=>{},getCanvasCollabHub:()=>({}),readJson:async()=>({}),sendJson:(res,status,body)=>Object.assign(res,{status,body}),publicUser:user=>user});
+ const response={};await api.handle({url:"/api/canvas/boards?scope=all",method:"GET",headers:{host:"localhost"},auth:{user:{id:"owner"}}},response);
+ assert.equal(response.status,200,JSON.stringify(response.body));
+ assert.deepEqual(response.body.boards.map(board=>board.id),["live"],"已删除登记须跳过，不阻断正常画布列表");
+ assert.deepEqual(db.getResource("deleted"),tombstoneBefore,"同步不能修改或恢复已删除登记");
+ assert.equal(db.getResource("live").workspaceId,project.id);
+ assert.equal(db.getResource("live").title,"保留画布");
+ console.log("PASS 画布列表：已删除登记原样跳过，正常画布继续列举、同步名称与项目归属，重复部署一致");
+}
+main().catch(error=>{console.error(error);process.exitCode=1;}).finally(()=>{db.close();fs.rmSync(directory,{recursive:true,force:true});});

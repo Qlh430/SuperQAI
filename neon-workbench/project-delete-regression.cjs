@@ -1,0 +1,121 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const runtime = path.resolve(__dirname, '../AI-OS-Portable-1.0.5-win-x64/.ai-runtime/versions/1.0.5-win-x64/resources/app');
+
+async function main() {
+ const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'neon-project-delete-'));
+ let repository, db;
+ try {
+  const copied = new Set();
+  function copy(name) {
+   if(copied.has(name)) return;
+   copied.add(name);
+   const source=path.join(__dirname,'design-sources',name);
+   const text=fs.readFileSync(fs.existsSync(source)?source:path.join(runtime,name),'utf8');
+   fs.writeFileSync(path.join(directory,name),text);
+   for(const match of text.matchAll(/require\(["']\.\/([^"']+)["']\)/g)) copy(match[1].endsWith('.js')?match[1]:match[1]+'.js');
+  }
+  for(const name of ['system-db.js','canvas-project-service.js','canvas-project-http-api.js','canvas-db-worker.js','canvas-storage-http-api.js']) copy(name);
+  db=require(path.join(directory,'system-db.js')).createSystemDb({dbPath:path.join(directory,'system.sqlite')});
+  db.migrate();
+  for(const id of ['owner','other']) db.insertUser({id,username:id,passwordHash:'test',mustChangePassword:false});
+  const service=require(path.join(directory,'canvas-project-service.js')).createCanvasProjectService({db});
+  assert.equal(typeof service.deleteProject,'function','whole-project deletion must be implemented');
+  const {createCanvasRepository}=require(path.join(runtime,'canvas-repository.js'));
+  repository=createCanvasRepository({dbPath:path.join(directory,'canvas.sqlite'),workerPath:path.join(directory,'canvas-db-worker.js')});
+  await repository.ready();
+  const project=db.createCanvasProject({id:'p',ownerUserId:'owner',name:'待删除'});
+  const other=db.createCanvasProject({id:'q',ownerUserId:'owner',name:'保留'});
+  const fallback=service.ensureUnclassifiedProject('owner');
+  assert.equal(service.describeProject(project,'owner').canDelete,true);
+  assert.equal(service.describeProject(project,'other').canDelete,false);
+  assert.equal(service.describeProject(fallback,'owner').canDelete,false);
+  db.renameCanvasProject(fallback.id,'我的默认恢复目录');
+  assert.equal(service.ensureUnclassifiedProject('owner').id,fallback.id);
+  assert.equal(service.describeProject(db.getCanvasProject(fallback.id),'owner').canDelete,false,'renaming system directory must preserve protection');
+  await assert.rejects(service.deleteProject('other','p',{repository}),e=>e.status===403);
+  await assert.rejects(service.deleteProject('owner',fallback.id,{repository}),e=>e.status===409);
+  const register=id=>db.registerResource({id:'r-'+id,type:'canvas',title:id,refType:'canvas',refId:id,ownerUserId:'owner',workspaceId:'p'});
+  for(const id of ['active','old-trash','moved','tombstone']) {
+   await repository.createBoard({id,title:id,projectId:'p'});register(id);
+  }
+  await repository.setBoardTrashState({boardId:'old-trash',operationId:'old-trash-op',trashed:true});
+  await repository.setBoardProject({boardId:'moved',projectId:'q'});db.updateResource('r-moved',{workspaceId:'q'});
+  db.deleteResource('r-tombstone');
+  const originalTrash=(await repository.getBoardMeta('old-trash')).deletedAt;
+  service.updateShare('owner','p',{visibility:'all'});
+  const result=await service.deleteProject('owner','p',{repository});
+  assert.equal(result.trashedCanvasCount,3);assert.equal(result.newlyTrashedCanvasCount,2);
+  assert.equal(db.getCanvasProject('p'),null);assert.equal(db.getSetting('canvas_project_share:p'),null);
+  for(const id of ['active','old-trash','tombstone']) {
+   const board=await repository.getBoardMeta(id);assert.ok(board.deletedAt);assert.equal(board.projectId,fallback.id);
+  }
+  assert.equal((await repository.getBoardMeta('old-trash')).deletedAt,originalTrash);
+  assert.equal((await repository.getBoardMeta('moved')).projectId,other.id);assert.ok(!(await repository.getBoardMeta('moved')).deletedAt);
+  assert.equal(db.getResource('r-active').metadata.canvasTrashed,true);
+  assert.equal(db.getResource('r-active').workspaceId,fallback.id);
+  assert.ok(db.getResource('r-tombstone').deletedAt);
+  assert.ok(db.listAllResources({includeDeleted:true}).some(resource=>resource.id==='r-tombstone'));
+  assert.ok(!db.listAllResources().some(resource=>resource.id==='r-tombstone'));
+  assert.deepEqual(await service.deleteProject('owner','p',{repository}),result,'lost response retries do not mutate twice');
+  await assert.rejects(service.deleteProject('other','p',{repository}),e=>e.status===404);
+  db.createCanvasProject({id:'rollback',ownerUserId:'owner',name:'回滚'});
+  await repository.createBoard({id:'rollback-board',title:'回滚画布',projectId:'rollback'});
+  const before=await repository.getBoardMeta('rollback-board');
+  db.registerResource({id:'rollback-resource',type:'canvas',title:'回滚',refType:'canvas',refId:'rollback-board',ownerUserId:'owner',workspaceId:'rollback'});
+  service.updateShare('owner','rollback',{visibility:'all'});
+  const faultDb={...db,deleteCanvasProject:(...args)=>{db.deleteCanvasProject(...args);throw new Error('模拟系统数据库失败');}};
+  const failing=require(path.join(directory,'canvas-project-service.js')).createCanvasProjectService({db:faultDb});
+  await assert.rejects(failing.deleteProject('owner','rollback',{repository}),/模拟系统数据库失败/);
+  const after=await repository.getBoardMeta('rollback-board');
+  for(const key of ['projectId','revision','deletedAt','updatedAt']) assert.equal(after[key],before[key],key+' compensated');
+  assert.ok(db.getCanvasProject('rollback'));
+  assert.equal(db.getResource('rollback-resource').workspaceId,'rollback');assert.ok(!db.getResource('rollback-resource').metadata.canvasTrashed);
+  assert.equal(db.getSetting('canvas_project_share:rollback').visibility,'all');
+  let release;const gate=new Promise(resolve=>release=resolve);let reached;
+  const entered=new Promise(resolve=>reached=resolve);
+  const delayed={...repository,invoke:async(method,args)=>{if(method==='trashProjectBoards'){reached();await gate;}return repository.invoke(method,args);}};
+  const pending=service.deleteProject('owner','rollback',{repository:delayed});await entered;
+  assert.throws(()=>service.requireOwnerProject('owner','rollback'),e=>e.status===409);release();await pending;
+  const {createCanvasProjectHttpApi}=require(path.join(directory,'canvas-project-http-api.js'));
+  const broadcasts=[];
+  const api=createCanvasProjectHttpApi({db,projectService:service,getCanvasStorage:()=>({repository}),getCanvasCollabHub:()=>({broadcastBoardState:(...args)=>broadcasts.push(args)}),readJson:async req=>req.body,sendJson:(res,status,body)=>Object.assign(res,{status,body})});
+  db.createCanvasProject({id:'http',ownerUserId:'owner',name:'接口'});await repository.createBoard({id:'http-board',title:'接口画布',projectId:'http'});
+  const res={};await api.handle({method:'DELETE',url:'/api/canvas/projects/http',headers:{host:'localhost'},auth:{user:{id:'owner'}}},res);
+  assert.equal(res.status,200);assert.equal(res.body.trashedCanvasCount,1);assert.equal(broadcasts[0][1],'trashed');
+  db.createCanvasProject({id:'legacy-project',ownerUserId:'owner',name:'迁移后删除'});
+  db.registerResource({id:'legacy-resource',type:'canvas',title:'迁移画布',refType:'canvas',refId:'legacy-board',ownerUserId:'owner',workspaceId:'legacy-project'});
+  const legacyFile=path.join(directory,'legacy.json');fs.writeFileSync(legacyFile,JSON.stringify({boards:[{id:'legacy-board',title:'迁移画布',nodes:[],connections:[]}]}));
+  const migrator=require(path.join(runtime,'canvas-legacy-migrator.js')).createCanvasLegacyMigrator({legacyFile,repository});
+  const legacyResult=await service.deleteProject('owner','legacy-project',{repository,migrator});
+  assert.equal(legacyResult.trashedCanvasCount,1);assert.ok((await repository.getBoardMeta('legacy-board')).deletedAt);
+  db.createCanvasProject({id:'foreign-project',ownerUserId:'owner',name:'归属异常'});
+  await repository.createBoard({id:'foreign-board',title:'他人的画布',projectId:'foreign-project'});
+  db.registerResource({id:'foreign-resource',type:'canvas',title:'他人画布',refType:'canvas',refId:'foreign-board',ownerUserId:'other',workspaceId:'foreign-project'});
+  await assert.rejects(service.deleteProject('owner','foreign-project',{repository}),e=>e.status===409);
+  assert.ok(!(await repository.getBoardMeta('foreign-board')).deletedAt);assert.ok(db.getCanvasProject('foreign-project'));
+  const {createCanvasStorageHttpApi}=require(path.join(directory,'canvas-storage-http-api.js'));
+  const {createResourceAccess}=require(path.join(directory,'resource-access.js'));
+  const access=createResourceAccess({db});
+  const commands=require(path.join(runtime,'canvas-command-service.js')).createCanvasCommandService({repository});
+  let unblockCreate,createEntered;
+  const createGate=new Promise(resolve=>unblockCreate=resolve),createStarted=new Promise(resolve=>createEntered=resolve);
+  const storage=createCanvasStorageHttpApi({db,projectService:service,resourceAccess:access,getCanvasStorage:()=>({repository,commandService:{...commands,createBoard:async input=>{createEntered();await createGate;return commands.createBoard(input);}}}),ensureReferencedResource:async(userId,input)=>db.getResourceByRef(input.refType,input.refId)||db.registerResource({...input,ownerUserId:userId}),validateCanvasMediaReferences:async()=>{},getCanvasCollabHub:()=>({broadcastPatch(){},broadcastBoardState(){}}),readJson:async req=>req.body,sendJson:(res,status,body)=>Object.assign(res,{status,body}),publicUser:user=>({id:user.id})});
+  db.createCanvasProject({id:'race-create',ownerUserId:'owner',name:'并发创建'});
+  const createRes={};const creating=storage.handle({method:'POST',url:'/api/canvas/boards',headers:{host:'localhost'},auth:{user:{id:'owner'}},body:{id:'inflight',projectId:'race-create',title:'创建中的画布'}},createRes);
+  await createStarted;const cascade=service.deleteProject('owner','race-create',{repository});unblockCreate();await creating;
+  assert.equal(createRes.status,201);assert.equal((await cascade).trashedCanvasCount,1);assert.ok((await repository.getBoardMeta('inflight')).deletedAt,'inflight creation is included in cascade');
+  db.createCanvasProject({id:'race-reject',ownerUserId:'owner',name:'拒绝并发创建'});
+  let unblockDelete,deleteEntered;
+  const deleteGate=new Promise(resolve=>unblockDelete=resolve),deleteStarted=new Promise(resolve=>deleteEntered=resolve);
+  const waitingRepo={...repository,invoke:async(method,args)=>{if(method==='trashProjectBoards'){deleteEntered();await deleteGate;}return repository.invoke(method,args);}};
+  const deleting=service.deleteProject('owner','race-reject',{repository:waitingRepo});await deleteStarted;
+  const rejectRes={};const rejected=storage.handle({method:'POST',url:'/api/canvas/boards',headers:{host:'localhost'},auth:{user:{id:'owner'}},body:{id:'blocked-new',projectId:'race-reject',title:'不能留下孤儿'}},rejectRes);
+  unblockDelete();await deleting;await rejected;assert.equal(rejectRes.status,404);
+  await assert.rejects(repository.getBoardMeta('blocked-new'),error=>error.code==='board_not_found');
+  console.log('PASS project cascade: owner/default/foreign/moved/trash/tombstone, persistence, compensation, pending guard, retry, HTTP and broadcast');
+ } finally {if(repository)await repository.close();if(db)db.close();fs.rmSync(directory,{recursive:true,force:true});}
+}
+main().catch(error=>{console.error(error);process.exitCode=1;});

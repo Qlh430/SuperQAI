@@ -1,0 +1,124 @@
+/* Runtime repair layer: scoped to the AI OS shell and its owned views. */
+:root {
+  --neon-background: #0c0c0b;
+  --neon-card: #171817;
+  --neon-popover: #242522;
+  --neon-foreground: #ffffff;
+  --neon-muted-fg: #c0c2b8;
+  --neon-border: rgba(255,255,255,.12);
+  --neon-primary: #00ff41;
+  --neon-primary-fg: #0c0c0b;
+  --neon-muted: #242522;
+  --neon-input: #171817;
+  --neon-ring: #00ff41;
+}
+
+html, body { background: #0c0c0b !important; color: #fff !important; }
+body::before, body::after { display: none !important; }
+
+.ai-os-auth-gate,
+.ai-os-auth-card,
+.ai-os-startup-gate,
+.ai-os-startup-panel,
+.ai-os-desktop,
+.ai-os-window-content,
+.ai-os-desktop-home { color: #fff !important; background: #0c0c0b !important; }
+.ai-os-auth-card { border: 1px solid rgba(255,255,255,.14) !important; border-radius: 12px !important; box-shadow: 0 24px 70px rgba(0,0,0,.46) !important; }
+.ai-os-auth-card input,
+.ai-os-auth-card textarea { color: #fff !important; background: #171817 !important; border: 1px solid rgba(255,255,255,.14) !important; }
+.ai-os-auth-card button[type="submit"],
+.ai-os-auth-card .ai-os-auth-submit { color: #0c0c0b !important; background: #00ff41 !important; box-shadow: none !important; }
+
+.ai-os-desktop > header,
+.ai-os-window-chrome { background: #111211 !important; border-color: rgba(255,255,255,.12) !important; }
+.ai-os-menu-bar { display: none !important; }
+.ai-os-desktop-home { inset: 0 0 86px !important; padding: clamp(24px, 5vw, 72px) !important; }
+.ai-os-home-panel { width: min(920px, 100%) !important; background: #111211 !important; border: 1px solid rgba(255,255,255,.12) !important; border-radius: 12px !important; box-shadow: 0 24px 70px rgba(0,0,0,.36) !important; }
+.ai-os-home-header h2,
+.ai-os-home-app-copy strong { color: #fff !important; }
+.ai-os-home-header p,
+.ai-os-home-app-copy small,
+.ai-os-home-app-arrow { color: #c0c2b8 !important; }
+.ai-os-home-app { background: #171817 !important; border: 1px solid rgba(255,255,255,.12) !important; box-shadow: none !important; }
+.ai-os-home-app:hover,
+.ai-os-home-app:focus-visible { background: #242522 !important; border-color: #00ff41 !important; box-shadow: 0 0 0 2px rgba(0,255,65,.16) !important; }
+.ai-os-home-app[data-home-app="canvas"] { background: rgba(0,255,65,.10) !important; border-color: #00ff41 !important; }
+.ai-os-home-app-icon { color: #fff !important; background: #242522 !important; box-shadow: none !important; }
+.ai-os-home-app[data-home-app="canvas"] .ai-os-home-app-icon,
+.ai-os-home-app[data-home-app="settings"] .ai-os-home-app-icon { color: #0c0c0b !important; background: #00ff41 !important; }
+
+.ai-os-sidebar,
+.ai-os-sidebar-brand,
+.ai-os-dock { background: #111211 !important; border-color: rgba(255,255,255,.12) !important; }
+.ai-os-dock { box-shadow: 0 18px 42px rgba(0,0,0,.38) !important; }
+.ai-os-dock > button { background: #171817 !important; border-color: rgba(255,255,255,.12) !important; }
+.ai-os-dock > button.ai-os-dock-focused .dock-icon,
+.ai-os-dock > button:hover .dock-icon { box-shadow: 0 0 0 2px #00ff41 !important; }
+
+/* Inline settings/materials views retain their layout and receive the same surfaces. */
+.ai-os-companion-window,
+.ai-os-companion-layout,
+.ai-os-account-layout,
+.ai-os-system-content,
+.ai-os-companion-sidebar,
+.ai-os-companion-main { color: #fff !important; background: #0c0c0b !important; }
+.ai-os-companion-sidebar { border-color: rgba(255,255,255,.12) !important; }
+.ai-os-companion-sidebar button.active,
+.ai-os-companion-sidebar a.active { color: #0c0c0b !important; background: #00ff41 !important; }
+.ai-os-companion-sidebar button,
+.ai-os-companion-sidebar a { color: #c0c2b8 !important; }
+.ai-os-companion-sidebar button:hover,
+.ai-os-companion-sidebar a:hover { color: #fff !important; background: #242522 !important; }
+
+.ai-os-system-window { position: static !important; inset: auto !important; width: 100% !important; height: 100% !important; max-width: none !important; max-height: none !important; border: 0 !important; border-radius: 0 !important; background: #0c0c0b !important; box-shadow: none !important; }
+.ai-os-system-window .ai-os-companion-titlebar { display: none !important; }
+.ai-os-system-window #aiOsSystemSettingsRoot,
+.ai-os-system-window .ai-os-settings-layout { height: 100% !important; min-height: 0 !important; background: #0c0c0b !important; color: #fff !important; }
+.ai-os-system-window .ai-os-settings-sidebar { background: #111211 !important; border-color: rgba(255,255,255,.12) !important; }
+.ai-os-system-window .settings-search,
+.ai-os-system-window .settings-user-card,
+.ai-os-system-window .settings-card,
+.ai-os-system-window .settings-account-hero,
+.ai-os-system-window .settings-health-grid article,
+.ai-os-system-window .settings-provider-workspace { background: #171817 !important; border-color: rgba(255,255,255,.12) !important; box-shadow: none !important; }
+.ai-os-system-window .settings-search input,
+.ai-os-system-window input,
+.ai-os-system-window textarea,
+.ai-os-system-window select { color: #fff !important; background: #171817 !important; border-color: rgba(255,255,255,.14) !important; }
+.ai-os-system-window .ai-os-settings-sidebar nav > button { color: #c0c2b8 !important; }
+.ai-os-system-window .ai-os-settings-sidebar nav > button.active { color: #0c0c0b !important; background: #00ff41 !important; }
+.ai-os-system-window .settings-page > header p,
+.ai-os-system-window .settings-page > header h2,
+.ai-os-system-window .settings-page > header span,
+.ai-os-system-window .settings-row strong,
+.ai-os-system-window .settings-account-hero h3 { color: #fff !important; }
+.ai-os-system-window .settings-page > header span,
+.ai-os-system-window .settings-row span,
+.ai-os-system-window .settings-account-hero span,
+.ai-os-system-window .settings-detail-list span { color: #c0c2b8 !important; }
+.ai-os-system-window button.settings-primary-button,
+.ai-os-system-window .settings-primary-button { color: #0c0c0b !important; background: #00ff41 !important; border-color: transparent !important; }
+.ai-os-system-window .settings-account-hero > i,
+.ai-os-system-window .settings-user-card > i { color: #0c0c0b !important; background: #00ff41 !important; }
+
+#aiOsSharedWindow { position: static !important; inset: auto !important; width: 100% !important; height: 100% !important; max-width: none !important; max-height: none !important; border: 0 !important; border-radius: 0 !important; background: #0c0c0b !important; box-shadow: none !important; }
+#aiOsSharedWindow .ai-os-companion-titlebar { display: none !important; }
+#aiOsSharedWindow .ai-os-companion-layout,
+#aiOsSharedWindow .ai-os-companion-sidebar,
+#aiOsSharedWindow .ai-os-companion-content { background: #0c0c0b !important; color: #fff !important; border-color: rgba(255,255,255,.12) !important; }
+#aiOsSharedWindow .ai-os-companion-sidebar { background: #111211 !important; }
+#aiOsSharedWindow .ai-os-companion-sidebar button.active { color: #0c0c0b !important; background: #00ff41 !important; }
+#aiOsSharedWindow .ai-os-companion-sidebar button { color: #c0c2b8 !important; }
+#aiOsSharedWindow .ai-os-companion-content h1,
+#aiOsSharedWindow .ai-os-companion-content h2,
+#aiOsSharedWindow .ai-os-companion-content h3 { color: #fff !important; }
+#aiOsSharedWindow .ai-os-companion-content p,
+#aiOsSharedWindow .ai-os-companion-content small { color: #c0c2b8 !important; }
+#aiOsSharedWindow .ai-os-resource-card,
+#aiOsSharedWindow .ai-os-resource-card-content { background: #171817 !important; color: #fff !important; border-color: rgba(255,255,255,.12) !important; }
+#aiOsSharedWindow .ai-os-resource-card button { color: #fff !important; background: #171817 !important; border: 1px solid rgba(255,255,255,.14) !important; }
+#aiOsSharedWindow .ai-os-resource-preview { background: #242522 !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}

@@ -1,0 +1,111 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const runtime = path.resolve(__dirname, '../AI-OS-Portable-1.0.5-win-x64/.ai-runtime/versions/1.0.5-win-x64/resources/app');
+const { createSystemDb } = require(path.join(runtime, 'system-db.js'));
+const Module = require('node:module');
+function loadSource(name) {
+  const filename = path.join(__dirname, 'design-sources', name);
+  const loaded = new Module(filename, module);
+  loaded.filename = filename;
+  loaded.paths = Module._nodeModulePaths(runtime);
+  loaded.require = requested => requested.startsWith('./') && fs.existsSync(path.join(__dirname, 'design-sources', `${requested.slice(2)}.js`)) ? loadSource(`${requested.slice(2)}.js`) : Module.createRequire(path.join(runtime, 'server.js'))(requested);
+  loaded._compile(fs.readFileSync(filename, 'utf8'), filename);
+  return loaded.exports;
+}
+const { createCanvasProjectService } = loadSource('canvas-project-service.js');
+
+async function main() {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'neon-project-share-'));
+  const db = createSystemDb({ dbPath: path.join(directory, 'system.sqlite') });
+  let repository;
+  try {
+    db.migrate();
+    for (const id of ['owner', 'reader', 'other']) db.insertUser({ id, username: id, displayName: `${id} 显示名`, passwordHash: 'temporary-test-hash', mustChangePassword: false });
+    const service = createCanvasProjectService({ db });
+    assert.equal(typeof service.listProjects, 'function', 'project service must list owned and dynamically shared projects');
+    const access = service.projectShareAccess;
+    const project = db.createCanvasProject({ id: 'shared-project', ownerUserId: 'owner', name: '共享项目' });
+    const register = (id, projectId = project.id, ownerUserId = 'owner') => db.registerResource({ id: `resource-${id}`, type: 'canvas', title: id, ownerUserId, workspaceId: projectId, refType: 'canvas', refId: id });
+    const first = register('first');
+    assert.equal(access.getProjectAccess(project.id, 'reader').allowed, false);
+    assert.throws(() => service.updateShare('reader', project.id, { visibility: 'all' }), e => e.status === 403);
+    assert.throws(() => service.updateShare('owner', project.id, { visibility: 'password' }), e => e.code === 'invalid_project_share');
+    assert.throws(() => service.updateShare('owner', project.id, { visibility: 'users', userIds: ['missing'] }), e => e.code === 'invalid_share_member');
+    assert.throws(() => service.updateShare('owner', project.id, { visibility: 'users', userIds: [] }), e => e.code === 'invalid_share_member');
+    service.updateShare('owner', project.id, { visibility: 'users', userIds: ['reader'] });
+    assert.equal(access.getCanvasProjectAccess('first', 'reader').permission, 'read');
+    assert.equal(access.getCanvasProjectAccess('first', 'other'), null);
+    assert.equal(service.listProjects('reader')[0].ownerDisplayName, 'owner 显示名');
+    register('future');
+    assert.equal(access.listInheritedCanvases('reader').length, 2, 'future canvases inherit project access');
+    register('foreign-owned', project.id, 'other');
+    assert.equal(access.getCanvasProjectAccess('foreign-owned', 'reader'), null, 'project membership cannot grant another owner’s canvas');
+    service.updateShare('owner', project.id, { visibility: 'all', permission: 'edit' });
+    assert.equal(access.getCanvasProjectAccess('first', 'other').permission, 'edit');
+    db.createShare({ resourceId: first.id, createdBy: 'owner', visibility: 'users', permission: 'edit', userIds: ['reader'] });
+    service.updateShare('owner', project.id, { visibility: 'private' });
+    assert.equal(access.getCanvasProjectAccess('first', 'reader'), null);
+    assert.equal(db.getShareForResource(first.id).permission, 'edit', 'revoking project sharing preserves individual share');
+    assert.equal(service.listProjects('reader').length, 0);
+    service.updateShare('owner', project.id, { visibility: 'all' });
+    const ownProject = db.createCanvasProject({ id: 'private-project', ownerUserId: 'owner', name: '私有项目' });
+    db.updateResource(first.id, { workspaceId: ownProject.id });
+    assert.equal(access.getCanvasProjectAccess('first', 'reader'), null, 'moving a canvas out revokes inherited access');
+    const replacement = createCanvasProjectService({ db });
+    assert.equal(replacement.projectShareAccess.getProjectAccess(project.id, 'other').permission, 'read', 'sharing survives service reconstruction');
+    const { createCanvasProjectHttpApi } = loadSource('canvas-project-http-api.js');
+    const api = createCanvasProjectHttpApi({ db, projectService: service, getCanvasStorage: () => ({ repository: { listBoards: async () => [{ id: 'future', projectId: project.id }, { id: 'trashed', projectId: project.id, deletedAt: '2026-10-14' }] } }), readJson: async req => req.body, sendJson: (res, status, body) => Object.assign(res, { status, body }) });
+    const call = async (user, method, url, body) => { const res = {}; await api.handle({ auth: { user: { id: user } }, headers: { host: 'localhost' }, method, url, body }, res); return res; };
+    const listing = await call('reader', 'GET', '/api/canvas/projects');
+    assert.equal(listing.body.projects.find(p => p.id === project.id)?.canvasCount, 1, 'shared projects list active canvases only');
+    assert.equal((await call('reader', 'GET', `/api/canvas/projects/${project.id}`)).status, 200);
+    assert.equal((await call('reader', 'PATCH', `/api/canvas/projects/${project.id}/share`, { visibility: 'private' })).status, 403);
+    const sharing = await call('owner', 'PATCH', `/api/canvas/projects/${project.id}/share`, { visibility: 'private' });
+    assert.equal(sharing.body.project.visibility, 'private', 'dedicated share route must update sharing instead of renaming');
+    assert.equal(sharing.body.independentlySharedCanvasCount, 0, 'independent shares outside this project are not counted');
+    assert.equal((await call('reader', 'GET', `/api/canvas/projects/${project.id}`)).status, 403);
+    service.updateShare('owner', project.id, { visibility: 'all' });
+    const { createCanvasRepository } = require(path.join(runtime, 'canvas-repository.js'));
+    const { createCanvasQueryService } = require(path.join(runtime, 'canvas-query-service.js'));
+    const { createCanvasCommandService } = require(path.join(runtime, 'canvas-command-service.js'));
+    const { createResourceAccess } = loadSource('resource-access.js');
+    const { createCanvasStorageHttpApi } = loadSource('canvas-storage-http-api.js');
+    repository = createCanvasRepository({ dbPath: path.join(directory, 'canvas.sqlite'), workerPath: path.join(runtime, 'canvas-db-worker.js') });
+    await repository.ready();
+    const queryService = createCanvasQueryService({ repository });
+    const commandService = createCanvasCommandService({ repository });
+    for (const id of ['future', 'trashed']) {
+      await commandService.createBoard({ id, title: id, projectId: project.id });
+      register(id);
+    }
+    await commandService.trash('trashed', 'trash-fixture');
+    const resourceAccess = createResourceAccess({ db });
+    const storageApi = createCanvasStorageHttpApi({ db, projectService: service, resourceAccess, getCanvasStorage: () => ({ repository, queryService, commandService }), ensureReferencedResource: async (_userId, input) => db.getResourceByRef(input.refType, input.refId), validateCanvasMediaReferences: async () => {}, getCanvasCollabHub: () => ({ broadcastPatch() {}, broadcastBoardState() {} }), readJson: async req => req.body, sendJson: (res, status, body) => Object.assign(res, { status, body }), publicUser: user => ({ id: user.id }) });
+    const boardCall = async (user, method, url, body) => { const res = {}; await storageApi.handle({ auth: { user: db.getUserById(user) }, headers: { host: 'localhost' }, method, url, body }, res); return res; };
+    const sharedBoards = await boardCall('reader', 'GET', `/api/canvas/boards?projectId=${project.id}`);
+    assert.equal(sharedBoards.status, 200, 'a shared project can be selected in the board API');
+    assert.equal(sharedBoards.body.boards[0]?.sharedViaProject, true);
+    assert.equal(sharedBoards.body.boards[0]?.projectOwnerDisplayName, 'owner 显示名');
+    assert.equal(sharedBoards.body.trash.length, 0, 'another owner’s trash is hidden');
+    assert.equal((await boardCall('reader', 'GET', '/api/canvas/boards/trashed/meta')).status, 403, 'another owner’s trashed canvas cannot be read');
+    assert.equal((await boardCall('reader', 'GET', '/api/canvas/boards/future/meta')).status, 200, 'project read access opens metadata');
+    assert.equal((await boardCall('reader', 'POST', '/api/canvas/boards/future/operations', { baseRevision: 0, operations: [] })).status, 403, 'read-only project cannot write operations');
+    service.updateShare('owner', project.id, { visibility: 'all', permission: 'edit' });
+    assert.equal((await boardCall('reader', 'POST', '/api/canvas/boards/future/operations', { baseRevision: 0, operations: [{ operationId: 'title-denied', type: 'board.patch', after: { title: '占用他人标题' } }] })).status, 403, 'shared editing does not permit management rename');
+    assert.equal((await boardCall('reader', 'POST', '/api/canvas/boards/future/operations', { baseRevision: 0, operations: [{ operationId: 'content-edit', type: 'node.upsert', entityId: 'text-1', after: { id: 'text-1', type: 'text', x: 0, y: 0, width: 300, height: 200, payload: { text: '共同编辑' } } }] })).status, 200, 'shared editing can modify canvas content');
+    for (const action of ['project', 'trash', 'restore']) assert.equal((await boardCall('reader', 'POST', `/api/canvas/boards/future/${action}`, { projectId: ownProject.id, operationId: action })).status, 403);
+    service.updateShare('owner', project.id, { visibility: 'private' });
+    assert.equal((await boardCall('reader', 'GET', '/api/canvas/boards/future/meta')).status, 403, 'revoked inheritance also blocks metadata');
+    service.updateShare('owner', project.id, { visibility: 'all' });
+    db.updateUser('reader', { status: 'disabled' });
+    assert.equal(access.getProjectAccess(project.id, 'reader').allowed, false, 'inactive user cannot inherit access');
+    console.log('PASS 项目共享：所有者、指定账户、全部账户、新画布继承、移动撤权、独立共享保留、持久化、停用账户');
+  } finally {
+    if (repository) await repository.close();
+    db.close();
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+}
+main().catch(error => { console.error(error); process.exitCode = 1; });

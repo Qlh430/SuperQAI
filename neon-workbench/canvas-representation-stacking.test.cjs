@@ -1,0 +1,21 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const path = require('node:path');
+const sandbox = { window: { NeonCanvasPerformanceFlags: {} } };
+vm.runInNewContext(fs.readFileSync(path.join(__dirname, 'design-sources/canvas-representation-host.js'), 'utf8'), sandbox);
+const host = Object.create(sandbox.window.CanvasRepresentationHost.prototype);
+// A overlaps B, B overlaps C, A does not overlap C. A is visited first.
+const models = new Map(['a','b','c'].map((id,index)=>[id,{id,x:index*90,zOrder:index,kind:'image'}]));
+const rect = model=>({left:model.x,right:model.x+100,top:0,bottom:100});
+const intersects = (a,b)=>a.left<b.right&&a.right>b.left&&a.top<b.bottom&&a.bottom>b.top;
+host.store = { mountedElements:()=>[],get:id=>models.get(id),getRect:id=>rect(models.get(id)),query:r=>[...models.values()].filter(m=>intersects(r,rect(m))).map(m=>m.id) };
+host.getState = ()=>({selectedIds:new Set()});
+host.getBounds = rect;
+host.rules = {getViewportCanvasRect:()=>({left:0,right:1000,top:0,bottom:1000}),rectsIntersect:intersects};
+host.protection = ()=>new Map();
+host.isInteracting = ()=>false;
+host.manager = {plan:()=>new Map([['a','light'],['b','light']]),levels:new Map(),demoteAt:new Map()};
+const desired=host.plan({viewport:{scale:1}});
+assert.equal(desired.size,0,'every lower Light in an unsafe overlap chain must demote, regardless of visit order');
+console.log('transitive idle stacking safety passed');

@@ -1,0 +1,50 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const http = require('node:http');
+const { chromium } = require('playwright');
+const source = name => fs.readFileSync(`${__dirname}/design-sources/${name}`, 'utf8');
+(async () => {
+  const server = http.createServer((req,res) => { res.setHeader('content-type','text/html'); res.end('<div class="canvas-actions"></div><div class="canvas-workspace"><div id="infiniteCanvas" style="width:390px;height:600px"><div id="canvasImageMenu" hidden><button data-image-menu-action>裁剪</button></div></div></div>'); });
+  await new Promise(resolve => server.listen(33203, '127.0.0.1', resolve));
+  let browser;
+  try {
+    browser = await chromium.launch({headless:true,channel:"msedge"});
+    const page = await browser.newPage({viewport:{width:390,height:768}});
+    const errors=[]; page.on('pageerror',e=>errors.push(e.message));
+    await page.goto('http://127.0.0.1:33203');
+    await page.evaluate(() => {
+      window.canvasState={activeBoardId:'board',selectedIds:new Set()}; window.snapshots=[];
+      window.addEventListener('neon:request-add-assets', e=>snapshots.push(e.detail));
+      window.getCanvasNodeOutput=node=>node.output;
+      window.showCanvasImageMenu=(event)=>{const menu=document.querySelector('#canvasImageMenu');menu.hidden=false;menu.style.left=event.clientX+'px';menu.style.top=event.clientY+'px';};
+      window.hideCanvasImageMenu=()=>document.querySelector('#canvasImageMenu').hidden=true;
+      window.CanvasNodeActionBar={createButton:()=>{const b=document.createElement('button');b.textContent='更多操作';return b;}};
+      const node=document.createElement('article');node.className='canvas-node canvas-node-video-api';node.dataset.id='video';node.dataset.boardId='board';node.output={type:'video',url:location.origin+'/output/movie.mp4?cache=1',name:'成品'};
+      node.innerHTML='<div class="flora-node-toolbar"></div><span>成品</span>';document.querySelector('#infiniteCanvas').append(node);
+      const task=document.createElement('article');task.className='canvas-node canvas-node-generator';task.dataset.id='task';task.output={type:'generator'};task.innerHTML='<div class="flora-node-toolbar"></div>';document.querySelector('#infiniteCanvas').append(task);
+    });
+    await page.addScriptTag({content:source('canvas-asset-entry.js')});
+    await page.evaluate(()=>document.querySelectorAll('.flora-node-toolbar').forEach(toolbar=>NeonCanvasAssets.mountToolbar(toolbar)));
+    assert.equal(await page.locator('.canvas-node-generator .flora-node-toolbar button').isVisible(),false);
+    await page.locator('.canvas-node-video-api .flora-node-toolbar button').click();
+    assert.equal(await page.locator('[data-image-menu-action]').isVisible(),false);
+    await page.evaluate(()=>document.querySelector('.canvas-node-video-api').output.url='/output/new-version.mp4');
+    await page.locator('[data-canvas-add-assets]').click();
+    assert.deepEqual(await page.evaluate(()=>snapshots[0].items),[{url:'/output/movie.mp4',kind:'video',title:'成品'}]);
+    await page.evaluate(()=>{const node=document.querySelector('.canvas-node-video-api');const e=new MouseEvent('contextmenu',{bubbles:true,cancelable:true,clientX:380,clientY:590});node.addEventListener('contextmenu',event=>NeonCanvasAssets.handleContextMenu(event));node.dispatchEvent(e);});
+    await page.locator('[data-canvas-add-assets]').click();
+    assert.equal(await page.evaluate(()=>snapshots[1].items[0].url),'/output/new-version.mp4');
+    await page.route('**/api/asset-library?**',route=>route.fulfill({json:{entries:[{resource:{id:'media',type:'image',title:'角色',metadata:{url:'/output/role.png'}},preview:{kind:'image',url:'/output/role.png'},access:{locked:false},asset:{id:'asset',name:'角色',permission:'read',ownerDisplayName:'分享者',categoryId:'roles',folderId:'folder'}}],categories:[{id:'roles',name:'角色'}],folders:[{id:'folder',name:'人物'}]}}));
+    await page.route('**/api/assets/import**',route=>route.fulfill({json:{asset:{id:'uploaded',kind:'image',url:'/output/imported.png',name:'导入'}}}));
+    await page.addScriptTag({content:source('canvas-asset-library.js')});
+    await page.locator('#canvasAssetLibraryButton').click();
+    await page.locator('.canvas-asset-card').waitFor();
+    assert.match(await page.locator('.canvas-asset-card-body').innerText(),/来自 分享者 · 角色 · 人物/);
+    assert.equal(await page.locator('[data-asset-scope]').count(),3);
+    await page.locator('#canvasAssetInput').setInputFiles({name:'upload.png',mimeType:'image/png',buffer:Buffer.from('mock')});
+    await page.waitForFunction(()=>snapshots.length===3);
+    assert.equal(await page.evaluate(()=>snapshots[2].items[0].url),'/output/imported.png');
+    assert.deepEqual(errors,[]);
+    console.log('真实 Chromium DOM：更多菜单、右键、空任务隐藏、版本快照、主动资产适配与上传后归类入口通过');
+  } finally { await browser?.close(); await new Promise(resolve=>server.close(resolve)); }
+})().catch(error=>{console.error(error);process.exitCode=1;});

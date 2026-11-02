@@ -36,6 +36,6 @@ function verifyProof(root,proofPath=process.env.AI_OS_CSS_COMPILER_PROOF||PROOF)
  if(proof.rounds[0].directory===proof.rounds[1].directory||JSON.stringify(snapshots[0])!==JSON.stringify(snapshots[1]))throw Error('compiler proof is not two independent deterministic builds');
  check(root,proof.baseline);
  const visual=compareRules(within(root,proof.baseline.path),within(root,proof.rounds[0].outputs.find(r=>r.path.endsWith('/neon-workbench.css')).path));
- return{inputs:proof.inputs.length,dependencies:proof.dependencies.length,proof:PROOF,outputs:snapshots[0],visual};
+ return{inputs:proof.inputs.length,dependencies:proof.dependencies.length,proof:proofPath,outputs:snapshots[0],visual};
 }
 module.exports={verifyProof,compareRules,PROOF,hash};

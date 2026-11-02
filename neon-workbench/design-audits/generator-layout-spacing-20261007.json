@@ -1,0 +1,683 @@
+{
+  "status": "completed",
+  "summary": {
+    "critical": 0,
+    "serious": 0,
+    "moderate": 29,
+    "total": 29
+  },
+  "capturedWidths": [
+    390,
+    1440,
+    1728
+  ],
+  "findings": [
+    {
+      "ruleId": "spacing/touch-target",
+      "state": "selected-390",
+      "severity": "moderate",
+      "message": "输入端口，拖动连接 measures 28x28px, below the recommended 44x44px touch target.",
+      "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+      "elementIds": [
+        "qa-generator-41"
+      ],
+      "evidence": [
+        {
+          "label": "Width",
+          "value": 28,
+          "unit": "px"
+        },
+        {
+          "label": "Height",
+          "value": 28,
+          "unit": "px"
+        }
+      ],
+      "id": "spacing-1"
+    },
+    {
+      "ruleId": "spacing/touch-target",
+      "state": "selected-390",
+      "severity": "moderate",
+      "message": "结果输出，拖动连接 measures 28x28px, below the recommended 44x44px touch target.",
+      "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+      "elementIds": [
+        "qa-generator-42"
+      ],
+      "evidence": [
+        {
+          "label": "Width",
+          "value": 28,
+          "unit": "px"
+        },
+        {
+          "label": "Height",
+          "value": 28,
+          "unit": "px"
+        }
+      ],
+      "id": "spacing-2"
+    },
+    {
+      "ruleId": "spacing/touch-target",
+      "state": "selected-390",
+      "severity": "moderate",
+      "message": "选择生成模型 measures 32x32px, below the recommended 44x44px touch target.",
+      "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+      "elementIds": [
+        "qa-generator-45"
+      ],
+      "evidence": [
+        {
+          "label": "Width",
+          "value": 32,
+          "unit": "px"
+        },
+        {
+          "label": "Height",
+          "value": 32,
+          "unit": "px"
+        }
+      ],
+      "id": "spacing-3"
+    },
+    {
+      "ruleId": "spacing/touch-target",
+      "state": "selected-390",
+      "severity": "moderate",
+      "message": "显示或隐藏节点参数 measures 32x32px, below the recommended 44x44px touch target.",
+      "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+      "elementIds": [
+        "qa-generator-53"
+      ],
+      "evidence": [
+        {
+          "label": "Width",
+          "value": 32,
+          "unit": "px"
+        },
+        {
+          "label": "Height",
+          "value": 32,
+          "unit": "px"
+        }
+      ],
+      "id": "spacing-4"
+    },
+    {
+      "ruleId": "spacing/touch-target",
+      "state": "selected-390",
+      "severity": "moderate",
+      "message": "删除节点 measures 32x32px, below the recommended 44x44px touch target.",
+      "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+      "elementIds": [
+        "qa-generator-65"
+      ],
+      "evidence": [
+        {
+          "label": "Width",
+          "value": 32,
+          "unit": "px"
+        },
+        {
+          "label": "Height",
+          "value": 32,
+          "unit": "px"
+        }
+      ],
+      "id": "spacing-5"
+    },
+    {
+      "ruleId": "spacing/touch-target",
+      "state": "selected-390",
+      "severity": "moderate",
+      "message": "生成方式 measures 144x44px, below the recommended 44x44px touch target.",
+      "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+      "elementIds": [
+        "qa-generator-98"
+      ],
+      "evidence": [
+        {
+          "label": "Width",
+          "value": 144,
+          "unit": "px"
+        },
+        {
+          "label": "Height",
+          "value": 44,
+          "unit": "px"
+        }
+      ],
+      "id": "spacing-6"
+    },
+    {
+      "ruleId": "spacing/touch-target",
+      "state": "selected-390",
+      "severity": "moderate",
+      "message": "自动选择⌄ measures 220x44px, below the recommended 44x44px touch target.",
+      "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+      "elementIds": [
+        "qa-generator-103"
+      ],
+      "evidence": [
+        {
+          "label": "Width",
+          "value": 220,
+          "unit": "px"
+        },
+        {
+          "label": "Height",
+          "value": 44,
+          "unit": "px"
+        }
+      ],
+      "id": "spacing-7"
+    },
+    {
+      "ruleId": "spacing/touch-target",
+      "state": "selected-390",
+      "severity": "moderate",
+      "message": "qa-generator-111 measures 96x44px, below the recommended 44x44px touch target.",
+      "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+      "elementIds": [
+        "qa-generator-111"
+      ],
+      "evidence": [
+        {
+          "label": "Width",
+          "value": 96,
+          "unit": "px"
+        },
+        {
+          "label": "Height",
+          "value": 44,
+          "unit": "px"
+        }
+      ],
+      "id": "spacing-8"
+    },
+    {
+      "ruleId": "spacing/touch-target",
+      "state": "selected-390",
+      "severity": "moderate",
+      "message": "重命名图片生成节点 measures 44x44px, below the recommended 44x44px touch target.",
+      "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+      "elementIds": [
+        "qa-generator-186"
+      ],
+      "evidence": [
+        {
+          "label": "Width",
+          "value": 44,
+          "unit": "px"
+        },
+        {
+          "label": "Height",
+          "value": 44,
+          "unit": "px"
+        }
+      ],
+      "id": "spacing-9"
+    },
+    {
+      "ruleId": "spacing/touch-target",
+      "state": "selected-1440",
+      "severity": "moderate",
+      "message": "输入端口，拖动连接 measures 28x28px, below the recommended 44x44px touch target.",
+      "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+      "elementIds": [
+        "qa-generator-41"
+      ],
+      "evidence": [
+        {
+          "label": "Width",
+          "value": 28,
+          "unit": "px"
+        },
+        {
+          "label": "Height",
+          "value": 28,
+          "unit": "px"
+        }
+      ],
+      "id": "spacing-10"
+    },
+    {
+      "ruleId": "spacing/touch-target",
+      "state": "selected-1440",
+      "severity": "moderate",
+      "message": "结果输出，拖动连接 measures 28x28px, below the recommended 44x44px touch target.",
+      "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+      "elementIds": [
+        "qa-generator-42"
+      ],
+      "evidence": [
+        {
+          "label": "Width",
+          "value": 28,
+          "unit": "px"
+        },
+        {
+          "label": "Height",
+          "value": 28,
+          "unit": "px"
+        }
+      ],
+      "id": "spacing-11"
+    },
+    {
+      "ruleId": "spacing/touch-target",
+      "state": "selected-1440",
+      "severity": "moderate",
+      "message": "选择生成模型 measures 32x32px, below the recommended 44x44px touch target.",
+      "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+      "elementIds": [
+        "qa-generator-45"
+      ],
+      "evidence": [
+        {
+          "label": "Width",
+          "value": 32,
+          "unit": "px"
+        },
+        {
+          "label": "Height",
+          "value": 32,
+          "unit": "px"
+        }
+      ],
+      "id": "spacing-12"
+    },
+    {
+      "ruleId": "spacing/touch-target",
+      "state": "selected-1440",
+      "severity": "moderate",
+      "message": "显示或隐藏节点参数 measures 32x32px, below the recommended 44x44px touch target.",
+      "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+      "elementIds": [
+        "qa-generator-53"
+      ],
+      "evidence": [
+        {
+          "label": "Width",
+          "value": 32,
+          "unit": "px"
+        },
+        {
+          "label": "Height",
+          "value": 32,
+          "unit": "px"
+        }
+      ],
+      "id": "spacing-13"
+    },
+    {
+      "ruleId": "spacing/touch-target",
+      "state": "selected-1440",
+      "severity": "moderate",
+      "message": "删除节点 measures 32x32px, below the recommended 44x44px touch target.",
+      "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+      "elementIds": [
+        "qa-generator-65"
+      ],
+      "evidence": [
+        {
+          "label": "Width",
+          "value": 32,
+          "unit": "px"
+        },
+        {
+          "label": "Height",
+          "value": 32,
+          "unit": "px"
+        }
+      ],
+      "id": "spacing-14"
+    },
+    {
+      "ruleId": "spacing/touch-target",
+      "state": "selected-1728",
+      "severity": "moderate",
+      "message": "输入端口，拖动连接 measures 28x28px, below the recommended 44x44px touch target.",
+      "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+      "elementIds": [
+        "qa-generator-41"
+      ],
+      "evidence": [
+        {
+          "label": "Width",
+          "value": 28,
+          "unit": "px"
+        },
+        {
+          "label": "Height",
+          "value": 28,
+          "unit": "px"
+        }
+      ],
+      "id": "spacing-15"
+    },
+    {
+      "ruleId": "spacing/touch-target",
+      "state": "selected-1728",
+      "severity": "moderate",
+      "message": "结果输出，拖动连接 measures 28x28px, below the recommended 44x44px touch target.",
+      "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+      "elementIds": [
+        "qa-generator-42"
+      ],
+      "evidence": [
+        {
+          "label": "Width",
+          "value": 28,
+          "unit": "px"
+        },
+        {
+          "label": "Height",
+          "value": 28,
+          "unit": "px"
+        }
+      ],
+      "id": "spacing-16"
+    },
+    {
+      "ruleId": "spacing/touch-target",
+      "state": "selected-1728",
+      "severity": "moderate",
+      "message": "选择生成模型 measures 32x32px, below the recommended 44x44px touch target.",
+      "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+      "elementIds": [
+        "qa-generator-45"
+      ],
+      "evidence": [
+        {
+          "label": "Width",
+          "value": 32,
+          "unit": "px"
+        },
+        {
+          "label": "Height",
+          "value": 32,
+          "unit": "px"
+        }
+      ],
+      "id": "spacing-17"
+    },
+    {
+      "ruleId": "spacing/touch-target",
+      "state": "selected-1728",
+      "severity": "moderate",
+      "message": "显示或隐藏节点参数 measures 32x32px, below the recommended 44x44px touch target.",
+      "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+      "elementIds": [
+        "qa-generator-53"
+      ],
+      "evidence": [
+        {
+          "label": "Width",
+          "value": 32,
+          "unit": "px"
+        },
+        {
+          "label": "Height",
+          "value": 32,
+          "unit": "px"
+        }
+      ],
+      "id": "spacing-18"
+    },
+    {
+      "ruleId": "spacing/touch-target",
+      "state": "selected-1728",
+      "severity": "moderate",
+      "message": "删除节点 measures 32x32px, below the recommended 44x44px touch target.",
+      "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+      "elementIds": [
+        "qa-generator-65"
+      ],
+      "evidence": [
+        {
+          "label": "Width",
+          "value": 32,
+          "unit": "px"
+        },
+        {
+          "label": "Height",
+          "value": 32,
+          "unit": "px"
+        }
+      ],
+      "id": "spacing-19"
+    },
+    {
+      "ruleId": "spacing/touch-target",
+      "state": "hover-1440",
+      "severity": "moderate",
+      "message": "输入端口，拖动连接 measures 28x28px, below the recommended 44x44px touch target.",
+      "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+      "elementIds": [
+        "qa-generator-39"
+      ],
+      "evidence": [
+        {
+          "label": "Width",
+          "value": 28,
+          "unit": "px"
+        },
+        {
+          "label": "Height",
+          "value": 28,
+          "unit": "px"
+        }
+      ],
+      "id": "spacing-20"
+    },
+    {
+      "ruleId": "spacing/touch-target",
+      "state": "hover-1440",
+      "severity": "moderate",
+      "message": "结果输出，拖动连接 measures 28x28px, below the recommended 44x44px touch target.",
+      "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+      "elementIds": [
+        "qa-generator-40"
+      ],
+      "evidence": [
+        {
+          "label": "Width",
+          "value": 28,
+          "unit": "px"
+        },
+        {
+          "label": "Height",
+          "value": 28,
+          "unit": "px"
+        }
+      ],
+      "id": "spacing-21"
+    },
+    {
+      "ruleId": "spacing/touch-target",
+      "state": "hover-1440",
+      "severity": "moderate",
+      "message": "选择生成模型 measures 32x32px, below the recommended 44x44px touch target.",
+      "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+      "elementIds": [
+        "qa-generator-43"
+      ],
+      "evidence": [
+        {
+          "label": "Width",
+          "value": 32,
+          "unit": "px"
+        },
+        {
+          "label": "Height",
+          "value": 32,
+          "unit": "px"
+        }
+      ],
+      "id": "spacing-22"
+    },
+    {
+      "ruleId": "spacing/touch-target",
+      "state": "hover-1440",
+      "severity": "moderate",
+      "message": "显示或隐藏节点参数 measures 32x32px, below the recommended 44x44px touch target.",
+      "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+      "elementIds": [
+        "qa-generator-51"
+      ],
+      "evidence": [
+        {
+          "label": "Width",
+          "value": 32,
+          "unit": "px"
+        },
+        {
+          "label": "Height",
+          "value": 32,
+          "unit": "px"
+        }
+      ],
+      "id": "spacing-23"
+    },
+    {
+      "ruleId": "spacing/touch-target",
+      "state": "hover-1440",
+      "severity": "moderate",
+      "message": "删除节点 measures 32x32px, below the recommended 44x44px touch target.",
+      "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+      "elementIds": [
+        "qa-generator-63"
+      ],
+      "evidence": [
+        {
+          "label": "Width",
+          "value": 32,
+          "unit": "px"
+        },
+        {
+          "label": "Height",
+          "value": 32,
+          "unit": "px"
+        }
+      ],
+      "id": "spacing-24"
+    },
+    {
+      "ruleId": "spacing/touch-target",
+      "state": "focus-1440",
+      "severity": "moderate",
+      "message": "输入端口，拖动连接 measures 28x28px, below the recommended 44x44px touch target.",
+      "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+      "elementIds": [
+        "qa-generator-39"
+      ],
+      "evidence": [
+        {
+          "label": "Width",
+          "value": 28,
+          "unit": "px"
+        },
+        {
+          "label": "Height",
+          "value": 28,
+          "unit": "px"
+        }
+      ],
+      "id": "spacing-25"
+    },
+    {
+      "ruleId": "spacing/touch-target",
+      "state": "focus-1440",
+      "severity": "moderate",
+      "message": "结果输出，拖动连接 measures 28x28px, below the recommended 44x44px touch target.",
+      "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+      "elementIds": [
+        "qa-generator-40"
+      ],
+      "evidence": [
+        {
+          "label": "Width",
+          "value": 28,
+          "unit": "px"
+        },
+        {
+          "label": "Height",
+          "value": 28,
+          "unit": "px"
+        }
+      ],
+      "id": "spacing-26"
+    },
+    {
+      "ruleId": "spacing/touch-target",
+      "state": "focus-1440",
+      "severity": "moderate",
+      "message": "选择生成模型 measures 32x32px, below the recommended 44x44px touch target.",
+      "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+      "elementIds": [
+        "qa-generator-43"
+      ],
+      "evidence": [
+        {
+          "label": "Width",
+          "value": 32,
+          "unit": "px"
+        },
+        {
+          "label": "Height",
+          "value": 32,
+          "unit": "px"
+        }
+      ],
+      "id": "spacing-27"
+    },
+    {
+      "ruleId": "spacing/touch-target",
+      "state": "focus-1440",
+      "severity": "moderate",
+      "message": "显示或隐藏节点参数 measures 32x32px, below the recommended 44x44px touch target.",
+      "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+      "elementIds": [
+        "qa-generator-51"
+      ],
+      "evidence": [
+        {
+          "label": "Width",
+          "value": 32,
+          "unit": "px"
+        },
+        {
+          "label": "Height",
+          "value": 32,
+          "unit": "px"
+        }
+      ],
+      "id": "spacing-28"
+    },
+    {
+      "ruleId": "spacing/touch-target",
+      "state": "focus-1440",
+      "severity": "moderate",
+      "message": "删除节点 measures 32x32px, below the recommended 44x44px touch target.",
+      "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+      "elementIds": [
+        "qa-generator-63"
+      ],
+      "evidence": [
+        {
+          "label": "Width",
+          "value": 32,
+          "unit": "px"
+        },
+        {
+          "label": "Height",
+          "value": 32,
+          "unit": "px"
+        }
+      ],
+      "id": "spacing-29"
+    }
+  ]
+}

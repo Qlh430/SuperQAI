@@ -1,0 +1,55 @@
+/* Page migration layer: legacy page classes consume the canonical Neon tokens. */
+:is(.ai-os-companion-window,.ai-os-companion-content,.ai-os-settings-layout,.settings-page,.settings-account-page,.settings-system-page,.settings-provider-workspace,.canvas-library-screen,.history-panel,.chat-panel,.image-control,.preview-panel){background:var(--background)!important;color:var(--foreground)!important}
+:is(.ai-os-companion-sidebar,.settings-provider-sidebar,.canvas-gallery-sidebar,.history-sidebar){background:var(--card)!important;border-color:var(--border)!important}
+:is(.ai-os-companion-window,.settings-card,.settings-section-card,.settings-provider-card,.settings-model-card,.record-card,.history-thumb,.canvas-gallery-card,.canvas-project-card,.control-card,.preview-panel){border-color:var(--border)!important;border-radius:var(--neon-radius-surface)!important;box-shadow:none!important}
+:is(.settings-card,.settings-section-card,.settings-provider-card,.settings-model-card,.record-card,.history-thumb,.canvas-gallery-card,.canvas-project-card,.control-card,.preview-panel){background:var(--card)!important}
+:is(.settings-search,.settings-provider-fields input,.settings-provider-fields select,.settings-comfy-field input,.settings-comfy-field select,.chat-composer textarea,.chat-panel input,.image-control input,.image-control select){background:var(--input)!important;color:var(--foreground)!important;border:1px solid var(--border)!important;border-radius:var(--neon-radius-control)!important}
+:is(.settings-save-button,.settings-primary-button,.settings-create-button,.settings-agent-save,.settings-provider-create,.settings-api-create,.settings-comfy-save,.chat-send-button,.chat-composer-send,#generateButton,.primary-action){background:var(--primary)!important;color:var(--primary-foreground)!important;border:1px solid var(--primary)!important;border-radius:var(--neon-radius-control)!important;box-shadow:none!important}
+:is(.ai-os-companion-sidebar>button.active,.ai-os-companion-sidebar>button:hover,.settings-nav-item.is-active,.settings-sidebar-item.is-active,.settings-filter.is-active,.canvas-gallery-nav-item.is-active,.settings-tab.is-active){background:color-mix(in oklab,var(--primary) 18%,var(--card))!important;color:var(--primary)!important;border-color:var(--primary)!important}
+:is(.status-badge,.settings-status,.model-status,.provider-status,.count-badge){background:color-mix(in oklab,var(--primary) 14%,transparent)!important;color:var(--primary)!important;border-color:var(--primary)!important;border-radius:var(--neon-radius-pill)!important}
+:is(.settings-eyebrow,.ai-os-eyebrow,.settings-section-eyebrow,.settings-comfy-hint,.settings-comfy-mode small,.settings-comfy-field small){color:var(--muted-foreground)!important}
+:is(.settings-danger,.settings-delete,.settings-comfy-error){background:var(--destructive)!important;color:var(--destructive-foreground)!important}
+/* Shared geometry normalization for migrated pages. */
+:is(.ai-os-companion-window,.ai-os-companion-sidebar,.ai-os-companion-content,.canvas-agent-panel,.canvas-agent-shell,.settings-card,.settings-section-card,.record-card,.history-thumb,.preview-panel,.control-card){border-radius:var(--neon-radius-surface)!important}
+:is(.settings-search,.settings-provider-fields input,.settings-provider-fields select,.settings-comfy-field input,.settings-comfy-field select,.canvas-agent-shell input,.canvas-agent-shell textarea,.canvas-agent-shell select,.chat-composer textarea){border-radius:var(--neon-radius-control)!important}
+:is(.status-badge,.count-badge,.settings-status,.model-status,.provider-status,.settings-comfy-flow em,.canvas-agent-badge){border-radius:var(--neon-radius-pill)!important}
+/* Agent state migration: preserve meaning, replace legacy palette. */
+.canvas-agent-shell,.canvas-agent-panel{background:var(--background)!important;color:var(--foreground)!important}
+:is(.canvas-agent-live-status,.canvas-agent-message,.canvas-agent-tool-step,.canvas-agent-approval){border-color:var(--border)!important;background:var(--card)!important;color:var(--foreground)!important}
+.canvas-agent-live-status[data-tone="active"] > i,.canvas-agent-panel.is-running .canvas-agent-live-status > i,.canvas-agent-tool-step.is-success .canvas-agent-tool-status{background:var(--primary)!important;color:var(--primary-foreground)!important}
+.canvas-agent-live-status[data-tone="warn"],.canvas-agent-message.is-notice,.canvas-agent-tool-step.is-declined{border-color:var(--neon-warning,var(--neon-secondary))!important;background:color-mix(in oklab,var(--neon-warning,var(--neon-secondary)) 12%,var(--card))!important;color:var(--foreground)!important}
+.canvas-agent-live-status[data-tone="warn"] > i{background:var(--neon-warning,var(--neon-secondary))!important}
+.canvas-agent-live-status[data-tone="error"],.canvas-agent-message.is-error,.canvas-agent-tool-step.is-error{border-color:var(--destructive)!important;background:color-mix(in oklab,var(--destructive) 12%,var(--card))!important;color:var(--foreground)!important}
+.canvas-agent-live-status[data-tone="error"] > i,.canvas-agent-tool-step.is-error .canvas-agent-tool-icon{background:var(--destructive)!important;color:var(--destructive-foreground)!important}
+:is(.canvas-agent-brief-actions button.is-primary,.canvas-agent-image-choice-actions button.is-primary,.canvas-agent-approval button.is-primary){background:var(--primary)!important;color:var(--primary-foreground)!important;border-color:var(--primary)!important}
+/* Purple legacy accents found in provider and skill empty states. */
+.settings-provider-empty > i{background:var(--primary)!important;color:var(--primary-foreground)!important;border-color:var(--primary)!important}
+.settings-agent-coverage-models [data-state="tool"] i{background:var(--primary)!important;color:var(--primary-foreground)!important}
+.settings-skill-badge,.settings-model-kind[data-kind="image"]{color:var(--primary)!important;background:color-mix(in oklab,var(--primary) 14%,transparent)!important;border-color:var(--primary)!important}
+.canvas-gallery-card .canvas-gallery-icon,.ai-os-resource-preview{background:var(--secondary)!important;color:var(--foreground)!important}
+/* Immersive creative pages use a clean full-screen stage, not legacy window chrome. */
+.ai-os-app-window.is-immersive > .ai-os-app-titlebar{height:3.25rem;padding:0 1.5rem;background:var(--background);border-bottom:1px solid var(--border)}
+.ai-os-app-window.is-immersive > .ai-os-app-titlebar .ai-os-traffic-lights{display:none}
+.ai-os-app-window.is-immersive > .ai-os-app-titlebar strong{font-size:1rem;color:var(--foreground);font-weight:650}
+.ai-os-app-window.is-immersive > .ai-os-window-content{background:var(--background)!important;color:var(--foreground)!important}
+.ai-os-app-window.is-immersive :is(.image-control,.chat-panel,.canvas-agent-shell){border:0!important;border-radius:0!important;box-shadow:none!important;background:var(--background)!important}
+/* Image model picker migration. */
+.image-model-picker-popover,.model-picker-dialog{background:var(--card)!important;color:var(--foreground)!important;border:1px solid var(--border)!important;border-radius:var(--neon-radius-surface)!important;box-shadow:none!important}
+.image-model-picker-search input,.model-picker-dialog input{background:var(--input)!important;color:var(--foreground)!important;border:1px solid var(--border)!important;border-radius:var(--neon-radius-control)!important}
+.image-model-picker-filters button,.image-model-picker-close,.image-model-picker-footer button{background:var(--secondary)!important;color:var(--secondary-foreground)!important;border:1px solid var(--border)!important;border-radius:var(--neon-radius-control)!important}
+.image-model-picker-filters button.is-active,.image-model-picker-row[aria-selected="true"],.image-model-picker-auto[aria-selected="true"],.model-picker-row.selected,.model-picker-row:hover{background:color-mix(in oklab,var(--primary) 18%,var(--card))!important;color:var(--primary)!important;border-color:var(--primary)!important}
+.image-model-picker-api,.image-model-picker-footer button[data-action="api"],.model-picker-dialog button[data-action="api"]{background:var(--secondary)!important;color:var(--primary)!important;border-color:var(--border)!important}
+.image-model-health-dot[data-state="online"],.image-model-health-dot[data-state="active"]{background:var(--primary)!important}
+.image-control :is(button,.generate-button,#generateButton){background:var(--primary)!important;color:var(--primary-foreground)!important;border-color:var(--primary)!important;border-radius:var(--neon-radius-control)!important}
+/* Final picker and legacy image-entry cleanup. */
+.image-model-picker-filters button.active,.model-picker-filters button.active{background:var(--primary)!important;color:var(--primary-foreground)!important;border-color:var(--primary)!important}
+.image-model-picker-row[aria-selected="true"]{background:color-mix(in oklab,var(--primary) 18%,var(--card))!important}
+.ai-os-home-app[data-home-app="image"] .ai-os-home-app-icon,.dock-image{background:var(--primary)!important;color:var(--primary-foreground)!important}
+/* Image generation semantic correction: primary is reserved for actions, not large surfaces. */
+:is(.image-control,#imageView,.image-generation-panel){background:var(--background)!important;color:var(--foreground)!important}
+:is(.image-control .reference-card,.image-control .reference-slot,.image-control [data-reference-slot]){background:var(--card)!important;color:var(--foreground)!important;border:1px solid var(--border)!important;border-radius:var(--neon-radius-control)!important}
+:is(.image-control .reference-card:hover,.image-control .reference-slot:hover,.image-control [data-reference-slot]:hover){border-color:var(--primary)!important;background:color-mix(in oklab,var(--primary) 8%,var(--card))!important}
+:is(.image-model-picker-trigger,.composer-model,.composer-model select,.image-control .model-select){background:var(--input)!important;color:var(--foreground)!important;border:1px solid var(--border)!important;border-radius:var(--neon-radius-control)!important}
+.image-model-picker-auto[aria-selected="true"],.model-picker-row.selected{background:color-mix(in oklab,var(--primary) 14%,var(--card))!important;color:var(--foreground)!important;border-color:var(--primary)!important}
+:is(.image-model-picker-auto[aria-selected="true"] .image-model-health-dot,.model-picker-row.selected .model-picker-check){background:var(--primary)!important;color:var(--primary-foreground)!important}
+:is(.image-control .generate-button,#generateButton){background:var(--primary)!important;color:var(--primary-foreground)!important;border-color:var(--primary)!important}

@@ -1,0 +1,28 @@
+{
+  "checkedAt": "2026-10-24T12:02:31.5334584+08:00",
+  "diagnosticsCreatedAt": "2026-10-24T04:02:17.591Z",
+  "runtimeName": "dev-preview-3.0.2-1792755198807-1eb1a04e",
+  "dataDirectory": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\data",
+  "mainPid": 13932,
+  "serverPid": 38256,
+  "mainResponding": true,
+  "mainWindowTitle": "AI OS",
+  "readyStatus": 200,
+  "readyOk": true,
+  "readyPid": 38256,
+  "readyPidMatches": true,
+  "pages": [
+    {
+      "route": "/",
+      "status": 200,
+      "contentLength": 73538
+    },
+    {
+      "route": "/neon-workbench.html",
+      "status": 200,
+      "contentLength": 4490
+    }
+  ],
+  "activePointer": "dev-preview-3.0.2-1792755198807-1eb1a04e",
+  "freeBytes": 107677855744
+}

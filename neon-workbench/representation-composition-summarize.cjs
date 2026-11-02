@@ -1,0 +1,20 @@
+const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict'),crypto=require('node:crypto');
+const root=path.resolve(__dirname,'..'),dir=path.join(root,'.planning/representation-fidelity-20261016/item-02-visual-composition');
+const matrix=path.join(root,'.planning/dom-scaling-20261015/item-02-composition-final/results.json'),m=JSON.parse(fs.readFileSync(matrix));
+const median=a=>a.filter(Number.isFinite).sort((a,b)=>a-b)[Math.floor(a.length/2)];
+const peak=(r,k)=>Math.max(...[r.idle,r.nativePan?.peak,r.nativeZoom?.peak].map(x=>x?.[k]||0));
+const rows=[];
+for(const scenario of ['A','B'])for(const count of [100,200,500]){
+ const cases=m.results.filter(r=>r.scenario===scenario&&r.count===count);
+ assert.equal(cases.length,3,`incomplete ${scenario}/${count}`);
+ rows.push({scenario,count,rounds:cases.length,documentDOM:median(cases.map(r=>peak(r,'documentDOM'))),canvasDOM:median(cases.map(r=>peak(r,'canvasDOM'))),fullPeak:Math.max(...cases.map(r=>peak(r,'full'))),lightPeak:Math.max(...cases.map(r=>peak(r,'light'))),canvasIdle:median(cases.map(r=>r.idle.canvas)),panP50:median(cases.map(r=>r.nativePan.activeFrames.p50)),panP95:median(cases.map(r=>r.nativePan.activeFrames.p95)),zoomP50:median(cases.map(r=>r.nativeZoom.activeFrames.p50)),zoomP95:median(cases.map(r=>r.nativeZoom.activeFrames.p95)),maxFrame:Math.max(...cases.flatMap(r=>[r.nativePan.activeFrames.max,r.nativeZoom.activeFrames.max])),styleMs:median(cases.map(r=>r.nativePan.trace.traceTotals.UpdateLayoutTree.ms+r.nativeZoom.trace.traceTotals.UpdateLayoutTree.ms)),layoutMs:median(cases.map(r=>r.nativePan.trace.traceTotals.Layout.ms+r.nativeZoom.trace.traceTotals.Layout.ms)),paintMs:median(cases.map(r=>r.nativePan.trace.traceTotals.Paint.ms+r.nativeZoom.trace.traceTotals.Paint.ms)),longTasks:median(cases.map(r=>r.nativePan.longTasks.length+r.nativeZoom.longTasks.length)),hydrateP50:median(cases.map(r=>r.final.representation.hydrateP50)),hydrateP95:median(cases.map(r=>r.final.representation.hydrateP95)),dehydrateP50:median(cases.map(r=>r.final.representation.dehydrateP50)),dehydrateP95:median(cases.map(r=>r.final.representation.dehydrateP95)),detachedFull:Math.max(...cases.flatMap(r=>r.memoryTrend.map(x=>x.detachedCanvasNodeElements||0))),postFunctionalHeapGrowthBytes:median(cases.map(r=>r.memoryTrend.at(-1).usedHeapSize-r.memoryTrend[1].usedHeapSize)),failures:cases.flatMap(r=>r.failures)});
+}
+const comparisons=['A','B'].map(scenario=>{const a=rows.find(r=>r.scenario===scenario&&r.count===100),b=rows.find(r=>r.scenario===scenario&&r.count===200);return {scenario,documentGrowth:b.documentDOM/a.documentDOM-1,canvasGrowth:b.canvasDOM/a.canvasDOM-1,panGrowth:b.panP95/a.panP95-1,zoomGrowth:b.zoomP95/a.zoomP95-1};});
+const gates={complete:m.results.length===18,allCasesPassed:m.results.every(r=>!r.failures.length),dom:comparisons.every(x=>x.documentGrowth<=.2&&x.canvasGrowth<=.2),pan:m.results.every(r=>r.nativePan.activeFrames.p95<30),zoom:m.results.every(r=>r.nativeZoom.activeFrames.p95<30),full:m.results.every(r=>peak(r,'full')<=5),light:m.results.every(r=>peak(r,'light')<=8)};
+gates.defaultFlagsOn=m.results.every(r=>r.idle.representation?.enabled===true&&!r.baseline);
+const first=new Map(m.results[0].sourceResources.map(r=>[r.runtimeName,r.servedSHA256]));
+gates.frozenBytes=m.results.every(r=>r.sourceResources.every(s=>first.get(s.runtimeName)===s.servedSHA256&&crypto.createHash('sha256').update(fs.readFileSync(s.file)).digest('hex')===s.servedSHA256));
+const maxWholeFrame=Math.max(...m.results.flatMap(r=>[r.nativePan.wholeFrames.max,r.nativeZoom.wholeFrames.max]));
+const result={matrix,generatedAt:new Date().toISOString(),rows,comparisons,gates,maxWholeFrame,caseFailures:m.results.filter(r=>r.failures.length).map(r=>({id:r.id,failures:r.failures})),protocol:m.protocol};
+fs.writeFileSync(path.join(dir,'performance-summary.json'),JSON.stringify(result,null,2));console.log(JSON.stringify(result,null,2));
+if(Object.values(gates).some(x=>!x))process.exitCode=1;

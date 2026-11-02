@@ -1,0 +1,38 @@
+[
+  {
+    "ProcessId": 7072,
+    "Name": "node.exe",
+    "ExecutablePath": "C:\\Program Files\\Adobe\\Adobe Creative Cloud Experience\\libs\\node.exe",
+    "CommandLine": "\"C:\\Program Files\\Adobe\\Adobe Creative Cloud Experience\\libs\\node.exe\" \"C:\\Program Files\\Adobe\\Adobe Creative Cloud Experience\\js\\main.js\""
+  },
+  {
+    "ProcessId": 32224,
+    "Name": "node.exe",
+    "ExecutablePath": "C:\\Users\\Administrator\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\node\\bin\\node.exe",
+    "CommandLine": "C:\\Users\\Administrator\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\node\\bin\\node.exe C:\\Users\\Administrator\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\node\\node_modules\\@oai\\artifact-tool\\dist\\artifact-session\\host-daemon.mjs"
+  },
+  {
+    "ProcessId": 21628,
+    "Name": "node.exe",
+    "ExecutablePath": "C:\\Users\\Administrator\\AppData\\Local\\OpenAI\\Codex\\runtimes\\cua_node\\2b841c3d44b123ec\\bin\\node.exe",
+    "CommandLine": "\"C:\\Users\\Administrator\\AppData\\Local\\OpenAI\\Codex\\runtimes\\cua_node\\2b841c3d44b123ec\\bin\\node.exe\" C:\\Users\\Administrator\\AppData\\Local\\OpenAI\\Codex\\runtimes\\cua_node\\2b841c3d44b123ec\\bin\\node_modules\\@oai\\cua-repl\\bin\\cua-repl.mjs"
+  },
+  {
+    "ProcessId": 33496,
+    "Name": "node.exe",
+    "ExecutablePath": "C:\\Users\\Administrator\\AppData\\Local\\OpenAI\\Codex\\runtimes\\cua_node\\2b841c3d44b123ec\\bin\\node.exe",
+    "CommandLine": "\"C:\\Users\\Administrator\\AppData\\Local\\OpenAI\\Codex\\runtimes\\cua_node\\2b841c3d44b123ec\\bin\\node.exe\"  ./server.mjs"
+  },
+  {
+    "ProcessId": 34700,
+    "Name": "node.exe",
+    "ExecutablePath": "C:\\Users\\Administrator\\AppData\\Local\\OpenAI\\Codex\\runtimes\\cua_node\\2b841c3d44b123ec\\bin\\node.exe",
+    "CommandLine": "\"C:\\Users\\Administrator\\AppData\\Local\\OpenAI\\Codex\\runtimes\\cua_node\\2b841c3d44b123ec\\bin\\node.exe\" C:\\Users\\Administrator\\AppData\\Local\\OpenAI\\Codex\\runtimes\\cua_node\\2b841c3d44b123ec\\bin\\node_modules\\@oai\\cua-repl\\bin\\cua-repl.mjs"
+  },
+  {
+    "ProcessId": 32772,
+    "Name": "node.exe",
+    "ExecutablePath": "C:\\Users\\Administrator\\AppData\\Local\\OpenAI\\Codex\\runtimes\\cua_node\\2b841c3d44b123ec\\bin\\node.exe",
+    "CommandLine": "\"C:\\Users\\Administrator\\AppData\\Local\\OpenAI\\Codex\\runtimes\\cua_node\\2b841c3d44b123ec\\bin\\node.exe\"  ./server.mjs"
+  }
+]

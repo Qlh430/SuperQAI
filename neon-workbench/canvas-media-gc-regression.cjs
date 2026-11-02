@@ -1,0 +1,40 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs/promises');
+const os = require('node:os');
+const path = require('node:path');
+(async () => {
+ const root = await fs.mkdtemp(path.join(os.tmpdir(),'canvas-gc-'));
+ try {
+  for(const name of ['canvas-media-gc-service','canvas-media-lifecycle','canvas-media-references']) await fs.copyFile(path.join(__dirname,'design-sources',name+'.js'),path.join(root,name+'.js'));
+  const {createCanvasMediaGcService}=require(path.join(root,'canvas-media-gc-service.js'));
+  const {withMediaMutation}=require(path.join(root,'canvas-media-lifecycle.js'));
+  const urls = ['active','trash','asset','foreign','orphan','duplicate','history','record','shared'].map(name=>'/output/'+name+'.png');
+  for(const url of urls) await fs.writeFile(path.join(root,url.slice(8)),'original');
+  const resources = urls.map((refId,id)=>({id:String(id),refType:'output_media',refId,ownerUserId:refId.includes('foreign')?'other':'owner'}));
+  resources.push({...resources[5],id:'alias'});
+  resources[6].metadata={source:'generated',url:urls[6]};
+  resources.push({id:'history-record',refType:'history_image',ownerUserId:'owner',metadata:{images:[{savedUrl:urls[7]}]}});
+  let refs = [urls[0],JSON.stringify({generationHistory:[{src:urls[1]}]})], thumbs=[];
+  const db = {getShareForResource:id=>id==='8'?{visibility:'all'}:null,listAllResources:()=>resources.filter(r=>!r.deletedAt),listCuratedAssets:()=>[{resourceId:'2',ownerUserId:'other',visibility:'private'}],getResource:id=>resources.find(r=>r.id===id),deleteResource:id=>{resources.find(r=>r.id===id).deletedAt='deleted';}};
+  const gc=createCanvasMediaGcService({outputDir:root,db,getCanvasStorage:()=>({repository:{invoke:async()=>refs}}),thumbnailStore:{remove:src=>thumbs.push(src)}});
+  const result=await gc.cleanupMedia({userId:'owner',candidates:[...urls,urls[4],'/output/../escape.png']});
+  assert.deepEqual(result.deleted.sort(),[urls[4],urls[5]].sort());
+  for(const url of urls.slice(0,4)) await fs.access(path.join(root,url.slice(8)));
+  assert.equal(resources[5].deletedAt,'deleted');assert.equal(resources.find(r=>r.id==='alias').deletedAt,'deleted');
+  for(const url of urls.slice(6)) await fs.access(path.join(root,url.slice(8)));assert.equal(thumbs.length,2);
+  let release; const pending = new Promise(resolve=>release=resolve); const order=[];
+  const first=withMediaMutation(async()=>{order.push('a');await withMediaMutation(async()=>order.push('nested'));await pending;order.push('b');});
+  const second=withMediaMutation(async()=>order.push('c'));await new Promise(resolve=>setImmediate(resolve));assert.deepEqual(order,['a','nested']);release();await Promise.all([first,second]);assert.deepEqual(order,['a','nested','b','c']);
+  const broken=createCanvasMediaGcService({outputDir:root,db,getCanvasStorage:()=>({repository:{invoke:async()=>{throw new Error('读取引用失败');}}})});
+  await assert.rejects(broken.cleanupMedia({userId:'owner',candidates:urls}), /读取引用失败/);
+  await fs.copyFile(path.join(__dirname,'design-sources/history-http-api.js'),path.join(root,'history-http-api.js'));
+  const historyFile=path.join(root,'history.json');
+  await fs.writeFile(historyFile,JSON.stringify([{id:'task',prompt:'保留提示词',images:[{savedUrl:urls[4]},{savedUrl:urls[0]}]}]));
+  const {createHistoryHttpApi}=require(path.join(root,'history-http-api.js'));
+  let response;
+  const history=createHistoryHttpApi({imageHistoryFile:historyFile,chatHistoryFile:historyFile,resolveHistoryFile:()=>historyFile,ensureReferencedResource:async()=>({}),getResourceByRef:(type,ref)=>resources.find(r=>r.refType===type&&r.refId===ref),deleteResource:()=>{},readJson:async()=>({}),sendJson:(res,status,body)=>response=body});
+  await history.handle({method:'GET',url:'/api/history/images',headers:{host:'localhost'},auth:{user:{id:'owner'}}},{});
+  assert.equal(response.records[0].prompt,'保留提示词');assert.deepEqual(response.records[0].images,[{savedUrl:urls[0]}]);
+  console.log('PASS active/trash/history/foreign/private cross-account asset protection; orphan + duplicate tombstones; thumbnail cleanup; reentrant serialization');
+ } finally {await fs.rm(root,{recursive:true,force:true});}
+})().catch(error=>{console.error(error);process.exitCode=1;});

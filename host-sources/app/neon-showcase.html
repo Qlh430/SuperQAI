@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Neon Design System - AI OS 组件展示</title>
+  <link rel="stylesheet" href="./neon-tokens.css">
+  <link rel="stylesheet" href="./neon-components.css">
+  <style>
+    body {
+      padding: 2rem;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .showcase-header {
+      text-align: center;
+      margin-bottom: 3rem;
+      padding-bottom: 2rem;
+      border-bottom: 2px solid var(--neon-border);
+    }
+
+    .showcase-header h1 {
+      font-size: 3rem;
+      color: var(--neon-primary);
+      text-shadow: var(--neon-glow-subtle);
+      margin-bottom: 1rem;
+    }
+
+    .color-palette {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1rem;
+      margin: 2rem 0;
+    }
+
+    .color-swatch {
+      padding: 2rem 1rem;
+      border-radius: var(--neon-radius-md);
+      text-align: center;
+      border: 1px solid var(--neon-border);
+    }
+
+    .color-swatch .color-name {
+      font-weight: var(--neon-font-semibold);
+      margin-bottom: 0.5rem;
+    }
+
+    .color-swatch .color-value {
+      font-family: var(--neon-font-mono);
+      font-size: var(--neon-text-sm);
+      opacity: 0.7;
+    }
+
+    .section {
+      margin-bottom: 4rem;
+    }
+
+    .section-title {
+      font-size: 2rem;
+      color: var(--neon-primary);
+      margin-bottom: 1.5rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid var(--neon-primary);
+    }
+
+    .component-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 2rem;
+    }
+
+    .component-card {
+      background: var(--neon-card);
+      border: 1px solid var(--neon-border);
+      border-radius: var(--neon-radius-lg);
+      padding: 1.5rem;
+    }
+
+    .component-title {
+      font-size: 1.25rem;
+      font-weight: var(--neon-font-semibold);
+      margin-bottom: 1rem;
+      color: var(--neon-foreground);
+    }
+
+    .button-group {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+
+    .form-group {
+      margin-bottom: 1rem;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: var(--neon-font-medium);
+    }
+
+    .demo-table {
+      width: 100%;
+      margin-top: 1rem;
+    }
+
+    .demo-message {
+      margin-bottom: 1rem;
+    }
+
+    .demo-progress-container {
+      margin-bottom: 1rem;
+    }
+
+    .demo-badge-group {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+
+    .demo-card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1rem;
+      margin-top: 2rem;
+    }
+
+    .stat-card {
+      background: var(--neon-card);
+      border: 1px solid var(--neon-border);
+      border-radius: var(--neon-radius-lg);
+      padding: 1.5rem;
+      text-align: center;
+      transition: var(--neon-transition-base);
+    }
+
+    .stat-card:hover {
+      border-color: var(--neon-primary);
+      box-shadow: var(--neon-glow-subtle);
+      transform: translateY(-2px);
+    }
+
+    .stat-value {
+      font-size: 2.5rem;
+      font-weight: var(--neon-font-bold);
+      color: var(--neon-primary);
+      text-shadow: var(--neon-glow-subtle);
+    }
+
+    .stat-label {
+      color: var(--neon-muted-fg);
+      font-size: var(--neon-text-sm);
+      margin-top: 0.5rem;
+    }
+
+    .chat-demo {
+      max-width: 600px;
+      margin: 2rem auto;
+    }
+
+    .canvas-demo {
+      background: var(--neon-background);
+      border: 1px solid var(--neon-border);
+      border-radius: var(--neon-radius-lg);
+      padding: 2rem;
+      min-height: 300px;
+      position: relative;
+    }
+
+    .demo-node {
+      position: absolute;
+      width: 120px;
+      padding: 1rem;
+      background: var(--neon-card);
+      border: 2px solid var(--neon-border);
+      border-radius: var(--neon-radius-lg);
+      cursor: move;
+      transition: var(--neon-transition-base);
+    }
+
+    .demo-node:hover {
+      border-color: var(--neon-primary);
+      box-shadow: var(--neon-glow-subtle);
+    }
+
+    .demo-node.selected {
+      border-color: var(--neon-primary);
+      box-shadow: var(--neon-glow-primary);
+    }
+
+    .chart-demo {
+      display: flex;
+      gap: 1rem;
+      margin-top: 1rem;
+      align-items: flex-end;
+      height: 200px;
+    }
+
+    .chart-bar {
+      flex: 1;
+      background: var(--neon-primary);
+      border-radius: var(--neon-radius-sm) var(--neon-radius-sm) 0 0;
+      box-shadow: var(--neon-glow-subtle);
+      transition: var(--neon-transition-base);
+      cursor: pointer;
+    }
+
+    .chart-bar:hover {
+      box-shadow: var(--neon-glow-primary);
+      transform: translateY(-4px);
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <div class="showcase-header">
+    <h1>⚡ Neon Design System</h1>
+    <p style="font-size: 1.25rem; color: var(--neon-muted-fg);">
+      AI OS 统一设计语言 - 暗黑科技 × 霓虹美学
+    </p>
+  </div>
+
+  <!-- Color Palette -->
+  <section class="section">
+    <h2 class="section-title">🎨 色彩系统</h2>
+    <div class="color-palette">
+      <div class="color-swatch" style="background: var(--neon-background); color: var(--neon-foreground);">
+        <div class="color-name">Background</div>
+        <div class="color-value">#0f0f0f</div>
+      </div>
+      <div class="color-swatch" style="background: var(--neon-card); color: var(--neon-foreground);">
+        <div class="color-name">Card</div>
+        <div class="color-value">#1a1a1a</div>
+      </div>
+      <div class="color-swatch" style="background: var(--neon-primary); color: var(--neon-primary-fg);">
+        <div class="color-name">Primary</div>
+        <div class="color-value">#00ff41</div>
+      </div>
+      <div class="color-swatch" style="background: var(--neon-destructive); color: var(--neon-destructive-fg);">
+        <div class="color-name">Destructive</div>
+        <div class="color-value">#ff0041</div>
+      </div>
+      <div class="color-swatch" style="background: var(--neon-border); color: var(--neon-foreground);">
+        <div class="color-name">Border</div>
+        <div class="color-value">#2a2a2a</div>
+      </div>
+      <div class="color-swatch" style="background: var(--neon-muted); color: var(--neon-foreground);">
+        <div class="color-name">Muted</div>
+        <div class="color-value">#2a2a2a</div>
+      </div>
+    </div>
+
+    <h3 style="margin-top: 2rem; color: var(--neon-foreground);">图表色板</h3>
+    <div class="color-palette">
+      <div class="color-swatch" style="background: var(--neon-chart-1); color: var(--neon-primary-fg);">
+        <div class="color-name">Chart 1</div>
+        <div class="color-value">#00ff41</div>
+      </div>
+      <div class="color-swatch" style="background: var(--neon-chart-2); color: var(--neon-primary-fg);">
+        <div class="color-name">Chart 2</div>
+        <div class="color-value">#00ffaa</div>
+      </div>
+      <div class="color-swatch" style="background: var(--neon-chart-3); color: var(--neon-primary-fg);">
+        <div class="color-name">Chart 3</div>
+        <div class="color-value">#00ff88</div>
+      </div>
+      <div class="color-swatch" style="background: var(--neon-chart-4); color: var(--neon-primary-fg);">
+        <div class="color-name">Chart 4</div>
+        <div class="color-value">#33ff66</div>
+      </div>
+      <div class="color-swatch" style="background: var(--neon-chart-5); color: var(--neon-primary-fg);">
+        <div class="color-name">Chart 5</div>
+        <div class="color-value">#66ff99</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Buttons -->
+  <section class="section">
+    <h2 class="section-title">🔘 按钮系统</h2>
+    <div class="component-grid">
+      <div class="component-card">
+        <div class="component-title">Primary Buttons</div>
+        <div class="button-group">
+          <button class="neon-btn neon-btn-primary">Primary</button>
+          <button class="neon-btn neon-btn-primary" disabled>Disabled</button>
+        </div>
+      </div>
+      <div class="component-card">
+        <div class="component-title">Secondary Buttons</div>
+        <div class="button-group">
+          <button class="neon-btn neon-btn-secondary">Secondary</button>
+          <button class="neon-btn neon-btn-secondary" disabled>Disabled</button>
+        </div>
+      </div>
+      <div class="component-card">
+        <div class="component-title">Destructive Buttons</div>
+        <div class="button-group">
+          <button class="neon-btn neon-btn-destructive">Delete</button>
+          <button class="neon-btn neon-btn-destructive" disabled>Disabled</button>
+        </div>
+      </div>
+      <div class="component-card">
+        <div class="component-title">Ghost Buttons</div>
+        <div class="button-group">
+          <button class="neon-btn neon-btn-ghost">Ghost</button>
+          <button class="neon-btn neon-btn-ghost" disabled>Disabled</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Forms -->
+  <section class="section">
+    <h2 class="section-title">📝 表单组件</h2>
+    <div class="component-grid">
+      <div class="component-card">
+        <div class="component-title">Input Fields</div>
+        <div class="form-group">
+          <label>Text Input</label>
+          <input type="text" class="neon-input" placeholder="输入文字...">
+        </div>
+        <div class="form-group">
+          <label>Password Input</label>
+          <input type="password" class="neon-input" placeholder="输入密码...">
+        </div>
+        <div class="form-group">
+          <label>Disabled Input</label>
+          <input type="text" class="neon-input" value="不可编辑" disabled>
+        </div>
+      </div>
+
+      <div class="component-card">
+        <div class="component-title">Textarea & Select</div>
+        <div class="form-group">
+          <label>Textarea</label>
+          <textarea class="neon-textarea" rows="3" placeholder="输入多行文本..."></textarea>
+        </div>
+        <div class="form-group">
+          <label>Select Dropdown</label>
+          <select class="neon-select">
+            <option>选项 1</option>
+            <option>选项 2</option>
+            <option>选项 3</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="component-card">
+        <div class="component-title">Checkboxes & Radio</div>
+        <div class="form-group">
+          <label style="display: flex; align-items: center; gap: 0.5rem;">
+            <input type="checkbox" checked>
+            Checkbox Checked
+          </label>
+          <label style="display: flex; align-items: center; gap: 0.5rem;">
+            <input type="checkbox">
+            Checkbox Unchecked
+          </label>
+        </div>
+        <div class="form-group">
+          <label style="display: flex; align-items: center; gap: 0.5rem;">
+            <input type="radio" name="demo" checked>
+            Radio Option 1
+          </label>
+          <label style="display: flex; align-items: center; gap: 0.5rem;">
+            <input type="radio" name="demo">
+            Radio Option 2
+          </label>
+        </div>
+      </div>
+
+      <div class="component-card">
+        <div class="component-title">Toggle Switch</div>
+        <div class="form-group">
+          <label style="display: flex; align-items: center; gap: 1rem;">
+            <input type="checkbox" class="toggle" checked>
+            <span>启用功能</span>
+          </label>
+        </div>
+        <div class="form-group">
+          <label style="display: flex; align-items: center; gap: 1rem;">
+            <input type="checkbox" class="toggle">
+            <span>禁用功能</span>
+          </label>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Alerts & Feedback -->
+  <section class="section">
+    <h2 class="section-title">⚠️ 反馈组件</h2>
+    <div class="component-grid">
+      <div class="component-card">
+        <div class="component-title">Alert Messages</div>
+        <div class="neon-alert neon-alert-success">
+          <strong>成功!</strong> 操作已完成
+        </div>
+        <div class="neon-alert neon-alert-error">
+          <strong>错误!</strong> 操作失败
+        </div>
+        <div class="neon-alert neon-alert-warning">
+          <strong>警告!</strong> 请注意
+        </div>
+        <div class="neon-alert neon-alert-info">
+          <strong>提示</strong> 这是一条信息
+        </div>
+      </div>
+
+      <div class="component-card">
+        <div class="component-title">Badges & Tags</div>
+        <div class="demo-badge-group">
+          <span class="neon-badge">Default</span>
+          <span class="neon-badge neon-badge-secondary">Secondary</span>
+          <span class="neon-badge neon-badge-destructive">Destructive</span>
+        </div>
+      </div>
+
+      <div class="component-card">
+        <div class="component-title">Progress Bars</div>
+        <div class="demo-progress-container">
+          <div class="neon-progress">
+            <div class="neon-progress-bar" style="width: 25%;"></div>
+          </div>
+        </div>
+        <div class="demo-progress-container">
+          <div class="neon-progress">
+            <div class="neon-progress-bar" style="width: 50%;"></div>
+          </div>
+        </div>
+        <div class="demo-progress-container">
+          <div class="neon-progress">
+            <div class="neon-progress-bar" style="width: 75%;"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="component-card">
+        <div class="component-title">Loading Spinner</div>
+        <div style="display: flex; justify-content: center; padding: 2rem;">
+          <div class="neon-spinner"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Cards & Layout -->
+  <section class="section">
+    <h2 class="section-title">📦 卡片与布局</h2>
+    <div class="demo-card-grid">
+      <div class="neon-card">
+        <h3 style="margin-top: 0;">卡片标题</h3>
+        <p>这是一个标准的 Neon 卡片组件，带有深灰背景和边框。</p>
+        <button class="neon-btn neon-btn-primary">操作</button>
+      </div>
+      <div class="neon-card">
+        <h3 style="margin-top: 0;">悬停效果</h3>
+        <p>鼠标悬停时会显示霓虹绿边框和微弱发光效果。</p>
+        <button class="neon-btn neon-btn-secondary">查看更多</button>
+      </div>
+      <div class="neon-card">
+        <h3 style="margin-top: 0;">交互卡片</h3>
+        <p>所有卡片都支持点击和悬停交互。</p>
+        <button class="neon-btn neon-btn-ghost">详情</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Data Display -->
+  <section class="section">
+    <h2 class="section-title">📊 数据展示</h2>
+    <div class="component-card">
+      <div class="component-title">Table</div>
+      <table class="demo-table">
+        <thead>
+          <tr>
+            <th>名称</th>
+            <th>状态</th>
+            <th>进度</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>项目 A</td>
+            <td><span class="neon-badge">进行中</span></td>
+            <td>75%</td>
+            <td><button class="neon-btn neon-btn-ghost" style="padding: 0.25rem 0.75rem; font-size: 0.875rem;">编辑</button></td>
+          </tr>
+          <tr>
+            <td>项目 B</td>
+            <td><span class="neon-badge neon-badge-secondary">已完成</span></td>
+            <td>100%</td>
+            <td><button class="neon-btn neon-btn-ghost" style="padding: 0.25rem 0.75rem; font-size: 0.875rem;">查看</button></td>
+          </tr>
+          <tr>
+            <td>项目 C</td>
+            <td><span class="neon-badge neon-badge-destructive">已取消</span></td>
+            <td>0%</td>
+            <td><button class="neon-btn neon-btn-ghost" style="padding: 0.25rem 0.75rem; font-size: 0.875rem;">删除</button></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Stats Grid -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-value">1,234</div>
+        <div class="stat-label">总用户数</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">567</div>
+        <div class="stat-label">活跃会话</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">89%</div>
+        <div class="stat-label">成功率</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">42</div>
+        <div class="stat-label">任务队列</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- AI Chat Demo -->
+  <section class="section">
+    <h2 class="section-title">💬 AI 对话界面</h2>
+    <div class="chat-demo">
+      <div class="neon-message neon-message-user">
+        <strong>用户:</strong> 你好，请帮我生成一段代码
+      </div>
+      <div class="neon-message neon-message-assistant">
+        <strong>AI:</strong> 好的，这是一个 Python 示例：
+        <pre style="margin-top: 0.5rem;"><code>def hello_world():
+    print("Hello, World!")
+    return True</code></pre>
+      </div>
+      <div class="neon-message neon-message-user">
+        <strong>用户:</strong> 完美，谢谢！
+      </div>
+    </div>
+  </section>
+
+  <!-- Canvas Demo -->
+  <section class="section">
+    <h2 class="section-title">🎨 画布节点</h2>
+    <div class="canvas-demo">
+      <div class="demo-node" style="top: 50px; left: 50px;">
+        <div style="font-weight: 600; margin-bottom: 0.5rem;">节点 A</div>
+        <div style="font-size: 0.875rem; color: var(--neon-muted-fg);">输入节点</div>
+      </div>
+      <div class="demo-node selected" style="top: 50px; left: 250px;">
+        <div style="font-weight: 600; margin-bottom: 0.5rem;">节点 B</div>
+        <div style="font-size: 0.875rem; color: var(--neon-muted-fg);">处理节点</div>
+      </div>
+      <div class="demo-node" style="top: 50px; left: 450px;">
+        <div style="font-weight: 600; margin-bottom: 0.5rem;">节点 C</div>
+        <div style="font-size: 0.875rem; color: var(--neon-muted-fg);">输出节点</div>
+      </div>
+      <svg style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;">
+        <line x1="170" y1="80" x2="250" y2="80" stroke="var(--neon-primary)" stroke-width="2" filter="drop-shadow(0 0 4px var(--neon-primary))" />
+        <line x1="370" y1="80" x2="450" y2="80" stroke="var(--neon-primary)" stroke-width="2" filter="drop-shadow(0 0 4px var(--neon-primary))" />
+      </svg>
+    </div>
+  </section>
+
+  <!-- Charts Demo -->
+  <section class="section">
+    <h2 class="section-title">📈 图表示例</h2>
+    <div class="component-card">
+      <div class="component-title">Bar Chart (示意)</div>
+      <div class="chart-demo">
+        <div class="chart-bar" style="height: 60%; background: var(--neon-chart-1);"></div>
+        <div class="chart-bar" style="height: 80%; background: var(--neon-chart-2);"></div>
+        <div class="chart-bar" style="height: 45%; background: var(--neon-chart-3);"></div>
+        <div class="chart-bar" style="height: 90%; background: var(--neon-chart-4);"></div>
+        <div class="chart-bar" style="height: 70%; background: var(--neon-chart-5);"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer style="text-align: center; padding: 3rem 0; border-top: 1px solid var(--neon-border); margin-top: 4rem;">
+    <p style="color: var(--neon-muted-fg);">
+      Neon Design System v1.0 | AI OS Portable
+    </p>
+    <p style="color: var(--neon-primary); margin-top: 0.5rem;">
+      ⚡ 暗黑科技 × 霓虹美学 ⚡
+    </p>
+  </footer>
+
+  <script>
+    // 简单的交互演示
+    document.querySelectorAll('.demo-node').forEach(node => {
+      node.addEventListener('click', function() {
+        document.querySelectorAll('.demo-node').forEach(n => n.classList.remove('selected'));
+        this.classList.add('selected');
+      });
+    });
+
+    // 图表动画
+    const chartBars = document.querySelectorAll('.chart-bar');
+    chartBars.forEach((bar, index) => {
+      bar.style.height = '0%';
+      setTimeout(() => {
+        bar.style.height = [60, 80, 45, 90, 70][index] + '%';
+      }, 100 * (index + 1));
+    });
+  </script>
+</body>
+</html>

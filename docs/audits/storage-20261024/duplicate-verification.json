@@ -1,0 +1,120 @@
+{
+  "golden": {
+    "golden": {
+      "files": 26357,
+      "manifest_files": 26357,
+      "mismatches": [],
+      "extras": []
+    },
+    "restore": {
+      "files": 26357,
+      "manifest_files": 26357,
+      "mismatches": [],
+      "extras": []
+    }
+  },
+  "publish": [
+    {
+      "directory": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.publish\\SuperQAI\\dist\\AI-OS-Portable-2.0.1-win-x64",
+      "retained_zip": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.publish\\SuperQAI\\dist\\release\\2.0.1\\AI-OS-Portable-2.0.1-win-x64.zip",
+      "files": 1245,
+      "zip_files": 1245,
+      "mismatches": [],
+      "zip_only": []
+    },
+    {
+      "directory": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.publish\\SuperQAI\\dist\\AI-OS-Portable-2.0.2-win-x64",
+      "retained_zip": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.publish\\SuperQAI\\dist\\release\\2.0.2\\AI-OS-Portable-2.0.2-win-x64.zip",
+      "files": 1247,
+      "zip_files": 1247,
+      "mismatches": [],
+      "zip_only": []
+    },
+    {
+      "directory": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.publish\\SuperQAI\\dist\\AI-OS-Portable-2.0.3-win-x64",
+      "retained_zip": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.publish\\SuperQAI\\dist\\release\\2.0.3\\AI-OS-Portable-2.0.3-win-x64.zip",
+      "files": 1247,
+      "zip_files": 1247,
+      "mismatches": [],
+      "zip_only": []
+    },
+    {
+      "directory": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.publish\\SuperQAI\\dist\\AI-OS-Portable-2.0.4-win-x64",
+      "retained_zip": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.publish\\SuperQAI\\dist\\release\\2.0.4\\AI-OS-Portable-2.0.4-win-x64.zip",
+      "files": 1247,
+      "zip_files": 1247,
+      "mismatches": [],
+      "zip_only": []
+    },
+    {
+      "directory": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.publish\\SuperQAI\\dist\\AI-OS-Portable-2.0.5-win-x64",
+      "retained_zip": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.publish\\SuperQAI\\dist\\release\\2.0.5\\AI-OS-Portable-2.0.5-win-x64.zip",
+      "files": 1246,
+      "zip_files": 1246,
+      "mismatches": [],
+      "zip_only": []
+    },
+    {
+      "directory": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.publish\\SuperQAI\\dist\\AI-OS-Portable-2.0.6-win-x64",
+      "retained_zip": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.publish\\SuperQAI\\dist\\release\\2.0.6\\AI-OS-Portable-2.0.6-win-x64.zip",
+      "files": 1286,
+      "zip_files": 1246,
+      "mismatches": [
+        ".ai-runtime/versions/2.0.6-win-x64/patch-backup-20261014-094743/ai-os-components.json",
+        ".ai-runtime/versions/2.0.6-win-x64/patch-backup-20261014-094743/auth-service.js",
+        ".ai-runtime/versions/2.0.6-win-x64/patch-backup-20261014-094743/desktop-shell.js",
+        ".ai-runtime/versions/2.0.6-win-x64/patch-backup-20261014-094743/flora-node-shell.css",
+        ".ai-runtime/versions/2.0.6-win-x64/patch-backup-20261014-094743/flora-node-tags.css",
+        ".ai-runtime/versions/2.0.6-win-x64/patch-backup-20261014-094743/index.html",
+        ".ai-runtime/versions/2.0.6-win-x64/patch-backup-20261014-094743/neon-canvas-surface.css",
+        ".ai-runtime/versions/2.0.6-win-x64/patch-backup-20261014-094743/neon-host-bridge.js",
+        ".ai-runtime/versions/2.0.6-win-x64/patch-backup-20261014-094743/neon-workbench.css",
+        ".ai-runtime/versions/2.0.6-win-x64/patch-backup-20261014-094743/neon-workbench.html",
+        ".ai-runtime/versions/2.0.6-win-x64/patch-backup-20261014-094743/neon-workbench.js",
+        ".ai-runtime/versions/2.0.6-win-x64/patch-backup-20261014-094743/package.json",
+        ".ai-runtime/versions/2.0.6-win-x64/patch-backup-20261014-094743/script.js",
+        ".ai-runtime/versions/2.0.6-win-x64/patch-backup-20261014-095115/index.html",
+        ".ai-runtime/versions/2.0.6-win-x64/patch-backup-20261014-095115/neon-workbench.css",
+        ".ai-runtime/versions/2.0.6-win-x64/patch-backup-20261014-095115/neon-workbench.js",
+        ".ai-runtime/versions/2.0.6-win-x64/resources/app/ai-os-components.json",
+        ".ai-runtime/versions/2.0.6-win-x64/resources/app/auth-service.js",
+        ".ai-runtime/versions/2.0.6-win-x64/resources/app/desktop-shell.js",
+        ".ai-runtime/versions/2.0.6-win-x64/resources/app/flora-node-shell.css",
+        ".ai-runtime/versions/2.0.6-win-x64/resources/app/flora-node-tags.css",
+        ".ai-runtime/versions/2.0.6-win-x64/resources/app/index.html",
+        ".ai-runtime/versions/2.0.6-win-x64/resources/app/neon-canvas-surface.css",
+        ".ai-runtime/versions/2.0.6-win-x64/resources/app/NEON-COMPLETE-SUMMARY.md",
+        ".ai-runtime/versions/2.0.6-win-x64/resources/app/NEON-DEPLOYMENT-COMPLETE.md",
+        ".ai-runtime/versions/2.0.6-win-x64/resources/app/NEON-DEVIATION-AUDIT.md",
+        ".ai-runtime/versions/2.0.6-win-x64/resources/app/neon-host-bridge.js",
+        ".ai-runtime/versions/2.0.6-win-x64/resources/app/NEON-IMPLEMENTATION-STATUS.md",
+        ".ai-runtime/versions/2.0.6-win-x64/resources/app/NEON-MIGRATION-PLAN.md",
+        ".ai-runtime/versions/2.0.6-win-x64/resources/app/NEON-REDESIGN-PLAN.md",
+        ".ai-runtime/versions/2.0.6-win-x64/resources/app/NEON-STAGE3-PROGRESS.md",
+        ".ai-runtime/versions/2.0.6-win-x64/resources/app/neon-workbench.css",
+        ".ai-runtime/versions/2.0.6-win-x64/resources/app/neon-workbench.html",
+        ".ai-runtime/versions/2.0.6-win-x64/resources/app/neon-workbench.js",
+        ".ai-runtime/versions/2.0.6-win-x64/resources/app/package.json",
+        ".ai-runtime/versions/2.0.6-win-x64/resources/app/PAGE-AUDIT-01-HOME.md",
+        ".ai-runtime/versions/2.0.6-win-x64/resources/app/PAGE-AUDIT-02-PROJECT.md",
+        ".ai-runtime/versions/2.0.6-win-x64/resources/app/PAGE-AUDIT-03-ASSETS.md",
+        ".ai-runtime/versions/2.0.6-win-x64/resources/app/PAGE-AUDIT-04-HISTORY.md",
+        ".ai-runtime/versions/2.0.6-win-x64/resources/app/PAGE-AUDIT-05-SETTINGS.md",
+        ".ai-runtime/versions/2.0.6-win-x64/resources/app/PAGE-AUDIT-06-ACCOUNT.md",
+        ".ai-runtime/versions/2.0.6-win-x64/resources/app/PAGE-AUDIT-07-CREATIVE.md",
+        ".ai-runtime/versions/2.0.6-win-x64/resources/app/PAGE-AUDIT-BASELINE.md",
+        ".ai-runtime/versions/2.0.6-win-x64/resources/app/script.js",
+        ".ai-runtime/versions/2.0.6-win-x64/resources/app/test-neon.bat",
+        ".ai-runtime/versions/2.0.6-win-x64/resources/app/skills/asset-setting/SKILL.md",
+        ".ai-runtime/versions/2.0.6-win-x64/resources/app/skills/asset-setting/references/preparation.md",
+        ".ai-runtime/versions/2.0.6-win-x64/resources/app/skills/script-breakdown/SKILL.md",
+        ".ai-runtime/versions/2.0.6-win-x64/resources/app/skills/script-breakdown/references/preparation.md",
+        ".ai-runtime/versions/2.0.6-win-x64/resources/app/skills/storyboard-preparation/SKILL.md",
+        ".ai-runtime/versions/2.0.6-win-x64/resources/app/skills/storyboard-preparation/references/preparation.md",
+        ".ai-runtime/versions/2.0.6-win-x64/resources/app/skills/video-preparation/SKILL.md",
+        ".ai-runtime/versions/2.0.6-win-x64/resources/app/skills/video-preparation/references/preparation.md"
+      ],
+      "zip_only": []
+    }
+  ]
+}

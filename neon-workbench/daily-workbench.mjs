@@ -6,7 +6,7 @@ import { componentTargets } from './component-deploy.mjs'
 const frontendGroups = [
   'workbench-frontend', 'canvas-light-visual', 'canvas-text-scroll', 'canvas-fullscreen-original-preview', 'generator-empty-placeholder',
   'audio-node-appearance', 'canvas-media-stability', 'canvas-asset-library', 'canvas-group-visual',
-  'canvas-final-adjustments', 'canvas-redraw-frontend', 'startup-gate', 'brand-display',
+  'canvas-final-adjustments', 'canvas-redraw-frontend', 'startup-gate', 'brand-display', 'canvas-agent-context',
   ...['tool-crop', 'tool-outpaint', 'tool-angle', 'tool-upscale', 'node-image',
     'node-video', 'node-audio', 'node-text', 'node-note', 'node-script', 'node-upload'],
 ]

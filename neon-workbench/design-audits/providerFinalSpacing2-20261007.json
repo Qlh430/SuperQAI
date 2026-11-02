@@ -1,0 +1,841 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "Spacing needs attention. Checked at 1440px.\n\nAdd 390 and 1728px to cover every recommended width.\n\n- 平台协议 (provider-1440-focus): Uneven side padding. Match the sides unless the difference is intentional.\nSee the report for more results, or use detail: \"full\" for all measurements in text.\n\nThis measured geometry only. A clean result or a score of 100 is not visual approval: it cannot judge hierarchy, density or whether the design works."
+    }
+  ],
+  "structuredContent": {
+    "status": "completed",
+    "score": 65,
+    "summary": {
+      "critical": 0,
+      "serious": 3,
+      "moderate": 1,
+      "total": 4
+    },
+    "findings": [
+      {
+        "ruleId": "spacing/asymmetric-horizontal-inset",
+        "state": "provider-1440-focus",
+        "severity": "serious",
+        "message": "平台协议 has asymmetric horizontal padding: 12px left and 36px right.",
+        "fix": "Use the same spacing token on both horizontal edges, unless the asymmetry is intentional and documented.",
+        "elementIds": [
+          "qa-provider-10"
+        ],
+        "evidence": [
+          {
+            "label": "Left padding",
+            "value": 12,
+            "unit": "px"
+          },
+          {
+            "label": "Right padding",
+            "value": 36,
+            "unit": "px"
+          },
+          {
+            "label": "Difference",
+            "value": 24,
+            "unit": "px"
+          }
+        ],
+        "id": "spacing-1"
+      },
+      {
+        "ruleId": "spacing/asymmetric-horizontal-inset",
+        "state": "provider-1440-focus",
+        "severity": "serious",
+        "message": "网络线路 has asymmetric horizontal padding: 12px left and 36px right.",
+        "fix": "Use the same spacing token on both horizontal edges, unless the asymmetry is intentional and documented.",
+        "elementIds": [
+          "qa-provider-17"
+        ],
+        "evidence": [
+          {
+            "label": "Left padding",
+            "value": 12,
+            "unit": "px"
+          },
+          {
+            "label": "Right padding",
+            "value": 36,
+            "unit": "px"
+          },
+          {
+            "label": "Difference",
+            "value": 24,
+            "unit": "px"
+          }
+        ],
+        "id": "spacing-2"
+      },
+      {
+        "ruleId": "spacing/off-scale-value",
+        "state": "provider-1440-focus",
+        "severity": "moderate",
+        "message": "provider-1440-focus uses 3 off-scale spacing values across 15 elements: 6px, 20px, 36px.",
+        "fix": "Replace the measured values with the nearest project spacing token. Active scale: 4, 8, 12, 16, 24, 32, 44, 48, 64, 96, 128px.",
+        "elementIds": [
+          "qa-provider-2",
+          "qa-provider-5",
+          "qa-provider-6",
+          "qa-provider-7",
+          "qa-provider-10",
+          "qa-provider-17",
+          "qa-provider-24",
+          "qa-provider-25",
+          "qa-provider-26",
+          "qa-provider-29",
+          "qa-provider-39",
+          "qa-provider-42",
+          "qa-provider-45",
+          "qa-provider-60",
+          "qa-provider-135"
+        ],
+        "evidence": [
+          {
+            "label": "qa-provider-2 margin bottom",
+            "value": 6,
+            "unit": "px"
+          },
+          {
+            "label": "qa-provider-5 margin bottom",
+            "value": 20,
+            "unit": "px"
+          },
+          {
+            "label": "qa-provider-6 padding top",
+            "value": 6,
+            "unit": "px"
+          },
+          {
+            "label": "qa-provider-6 padding bottom",
+            "value": 6,
+            "unit": "px"
+          },
+          {
+            "label": "qa-provider-7 margin bottom",
+            "value": 20,
+            "unit": "px"
+          },
+          {
+            "label": "平台协议 padding top",
+            "value": 6,
+            "unit": "px"
+          },
+          {
+            "label": "平台协议 padding right",
+            "value": 36,
+            "unit": "px"
+          },
+          {
+            "label": "平台协议 padding bottom",
+            "value": 6,
+            "unit": "px"
+          },
+          {
+            "label": "网络线路 padding top",
+            "value": 6,
+            "unit": "px"
+          },
+          {
+            "label": "网络线路 padding right",
+            "value": 36,
+            "unit": "px"
+          },
+          {
+            "label": "网络线路 padding bottom",
+            "value": 6,
+            "unit": "px"
+          },
+          {
+            "label": "qa-provider-24 margin bottom",
+            "value": 20,
+            "unit": "px"
+          },
+          {
+            "label": "qa-provider-25 padding top",
+            "value": 6,
+            "unit": "px"
+          },
+          {
+            "label": "qa-provider-25 padding bottom",
+            "value": 6,
+            "unit": "px"
+          },
+          {
+            "label": "qa-provider-26 margin bottom",
+            "value": 20,
+            "unit": "px"
+          },
+          {
+            "label": "qa-provider-29 padding top",
+            "value": 6,
+            "unit": "px"
+          },
+          {
+            "label": "qa-provider-29 padding bottom",
+            "value": 6,
+            "unit": "px"
+          },
+          {
+            "label": "qa-provider-39 margin bottom",
+            "value": 20,
+            "unit": "px"
+          },
+          {
+            "label": "qa-provider-42 margin bottom",
+            "value": 20,
+            "unit": "px"
+          },
+          {
+            "label": "手动添加模型 ID padding top",
+            "value": 6,
+            "unit": "px"
+          }
+        ],
+        "id": "spacing-3"
+      },
+      {
+        "ruleId": "spacing/clipped-content",
+        "state": "provider-1440-focus",
+        "severity": "serious",
+        "message": "qa-provider-209 clips horizontal and vertical content.",
+        "fix": "Remove the conflicting fixed size, allow wrapping, or make overflow intentionally scrollable.",
+        "elementIds": [
+          "qa-provider-209"
+        ],
+        "evidence": [
+          {
+            "label": "Client width",
+            "value": 1,
+            "unit": "px"
+          },
+          {
+            "label": "Scroll width",
+            "value": 32,
+            "unit": "px"
+          },
+          {
+            "label": "Client height",
+            "value": 1,
+            "unit": "px"
+          },
+          {
+            "label": "Scroll height",
+            "value": 24,
+            "unit": "px"
+          }
+        ],
+        "id": "spacing-4"
+      }
+    ],
+    "states": [
+      {
+        "name": "provider-1440-focus",
+        "viewport": {
+          "width": 1440,
+          "height": 960,
+          "devicePixelRatio": 1
+        },
+        "elements": [
+          {
+            "id": "qa-provider-0",
+            "rect": {
+              "x": 267,
+              "y": 48,
+              "width": 896,
+              "height": 864
+            }
+          },
+          {
+            "id": "qa-provider-1",
+            "rect": {
+              "x": 292,
+              "y": 73,
+              "width": 846,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-provider-2",
+            "rect": {
+              "x": 292,
+              "y": 73,
+              "width": 814,
+              "height": 18
+            }
+          },
+          {
+            "id": "qa-provider-3",
+            "rect": {
+              "x": 292,
+              "y": 97,
+              "width": 814,
+              "height": 20
+            }
+          },
+          {
+            "id": "qa-provider-4",
+            "rect": {
+              "x": 292,
+              "y": 133,
+              "width": 846,
+              "height": 845
+            }
+          },
+          {
+            "id": "qa-provider-5",
+            "rect": {
+              "x": 292,
+              "y": 133,
+              "width": 846,
+              "height": 72
+            }
+          },
+          {
+            "id": "qa-provider-6",
+            "rect": {
+              "x": 292,
+              "y": 161,
+              "width": 846,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-provider-7",
+            "rect": {
+              "x": 292,
+              "y": 225,
+              "width": 846,
+              "height": 72
+            }
+          },
+          {
+            "id": "qa-provider-8",
+            "rect": {
+              "x": 292,
+              "y": 225,
+              "width": 415,
+              "height": 72
+            }
+          },
+          {
+            "id": "qa-provider-9",
+            "rect": {
+              "x": 292,
+              "y": 253,
+              "width": 415,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-provider-10",
+            "label": "平台协议",
+            "rect": {
+              "x": 292,
+              "y": 253,
+              "width": 415,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-provider-12",
+            "rect": {
+              "x": 679,
+              "y": 267,
+              "width": 16,
+              "height": 16
+            }
+          },
+          {
+            "id": "qa-provider-15",
+            "rect": {
+              "x": 723,
+              "y": 225,
+              "width": 415,
+              "height": 72
+            }
+          },
+          {
+            "id": "qa-provider-16",
+            "rect": {
+              "x": 723,
+              "y": 253,
+              "width": 415,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-provider-17",
+            "label": "网络线路",
+            "rect": {
+              "x": 723,
+              "y": 253,
+              "width": 415,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-provider-21",
+            "rect": {
+              "x": 1110,
+              "y": 267,
+              "width": 16,
+              "height": 16
+            }
+          },
+          {
+            "id": "qa-provider-24",
+            "rect": {
+              "x": 292,
+              "y": 317,
+              "width": 846,
+              "height": 72
+            }
+          },
+          {
+            "id": "qa-provider-25",
+            "rect": {
+              "x": 292,
+              "y": 345,
+              "width": 846,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-provider-26",
+            "rect": {
+              "x": 292,
+              "y": 409,
+              "width": 846,
+              "height": 96
+            }
+          },
+          {
+            "id": "qa-provider-27",
+            "rect": {
+              "x": 292,
+              "y": 409,
+              "width": 846,
+              "height": 20
+            }
+          },
+          {
+            "id": "qa-provider-28",
+            "rect": {
+              "x": 292,
+              "y": 437,
+              "width": 846,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-provider-29",
+            "rect": {
+              "x": 292,
+              "y": 437,
+              "width": 742,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-provider-30",
+            "label": "显示密钥",
+            "rect": {
+              "x": 1042,
+              "y": 437,
+              "width": 44,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-provider-34",
+            "label": "复制完整密钥",
+            "rect": {
+              "x": 1094,
+              "y": 437,
+              "width": 44,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-provider-38",
+            "rect": {
+              "x": 292,
+              "y": 489,
+              "width": 846,
+              "height": 16
+            }
+          },
+          {
+            "id": "qa-provider-39",
+            "rect": {
+              "x": 292,
+              "y": 525,
+              "width": 846,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-provider-40",
+            "label": "验证协议",
+            "rect": {
+              "x": 292,
+              "y": 525,
+              "width": 89.453125,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-provider-41",
+            "label": "拉取模型",
+            "rect": {
+              "x": 389.453125,
+              "y": 525,
+              "width": 89.453125,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-provider-42",
+            "rect": {
+              "x": 292,
+              "y": 589,
+              "width": 846,
+              "height": 308
+            }
+          },
+          {
+            "id": "qa-provider-43",
+            "rect": {
+              "x": 292,
+              "y": 589,
+              "width": 846,
+              "height": 20
+            }
+          },
+          {
+            "id": "qa-provider-44",
+            "rect": {
+              "x": 292,
+              "y": 621,
+              "width": 846,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-provider-45",
+            "label": "手动添加模型 ID",
+            "rect": {
+              "x": 292,
+              "y": 621,
+              "width": 752.265625,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-provider-46",
+            "label": "添加",
+            "rect": {
+              "x": 1052.265625,
+              "y": 621,
+              "width": 85.734375,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-provider-50",
+            "rect": {
+              "x": 292,
+              "y": 677,
+              "width": 846,
+              "height": 16
+            }
+          },
+          {
+            "id": "qa-provider-51",
+            "rect": {
+              "x": 292,
+              "y": 705,
+              "width": 846,
+              "height": 90
+            }
+          },
+          {
+            "id": "qa-provider-52",
+            "rect": {
+              "x": 293,
+              "y": 706,
+              "width": 844,
+              "height": 88
+            }
+          },
+          {
+            "id": "qa-provider-53",
+            "rect": {
+              "x": 309,
+              "y": 722,
+              "width": 812,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-provider-54",
+            "label": "配置 gpt-image-2",
+            "rect": {
+              "x": 309,
+              "y": 722,
+              "width": 608.34375,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-provider-57",
+            "rect": {
+              "x": 349,
+              "y": 727,
+              "width": 92.6875,
+              "height": 34
+            }
+          },
+          {
+            "id": "qa-provider-58",
+            "rect": {
+              "x": 349,
+              "y": 745,
+              "width": 92.6875,
+              "height": 16
+            }
+          },
+          {
+            "id": "qa-provider-59",
+            "rect": {
+              "x": 925.34375,
+              "y": 722,
+              "width": 195.65625,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-provider-60",
+            "rect": {
+              "x": 925.34375,
+              "y": 734,
+              "width": 39.65625,
+              "height": 20
+            }
+          },
+          {
+            "id": "qa-provider-61",
+            "label": "上移 gpt-image-2",
+            "rect": {
+              "x": 973,
+              "y": 722,
+              "width": 44,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-provider-65",
+            "label": "下移 gpt-image-2",
+            "rect": {
+              "x": 1025,
+              "y": 722,
+              "width": 44,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-provider-69",
+            "label": "移除 gpt-image-2",
+            "rect": {
+              "x": 1077,
+              "y": 722,
+              "width": 44,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-provider-126",
+            "rect": {
+              "x": 292,
+              "y": 807,
+              "width": 846,
+              "height": 90
+            }
+          },
+          {
+            "id": "qa-provider-127",
+            "rect": {
+              "x": 293,
+              "y": 808,
+              "width": 844,
+              "height": 88
+            }
+          },
+          {
+            "id": "qa-provider-128",
+            "rect": {
+              "x": 309,
+              "y": 824,
+              "width": 812,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-provider-129",
+            "label": "配置 new-image",
+            "rect": {
+              "x": 309,
+              "y": 824,
+              "width": 608.34375,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-provider-132",
+            "rect": {
+              "x": 349,
+              "y": 829,
+              "width": 92.6875,
+              "height": 34
+            }
+          },
+          {
+            "id": "qa-provider-133",
+            "rect": {
+              "x": 349,
+              "y": 847,
+              "width": 92.6875,
+              "height": 16
+            }
+          },
+          {
+            "id": "qa-provider-134",
+            "rect": {
+              "x": 925.34375,
+              "y": 824,
+              "width": 195.65625,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-provider-135",
+            "rect": {
+              "x": 925.34375,
+              "y": 836,
+              "width": 39.65625,
+              "height": 20
+            }
+          },
+          {
+            "id": "qa-provider-136",
+            "label": "上移 new-image",
+            "rect": {
+              "x": 973,
+              "y": 824,
+              "width": 44,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-provider-140",
+            "label": "下移 new-image",
+            "rect": {
+              "x": 1025,
+              "y": 824,
+              "width": 44,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-provider-144",
+            "label": "移除 new-image",
+            "rect": {
+              "x": 1077,
+              "y": 824,
+              "width": 44,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-provider-201",
+            "rect": {
+              "x": 292,
+              "y": 917,
+              "width": 846,
+              "height": 61
+            }
+          },
+          {
+            "id": "qa-provider-202",
+            "label": "删除连接",
+            "rect": {
+              "x": 883.359375,
+              "y": 934,
+              "width": 89.453125,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-provider-203",
+            "label": "取消",
+            "rect": {
+              "x": 980.8125,
+              "y": 934,
+              "width": 61.734375,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-provider-204",
+            "label": "保存连接",
+            "rect": {
+              "x": 1050.546875,
+              "y": 934,
+              "width": 87.453125,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-provider-205",
+            "label": "关闭弹窗",
+            "rect": {
+              "x": 1110,
+              "y": 57,
+              "width": 44,
+              "height": 44
+            }
+          },
+          {
+            "id": "qa-provider-209",
+            "rect": {
+              "x": 1131.5,
+              "y": 78.5,
+              "width": 1,
+              "height": 1
+            }
+          }
+        ]
+      }
+    ],
+    "capturedWidths": [
+      1440
+    ],
+    "missingWidths": [
+      390,
+      1728
+    ],
+    "rubric": [
+      {
+        "id": "review-rules-visual-design",
+        "title": "Visual Design"
+      }
+    ],
+    "rubricStatus": "loaded"
+  },
+  "isError": false
+}

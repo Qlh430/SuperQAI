@@ -1,0 +1,201 @@
+/* ============================================================================
+   Neon Design System - Official Token Layer
+   严格遵循 Better Design Neon 官方色彩规范
+   来源: https://better-design.com/design-systems/neon
+   ============================================================================ */
+
+:root {
+  /* ===== COLORS - 精确匹配 Neon 官方色板 ===== */
+  
+  /* Background - 深黑背景 */
+  --neon-background: #0f0f0f;
+  --neon-bg: var(--neon-background);
+  
+  /* Foreground - 纯白文字 */
+  --neon-foreground: #ffffff;
+  --neon-fg: var(--neon-foreground);
+  
+  /* Card - 深灰卡片 */
+  --neon-card: #1a1a1a;
+  --neon-card-fg: #ffffff;
+  
+  /* Popover - 稍亮层级 */
+  --neon-popover: #1f1f1f;
+  --neon-popover-fg: #ffffff;
+  
+  /* Primary - 霓虹绿（标志性颜色） */
+  --neon-primary: #00ff41;
+  --neon-primary-fg: #0a0a0a;
+  
+  /* Secondary - 中性灰 */
+  --neon-secondary: #3a3a3a;
+  --neon-secondary-fg: #ffffff;
+  
+  /* Muted - 低对比度元素 */
+  --neon-muted: #2a2a2a;
+  --neon-muted-fg: #888888;
+  
+  /* Accent - 强调色（使用霓虹绿） */
+  --neon-accent: #00ff41;
+  --neon-accent-fg: #0a0a0a;
+  
+  /* Destructive - 霓虹红 */
+  --neon-destructive: #ff0041;
+  --neon-destructive-fg: #ffffff;
+  
+  /* Border - 深灰边框 */
+  --neon-border: #2a2a2a;
+  
+  /* Input - 输入框背景 */
+  --neon-input: #1a1a1a;
+  
+  /* Ring - 焦点环（霓虹绿） */
+  --neon-ring: #00ff41;
+  
+  /* Chart Colors - 数据可视化色板 */
+  --neon-chart-1: #00ff41; /* 主绿 */
+  --neon-chart-2: #00ffaa; /* 青绿 */
+  --neon-chart-3: #00ff88; /* 翠绿 */
+  --neon-chart-4: #33ff66; /* 浅绿 */
+  --neon-chart-5: #66ff99; /* 淡绿 */
+  
+  /* ===== SPACING - 8px 基础网格 ===== */
+  --neon-spacing-0: 0;
+  --neon-spacing-1: 0.25rem; /* 4px */
+  --neon-spacing-2: 0.5rem;  /* 8px */
+  --neon-spacing-3: 0.75rem; /* 12px */
+  --neon-spacing-4: 1rem;    /* 16px */
+  --neon-spacing-5: 1.25rem; /* 20px */
+  --neon-spacing-6: 1.5rem;  /* 24px */
+  --neon-spacing-8: 2rem;    /* 32px */
+  --neon-spacing-10: 2.5rem; /* 40px */
+  --neon-spacing-12: 3rem;   /* 48px */
+  --neon-spacing-16: 4rem;   /* 64px */
+  --neon-spacing-20: 5rem;   /* 80px */
+  --neon-spacing-24: 6rem;   /* 96px */
+  
+  /* ===== TYPOGRAPHY - 现代无衬线层级 ===== */
+  --neon-font-sans: 'Inter', 'SF Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --neon-font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  
+  /* Font Sizes */
+  --neon-text-xs: 0.75rem;    /* 12px */
+  --neon-text-sm: 0.875rem;   /* 14px */
+  --neon-text-base: 1rem;     /* 16px */
+  --neon-text-lg: 1.125rem;   /* 18px */
+  --neon-text-xl: 1.25rem;    /* 20px */
+  --neon-text-2xl: 1.5rem;    /* 24px */
+  --neon-text-3xl: 1.875rem;  /* 30px */
+  --neon-text-4xl: 2.25rem;   /* 36px */
+  --neon-text-5xl: 3rem;      /* 48px */
+  
+  /* Font Weights */
+  --neon-font-normal: 400;
+  --neon-font-medium: 500;
+  --neon-font-semibold: 600;
+  --neon-font-bold: 700;
+  
+  /* Line Heights */
+  --neon-leading-none: 1;
+  --neon-leading-tight: 1.25;
+  --neon-leading-normal: 1.5;
+  --neon-leading-relaxed: 1.75;
+  
+  /* ===== BORDERS & RADIUS ===== */
+  --neon-radius-none: 0;
+  --neon-radius-sm: 0.25rem;   /* 4px */
+  --neon-radius-md: 0.5rem;    /* 8px */
+  --neon-radius-lg: 0.75rem;   /* 12px */
+  --neon-radius-xl: 1rem;      /* 16px */
+  --neon-radius-full: 9999px;
+  
+  --neon-border-width: 1px;
+  
+  /* ===== SHADOWS - 霓虹发光效果 ===== */
+  --neon-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --neon-shadow-md: 0 4px 6px rgba(0, 0, 0, 0.6);
+  --neon-shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.7);
+  --neon-shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.8);
+  
+  /* Glow Effects - 霓虹光晕 */
+  --neon-glow-primary: 0 0 20px rgba(0, 255, 65, 0.5),
+                       0 0 40px rgba(0, 255, 65, 0.3),
+                       0 0 60px rgba(0, 255, 65, 0.2);
+  
+  --neon-glow-destructive: 0 0 20px rgba(255, 0, 65, 0.5),
+                           0 0 40px rgba(255, 0, 65, 0.3),
+                           0 0 60px rgba(255, 0, 65, 0.2);
+  
+  --neon-glow-subtle: 0 0 10px rgba(0, 255, 65, 0.3),
+                      0 0 20px rgba(0, 255, 65, 0.1);
+  
+  /* ===== Z-INDEX LAYERS ===== */
+  --neon-z-base: 0;
+  --neon-z-dropdown: 1000;
+  --neon-z-sticky: 1020;
+  --neon-z-fixed: 1030;
+  --neon-z-modal-backdrop: 1040;
+  --neon-z-modal: 1050;
+  --neon-z-popover: 1060;
+  --neon-z-tooltip: 1070;
+  
+  /* ===== TRANSITIONS ===== */
+  --neon-transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --neon-transition-base: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  --neon-transition-slow: 350ms cubic-bezier(0.4, 0, 0.2, 1);
+  
+  /* ===== OPACITY ===== */
+  --neon-opacity-disabled: 0.5;
+  --neon-opacity-hover: 0.8;
+  --neon-opacity-overlay: 0.9;
+  
+  /* ===== 兼容旧变量映射 ===== */
+  --os-ink: var(--neon-foreground);
+  --os-accent: var(--neon-primary);
+  --os-cloud: var(--neon-card);
+  --os-border: var(--neon-border);
+  --os-muted: var(--neon-muted);
+  --os-danger: var(--neon-destructive);
+}
+
+/* ===== DARK MODE (默认) ===== */
+body {
+  background-color: var(--neon-background);
+  color: var(--neon-foreground);
+  font-family: var(--neon-font-sans);
+  font-size: var(--neon-text-base);
+  line-height: var(--neon-leading-normal);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ===== SELECTION ===== */
+::selection {
+  background-color: var(--neon-primary);
+  color: var(--neon-primary-fg);
+}
+
+/* ===== SCROLLBAR ===== */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--neon-background);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--neon-muted);
+  border-radius: var(--neon-radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--neon-border);
+}
+
+/* ===== FOCUS VISIBLE ===== */
+*:focus-visible {
+  outline: 2px solid var(--neon-ring);
+  outline-offset: 2px;
+}

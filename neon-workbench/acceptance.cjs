@@ -1,7 +1,8 @@
 const { chromium } = require("playwright")
 const fs = require("node:fs")
 const path = require("node:path")
-const output = path.join(__dirname, "acceptance")
+const baseUrl = process.env.AI_OS_TEST_URL || "http://127.0.0.1:3199"
+const output = process.env.AI_OS_ACCEPTANCE_DIR ? path.resolve(process.env.AI_OS_ACCEPTANCE_DIR) : path.join(__dirname, "acceptance")
 fs.mkdirSync(output, { recursive: true })
 const image = "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="640" height="480"><rect width="640" height="480" fill="#171817"/><circle cx="320" cy="240" r="100" fill="#D5FF40"/></svg>')
 const user = { id: "qa", username: "qa", displayName: "验收账户", role: "superadmin", status: "active" }
@@ -22,6 +23,7 @@ function fixture(url, method, body) {
   }
   if (url.pathname === "/api/canvas/boards") return { boards, trash: [{ id: "trash1", title: "已删除测试画布", nodeCount: 1 }] }
   if (url.pathname === "/api/resources") return { resources: [{ resource: { id: "r1", title: "参考图片", type: "image", ownerUserId: "qa" }, preview: { kind: "image", url: image }, access: { capabilities: { share: true, delete: true } } }] }
+  if (url.pathname === "/api/asset-library") return { entries: [{ resource: { id: "r1", title: "参考图片", type: "image", ownerUserId: "qa", metadata: { url: image } }, preview: { kind: "image", url: image }, access: { capabilities: { share: true, delete: true } }, asset: { id: "a1", categoryId: "other", ownerUserId: "qa" } }], categories: [{ id: "other", name: "其他" }], folders: [] }
   if (url.pathname.startsWith("/api/history/")) {
     const type = url.pathname.endsWith("chat") ? "chat" : "images"
     if (method === "POST") records[type].unshift(body.record)
@@ -60,14 +62,14 @@ let browser
       if (creativeFail) return route.fulfill({ status: 500, contentType: "application/json", body: JSON.stringify({ error: "模拟生成失败，请检查配置。" }) })
       if (creativeDelay) await new Promise(resolve => setTimeout(resolve, 5000))
     }
-    if (resourcesFail && new URL(request.url()).pathname === "/api/resources") {
+    if (resourcesFail && ["/api/resources", "/api/asset-library"].includes(new URL(request.url()).pathname)) {
       await route.fulfill({ status: 500, contentType: "application/json", body: JSON.stringify({ error: "素材读取失败，请重试。" }) })
     } else await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(fixture(new URL(request.url()), request.method(), body)) })
   })
   for (const width of [375, 390, 768, 1280, 1440, 1728]) {
     await page.setViewportSize({ width, height: 960 })
     for (const route of ["home", "projects", "assets", "history", "settings", "account", "image", "chat"]) {
-      await page.goto(`http://127.0.0.1:3199/neon-workbench.html#${route}`, { waitUntil: "domcontentloaded" })
+      await page.goto(`${baseUrl}/neon-workbench.html#${route}`, { waitUntil: "domcontentloaded" })
       await page.locator("h1:visible").waitFor()
       await page.waitForTimeout(120)
       const geometry = await page.evaluate(() => {
@@ -82,21 +84,21 @@ let browser
     }
   }
   await page.setViewportSize({ width: 1440, height: 960 })
-  await page.goto("http://127.0.0.1:3199/neon-workbench.html#home")
+  await page.goto(`${baseUrl}/neon-workbench.html#home`)
   await page.getByRole("button", { name: "新建项目", exact: true }).click()
   await page.getByRole("textbox", { name: "项目名称" }).fill("新建项目验收")
   await page.getByRole("button", { name: "创建项目", exact: true }).click()
   await page.getByRole("button", { name: "重命名项目 新建项目验收", exact: true }).waitFor()
   await page.getByRole("tab", { name: "回收站" }).click()
   await page.getByText("已删除测试画布", { exact: true }).waitFor()
-  await page.goto("http://127.0.0.1:3199/neon-workbench.html#image")
+  await page.goto(`${baseUrl}/neon-workbench.html#image`)
   await page.getByRole("textbox").fill("验收生图提示词")
   await page.getByRole("button", { name: "生成图片", exact: true }).click()
   await page.getByRole("button", { name: "预览生成图片 1" }).waitFor()
-  await page.goto("http://127.0.0.1:3199/neon-workbench.html#chat")
+  await page.goto(`${baseUrl}/neon-workbench.html#chat`)
   await page.getByRole("textbox", { name: "对话消息" }).fill("验收消息")
   await page.getByRole("button", { name: "发送消息" }).click()
-  await page.getByText("这是模拟接口返回的验收回复。").waitFor()
+  await page.getByRole("region", { name: "对话内容" }).getByText("这是模拟接口返回的验收回复。").waitFor()
   await page.getByRole("button", { name: "概览", exact: true }).click()
   await page.getByRole("heading", { name: "今天想创作什么？" }).waitFor()
   const checks = []
@@ -106,27 +108,31 @@ let browser
   await page.getByRole("button", { name: "刷新数据" }).click()
   await page.getByRole("button", { name: "刷新数据" }).waitFor({ state: "visible" })
   await page.waitForFunction(() => !document.querySelector('[aria-label="刷新数据"]').disabled)
+  if (await page.getByRole("textbox", { name: "搜索画布名称" }).inputValue() !== "新品" || await page.getByRole("combobox", { name: "项目筛选" }).inputValue() !== "p1") throw new Error("刷新丢失项目筛选")
   await page.getByRole("button", { name: "设置", exact: true }).click()
   await page.getByRole("tab", { name: "技能", exact: true }).click()
   await page.getByRole("button", { name: "刷新数据" }).click()
   await page.waitForFunction(() => !document.querySelector('[aria-label="刷新数据"]').disabled)
   if (await page.getByRole("tab", { name: "技能", exact: true }).getAttribute("aria-selected") !== "true") throw new Error("刷新重置设置页签")
   await page.getByRole("button", { name: "项目", exact: true }).click()
-  if (await page.getByRole("textbox", { name: "搜索画布名称" }).inputValue() !== "新品" || await page.getByRole("combobox", { name: "项目筛选" }).inputValue() !== "p1") throw new Error("刷新或导航丢失筛选")
-  checks.push("刷新及往返保留搜索、筛选、设置页签")
+  await page.getByRole("heading", { name: /^全部画布/ }).waitFor()
+  if (await page.getByRole("textbox", { name: "搜索画布名称" }).inputValue() !== "" || await page.getByRole("combobox", { name: "项目筛选" }).inputValue() !== "all") throw new Error("点击项目未恢复全部视图")
+  checks.push("刷新保留筛选，点击项目恢复全部视图，设置页签保留")
   resourcesFail = true
   await page.getByRole("button", { name: "刷新数据" }).click()
   await page.waitForFunction(() => !document.querySelector('[aria-label="刷新数据"]').disabled)
-  await page.getByRole("button", { name: "素材库", exact: true }).click()
-  await page.getByText("素材读取失败，请重试。", { exact: true }).waitFor()
+  await page.getByRole("button", { name: "资产库", exact: true }).click()
+  await page.getByRole("region", { name: "资产库" }).getByText("素材读取失败，请重试。", { exact: true }).waitFor()
   await page.getByRole("button", { name: "设置", exact: true }).click()
   await page.getByRole("heading", { name: "设置", exact: true }).waitFor()
   await page.getByRole("button", { name: "账户管理", exact: true }).click()
   await page.getByRole("heading", { name: "账户管理", exact: true }).waitFor()
   resourcesFail = false
-  await page.getByRole("button", { name: "素材库", exact: true }).click()
-  await page.getByRole("button", { name: "重新加载" }).click()
+  await page.getByRole("button", { name: "资产库", exact: true }).click()
+  await page.getByRole("region", { name: "资产库" }).getByRole("button", { name: "重新加载" }).click()
   await page.getByRole("button", { name: "预览素材 参考图片" }).waitFor()
+  await page.getByRole("button", { name: "刷新数据", exact: true }).click()
+  await page.waitForFunction(() => !document.querySelector('[aria-label="刷新数据"]').disabled)
   checks.push("素材接口故障隔离及重试恢复")
   await page.getByRole("button", { name: "历史记录", exact: true }).click()
   await page.getByRole("button").filter({ hasText: "讨论产品创意" }).click()
@@ -135,8 +141,8 @@ let browser
   await page.getByRole("dialog").waitFor({ state: "hidden" })
   checks.push("历史对话完整显示、导航关闭弹窗")
   await page.getByRole("button", { name: "历史记录", exact: true }).click()
-  await page.getByRole("button").filter({ hasText: "一张产品场景图片" }).click()
-  await page.getByRole("dialog").getByRole("img", { name: "生成结果 1" }).waitFor()
+  await page.getByRole("button", { name: /^预览素材 / }).first().click()
+  await page.getByRole("dialog").locator("img").waitFor()
   await page.getByRole("button", { name: "关闭弹窗" }).click()
   checks.push("历史生图显示生成结果")
   await page.getByRole("button", { name: "在线生图", exact: true }).click()
@@ -145,13 +151,17 @@ let browser
   await page.getByRole("button", { name: "配置模型服务", exact: true }).click()
   await page.getByRole("tab", { name: "模型服务", exact: true }).click()
   await page.getByRole("button", { name: "管理连接与模型" }).click()
-  await page.getByRole("textbox", { name: "模型 ID", exact: true }).fill("updated-model")
-  await page.getByRole("button", { name: "保存连接", exact: true }).click()
+  await page.getByRole("textbox", { name: "手动添加模型 ID", exact: true }).fill("updated-model")
+  await page.getByRole("dialog").getByRole("button", { name: "添加", exact: true }).click()
+  await page.getByRole("button", { name: "移除 mock-model", exact: true }).click()
+  await page.getByRole("button", { name: "保存设置", exact: true }).click()
   await page.getByRole("dialog").waitFor({ state: "hidden" })
   await page.getByRole("button", { name: "返回在线生图", exact: true }).click()
   await page.waitForFunction(() => [...document.querySelectorAll('[aria-label="生成模型"] option')].some(option => option.value === "updated-model"))
-  if (await page.getByRole("combobox", { name: "生成模型" }).inputValue() !== "" || await page.getByRole("textbox", { name: "画面描述" }).inputValue() !== "配置往返仍保留的生图草稿") throw new Error("配置更新未同步模型或草稿丢失")
-  checks.push("配置保存同步模型、无效选项复位、返回保留生图草稿")
+  if (await page.getByRole("combobox", { name: "生成模型" }).inputValue() !== "mock-model" || await page.getByRole("textbox", { name: "画面描述" }).inputValue() !== "配置往返仍保留的生图草稿") throw new Error("配置更新未同步模型或草稿丢失")
+  await page.getByText("所选模型已移除或不支持生图，请重新选择。", { exact: true }).waitFor()
+  await page.getByRole("combobox", { name: "生成模型" }).selectOption("updated-model")
+  checks.push("配置保存同步模型、移除的模型提示重选、返回保留生图草稿")
   creativeFail = true
   await page.getByRole("button", { name: "生成图片", exact: true }).click()
   await page.getByText("模拟生成失败，请检查配置。", { exact: true }).waitFor()
@@ -200,7 +210,7 @@ let browser
   await page.getByRole("button", { name: "打开导航" }).click()
   await page.getByRole("button", { name: "项目", exact: true }).click()
   await page.getByRole("heading", { name: "项目与画布" }).waitFor()
-  await page.goto("http://127.0.0.1:3199/neon-workbench.html#settings")
+  await page.goto(`${baseUrl}/neon-workbench.html#settings`)
   for (const tab of ["模型服务", "智能助手", "技能", "工作流", "备份", "系统"]) {
     await page.getByRole("tab", { name: tab, exact: true }).click()
     await page.waitForTimeout(150)
@@ -214,18 +224,18 @@ let browser
   const dialogGeometry = await page.getByRole("dialog").boundingBox()
   if (dialogGeometry.x < 0 || dialogGeometry.y < 0 || dialogGeometry.width > 390 || dialogGeometry.y + dialogGeometry.height > 894) throw new Error("移动端编辑弹窗超出视口")
   await page.getByRole("button", { name: "关闭弹窗" }).click()
-  await page.goto("http://127.0.0.1:3199/neon-workbench.html#assets")
+  await page.goto(`${baseUrl}/neon-workbench.html#assets`)
   await page.getByRole("button", { name: "预览素材 参考图片" }).click()
   await page.getByRole("button", { name: "共享设置" }).click()
   await page.getByRole("combobox", { name: "共享可见范围" }).selectOption("all")
   await page.getByRole("button", { name: "保存共享设置" }).click()
-  await page.getByText("共享权限已保存。").waitFor()
+  await page.getByText("资产共享设置已保存。").waitFor()
   await page.getByRole("dialog").waitFor({ state: "hidden" })
   const stress = []
   for (const width of [375, 1280]) {
     await page.setViewportSize({ width, height: 600 })
     for (const route of ["home", "projects", "assets", "history", "settings", "account", "image", "chat"]) {
-      await page.goto(`http://127.0.0.1:3199/neon-workbench.html?review=${width}-${route}#${route}`)
+      await page.goto(`${baseUrl}/neon-workbench.html?review=${width}-${route}#${route}`)
       await page.locator("h1:visible").waitFor().catch(async error => { throw new Error(`压力页面 ${width} ${route}：${(await page.locator("body").innerText()).slice(0, 600)}；${error.message}`) })
       await page.evaluate(() => { document.documentElement.style.fontSize = "28px" })
       await page.waitForTimeout(60)
@@ -237,7 +247,7 @@ let browser
   }
   checks.push("八页短视口及175%界面缩放检查")
   await page.unroute("**/api/**")
-  await page.goto("http://127.0.0.1:3199/", { waitUntil: "domcontentloaded" })
+  await page.goto(`${baseUrl}/`, { waitUntil: "domcontentloaded" })
   await page.waitForTimeout(600)
   const login = await page.evaluate(() => ({ auth: document.documentElement.dataset.aiAuth, frame: Boolean(document.getElementById("aiOsNeonFrame")), literalNewline: document.body.innerText.includes("\\n"), newCssLoaded: [...document.styleSheets].some(sheet => sheet.href?.includes("neon-workbench")) }))
   const report = { date: new Date().toISOString(), evidence: "独立页面使用模拟 API；真实运行时仅验证未登录入口。", results, stress, checks, errors, login, interactions: "项目创建、回收站、模拟生图与历史保存、模拟对话、返回概览、移动导航、设置六个子页、移动端编辑弹窗、素材共享已执行", requests }

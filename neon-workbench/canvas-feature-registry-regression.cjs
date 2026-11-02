@@ -1,0 +1,21 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const path = require('node:path');
+(async () => {
+  const context = { console, module: { exports: {} } }; vm.createContext(context);
+  const file = path.join(__dirname, 'design-sources/canvas-feature-registry.js');
+  assert.ok(fs.existsSync(file), '图片工具与菜单节点需要独立注册接口'); vm.runInContext(fs.readFileSync(file, 'utf8'), context);
+  const registry = context.module.exports.createRegistry(), errors = [], calls = []; let finish;
+  registry.registerTool({ id: 'cutout', open: () => new Promise(resolve => finish = resolve), close: () => { calls.push('cutout-close'); throw Error('独立关闭失败'); } });
+  registry.registerTool({ id: 'crop', open: () => calls.push('crop-open'), close: () => calls.push('crop-close') });
+  const job = registry.openTool('cutout', { onError: e => errors.push(e.message) });
+  registry.closeViews(error => errors.push(error.message));
+  await registry.openTool('crop', {}); finish('后台完成'); assert.equal(await job, '后台完成');
+  assert.ok(calls.includes('crop-open')); assert.ok(calls.includes('crop-close')); assert.deepEqual(errors, ['独立关闭失败']);
+  registry.unregisterTool('cutout'); assert.equal(registry.hasTool('cutout'), false); assert.equal(registry.hasTool('crop'), true);
+  registry.registerNode({ id: 'text', create: p => ({ kind: 'text', point: p }) }); registry.registerNode({ id: 'video-generator', create: p => ({ kind: 'video', point: p }) });
+  const created = registry.createNode('text', { x: 2 }); registry.unregisterNode('text'); assert.equal(created.kind, 'text'); assert.equal(registry.hasNode('text'), false); assert.equal(registry.createNode('video-generator', {}).kind, 'video');
+  registry.registerTool({ id: 'angle', open: () => { throw Error('角度组件错误'); } }); await registry.openTool('angle', { onError: e => errors.push(e.message) }); await registry.openTool('crop', {}); assert.ok(errors.includes('角度组件错误'));
+  console.log(JSON.stringify({ checks: ['抠图任务与视图关闭分离', '单插件清理失败不阻塞其他工具', '单工具卸载不影响其他工具', '节点创建入口可独立增删且不销毁已有节点', '插件打开异常局部处理'] }, null, 2));
+})().catch(e => { console.error(e); process.exitCode = 1; });

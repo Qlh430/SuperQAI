@@ -1,0 +1,226 @@
+{
+  "137": {
+    "inputs": {
+      "seed": 1122032373952445,
+      "steps": 20,
+      "cfg": 1,
+      "sampler_name": "euler",
+      "scheduler": "normal",
+      "denoise": 1,
+      "model": [
+        "286",
+        0
+      ],
+      "positive": [
+        "287",
+        0
+      ],
+      "negative": [
+        "287",
+        1
+      ],
+      "latent_image": [
+        "281",
+        0
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "KSampler"
+    }
+  },
+  "138": {
+    "inputs": {
+      "text": "",
+      "clip": [
+        "288",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Prompt)"
+    }
+  },
+  "139": {
+    "inputs": {
+      "samples": [
+        "137",
+        0
+      ],
+      "vae": [
+        "145",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode"
+    }
+  },
+  "141": {
+    "inputs": {
+      "image": "6a6f19361925a4557e856bb1253924ea0fc80a80e9a2a4ca1c783b84ed0b844b.png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Load Image"
+    }
+  },
+  "142": {
+    "inputs": {
+      "text": "",
+      "clip": [
+        "288",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Prompt)"
+    }
+  },
+  "143": {
+    "inputs": {
+      "guidance": 30,
+      "conditioning": [
+        "142",
+        0
+      ]
+    },
+    "class_type": "FluxGuidance",
+    "_meta": {
+      "title": "FluxGuidance"
+    }
+  },
+  "144": {
+    "inputs": {
+      "unet_name": "F.1-Fill-fp16_Inpaint_Outpaint_1.0.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "Load Diffusion Model"
+    }
+  },
+  "145": {
+    "inputs": {
+      "vae_name": "ae.sft"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "Load VAE"
+    }
+  },
+  "237": {
+    "inputs": {
+      "left": 200,
+      "top": 200,
+      "right": 200,
+      "bottom": 200,
+      "feathering": 24,
+      "image": [
+        "267",
+        0
+      ]
+    },
+    "class_type": "ImagePadForOutpaint",
+    "_meta": {
+      "title": "Pad Image for Outpainting"
+    }
+  },
+  "267": {
+    "inputs": {
+      "max_width": 1024,
+      "max_height": 1024,
+      "min_width": 0,
+      "min_height": 0,
+      "crop_if_required": "no",
+      "images": [
+        "141",
+        0
+      ]
+    },
+    "class_type": "ConstrainImage|pysssss",
+    "_meta": {
+      "title": "Constrain Image 🐍"
+    }
+  },
+  "281": {
+    "inputs": {
+      "amount": 1,
+      "samples": [
+        "287",
+        2
+      ]
+    },
+    "class_type": "RepeatLatentBatch",
+    "_meta": {
+      "title": "Repeat Latent Batch"
+    }
+  },
+  "285": {
+    "inputs": {
+      "filename_prefix": "ComfyUI",
+      "images": [
+        "139",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "Save Image"
+    }
+  },
+  "286": {
+    "inputs": {
+      "pwd": "",
+      "model_0": [
+        "144",
+        0
+      ]
+    },
+    "class_type": "RHHiddenNodes",
+    "_meta": {
+      "title": "Group Nodes(Password)"
+    }
+  },
+  "287": {
+    "inputs": {
+      "pwd": "",
+      "positive_0": [
+        "143",
+        0
+      ],
+      "negative_1": [
+        "138",
+        0
+      ],
+      "vae_2": [
+        "145",
+        0
+      ],
+      "pixels_3": [
+        "237",
+        0
+      ],
+      "mask_4": [
+        "237",
+        1
+      ]
+    },
+    "class_type": "RHHiddenNodes",
+    "_meta": {
+      "title": "Group Nodes(Password)"
+    }
+  },
+  "288": {
+    "inputs": {
+      "pwd": ""
+    },
+    "class_type": "RHHiddenNodes",
+    "_meta": {
+      "title": "Group Nodes(Password)"
+    }
+  }
+}

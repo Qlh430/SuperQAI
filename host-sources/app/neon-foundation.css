@@ -1,0 +1,56 @@
+/* AI OS Neon Foundation: the portable runtime's semantic UI contract. */
+:root,
+:root[data-theme="dark"],
+:root[data-theme="light"],
+[data-canvas-theme] {
+  color-scheme: dark;
+  --neon-color-canvas: oklch(.145 .01 264);
+  --neon-color-surface: oklch(.18 .012 264);
+  --neon-color-raised: oklch(.20 .013 264);
+  --neon-color-soft: oklch(.22 .014 264);
+  --neon-color-text: oklch(.97 .005 250);
+  --neon-color-muted: oklch(.66 .012 258);
+  --neon-color-faint: oklch(.52 .012 258);
+  --neon-color-action: oklch(.86 .22 145);
+  --neon-color-on-action: oklch(.18 .04 150);
+  --neon-color-success: oklch(.78 .20 148);
+  --neon-color-warning: oklch(.82 .16 90);
+  --neon-color-danger: oklch(.62 .23 25);
+  --neon-color-on-danger: oklch(.98 .01 20);
+  --neon-color-border: oklch(1 0 0 / .09);
+  --neon-color-border-strong: oklch(1 0 0 / .16);
+  --neon-radius-control: 8px;
+  --neon-radius-surface: 12px;
+  --neon-radius-node: 16px;
+  --neon-radius-pill: 999px;
+  --neon-shadow-sm: 0 .125rem .375rem oklch(0 0 0 / .3);
+  --neon-shadow-md: 0 .5rem 1.5rem oklch(0 0 0 / .4);
+  --neon-focus-ring: 0 0 0 3px oklch(.86 .22 145 / .55);
+  --neon-font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --neon-font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  --background: var(--neon-color-canvas);
+  --foreground: var(--neon-color-text);
+  --card: var(--neon-color-surface);
+  --card-foreground: var(--neon-color-text);
+  --popover: var(--neon-color-raised);
+  --popover-foreground: var(--neon-color-text);
+  --primary: var(--neon-color-action);
+  --primary-foreground: var(--neon-color-on-action);
+  --secondary: var(--neon-color-soft);
+  --secondary-foreground: var(--neon-color-text);
+  --muted: var(--neon-color-raised);
+  --muted-foreground: var(--neon-color-muted);
+  --accent: var(--neon-color-soft);
+  --accent-foreground: var(--neon-color-text);
+  --destructive: var(--neon-color-danger);
+  --destructive-foreground: var(--neon-color-on-danger);
+  --border: var(--neon-color-border);
+  --input: var(--neon-color-raised);
+  --ring: var(--neon-color-action);
+  --radius: var(--neon-radius-surface);
+  --font-sans: var(--neon-font-sans);
+  --font-mono: var(--neon-font-mono);
+}
+html, body { background: var(--neon-color-canvas); color: var(--neon-color-text); font-family: var(--neon-font-sans); }
+:is(button, input, textarea, select):focus-visible { outline: 2px solid var(--neon-color-action); outline-offset: 2px; box-shadow: var(--neon-focus-ring); }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; } }

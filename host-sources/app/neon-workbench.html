@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="zh-CN" class="dark"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AI OS 工作台</title><link rel="stylesheet" href="./neon-workbench.css?v=20261008-node-tags">
+<style>
+  #neonBootFallback { display: none; position: fixed; inset: 0; z-index: 10; padding: clamp(16px, 4vw, 48px); overflow: auto; color: var(--foreground); background: var(--background); font-family: var(--font-sans, system-ui), "Microsoft YaHei", sans-serif; font-size: 14px; line-height: 1.75; }
+  #neonBootFallback[data-visible="true"] { display: block; }
+  #neonBootFallback h1 { margin: 0 0 12px; font-size: 20px; }
+  #neonBootFallback p { margin: 0 0 16px; max-width: 46rem; color: var(--muted-foreground); }
+  #neonBootFallback .actions { display: flex; flex-wrap: wrap; gap: 12px; }
+  #neonBootFallback button { min-height: 44px; border: 1px solid transparent; border-radius: var(--radius-pill); padding: 8px 20px; font: inherit; font-weight: 500; background: var(--primary); color: var(--primary-foreground); cursor: pointer; }
+  #neonBootFallback button.secondary { background: var(--secondary); color: var(--secondary-foreground); border-color: var(--border); }
+  #neonBootFallback button:hover { filter: brightness(1.08); }
+  #neonBootFallback button:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+  #neonBootFallback pre { margin: 20px 0 0; max-width: 52rem; max-height: 180px; overflow: auto; border-radius: var(--radius); border: 1px solid var(--border); background: var(--card); color: var(--muted-foreground); padding: 12px 16px; font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
+</style>
+</head><body><div id="root"></div>
+<div id="neonBootFallback" role="alert">
+  <h1>工作台没有正常显示</h1>
+  <p>工作台页面加载失败。可以重新加载当前页，或返回工作台概览后再打开需要的功能。如果仍然无法显示，请重新打开 AI OS，并记录下方错误信息。</p>
+  <div class="actions">
+  <button type="button" id="neonBootReload">重新加载工作台</button>
+  <button type="button" class="secondary" id="neonBootDesktop">返回工作台概览</button>
+  </div>
+  <pre id="neonBootDetail" hidden></pre>
+</div>
+<script>
+(function () {
+  var root = document.getElementById("root");
+  var fallback = document.getElementById("neonBootFallback");
+  var detail = document.getElementById("neonBootDetail");
+  var shown = false;
+  // 启动兜底页只负责"工作台没起来"这一种情况。工作台一旦挂载过，
+  // 后续任何错误（含渲染错误）都不再接管整页，避免把已经能用的界面
+  // 换成一个写着错误码的黑页面。
+  var everBooted = false;
+  function booted() { return Boolean(root && root.childElementCount > 0); }
+  function mounted() { everBooted = everBooted || booted(); return everBooted; }
+  function show(reason) {
+    if (shown || mounted()) return;
+    shown = true;
+    if (reason) { detail.hidden = false; detail.textContent = String(reason).slice(0, 600); }
+    fallback.dataset.visible = "true";
+    // 应用稍后恢复时不要让提示压在工作台上。
+    setInterval(function () { if (booted()) fallback.dataset.visible = "false"; }, 1000);
+  }
+  window.addEventListener("error", function (event) { show((event && (event.message || (event.error && event.error.message))) || "页面脚本执行失败"); });
+  window.addEventListener("unhandledrejection", function (event) { show((event && event.reason && (event.reason.message || event.reason)) || "页面脚本异常中断"); });
+  var waited = 0;
+  var timer = setInterval(function () {
+    if (booted()) { clearInterval(timer); mounted(); return; }
+    waited += 500;
+    if (waited >= 12000) { clearInterval(timer); show("工作台脚本没有在 12 秒内启动，可能是文件缺失或缓存不一致。"); }
+  }, 500);
+  document.getElementById("neonBootReload").addEventListener("click", function () { location.reload(); });
+  document.getElementById("neonBootDesktop").addEventListener("click", function () {
+    if (window.parent === window) { location.replace("./neon-workbench.html?recovery=" + Date.now() + "#home"); return; }
+    try { window.parent.postMessage({ type: "neon:action", action: "workbenchHome" }, location.origin); } catch (error) { location.replace("./neon-workbench.html#home"); }
+  });
+})();
+</script>
+<script src="./neon-workbench.js?v=20261008-node-tags"></script></body></html>

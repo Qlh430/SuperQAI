@@ -1,0 +1,54 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const { chromium } = require('playwright');
+const out = path.resolve(__dirname, process.env.QA_OUTPUT_DIR || '../.design/feature-isolation-20261015/cutout'); fs.mkdirSync(out, { recursive: true });
+const checks = [], errors = []; let browser;
+async function main() {
+  browser = await chromium.launch({ headless: true, executablePath: 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe' });
+  const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } }); page.on('pageerror', e => errors.push(e.message));
+  await page.setContent('<div id="owner"></div><div id="other"></div>');
+  await page.evaluate(() => {
+    const c = document.createElement('canvas'); c.width = 8; c.height = 8; const ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, 8, 8); window.qaSource = c.toDataURL();
+    window.qaPending = []; window.qaCalls = []; window.qaSaved = []; window.qaStatuses = [];
+    window.setCanvasNodeStatus = (node, message) => qaStatuses.push({ id: node?.id, message });
+    const original = fetch;
+    window.fetch = (url, options = {}) => {
+      qaCalls.push({ url, body: options.body && JSON.parse(options.body) });
+      if (url.endsWith('/models')) return Promise.resolve(new Response(JSON.stringify({ models: [{ installed: true, size: 128 }] })));
+      if (url.endsWith('/prepare')) return new Promise((resolve, reject) => qaPending.push({ resolve: value => resolve(new Response(JSON.stringify(value))), reject }));
+      if (url.endsWith('/apply')) return window.qaDeferApply ? new Promise((resolve, reject) => window.qaApply = { resolve, reject }) : Promise.resolve(new Response(JSON.stringify({ url: '/output/qa-result.png' })));
+      return original(url, options);
+    };
+    window.qaOpen = id => BackgroundRemovalUi.open({ node: document.getElementById(id), source: qaSource, name: id + '.png', onSaved: result => qaSaved.push({ owner: id, ...result }) });
+    window.qaPrepareCount = () => qaCalls.filter(c => c.url.endsWith('/prepare')).length;
+  });
+  const source = process.env.QA_DEPLOYED === '1' ? '../AI-OS-Portable-1.0.5-win-x64/.ai-runtime/versions/1.0.5-win-x64/resources/app/background-removal-ui.js' : 'design-sources/background-removal-ui.js';
+  await page.addScriptTag({ path: path.resolve(__dirname, source) });
+  await page.evaluate(() => { window.qaFirstOpen = qaOpen('owner'); }); await page.waitForFunction(() => qaPrepareCount() === 1);
+  await page.evaluate(() => { BackgroundRemovalUi.close(); window.qaReopen = qaOpen('owner'); }); await page.waitForTimeout(100);
+  assert.equal(await page.evaluate(() => qaPrepareCount()), 1, '关闭再打开同一原图应复用正在执行的抠图准备，不应再次运行模型');
+  await page.evaluate(() => { BackgroundRemovalUi.close(); const old = document.getElementById('owner'); old.replaceWith(old.cloneNode(true)); window.qaRemount = qaOpen('owner'); }); await page.waitForTimeout(70);
+  assert.equal(await page.evaluate(() => qaPrepareCount()), 1, '同ID节点虚拟重挂不能丢失在途任务'); checks.push('同ID虚拟节点重挂复用抠图任务');
+  await page.evaluate(() => qaPending[0].resolve({ token: 'owner-token', mask_url: qaSource, width: 8, height: 8 }));
+  await page.evaluate(() => Promise.all([qaFirstOpen, qaReopen, qaRemount]));
+  assert.equal(await page.locator('.cutout-export').isEnabled(), true); checks.push('同一节点重开复用在途任务');
+  await page.evaluate(() => BackgroundRemovalUi.close());
+  await page.evaluate(() => qaOpen('owner')); assert.equal(await page.evaluate(() => qaPrepareCount()), 1); checks.push('已完成准备跨面板关闭保留');
+  await page.evaluate(() => { BackgroundRemovalUi.close(); window.qaOtherOpen = qaOpen('other'); }); await page.waitForFunction(() => qaPrepareCount() === 2);
+  await page.evaluate(() => { BackgroundRemovalUi.close(); qaOpen('owner'); });
+  await page.evaluate(() => qaPending[1].reject(new Error('另一节点模拟准备失败'))); await page.waitForTimeout(70);
+  assert.equal(await page.locator('.cutout-export').isEnabled(), true); assert.ok(!(await page.locator('.canvas-cutout-status').innerText()).includes('另一节点')); checks.push('后台另一节点失败不污染当前参数区');
+  assert.equal(await page.evaluate(() => qaStatuses.at(-1)?.id), 'other');
+  await page.locator('.cutout-export').click(); await page.waitForTimeout(50);
+  assert.deepEqual(await page.evaluate(() => qaSaved.map(s => s.owner)), ['owner']); checks.push('保存结果属于原任务节点');
+  await page.evaluate(() => qaOpen('owner')); assert.equal(await page.locator('.cutout-export').isEnabled(), true, '成功保存后同源重开不应永久忙碌'); checks.push('保存后重开恢复操作');
+  await page.evaluate(() => { window.qaDeferApply = true; }); await page.locator('.cutout-export').click();
+  await page.evaluate(() => { BackgroundRemovalUi.close(); qaApply.reject(new Error('模拟保存失败')); }); await page.waitForTimeout(30);
+  await page.evaluate(() => qaOpen('owner')); assert.equal(await page.locator('.cutout-export').isEnabled(), true); checks.push('保存中关闭且失败后仍可重开操作');
+  await page.locator('.cutout-export').click(); await page.evaluate(() => { BackgroundRemovalUi.close(); qaOpen('owner'); });
+  await page.evaluate(() => qaApply.resolve(new Response(JSON.stringify({ url: '/output/qa-second.png' })))); await page.waitForTimeout(40);
+  assert.equal(await page.evaluate(() => BackgroundRemovalUi.isOpen()), true, '旧保存不能关闭同源重开的操作区'); assert.equal(await page.locator('.cutout-export').isEnabled(), true); checks.push('旧保存完成不关闭新视图');
+  assert.deepEqual(errors, []); fs.writeFileSync(path.join(out, process.env.QA_DEPLOYED === '1' ? 'deployed-report.json' : 'source-report.json'), JSON.stringify({ checks, errors }, null, 2)); console.log(JSON.stringify({ checks, errors }, null, 2));
+}
+main().catch(e => { console.error(e); process.exitCode = 1; }).finally(async () => browser?.close());

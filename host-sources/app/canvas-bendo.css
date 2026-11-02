@@ -1,0 +1,1565 @@
+/* ==========================================================================
+   AI OS · Canvas layout contract
+   --------------------------------------------------------------------------
+   Applies the BENDO Infinite UI layout, node and interaction rules to the
+   canvas application only.
+
+   Loaded last, and every rule is anchored on #canvasEditorScreen (or on
+   body.canvas-first-shell for the tool rail, which lives outside the canvas
+   root). That single ID gives the file authority over the legacy rules in
+   styles.css without a single !important, so the migration can be reverted by
+   removing one <link>.
+
+   Registered deviations from the BENDO baseline (each one has a reason and an
+   exit condition):
+
+    1. Node widths. Parameter nodes share --node-width-standard (292px, the
+        width every board on disk was laid out against) instead of the 400px
+        BENDO baseline. Every framed node — text, API, ComfyUI, LLM, loop,
+        image, video, audio, video output, note and gallery — uses it; only the
+        video-generation node keeps --node-width-wide because its three asset
+        grids cannot hold a readable thumbnail at the standard width, and an
+        asset group wider than one column follows its column contract.
+        Exit condition: a board-level migration that re-flows saved node
+        positions, after which the standard width can move to 400px.
+     2. The title badge sits 8px from the title group (the BENDO table says
+        16px). At a 32px badge the wider gap reads as a hole rather than a
+        grouping, and the reference canvas board uses the 8px baseline here.
+     3. Subtitle and status lines use --type-2xs (10px) instead of the 8px
+        subtitle role: 8px is reserved for very short badges, and a Chinese
+        purpose line is not one (same reason as deviation 5).
+     4. The identity badge uses the accent for nodes that produce or edit
+        content and stays neutral for nodes that only hold material. The
+        accent is normally reserved for selection and primary action; here it
+        encodes node identity, which is how the reference board reads.
+     5. The title band keeps the × delete button instead of a "…" overflow
+        menu. Exit condition: a node title-bar menu with 重命名 / 下载 / 删除.
+     6. z-index inside .canvas-plane (nodes, ports, image toolbar) is
+        data-driven stacking and stays as computed at runtime.
+     7. --type-2xs is 10px rather than 8px: the contract allows 8px only for
+        very short badges, and this board has no such badge.
+     8. The empty media preview is 192px for every kind — picture well, video
+        shell, audio shell and video output stage — taken from
+        --node-primary-zone-height. The BENDO table fixes 192px for the
+        picture well only; the media kinds had four different empty heights,
+        and one shared floor is what makes drag-and-drop between them read as
+        the same gesture. Loaded states stay content driven.
+        Exit condition: a per-kind empty state that earns its own height back.
+     9. The media shell, media action row, video stage, loop hint and the
+        ComfyUI outpaint / Qwen angle blocks join the 8px content line that the
+        title-to-floor contract already gives text, image, LLM and H3 nodes.
+        The baseline lets a media block run the full shell width, which left
+        the picture well inboard and its neighbours flush.
+        Exit condition: a media block that needs the full bleed on purpose
+        (a seamless gallery wall, for example).
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. Canvas surface
+   -------------------------------------------------------------------------- */
+
+#canvasEditorScreen {
+  background: var(--color-canvas);
+  color: var(--color-text);
+}
+
+#canvasEditorScreen .canvas-workspace,
+#canvasEditorScreen .canvas-editor-screen {
+  background: transparent;
+}
+
+/* A dot field instead of a line grid: the CSS grid never pans with the
+   viewport, and dots read as texture where lines read as a broken grid. */
+#canvasEditorScreen .infinite-canvas {
+  border: 0;
+  border-radius: 0;
+  background-color: var(--color-canvas);
+  background-image: radial-gradient(var(--color-canvas-dot) 1.2px, transparent 1.2px);
+  background-size: 24px 24px;
+}
+
+#canvasEditorScreen .canvas-origin strong {
+  color: var(--color-text-muted);
+  font-size: var(--type-md);
+  font-weight: var(--weight-semibold);
+}
+
+#canvasEditorScreen .canvas-origin span {
+  color: var(--color-text-faint);
+  font-size: var(--type-base);
+  font-weight: var(--weight-regular);
+}
+
+/* --------------------------------------------------------------------------
+   2. Screen HUD — one top bar split in two groups, status moved to the floor
+   -------------------------------------------------------------------------- */
+
+#canvasEditorScreen .canvas-editor-navigation,
+#canvasEditorScreen .canvas-actions {
+  top: var(--space-3);
+  height: var(--control-height-md);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 3px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-panel);
+  background: var(--os-frost);
+  box-shadow: var(--color-shadow);
+  backdrop-filter: saturate(160%) blur(20px);
+  -webkit-backdrop-filter: saturate(160%) blur(20px);
+}
+
+#canvasEditorScreen .canvas-editor-navigation {
+  left: var(--space-3);
+  right: auto;
+  z-index: var(--z-screen-hud);
+}
+
+#canvasEditorScreen .canvas-actions {
+  right: var(--space-3);
+  left: auto;
+  z-index: var(--z-screen-hud);
+}
+
+#canvasEditorScreen .canvas-editor-navigation .text-action,
+#canvasEditorScreen .canvas-actions .text-action {
+  min-height: var(--control-height-sm);
+  padding: 0 var(--space-2);
+  gap: var(--gap-icon-text);
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--color-text-muted);
+  box-shadow: none;
+  font-size: var(--type-sm);
+  font-weight: var(--weight-medium);
+}
+
+#canvasEditorScreen .canvas-editor-navigation .text-action:hover,
+#canvasEditorScreen .canvas-actions .text-action:hover:not(:disabled) {
+  background: var(--color-hover);
+  color: var(--color-text);
+}
+
+#canvasEditorScreen .canvas-actions .text-action.primary-dark,
+#canvasEditorScreen .canvas-actions .text-action.primary-dark:hover:not(:disabled) {
+  background: var(--color-action);
+  color: var(--color-on-action);
+  font-weight: var(--weight-semibold);
+}
+
+#canvasEditorScreen .canvas-editor-navigation .text-action:focus-visible,
+#canvasEditorScreen .canvas-actions .text-action:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 1px;
+}
+
+/* Status becomes a floor HUD: the top strip now holds controls only. */
+#canvasEditorScreen .canvas-status {
+  top: auto;
+  bottom: var(--space-3);
+  left: 50%;
+  right: auto;
+  height: var(--control-height-sm);
+  transform: translateX(-50%);
+  gap: var(--space-2);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-panel);
+  background: var(--os-frost);
+  color: var(--color-text-faint);
+  box-shadow: var(--color-shadow);
+  z-index: var(--z-screen-hud);
+  font-size: var(--type-sm);
+  font-weight: var(--weight-medium);
+}
+
+#canvasEditorScreen .canvas-status span:first-child {
+  color: var(--color-text);
+  font-weight: var(--weight-semibold);
+}
+
+/* --------------------------------------------------------------------------
+   3. Tool rail — the canvas dock uses the canvas palette, only while the
+   canvas shell owns the rail.
+   -------------------------------------------------------------------------- */
+
+body.canvas-first-shell .rail[data-canvas-theme] {
+  padding: var(--space-1) 5px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-node-outer);
+  background: color-mix(in srgb, var(--color-surface) 92%, transparent);
+  box-shadow: var(--color-shadow);
+  z-index: var(--z-screen-rail);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+}
+
+body.canvas-first-shell .rail[data-canvas-theme] .rail-nav {
+  gap: var(--space-1);
+}
+
+body.canvas-first-shell .rail[data-canvas-theme] .nav-item,
+body.canvas-first-shell .rail[data-canvas-theme] .canvas-create-button {
+  width: var(--control-height-lg);
+  min-height: var(--control-height-lg);
+  gap: 2px;
+  padding: var(--space-1) 2px;
+  border-radius: var(--radius-panel);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-weight: var(--weight-medium);
+}
+
+body.canvas-first-shell .rail[data-canvas-theme] .canvas-create-button {
+  min-height: var(--control-height-md);
+  margin-bottom: var(--space-1);
+  border-radius: 50%;
+  /* answers the legacy accent !important on the same control */
+  background: var(--color-action) !important;
+  color: var(--color-on-action) !important;
+}
+
+body.canvas-first-shell .rail[data-canvas-theme] .canvas-create-button:hover {
+  background: var(--color-action) !important;
+  color: var(--color-on-action) !important;
+  transform: none;
+}
+
+body.canvas-first-shell .rail[data-canvas-theme] .nav-item:hover {
+  background: var(--color-hover);
+  color: var(--color-text);
+}
+
+body.canvas-first-shell .rail[data-canvas-theme] .nav-item.active {
+  background: var(--color-surface-strong);
+  color: var(--color-text);
+  box-shadow: inset 0 0 0 1px var(--color-accent);
+}
+
+body.canvas-first-shell .rail[data-canvas-theme] .nav-icon,
+body.canvas-first-shell .rail[data-canvas-theme] .nav-icon svg,
+body.canvas-first-shell .rail[data-canvas-theme] .canvas-create-button svg {
+  width: 18px;
+  height: 18px;
+}
+
+body.canvas-first-shell .rail[data-canvas-theme] .nav-item > span:last-child {
+  font-size: var(--type-2xs);
+  font-weight: var(--weight-medium);
+  line-height: 1.1;
+}
+
+/* --------------------------------------------------------------------------
+   4. Node surfaces — one skeleton for every kind
+   -------------------------------------------------------------------------- */
+
+#canvasEditorScreen .canvas-node {
+  box-sizing: border-box;
+}
+
+/* Parameter nodes share one outer width. The token is the single source of
+   truth, and every kind named here is at or below the width it shipped with,
+   so no existing board can start overlapping. Media imports, the video
+   output, the board note and the gallery container now share that width as
+   well; only the video-generation node keeps --node-width-wide (see the
+   registered deviations in the file header) and the asset-group width follows
+   its column contract. */
+#canvasEditorScreen .canvas-node-text,
+#canvasEditorScreen .canvas-node-generator,
+#canvasEditorScreen .canvas-node-api,
+#canvasEditorScreen .canvas-node-video-api,
+#canvasEditorScreen .canvas-node-midjourney,
+#canvasEditorScreen .canvas-node-llm,
+#canvasEditorScreen .canvas-node-comfy,
+#canvasEditorScreen .canvas-node-loop,
+#canvasEditorScreen .canvas-node-image:not(.canvas-node-frameless),
+#canvasEditorScreen .canvas-node-video,
+#canvasEditorScreen .canvas-node-audio,
+#canvasEditorScreen .canvas-node-video-output,
+#canvasEditorScreen .canvas-node-gallery-container,
+#canvasEditorScreen .canvas-node-note {
+  width: var(--node-width-standard);
+  min-width: 0;
+}
+
+/* The video node is the one parameter node that needs a wider shell: its two
+   reference columns cannot hold a readable thumbnail at the standard width. */
+#canvasEditorScreen .canvas-node-minimax-h3 {
+  width: var(--node-width-wide);
+  min-width: 0;
+  max-width: none;
+}
+
+#canvasEditorScreen .canvas-node-video,
+#canvasEditorScreen .canvas-node-audio,
+#canvasEditorScreen .canvas-node-video-output {
+  max-width: none;
+}
+
+/* The sticky note keeps its own colour identity but still starts on the shared
+   width. The legacy rule is `#canvasPlane .canvas-node.canvas-node-note`, so
+   this one has to carry both classes as well. */
+#canvasEditorScreen .canvas-node.canvas-node-note {
+  width: var(--node-width-standard);
+  min-width: 0;
+}
+
+#canvasEditorScreen .canvas-node:not(.canvas-node-frameless),
+#canvasEditorScreen .canvas-node-gallery,
+#canvasEditorScreen .canvas-node-group {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-node-outer);
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: none;
+}
+
+/* A group is a frame drawn around independent member nodes, so it has to stay
+   transparent. The shared surface above carries the same id plus two classes,
+   so this selector repeats `.canvas-node` to win the specificity race without
+   `!important`, both in the light and the dark theme. */
+#canvasEditorScreen .canvas-node.canvas-node-group {
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* Title band = 16px top inset + 32px title row + 8px gap. It stays
+   transparent on purpose: a tinted strip inside the node would be a nested
+   card, and the legacy divider line is gone so the band reads as part of the
+   node surface. The band only raises a hover surface while the pointer is
+   over the node. */
+#canvasEditorScreen .canvas-node:not(.canvas-node-frameless) > .canvas-node-bar,
+#canvasEditorScreen .canvas-node-gallery > .canvas-node-bar,
+#canvasEditorScreen .canvas-node-group > .canvas-node-bar {
+  box-sizing: border-box;
+  min-height: var(--node-header-band-height);
+  height: var(--node-header-band-height);
+  padding: var(--node-shell-padding-block) var(--space-3) var(--space-2);
+  gap: var(--space-2);
+  border: 0;
+  border-bottom: 0;
+  border-radius: var(--radius-node-outer) var(--radius-node-outer) 0 0;
+  background: transparent;
+  color: var(--color-text);
+  box-shadow: none;
+  font-size: var(--type-base);
+  font-weight: var(--weight-semibold);
+  transition: background 160ms ease;
+}
+
+#canvasEditorScreen .canvas-node:not(.canvas-node-frameless):hover > .canvas-node-bar,
+#canvasEditorScreen .canvas-node-gallery:hover > .canvas-node-bar,
+#canvasEditorScreen .canvas-node-group:hover > .canvas-node-bar {
+  background: var(--color-hover);
+}
+
+#canvasEditorScreen .canvas-node-bar .canvas-node-title {
+  font-size: var(--type-base);
+  font-weight: var(--weight-semibold);
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+
+#canvasEditorScreen .canvas-node-bar .canvas-node-title.is-editable {
+  width: fit-content;
+  max-width: 100%;
+  justify-self: start;
+}
+
+/* -------------------------------------------------------------------------- *
+ * Title band contents: one 32px identity badge, one title group (14px title
+ * over a 10px purpose line) and the trailing icon controls. Three slots, same
+ * order, every node kind. The badge tone is the only thing that varies: nodes
+ * that produce or edit content read in the accent, nodes that only hold
+ * material stay neutral.
+ * -------------------------------------------------------------------------- */
+
+#canvasEditorScreen .canvas-node-bar .canvas-node-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: var(--node-icon);
+  height: var(--node-icon);
+  border: 1px solid var(--node-badge-border-neutral);
+  border-radius: var(--radius-node-inner);
+  background: var(--node-badge-surface-neutral);
+  color: var(--node-badge-color-neutral);
+}
+
+#canvasEditorScreen .canvas-node-bar .canvas-node-icon[data-tone="accent"] {
+  border-color: var(--node-badge-border-accent);
+  background: var(--node-badge-surface-accent);
+  color: var(--node-badge-color-accent);
+}
+
+#canvasEditorScreen .canvas-node-bar .canvas-node-icon svg {
+  width: var(--node-icon-glyph);
+  height: var(--node-icon-glyph);
+  flex: 0 0 auto;
+  stroke-width: 1.8;
+}
+
+#canvasEditorScreen .canvas-node-bar .canvas-node-heading {
+  display: grid;
+  align-content: center;
+  flex: 1 1 auto;
+  gap: var(--node-subtitle-gap);
+  min-width: 0;
+  font-size: var(--type-base);
+  font-weight: var(--weight-semibold);
+  line-height: 1.2;
+}
+
+/* While the name editor is open the whole title group stands aside so the
+   input takes the same slot instead of wrapping the band onto a second row. */
+#canvasEditorScreen .canvas-node-bar .canvas-node-heading.is-editing {
+  display: none;
+}
+
+#canvasEditorScreen .canvas-node-bar .canvas-node-title,
+#canvasEditorScreen .canvas-node-bar .canvas-node-subtitle {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#canvasEditorScreen .canvas-node-bar .canvas-node-subtitle {
+  color: var(--color-text-muted);
+  font-size: var(--type-2xs);
+  font-weight: var(--weight-regular);
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+
+#canvasEditorScreen .canvas-node-bar .canvas-node-icon + .canvas-node-heading,
+#canvasEditorScreen .canvas-node-bar .canvas-node-icon + .canvas-node-title {
+  margin-left: calc(var(--node-icon-gap) - var(--space-2));
+}
+
+/* -------------------------------------------------------------------------- *
+ * Status band. A framed node only owns a 24px floor while it has something
+ * real to report: an 8px state dot plus a 10px status line, inset 16px from
+ * the node edge (8px shell + 8px band padding), with an optional meta slot on
+ * the right. Idle placeholder copy collapses the whole band instead of leaving
+ * an empty strip under the node.
+ * -------------------------------------------------------------------------- */
+
+#canvasEditorScreen .canvas-node:not(.canvas-node-frameless) > .canvas-node-footer,
+#canvasEditorScreen .canvas-node:not(.canvas-node-frameless) > .canvas-h3-footer,
+#canvasEditorScreen .canvas-node-gallery-container > .canvas-gallery-container-footer {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-height: var(--node-status-band-height);
+  height: var(--node-status-band-height);
+  margin: 0 var(--node-shell-padding-inline);
+  padding: 0 var(--node-shell-padding-inline);
+  border: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: var(--type-2xs);
+  font-weight: var(--weight-medium);
+  line-height: 1.2;
+}
+
+#canvasEditorScreen .canvas-node-status,
+#canvasEditorScreen .canvas-h3-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--node-status-gap);
+  min-width: 0;
+  overflow: hidden;
+  color: var(--color-text-muted);
+  font-size: var(--type-2xs);
+  font-weight: var(--weight-medium);
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#canvasEditorScreen .canvas-node-status::before,
+#canvasEditorScreen .canvas-h3-status::before {
+  content: "";
+  flex: 0 0 auto;
+  width: var(--node-status-dot);
+  height: var(--node-status-dot);
+  border: 1.5px solid var(--color-text-faint);
+  border-radius: 50%;
+  background: transparent;
+}
+
+#canvasEditorScreen .canvas-node-status[data-state="running"]::before,
+#canvasEditorScreen .canvas-h3-status[data-state="running"]::before {
+  border-color: var(--color-warning);
+}
+
+#canvasEditorScreen .canvas-node-status[data-state="done"]::before,
+#canvasEditorScreen .canvas-h3-status[data-state="done"]::before {
+  border-color: var(--color-success);
+  background: var(--color-success);
+}
+
+#canvasEditorScreen .canvas-node-status[data-state="failed"],
+#canvasEditorScreen .canvas-h3-status[data-state="failed"] {
+  color: var(--color-danger);
+}
+
+#canvasEditorScreen .canvas-node-status[data-state="failed"]::before,
+#canvasEditorScreen .canvas-h3-status[data-state="failed"]::before {
+  border-color: var(--color-danger);
+}
+
+#canvasEditorScreen .canvas-node-status[data-state="done"],
+#canvasEditorScreen .canvas-h3-status[data-state="done"] {
+  color: var(--color-text);
+}
+
+#canvasEditorScreen .canvas-node-footer[hidden],
+#canvasEditorScreen .canvas-h3-footer[hidden],
+#canvasEditorScreen .canvas-gallery-container-footer[hidden] {
+  display: none !important;
+}
+
+#canvasEditorScreen .canvas-node-footer .canvas-node-meta {
+  flex: 0 0 auto;
+  color: var(--color-text-faint);
+  font-size: var(--type-2xs);
+  font-weight: var(--weight-regular);
+}
+
+/* Primary action row: the last block of the parameter area, directly above the
+   status band. One button fills the four columns, two split them two and two. */
+#canvasEditorScreen .canvas-node > .canvas-node-actions {
+  display: grid;
+  grid-template-columns: repeat(var(--node-grid-columns), minmax(0, 1fr));
+  gap: var(--node-grid-gap);
+  margin: 0 var(--node-shell-padding-inline) var(--node-grid-gap);
+}
+
+#canvasEditorScreen .canvas-node > .canvas-node-actions > :only-child {
+  grid-column: 1 / -1;
+}
+
+#canvasEditorScreen .canvas-node-actions .canvas-h3-run,
+#canvasEditorScreen .canvas-node-actions .canvas-api-video-run {
+  width: 100%;
+  height: var(--control-height-sm);
+  min-height: var(--control-height-sm);
+}
+
+#canvasEditorScreen .canvas-node-bar button:not(.canvas-node-download) {
+  width: var(--node-header-height);
+  height: var(--node-header-height);
+  min-height: var(--node-header-height);
+  padding: 0;
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: var(--type-md);
+  font-weight: var(--weight-medium);
+  line-height: 1;
+}
+
+#canvasEditorScreen .canvas-node-bar button:not(.canvas-node-download):hover {
+  background: var(--color-surface-soft);
+  color: var(--color-text);
+}
+
+#canvasEditorScreen .canvas-node-bar .canvas-node-download {
+  height: var(--node-header-height);
+  min-height: var(--node-header-height);
+  min-width: 0;
+  padding: 0 var(--space-2);
+  border: 0;
+  border-radius: var(--radius-control);
+  background: var(--color-surface-soft);
+  color: var(--color-text);
+  font-size: var(--type-sm);
+  font-weight: var(--weight-medium);
+}
+
+#canvasEditorScreen .canvas-node-bar .canvas-node-bar-status {
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-soft);
+  color: var(--color-text-muted);
+  font-size: var(--type-2xs);
+  font-weight: var(--weight-medium);
+}
+
+#canvasEditorScreen .canvas-node-bar .canvas-node-title-input {
+  height: var(--node-header-height);
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-control);
+  color: var(--color-text);
+  font-size: var(--type-base);
+  font-weight: var(--weight-semibold);
+}
+
+#canvasEditorScreen .canvas-node-bar .canvas-node-title-input:focus {
+  border-color: var(--color-accent);
+  background: var(--color-surface-raised);
+  outline: none;
+}
+
+/* -------------------------------------------------------------------------- *
+ * Content boundary. Every direct block of a framed node insets to the same
+ * 8px shell line, so a kind can no longer drift to 10px, 12px or 18px on its
+ * own. Vertical rhythm below the title band is 8px inside a group and 16px
+ * between the parameter group and the node floor.
+ * -------------------------------------------------------------------------- */
+
+#canvasEditorScreen .canvas-node:not(.canvas-node-frameless) > .canvas-text,
+#canvasEditorScreen .canvas-node:not(.canvas-node-frameless) > .canvas-node-prompt,
+#canvasEditorScreen .canvas-node:not(.canvas-node-frameless) > .canvas-node-refs,
+#canvasEditorScreen .canvas-node:not(.canvas-node-frameless) > .canvas-node-result,
+#canvasEditorScreen .canvas-node:not(.canvas-node-frameless) > .canvas-image-upload,
+#canvasEditorScreen .canvas-node:not(.canvas-node-frameless) > .canvas-node-controls,
+#canvasEditorScreen .canvas-node:not(.canvas-node-frameless) > .canvas-llm-images,
+#canvasEditorScreen .canvas-node:not(.canvas-node-frameless) > .canvas-llm-upload,
+#canvasEditorScreen .canvas-node:not(.canvas-node-frameless) > .canvas-llm-presets,
+#canvasEditorScreen .canvas-node:not(.canvas-node-frameless) > .canvas-llm-controls,
+#canvasEditorScreen .canvas-node:not(.canvas-node-frameless) > .canvas-comfy-input-summary,
+#canvasEditorScreen .canvas-node:not(.canvas-node-frameless) > .canvas-h3-intro,
+#canvasEditorScreen .canvas-node:not(.canvas-node-frameless) > .canvas-h3-reference-grid,
+#canvasEditorScreen .canvas-node:not(.canvas-node-frameless) > .canvas-h3-prompt-field,
+#canvasEditorScreen .canvas-node:not(.canvas-node-frameless) > .canvas-api-video-prompt,
+#canvasEditorScreen .canvas-node:not(.canvas-node-frameless) > .canvas-h3-controls,
+#canvasEditorScreen .canvas-node:not(.canvas-node-frameless) > .canvas-h3-footer,
+#canvasEditorScreen .canvas-node:not(.canvas-node-frameless) > .canvas-api-video-reference {
+  margin-left: var(--node-shell-padding-inline);
+  margin-right: var(--node-shell-padding-inline);
+  /* 100% is the node padding box, so the width has to pay for both margins
+     itself — otherwise a textarea falls back to its intrinsic cols width. */
+  width: calc(100% - 2 * var(--node-shell-padding-inline));
+}
+
+/* The media blocks join the same line. A video or audio node used to run its
+   preview to the shell edge while the picture well next to it inset 8px, which
+   is exactly the kind of per-kind drift this file exists to stop. */
+#canvasEditorScreen .canvas-node:not(.canvas-node-frameless) > .canvas-media-shell,
+#canvasEditorScreen .canvas-node:not(.canvas-node-frameless) > .canvas-media-actions,
+#canvasEditorScreen .canvas-node:not(.canvas-node-frameless) > .canvas-video-output-stage,
+#canvasEditorScreen .canvas-node:not(.canvas-node-frameless) > .canvas-loop-hint,
+#canvasEditorScreen .canvas-node:not(.canvas-node-frameless) > .canvas-comfy-outpaint,
+#canvasEditorScreen .canvas-node:not(.canvas-node-frameless) > .canvas-comfy-qwen-angle {
+  margin-left: var(--node-shell-padding-inline);
+  margin-right: var(--node-shell-padding-inline);
+}
+
+/* One empty-preview height for every media kind: 192px, the same primary zone
+   the empty picture well uses. The loaded states stay content driven. */
+#canvasEditorScreen .canvas-media-shell:not(.has-media),
+#canvasEditorScreen .canvas-video-output-stage {
+  min-height: var(--node-primary-zone-height);
+}
+
+/* The media action row is the parameter line of a media node: 8px under the
+   preview and 16px down to the status band, like every other parameter group. */
+#canvasEditorScreen .canvas-node:not(.canvas-node-frameless) > .canvas-media-actions {
+  margin-top: var(--node-grid-gap);
+  margin-bottom: var(--node-parameter-gap);
+}
+
+/* The parameter group is the only block allowed to grow: four equal columns,
+   an 8px column gap, a 16px gap down to the node floor — and never a fixed
+   height or an inner scrollbar. */
+#canvasEditorScreen .canvas-node-controls,
+#canvasEditorScreen .canvas-comfy-controls {
+  display: grid;
+  grid-template-columns: repeat(var(--node-grid-columns), minmax(0, 1fr));
+  gap: var(--node-grid-gap);
+  padding: 0 var(--node-shell-padding-inline) var(--node-parameter-gap);
+  min-width: 0;
+}
+
+#canvasEditorScreen .canvas-node-controls > .canvas-node-model,
+#canvasEditorScreen .canvas-node-controls > .image-model-picker,
+#canvasEditorScreen .canvas-node-controls > .canvas-custom-size-field,
+#canvasEditorScreen .canvas-node-controls > .canvas-node-resolution-help,
+#canvasEditorScreen .canvas-node-controls > .canvas-midjourney-options,
+#canvasEditorScreen .canvas-comfy-controls > .canvas-comfy-field,
+#canvasEditorScreen .canvas-comfy-controls > .canvas-comfy-action-row {
+  grid-column: 1 / -1;
+}
+
+#canvasEditorScreen .canvas-node-controls > .canvas-node-size {
+  grid-column: span 2;
+}
+
+#canvasEditorScreen .canvas-node-controls > .canvas-node-resolution {
+  grid-column: span 1;
+}
+
+#canvasEditorScreen .canvas-node-controls > .canvas-node-run {
+  grid-column: span 1;
+}
+
+#canvasEditorScreen .canvas-node.canvas-resolution-hidden .canvas-node-controls > .canvas-node-size,
+#canvasEditorScreen .canvas-node.canvas-resolution-hidden .canvas-node-controls > .canvas-node-run {
+  grid-column: span 2;
+}
+
+/* One control height across the whole node: 32px, 8px inner side padding, and
+   a single 8px radius. */
+#canvasEditorScreen .canvas-node-controls .canvas-node-model,
+#canvasEditorScreen .canvas-node-controls .canvas-node-size,
+#canvasEditorScreen .canvas-node-controls .canvas-node-resolution,
+#canvasEditorScreen .canvas-comfy-controls .canvas-node-model,
+#canvasEditorScreen .canvas-comfy-controls select,
+#canvasEditorScreen .canvas-h3-controls select,
+#canvasEditorScreen .canvas-h3-controls input {
+  height: var(--control-height-sm);
+  min-height: var(--control-height-sm);
+  padding-left: var(--space-2);
+  padding-right: var(--space-2);
+  border-radius: var(--radius-control);
+}
+
+/* The model picker comes from its own component and ships a 38px workbench
+   trigger. Inside a node it belongs to the same 32px control line as every
+   other parameter field, so it reads the node tokens instead of its own. */
+#canvasEditorScreen .canvas-node-controls .image-model-picker-trigger,
+#canvasEditorScreen .canvas-llm-controls .image-model-picker-trigger {
+  height: var(--control-height-sm);
+  min-height: var(--control-height-sm);
+  padding: 0 var(--space-2);
+  gap: 6px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  box-shadow: none;
+}
+
+#canvasEditorScreen .canvas-node-controls .image-model-picker-trigger:hover,
+#canvasEditorScreen .canvas-node-controls .image-model-picker.is-open .image-model-picker-trigger,
+#canvasEditorScreen .canvas-llm-controls .image-model-picker-trigger:hover,
+#canvasEditorScreen .canvas-llm-controls .image-model-picker.is-open .image-model-picker-trigger {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-selected);
+}
+
+#canvasEditorScreen .canvas-node-controls .canvas-node-run,
+#canvasEditorScreen .canvas-comfy-controls .canvas-comfy-run {
+  height: var(--control-height-sm);
+  min-height: var(--control-height-sm);
+  min-width: 0;
+  padding: 0 var(--space-1);
+}
+
+#canvasEditorScreen .canvas-comfy-action-row {
+  gap: var(--node-grid-gap);
+}
+
+/* The ComfyUI action row is the same parameter line the API node uses: the
+   size field and the primary action split the four columns 2 + 2, and the
+   action takes the whole line once the size field is hidden. */
+#canvasEditorScreen .canvas-comfy-controls > .canvas-comfy-action-row {
+  grid-template-columns: repeat(var(--node-grid-columns), minmax(0, 1fr));
+  gap: var(--node-grid-gap);
+}
+
+#canvasEditorScreen .canvas-comfy-action-row > .canvas-comfy-resolution-field {
+  grid-column: span 2;
+}
+
+#canvasEditorScreen .canvas-comfy-action-row > .canvas-comfy-run {
+  grid-column: span 2;
+  min-width: 0;
+}
+
+#canvasEditorScreen .canvas-comfy-action-row > .canvas-comfy-resolution-field[hidden] + .canvas-comfy-run {
+  grid-column: 1 / -1;
+}
+
+/* Editable text faces: the body of a text node is not a field until it is
+   being edited, so it stays flush with the node surface until focus. */
+#canvasEditorScreen .canvas-text,
+#canvasEditorScreen .canvas-llm-prompt {
+  margin-top: 0;
+  margin-bottom: var(--node-grid-gap);
+  padding: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-node-inner);
+  background: transparent;
+  color: var(--color-text);
+  font-size: var(--type-base);
+  font-weight: var(--weight-regular);
+  line-height: 1.6;
+}
+
+#canvasEditorScreen .canvas-node > .canvas-text {
+  margin-bottom: var(--node-shell-padding-block);
+}
+
+#canvasEditorScreen .canvas-node-prompt {
+  margin-top: 0;
+  margin-bottom: var(--node-grid-gap);
+  padding: var(--space-2);
+  border-radius: var(--radius-node-inner);
+}
+/* Parameter fields and prompt areas share the inner surface + 8px radius. */
+#canvasEditorScreen .canvas-node-prompt,
+#canvasEditorScreen .canvas-node-model,
+#canvasEditorScreen .canvas-node-size,
+#canvasEditorScreen .canvas-node-resolution,
+#canvasEditorScreen .canvas-node-controls input,
+#canvasEditorScreen .canvas-node-controls select {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-node-inner);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  font-size: var(--type-sm);
+  font-weight: var(--weight-regular);
+}
+
+#canvasEditorScreen .canvas-node-prompt::placeholder {
+  color: var(--color-text-faint);
+}
+
+#canvasEditorScreen .canvas-node-prompt:focus,
+#canvasEditorScreen .canvas-node-model:focus,
+#canvasEditorScreen .canvas-node-size:focus,
+#canvasEditorScreen .canvas-node-resolution:focus {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-selected);
+  outline: none;
+}
+
+#canvasEditorScreen .canvas-node-run {
+  min-height: var(--control-height-sm);
+  border: 0;
+  border-radius: var(--radius-control);
+  background: var(--color-action);
+  color: var(--color-on-action);
+  box-shadow: none;
+  font-size: var(--type-sm);
+  font-weight: var(--weight-semibold);
+}
+
+#canvasEditorScreen .canvas-node-run:hover:not(:disabled) {
+  background: var(--color-action);
+  color: var(--color-on-action);
+  filter: brightness(1.06);
+}
+
+#canvasEditorScreen .canvas-node-run:disabled {
+  opacity: .45;
+}
+
+/* --------------------------------------------------------------------------
+   One colour per role. BENDO splits the two apart and the canvas has to follow
+   both halves of the split, or a board shows 生成 in lime and 生成视频 in
+   purple at the same time:
+
+     --color-accent  brand, selection, edges, ports, focus rings, badges
+     --color-action  anything the user submits: 生成 / 执行 / 生成视频 /
+                     生成文字 / 添加 / 导入 / 发送 / 保存 / 撤销
+
+   Only --color-action is allowed to fill a button. Everything accent paints
+   stays a line, a ring or a selection tint.
+   -------------------------------------------------------------------------- */
+
+/* The legacy layer paints the call-to-action family with var(--accent)
+   !important (which would make 生成 purple in 纸白紫调 and brown in 暖光浮雕),
+   so this group answers those declarations directly. */
+#canvasEditorScreen .canvas-node-run,
+#canvasEditorScreen .canvas-node-run *,
+#canvasEditorScreen .canvas-actions .text-action.primary-dark,
+#canvasEditorScreen .canvas-actions .text-action.primary-dark * {
+  border-color: var(--color-action) !important;
+  background: var(--color-action) !important;
+  color: var(--color-on-action) !important;
+  box-shadow: none !important;
+}
+
+#canvasEditorScreen .canvas-node-run:hover:not(:disabled),
+#canvasEditorScreen .canvas-actions .text-action.primary-dark:hover:not(:disabled),
+#canvasEditorScreen .canvas-comfy-run:hover:not(:disabled),
+#canvasEditorScreen .canvas-h3-run:hover:not(:disabled),
+#canvasEditorScreen .canvas-llm-preset-add:hover:not(:disabled),
+#canvasEditorScreen .canvas-llm-preset-save:hover:not(:disabled),
+#canvasEditorScreen .canvas-agent-send:hover:not(:disabled),
+#canvasEditorScreen .canvas-asset-import:hover:not(:disabled) {
+  border-color: var(--color-action) !important;
+  background: var(--color-action) !important;
+  color: var(--color-on-action) !important;
+  filter: brightness(1.07);
+}
+
+/* The rest of the submit family has no !important to answer, so it only needs
+   to outrank the legacy selector. */
+#canvasEditorScreen .canvas-comfy-run,
+#canvasEditorScreen .canvas-comfy-run *,
+#canvasEditorScreen .canvas-h3-run,
+#canvasEditorScreen .canvas-h3-run *,
+#canvasEditorScreen .canvas-llm-preset-add,
+#canvasEditorScreen .canvas-llm-preset-add *,
+#canvasEditorScreen .canvas-llm-preset-save,
+#canvasEditorScreen .canvas-llm-preset-save *,
+#canvasEditorScreen .canvas-agent-send,
+#canvasEditorScreen .canvas-agent-send *,
+#canvasEditorScreen .canvas-asset-import,
+#canvasEditorScreen .canvas-asset-import *,
+#canvasEditorScreen .canvas-mask-save,
+#canvasEditorScreen .canvas-delete-undo-action {
+  border-color: var(--color-action);
+  background: var(--color-action);
+  color: var(--color-on-action);
+  box-shadow: none;
+}
+
+/* Native media chrome is tinted by the OS accent unless the canvas says
+   otherwise, which is how a video node ends up with a purple play button next
+   to a lime 生成. */
+#canvasEditorScreen .canvas-video-output-stage video,
+#canvasEditorScreen .canvas-video-history-preview video {
+  accent-color: var(--color-action);
+}
+
+/* Media mats. A video player or a filled media shell keeps the theme's media
+   mat (the only surface a letterboxed video should sit on); the legacy fixed
+   `#080a0d` made every light theme look broken, and an *empty* media shell is
+   a placeholder, so it takes the same soft inset the empty image well uses. */
+#canvasEditorScreen .canvas-video-output-stage,
+#canvasEditorScreen .canvas-media-shell.has-media {
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-node-inner);
+  background: var(--color-image-well);
+}
+
+#canvasEditorScreen .canvas-media-shell:not(.has-media) {
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-node-inner);
+  background: var(--color-surface-soft);
+  color: var(--color-text-muted);
+}
+
+#canvasEditorScreen .canvas-media-shell.has-media.canvas-media-shell-audio {
+  background: var(--color-surface-soft);
+}
+
+#canvasEditorScreen .canvas-video-output-empty {
+  color: var(--color-text-muted);
+}
+
+/* Media wells. Only an empty well owns a backing plate, and it has to be a
+   surface the theme's text tokens stay legible on — the "image well" token is
+   a dark mat in all three palettes, so the empty upload hint (which uses
+   --color-text / --color-text-muted) went dark-on-dark in paper and warm.
+   A loaded well owns no plate at all: the BENDO media contract forbids
+   painting behind contained media ("图片使用 contain，禁止裁切、拉伸、补背景"),
+   and this layer used to put the well under loaded pixels, which is why every
+   transparent PNG rendered as a black block. */
+#canvasEditorScreen .canvas-image-upload:not(.has-image) {
+  background: var(--color-surface-soft);
+}
+
+#canvasEditorScreen .canvas-image-upload.has-image,
+#canvasEditorScreen .canvas-node-result {
+  background: transparent;
+}
+
+#canvasEditorScreen .canvas-text:focus,
+#canvasEditorScreen .canvas-llm-prompt:focus,
+#canvasEditorScreen .canvas-node-prompt:focus {
+  border-color: var(--color-accent);
+  background: var(--color-surface-raised);
+  box-shadow: 0 0 0 3px var(--color-selected);
+  outline: none;
+}
+
+#canvasEditorScreen .canvas-node-prompt.is-synced,
+#canvasEditorScreen .canvas-node-prompt:read-only,
+#canvasEditorScreen .canvas-llm-prompt.is-synced {
+  background: transparent;
+  color: var(--color-text-muted);
+}
+
+/* Result preview, upload well and reference strip share the same 8px inner
+   radius and the same content line as the rest of the node. */
+#canvasEditorScreen .canvas-node > .canvas-node-result {
+  margin-top: var(--node-grid-gap);
+  margin-bottom: 0;
+  border-radius: var(--radius-node-inner);
+}
+
+#canvasEditorScreen .canvas-node > .canvas-image-upload {
+  margin-bottom: var(--node-grid-gap);
+  min-height: var(--node-primary-zone-height);
+  border-radius: var(--radius-node-inner);
+}
+
+#canvasEditorScreen .canvas-node > .canvas-node-refs {
+  padding: var(--space-2) 0 0;
+}
+
+#canvasEditorScreen .canvas-node > .canvas-comfy-input-summary {
+  /* The 8px gap under the title band already lives in the band's own
+     padding, so the first content block never adds a second one. */
+  margin-top: 0;
+  margin-bottom: var(--node-grid-gap);
+  padding: var(--space-2);
+  gap: var(--space-2);
+  border-radius: var(--radius-node-inner);
+}
+
+#canvasEditorScreen .canvas-node > .canvas-node-prompt + .canvas-comfy-input-summary {
+  margin-top: 0;
+}
+
+/* MiniMax H3 keeps its own controls but reads the shared skeleton: bands,
+   group gaps, control height and inner radius all come from the tokens. */
+#canvasEditorScreen .canvas-h3-intro {
+  padding: 0;
+  gap: var(--space-2);
+}
+
+#canvasEditorScreen .canvas-h3-reference-grid,
+#canvasEditorScreen .canvas-h3-controls {
+  gap: var(--node-grid-gap);
+}
+
+/* Every H3 parameter field is label -> control -> optional hint. The
+   resolution field carries a hint, so without an explicit grid its label row
+   stretched and pushed that one select 17px above the other three columns.
+   Packing each field from the top keeps all of them on one line. */
+#canvasEditorScreen .canvas-h3-controls > .canvas-h3-field {
+  align-content: start;
+  grid-auto-rows: min-content;
+  row-gap: var(--space-1);
+}
+
+#canvasEditorScreen .canvas-h3-controls > .canvas-h3-field > span {
+  color: var(--color-text-muted);
+  font-size: var(--type-sm);
+  line-height: 1.2;
+}
+
+/* A native select wraps its selected label, so a long option used to spill
+   onto a second line inside a 32px control and get clipped. One line, ellipsis
+   when the copy is still wider than the column. */
+#canvasEditorScreen .canvas-h3-controls select,
+#canvasEditorScreen .canvas-comfy-controls select,
+#canvasEditorScreen .canvas-node-controls select {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The picker's dot is a status light: it reads the status tokens, and its
+   "auto" state is the brand accent rather than the component's own blue. */
+#canvasEditorScreen .image-model-health-dot {
+  background: var(--color-text-faint);
+  box-shadow: none;
+}
+
+#canvasEditorScreen .image-model-health-dot[data-state="healthy"] {
+  background: var(--color-success);
+  box-shadow: 0 0 0 3px var(--color-success-soft);
+}
+
+#canvasEditorScreen .image-model-health-dot[data-state="warning"] {
+  background: var(--color-warning);
+  box-shadow: 0 0 0 3px var(--color-warning-soft);
+}
+
+#canvasEditorScreen .image-model-health-dot[data-state="danger"] {
+  background: var(--color-danger);
+  box-shadow: 0 0 0 3px var(--color-danger-soft);
+}
+
+#canvasEditorScreen .image-model-health-dot[data-state="auto"] {
+  background: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-selected);
+}
+
+#canvasEditorScreen .canvas-h3-intro,
+#canvasEditorScreen .canvas-h3-reference-grid,
+#canvasEditorScreen .canvas-h3-prompt-field,
+#canvasEditorScreen .canvas-h3-controls {
+  margin-bottom: var(--node-grid-gap);
+}
+
+/* The API video node keeps the same rhythm as H3: the description, the
+   optional first-frame hint and the parameter grid each sit 8px apart, and the
+   16px gap down to the status band lives in the action row above it. */
+#canvasEditorScreen .canvas-api-video-prompt {
+  margin-top: 0;
+  margin-bottom: var(--node-grid-gap);
+}
+
+#canvasEditorScreen .canvas-api-video-reference {
+  margin-top: 0;
+  margin-bottom: var(--node-grid-gap);
+  color: var(--color-text-faint);
+  font-size: var(--type-2xs);
+  line-height: 1.4;
+}
+
+#canvasEditorScreen .canvas-api-video-reference.has-reference {
+  color: var(--color-text-muted);
+}
+
+#canvasEditorScreen .canvas-h3-footer {
+  padding: 0;
+  margin-bottom: var(--node-parameter-gap);
+  gap: var(--space-2);
+}
+
+#canvasEditorScreen .canvas-h3-reference-collection,
+#canvasEditorScreen .canvas-h3-reference-item,
+#canvasEditorScreen .canvas-h3-prompt,
+#canvasEditorScreen .canvas-h3-field textarea,
+#canvasEditorScreen .canvas-h3-mention-menu {
+  border-radius: var(--radius-node-inner);
+}
+
+#canvasEditorScreen .canvas-h3-run {
+  height: var(--control-height-sm);
+  min-height: var(--control-height-sm);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-control);
+}
+
+/* Gallery container: the same 56px title band and optional 24px status band as
+   every other node, with the 8px preview inset the asset-group contract asks
+   for. `auto` lets the final row disappear with the hidden footer. */
+#canvasEditorScreen .canvas-node-gallery-container {
+  grid-template-rows: var(--node-header-band-height) minmax(0, 1fr) auto;
+}
+
+#canvasEditorScreen .canvas-node-gallery-container > .canvas-gallery-container-members {
+  margin: 0 var(--node-shell-padding-inline) var(--node-shell-padding-inline);
+}
+
+#canvasEditorScreen .canvas-gallery-container-empty {
+  border-radius: var(--radius-node-inner);
+  font-size: var(--type-sm);
+}
+
+/* MiniMax H3 parameter grid: the four selects take one column each and the two
+   numeric fields take two, which is the 1+1+1+1 / 2+2 shape the contract asks
+   for. Nodes too narrow for four columns keep the legacy two-column reflow. */
+@container (min-width: 400px) {
+  #canvasEditorScreen .canvas-h3-controls {
+    grid-template-columns: repeat(var(--node-grid-columns), minmax(0, 1fr));
+  }
+
+  #canvasEditorScreen .canvas-h3-controls > .canvas-h3-field:nth-last-child(2),
+  #canvasEditorScreen .canvas-h3-controls > .canvas-h3-field:last-child {
+    grid-column: span 2;
+  }
+}
+
+/* API video node: the model picker owns the first row, the ratio and the
+   quality share the second, and the duration field takes the third. Two
+   columns at the standard width, so the parameter group never falls back to the
+   three-column legacy reflow its four fields do not fit. */
+#canvasEditorScreen .canvas-api-video-controls {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+#canvasEditorScreen .canvas-api-video-controls > .canvas-api-video-model-field {
+  grid-column: 1 / -1;
+}
+
+#canvasEditorScreen .canvas-api-video-controls > .canvas-api-video-duration-field {
+  grid-column: span 2;
+}
+
+/* A suppressed control (the ratio field of a model that refuses an explicit
+   ratio) leaves the layout instead of shrinking to an empty column. */
+#canvasEditorScreen .canvas-h3-field[hidden] {
+  display: none;
+}
+
+/* LLM node: the model select and the run button split the same four columns
+   the other parameter groups use. */
+#canvasEditorScreen .canvas-llm-controls {
+  display: grid;
+  grid-template-columns: repeat(var(--node-grid-columns), minmax(0, 1fr));
+  gap: var(--node-grid-gap);
+  padding: 0 var(--node-shell-padding-inline) var(--node-parameter-gap);
+  min-width: 0;
+}
+
+#canvasEditorScreen .canvas-llm-controls > .canvas-node-model,
+#canvasEditorScreen .canvas-llm-controls > .image-model-picker {
+  grid-column: span 2;
+}
+
+#canvasEditorScreen .canvas-llm-controls > .canvas-node-run {
+  grid-column: span 2;
+  height: var(--control-height-sm);
+  min-height: var(--control-height-sm);
+  padding: 0 var(--space-2);
+}
+
+#canvasEditorScreen .canvas-llm-images {
+  padding: var(--space-2) 0 0;
+  gap: var(--node-grid-gap);
+}
+
+#canvasEditorScreen .canvas-llm-upload {
+  height: var(--control-height-sm);
+  min-height: var(--control-height-sm);
+  padding: 0 var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-soft);
+  color: var(--color-text);
+  font-size: var(--type-sm);
+  font-weight: var(--weight-medium);
+}
+
+#canvasEditorScreen .canvas-llm-upload:hover {
+  background: var(--color-surface-strong);
+  color: var(--color-text);
+}
+
+#canvasEditorScreen .canvas-llm-presets {
+  margin-top: 0;
+}
+
+#canvasEditorScreen .canvas-llm-preset-chip,
+#canvasEditorScreen .canvas-llm-preset-add,
+#canvasEditorScreen .canvas-llm-preset-save,
+#canvasEditorScreen .canvas-llm-preset-delete {
+  height: var(--control-height-sm);
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-control);
+  font-size: var(--type-sm);
+  font-weight: var(--weight-medium);
+}
+
+/* A chip is a second button, not a second brand colour. BENDO gives secondary
+   actions a neutral surface, a structural border and the main text colour, so
+   the action colour stays the only fill inside the node. */
+#canvasEditorScreen .canvas-llm-preset-chip {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+}
+
+#canvasEditorScreen .canvas-llm-preset-chip:hover:not(:disabled) {
+  border-color: var(--color-border-strong);
+  background: var(--color-surface-soft);
+}
+
+/* The panel eyebrow is decoration, not brand. BENDO keeps the accent off
+   ordinary labels so it still means "selected" when it does appear. */
+#canvasEditorScreen .canvas-asset-header p {
+  color: var(--color-text-faint);
+}
+
+/* Empty-state copy and numeric fields inside a node follow the theme and the
+   shared control height instead of keeping their own fixed colours and 42px
+   boxes. */
+#canvasEditorScreen .canvas-llm-images {
+  color: var(--color-text-faint);
+}
+
+#canvasEditorScreen .canvas-image-upload strong {
+  color: var(--color-text);
+  font-size: var(--type-base);
+  font-weight: var(--weight-semibold);
+}
+
+#canvasEditorScreen .canvas-image-upload span {
+  color: var(--color-text-muted);
+  font-size: var(--type-sm);
+  font-weight: var(--weight-regular);
+}
+
+#canvasEditorScreen .custom-size-number {
+  height: var(--control-height-sm);
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-control);
+}
+
+#canvasEditorScreen .custom-size-number span,
+#canvasEditorScreen .custom-size-number input {
+  font-size: var(--type-base);
+  font-weight: var(--weight-medium);
+}
+
+/* Field captions only ever run 10px or above; the legacy layer dropped to 9px
+   for ComfyUI and H3 hints, which the legibility floor does not allow. */
+#canvasEditorScreen .canvas-comfy-field > span,
+#canvasEditorScreen .canvas-h3-resolution-hint,
+#canvasEditorScreen .canvas-comfy-hint,
+#canvasEditorScreen .canvas-h3-intro span {
+  font-size: var(--type-2xs);
+  line-height: 1.45;
+}
+
+/* The OS selection amber belongs to the OS chrome, not to the canvas. */
+#canvasEditorScreen ::selection {
+  background: var(--color-selection);
+  color: var(--color-text);
+}
+
+#canvasEditorScreen .canvas-node.is-selected:not(.canvas-node-frameless) {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-selected);
+}
+
+#canvasEditorScreen .canvas-port {
+  border: 2px solid var(--color-surface);
+  background: var(--color-accent);
+}
+
+/* A port is the end of a connection, so it belongs to the accent role at rest
+   and on hover. Filling it with the action colour made the endpoints turn lime
+   under the pointer while every edge stayed purple. */
+#canvasEditorScreen .canvas-port:hover {
+  background: var(--color-accent);
+  box-shadow: 0 0 0 4px var(--color-selected);
+}
+
+/* --------------------------------------------------------------------------
+   5. Floating chrome — menus, panels, dialogs. Only layers that sit outside
+   .canvas-plane are re-layered here; node-internal stacking is runtime data.
+   -------------------------------------------------------------------------- */
+
+#canvasEditorScreen .canvas-selection-box {
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-panel);
+  background: var(--color-selected);
+}
+
+#canvasEditorScreen .canvas-selection-tools {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-panel);
+  background: var(--os-frost-strong);
+  box-shadow: var(--color-shadow);
+}
+
+#canvasEditorScreen .canvas-node-menu,
+#canvasEditorScreen .canvas-connect-menu,
+#canvasEditorScreen .canvas-image-menu,
+#canvasEditorScreen .canvas-context-menu,
+#canvasEditorScreen .canvas-board-menu,
+#canvasEditorScreen .canvas-h3-mention-menu {
+  z-index: var(--z-overlay-menu);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-panel);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  box-shadow: var(--color-shadow);
+}
+
+#canvasEditorScreen .canvas-node-menu button,
+#canvasEditorScreen .canvas-context-menu button,
+#canvasEditorScreen .canvas-board-menu button {
+  border-radius: var(--radius-control);
+  color: var(--color-text);
+  font-size: var(--type-sm);
+  font-weight: var(--weight-regular);
+}
+
+#canvasEditorScreen .canvas-node-menu button:hover,
+#canvasEditorScreen .canvas-context-menu button:hover,
+#canvasEditorScreen .canvas-board-menu button:hover {
+  background: var(--color-hover);
+  color: var(--color-text);
+}
+
+#canvasEditorScreen .canvas-menu-group-label {
+  color: var(--color-text-faint);
+  font-size: var(--type-2xs);
+  font-weight: var(--weight-medium);
+}
+
+#canvasEditorScreen .canvas-board-loading:not([hidden]) {
+  z-index: var(--z-overlay-modal-scrim);
+  background: var(--theme-overlay);
+}
+
+#canvasEditorScreen .canvas-board-loading-card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-panel);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  box-shadow: var(--color-shadow);
+}
+
+#canvasEditorScreen .canvas-name-panel,
+#canvasEditorScreen .canvas-confirm-panel,
+#canvasEditorScreen .canvas-cutout-modal {
+  z-index: var(--z-overlay-modal);
+}
+
+#canvasEditorScreen .canvas-name-card,
+#canvasEditorScreen .canvas-confirm-card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-panel);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  box-shadow: var(--color-shadow);
+}
+
+#canvasEditorScreen .canvas-delete-confirm {
+  z-index: var(--z-overlay-modal-scrim);
+}
+
+#canvasEditorScreen .canvas-delete-confirm-card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-panel);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  box-shadow: var(--color-shadow);
+}
+
+#canvasEditorScreen .canvas-delete-undo {
+  z-index: var(--z-overlay-notification);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-panel);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  box-shadow: var(--color-shadow);
+}
+
+/* --------------------------------------------------------------------------
+   5b. Theme menu — the canvas palette picker lives in the screen HUD, so it
+   consumes the same control height, radius, type roles and menu surface as
+   every other canvas menu. The classic palette sits last: it is the look this
+   board shipped before the migration and stays selectable.
+   -------------------------------------------------------------------------- */
+
+#canvasEditorScreen .canvas-theme-toggle {
+  position: relative;
+}
+
+#canvasEditorScreen .canvas-theme-toggle::after {
+  content: "";
+  width: 0;
+  height: 0;
+  margin-left: 2px;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 4px solid currentColor;
+  opacity: .72;
+}
+
+#canvasEditorScreen .canvas-theme-menu {
+  position: absolute;
+  top: calc(100% + var(--node-grid-gap));
+  left: 0;
+  z-index: var(--z-overlay-menu);
+  display: grid;
+  gap: 2px;
+  min-width: 240px;
+  padding: var(--space-1);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-panel);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  box-shadow: var(--color-shadow);
+}
+
+#canvasEditorScreen .canvas-theme-menu[hidden] {
+  display: none;
+}
+
+#canvasEditorScreen .canvas-theme-menu-title {
+  padding: var(--space-2) var(--space-2) var(--space-1);
+  color: var(--color-text-faint);
+  font-size: var(--type-2xs);
+  font-weight: var(--weight-medium);
+}
+
+#canvasEditorScreen .canvas-theme-menu button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: var(--control-height-sm);
+  padding: var(--space-1) var(--space-2);
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--color-text);
+  text-align: left;
+}
+
+#canvasEditorScreen .canvas-theme-menu button:hover {
+  background: var(--color-hover);
+}
+
+#canvasEditorScreen .canvas-theme-menu button.is-active {
+  background: var(--color-selected);
+  box-shadow: inset 0 0 0 1px var(--color-accent);
+}
+
+#canvasEditorScreen .canvas-theme-menu button:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: -2px;
+}
+
+#canvasEditorScreen .canvas-theme-option-copy {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+#canvasEditorScreen .canvas-theme-option-copy strong {
+  color: var(--color-text);
+  font-size: var(--type-base);
+  font-weight: var(--weight-medium);
+  line-height: 1.2;
+}
+
+#canvasEditorScreen .canvas-theme-option-copy small {
+  color: var(--color-text-faint);
+  font-size: var(--type-2xs);
+  font-weight: var(--weight-regular);
+  line-height: 1.45;
+}
+
+#canvasEditorScreen .canvas-theme-option-check {
+  flex: 0 0 auto;
+  color: var(--color-accent);
+  font-size: var(--type-base);
+  opacity: 0;
+}
+
+#canvasEditorScreen .canvas-theme-menu button.is-active .canvas-theme-option-check {
+  opacity: 1;
+}
+
+/* --------------------------------------------------------------------------
+   6. Agent work panel — shares the canvas surface instead of the OS palette
+   -------------------------------------------------------------------------- */
+
+#canvasEditorScreen .canvas-agent-panel {
+  border-left: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: -18px 0 50px color-mix(in srgb, var(--color-canvas) 55%, transparent);
+  z-index: var(--z-overlay-dock-panel);
+}
+
+#canvasEditorScreen .canvas-agent-panel input,
+#canvasEditorScreen .canvas-agent-panel textarea,
+#canvasEditorScreen .canvas-agent-panel select {
+  border-color: var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+}
+
+#canvasEditorScreen .canvas-agent-panel button {
+  border-radius: var(--radius-control);
+}

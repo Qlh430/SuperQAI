@@ -1,0 +1,339 @@
+{
+  "reviews": [
+    {
+      "status": "completed",
+      "score": 55,
+      "summary": {
+        "critical": 0,
+        "serious": 0,
+        "moderate": 9,
+        "total": 9
+      },
+      "findings": [
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "390-focus",
+          "severity": "moderate",
+          "message": "结果输出，拖动连接 measures 28x28px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-audio-102"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 28,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 28,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-1"
+        },
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "1728-focus",
+          "severity": "moderate",
+          "message": "结果输出，拖动连接 measures 28x28px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-audio-102"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 28,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 28,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-2"
+        },
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "1440-hover",
+          "severity": "moderate",
+          "message": "结果输出，拖动连接 measures 28x28px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-audio-102"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 28,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 28,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-3"
+        },
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "1440-selected",
+          "severity": "moderate",
+          "message": "结果输出，拖动连接 measures 28x28px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-audio-102"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 28,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 28,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-4"
+        },
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "1440-fullscreen",
+          "severity": "moderate",
+          "message": "结果输出，拖动连接 measures 28x28px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-audio-102"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 28,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 28,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-5"
+        },
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "1440-fullscreen",
+          "severity": "moderate",
+          "message": "放大查看原图 measures 32x32px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-audio-105"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 32,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 32,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-6"
+        },
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "1440-fullscreen",
+          "severity": "moderate",
+          "message": "下载素材 measures 32x32px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-audio-111"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 32,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 32,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-7"
+        },
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "1440-fullscreen",
+          "severity": "moderate",
+          "message": "替换素材 measures 32x32px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-audio-116"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 32,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 32,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-8"
+        },
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "1440-fullscreen",
+          "severity": "moderate",
+          "message": "删除素材节点 measures 32x32px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-audio-123"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 32,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 32,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-9"
+        }
+      ],
+      "capturedWidths": [
+        390,
+        1440,
+        1728
+      ]
+    },
+    {
+      "status": "completed",
+      "score": 80,
+      "summary": {
+        "critical": 0,
+        "serious": 0,
+        "moderate": 4,
+        "total": 4
+      },
+      "findings": [
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "390-focus",
+          "severity": "moderate",
+          "message": "结果输出，拖动连接 measures 28x28px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-audio-102"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 28,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 28,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-1"
+        },
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "768-focus",
+          "severity": "moderate",
+          "message": "结果输出，拖动连接 measures 28x28px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-audio-102"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 28,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 28,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-2"
+        },
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "1440-focus",
+          "severity": "moderate",
+          "message": "结果输出，拖动连接 measures 28x28px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-audio-102"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 28,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 28,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-3"
+        },
+        {
+          "ruleId": "spacing/touch-target",
+          "state": "1728-focus",
+          "severity": "moderate",
+          "message": "结果输出，拖动连接 measures 28x28px, below the recommended 44x44px touch target.",
+          "fix": "Increase the interactive hit area to at least 44x44px without relying on the visible icon size.",
+          "elementIds": [
+            "qa-audio-102"
+          ],
+          "evidence": [
+            {
+              "label": "Width",
+              "value": 28,
+              "unit": "px"
+            },
+            {
+              "label": "Height",
+              "value": 28,
+              "unit": "px"
+            }
+          ],
+          "id": "spacing-4"
+        }
+      ],
+      "capturedWidths": [
+        390,
+        768,
+        1440,
+        1728
+      ]
+    }
+  ],
+  "disposition": "连接端口 28px 可见圆形被工具标为 moderate；既有 ::before inset:-10px 将实际点击区域扩至 48px，浏览器 elementFromPoint 已验证扩展区域命中真实端口。未改变共享端口外观。"
+}

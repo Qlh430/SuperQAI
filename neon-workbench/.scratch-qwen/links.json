@@ -1,0 +1,374 @@
+{
+  "729": {
+    "from": 478,
+    "fromSlot": 0,
+    "to": 480,
+    "toSlot": 1
+  },
+  "731": {
+    "from": 481,
+    "fromSlot": 0,
+    "to": 480,
+    "toSlot": 0
+  },
+  "732": {
+    "from": 482,
+    "fromSlot": 0,
+    "to": 481,
+    "toSlot": 3
+  },
+  "733": {
+    "from": 479,
+    "fromSlot": 0,
+    "to": 482,
+    "toSlot": 1
+  },
+  "739": {
+    "from": 13,
+    "fromSlot": 0,
+    "to": 479,
+    "toSlot": 0
+  },
+  "740": {
+    "from": 13,
+    "fromSlot": 1,
+    "to": 479,
+    "toSlot": 1
+  },
+  "745": {
+    "from": 480,
+    "fromSlot": 0,
+    "to": 487,
+    "toSlot": 0
+  },
+  "756": {
+    "from": 477,
+    "fromSlot": 0,
+    "to": 497,
+    "toSlot": 0
+  },
+  "758": {
+    "from": 478,
+    "fromSlot": 0,
+    "to": 497,
+    "toSlot": 8
+  },
+  "762": {
+    "from": 497,
+    "fromSlot": 0,
+    "to": 481,
+    "toSlot": 1
+  },
+  "763": {
+    "from": 497,
+    "fromSlot": 1,
+    "to": 481,
+    "toSlot": 2
+  },
+  "764": {
+    "from": 497,
+    "fromSlot": 2,
+    "to": 482,
+    "toSlot": 0
+  },
+  "768": {
+    "from": 483,
+    "fromSlot": 0,
+    "to": 481,
+    "toSlot": 0
+  },
+  "769": {
+    "from": 502,
+    "fromSlot": 0,
+    "to": 481,
+    "toSlot": 4
+  },
+  "775": {
+    "from": 520,
+    "fromSlot": 0,
+    "to": 508,
+    "toSlot": 0
+  },
+  "776": {
+    "from": 512,
+    "fromSlot": 0,
+    "to": 514,
+    "toSlot": 0
+  },
+  "777": {
+    "from": 512,
+    "fromSlot": 1,
+    "to": 514,
+    "toSlot": 1
+  },
+  "779": {
+    "from": 522,
+    "fromSlot": 0,
+    "to": 515,
+    "toSlot": 1
+  },
+  "780": {
+    "from": 522,
+    "fromSlot": 1,
+    "to": 515,
+    "toSlot": 2
+  },
+  "782": {
+    "from": 524,
+    "fromSlot": 0,
+    "to": 515,
+    "toSlot": 4
+  },
+  "785": {
+    "from": 515,
+    "fromSlot": 0,
+    "to": 520,
+    "toSlot": 0
+  },
+  "786": {
+    "from": 519,
+    "fromSlot": 0,
+    "to": 520,
+    "toSlot": 1
+  },
+  "788": {
+    "from": 518,
+    "fromSlot": 0,
+    "to": 522,
+    "toSlot": 0
+  },
+  "792": {
+    "from": 514,
+    "fromSlot": 0,
+    "to": 515,
+    "toSlot": 3
+  },
+  "794": {
+    "from": 480,
+    "fromSlot": 0,
+    "to": 530,
+    "toSlot": 1
+  },
+  "801": {
+    "from": 532,
+    "fromSlot": 0,
+    "to": 497,
+    "toSlot": 1
+  },
+  "802": {
+    "from": 532,
+    "fromSlot": 0,
+    "to": 530,
+    "toSlot": 0
+  },
+  "803": {
+    "from": 475,
+    "fromSlot": 0,
+    "to": 532,
+    "toSlot": 0
+  },
+  "817": {
+    "from": 551,
+    "fromSlot": 0,
+    "to": 497,
+    "toSlot": 2
+  },
+  "818": {
+    "from": 505,
+    "fromSlot": 0,
+    "to": 551,
+    "toSlot": 0
+  },
+  "819": {
+    "from": 552,
+    "fromSlot": 0,
+    "to": 497,
+    "toSlot": 3
+  },
+  "820": {
+    "from": 507,
+    "fromSlot": 0,
+    "to": 552,
+    "toSlot": 0
+  },
+  "821": {
+    "from": 554,
+    "fromSlot": 0,
+    "to": 497,
+    "toSlot": 4
+  },
+  "822": {
+    "from": 553,
+    "fromSlot": 0,
+    "to": 497,
+    "toSlot": 5
+  },
+  "823": {
+    "from": 556,
+    "fromSlot": 0,
+    "to": 497,
+    "toSlot": 7
+  },
+  "824": {
+    "from": 557,
+    "fromSlot": 0,
+    "to": 497,
+    "toSlot": 6
+  },
+  "825": {
+    "from": 555,
+    "fromSlot": 0,
+    "to": 497,
+    "toSlot": 12
+  },
+  "826": {
+    "from": 543,
+    "fromSlot": 0,
+    "to": 556,
+    "toSlot": 0
+  },
+  "827": {
+    "from": 544,
+    "fromSlot": 0,
+    "to": 555,
+    "toSlot": 0
+  },
+  "828": {
+    "from": 542,
+    "fromSlot": 0,
+    "to": 557,
+    "toSlot": 0
+  },
+  "829": {
+    "from": 541,
+    "fromSlot": 0,
+    "to": 553,
+    "toSlot": 0
+  },
+  "830": {
+    "from": 506,
+    "fromSlot": 0,
+    "to": 554,
+    "toSlot": 0
+  },
+  "831": {
+    "from": 532,
+    "fromSlot": 0,
+    "to": 565,
+    "toSlot": 0
+  },
+  "832": {
+    "from": 551,
+    "fromSlot": 0,
+    "to": 565,
+    "toSlot": 1
+  },
+  "833": {
+    "from": 552,
+    "fromSlot": 0,
+    "to": 565,
+    "toSlot": 2
+  },
+  "834": {
+    "from": 554,
+    "fromSlot": 0,
+    "to": 565,
+    "toSlot": 3
+  },
+  "835": {
+    "from": 553,
+    "fromSlot": 0,
+    "to": 565,
+    "toSlot": 4
+  },
+  "836": {
+    "from": 557,
+    "fromSlot": 0,
+    "to": 565,
+    "toSlot": 5
+  },
+  "837": {
+    "from": 556,
+    "fromSlot": 0,
+    "to": 565,
+    "toSlot": 6
+  },
+  "838": {
+    "from": 555,
+    "fromSlot": 0,
+    "to": 565,
+    "toSlot": 7
+  },
+  "841": {
+    "from": 565,
+    "fromSlot": 0,
+    "to": 569,
+    "toSlot": 0
+  },
+  "848": {
+    "from": 583,
+    "fromSlot": 0,
+    "to": 582,
+    "toSlot": 0
+  },
+  "913": {
+    "from": 649,
+    "fromSlot": 0,
+    "to": 483,
+    "toSlot": 0
+  },
+  "915": {
+    "from": 653,
+    "fromSlot": 0,
+    "to": 515,
+    "toSlot": 0
+  },
+  "918": {
+    "from": 476,
+    "fromSlot": 0,
+    "to": 661,
+    "toSlot": 0
+  },
+  "919": {
+    "from": 661,
+    "fromSlot": 0,
+    "to": 649,
+    "toSlot": 0
+  },
+  "920": {
+    "from": 523,
+    "fromSlot": 0,
+    "to": 663,
+    "toSlot": 0
+  },
+  "921": {
+    "from": 663,
+    "fromSlot": 0,
+    "to": 653,
+    "toSlot": 0
+  },
+  "922": {
+    "from": 517,
+    "fromSlot": 0,
+    "to": 583,
+    "toSlot": 8
+  },
+  "923": {
+    "from": 582,
+    "fromSlot": 0,
+    "to": 522,
+    "toSlot": 3
+  },
+  "924": {
+    "from": 571,
+    "fromSlot": 0,
+    "to": 565,
+    "toSlot": 8
+  },
+  "925": {
+    "from": 569,
+    "fromSlot": 0,
+    "to": 497,
+    "toSlot": 9
+  }
+}

@@ -1,0 +1,25 @@
+const assert = require('node:assert/strict')
+const fs = require('node:fs')
+const path = require('node:path')
+
+const source = path.join(__dirname, 'design-sources')
+const shell = fs.readFileSync(path.join(source, 'flora-node-shell.js'), 'utf8')
+const bridge = fs.readFileSync(path.join(source, 'script-before-save-bridge.js'), 'utf8')
+const api = fs.readFileSync(path.join(source, 'media-generation-http-api.js'), 'utf8')
+assert.match(shell, /\["redraw",\s*"重绘"/, '图片工具栏应注册重绘')
+assert.match(shell, /data-flora-action="redraw"/, '图片工具状态同步应包含重绘')
+assert.match(bridge, /QWEN_IMAGE21_REDRAW_API_URL\s*=\s*"\/api\/qwen-image21-redraw"/, '前端应使用重绘 API')
+assert.match(bridge, /action === "redraw"/, '媒体动作应处理重绘')
+assert.match(bridge, /openCanvasMaskEditor\(node,\s*\{/, '重绘应复用遮罩编辑器')
+assert.match(bridge, /await options\.onSaved/, '遮罩保存后应进入重绘提示词流程')
+assert.match(bridge, /className = "canvas-redraw-modal"/, '应创建重绘提示词面板')
+assert.match(bridge, /mask_image: maskUrl/, '重绘请求应提交遮罩')
+assert.match(bridge, /prompt,/, '重绘请求应提交提示词')
+assert.match(api, /\["\/api\/qwen-image21-redraw",\s*"qwen-image21-redraw"\]/, '后端路由应注册重绘')
+
+const stage = path.resolve(__dirname, '..', 'AI-OS-Preview-Staging', 'video-hover-icon-centered-20261023-stage-r1', 'resources', 'app')
+if (fs.existsSync(path.join(stage, 'script.js'))) {
+  const deployed = fs.readFileSync(path.join(stage, 'script.js'), 'utf8')
+  assert.match(deployed, /QWEN_IMAGE21_REDRAW_API_URL/, '固定工作台 script.js 应包含重绘 API')
+}
+console.log(JSON.stringify({ ok: true, toolbar: 'redraw', maskEditor: true, promptBranching: true, route: '/api/qwen-image21-redraw' }, null, 2))

@@ -1,0 +1,14 @@
+const fs=require('node:fs'),vm=require('node:vm'),path=require('node:path'),assert=require('node:assert/strict');
+const source=fs.readFileSync(path.join(__dirname,'design-sources/script-before-save-bridge.js'),'utf8');
+const body=(name,end)=>source.slice(source.indexOf('function '+name+'('),source.indexOf('function '+end+'('));
+const models=new Map([['g',{id:'g',kind:'group',groupMembers:['a','b'],zOrder:8}],['a',{id:'a',kind:'image',zOrder:1}],['b',{id:'b',kind:'image',zOrder:2}],['x',{id:'x',kind:'image',zOrder:100}]]);
+const el=(id,group=false)=>({dataset:{id,zOrder:String(models.get(id).zOrder)},isConnected:true,classList:{contains:c=>c==='canvas-node-group'&&group},matches:()=>false,style:{setProperty(){}}});
+const nodes=[el('a'),el('b'),el('g',true),el('x')];let writes=0;
+const scope={canvasState:{selectedIds:new Set(['g']),selectedSceneItems:new Map()},canvasVirtualStore:{get:id=>models.get(id),mountedElements:()=>nodes},document:{activeElement:null},getCanvasGroupMemberIds:n=>models.get(n.dataset.id).groupMembers||[],scheduleCanvasSceneRender(){},stageCanvasOperation(){writes++;}};
+vm.createContext(scope);vm.runInContext(body('getCanvasInteractionIds','ensureCanvasInteractionLayer')+body('syncCanvasNodeStacking','bringCanvasNodeToFront')+body('bringCanvasModelToFront','selectCanvasNode'),scope);
+assert.deepEqual([...scope.getCanvasInteractionIds()].sort(),['a','b','g']);scope.syncCanvasNodeStacking();const z=id=>Number(nodes.find(n=>n.dataset.id===id).style.zIndex);
+assert.ok(z('x')<z('g')&&z('g')<500000&&z('a')>500000&&z('b')>500000);
+scope.bringCanvasModelToFront(models.get('a'));assert.equal(writes,0);assert.equal(models.get('a').zOrder,1);
+scope.canvasState.selectedIds.clear();scope.syncCanvasNodeStacking();assert.ok(z('x')>z('a')&&z('x')>z('b'));assert.ok(z('g')<z('a'));
+scope.canvasState.selectedIds=new Set(['a','x']);scope.syncCanvasNodeStacking();assert.ok(z('a')>500000&&z('x')>z('a'));assert.ok(z('b')<500000);
+console.log('temporary group/member and multi-selection stacking, durable order unchanged passed');

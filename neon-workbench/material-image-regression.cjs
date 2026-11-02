@@ -1,0 +1,87 @@
+const { chromium } = require('playwright')
+const assert = require('node:assert/strict')
+const fs = require('node:fs')
+const path = require('node:path')
+;(async () => {
+  const browser = await chromium.launch({ headless: true, executablePath: 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe' })
+  try {
+    const page = await browser.newPage({ viewport: { width: 1440, height: 1050 } })
+    const errors = []; page.on('pageerror', error => errors.push(error.message))
+    const output = path.join(__dirname, 'acceptance/material-image'); fs.mkdirSync(output, { recursive: true })
+    const imageUrl = '/output/qa-material-1536x1024.png'
+    let uploadCount = 0
+    await page.route('**/api/**', r => r.fulfill({ json: { authenticated: false, models: [], providers: [], boards: [], projects: [], resources: [], records: [], preferences: {}, settings: {} } }))
+    await page.route('**/api/upload-image', r => r.fulfill({ json: { url: ++uploadCount === 1 ? imageUrl : '/output/qa-material-portrait.png' } }))
+    await page.route('**/output/qa-material-1536x1024.png*', r => r.fulfill({ contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" width="1536" height="1024"><rect width="100%" height="100%" fill="#ac8c38"/></svg>' }))
+    await page.route('**/output/qa-material-portrait.png*', r => r.fulfill({ contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1536"><rect width="100%" height="100%" fill="#7284ac"/></svg>' }))
+    if (process.env.GENERATOR_SOURCE) for (const name of ['script.js', 'flora-node-shell.js', 'flora-node-shell.css']) await page.route(`**/${name}*`, r => r.fulfill({ contentType: name.endsWith('.css') ? 'text/css' : 'application/javascript', body: fs.readFileSync(path.join(process.env.GENERATOR_SOURCE, name === 'script.js' ? 'script-before-save-bridge.js' : name), 'utf8') }))
+    await page.goto('http://127.0.0.1:3199/', { waitUntil: 'domcontentloaded' })
+    await page.evaluate(async () => {
+      await AiOsModuleLoader.ensure(['canvas-runtime', 'canvas-node-text', 'canvas-node-media', 'canvas-node-asset-collection'])
+      await loadCanvasBoards(); canvasState.activeBoardId = 'qa-material'
+      const surface = document.createElement('div'); surface.id = 'neonEngineSurface'; surface.style.cssText = 'position:fixed;inset:0;z-index:2147483000;display:flex;flex-direction:column;background:#080a0e'
+      const view = document.querySelector('#canvasView'); surface.append(view); document.body.append(surface)
+      view.hidden = false; view.classList.add('active'); view.style.cssText = 'flex:1;min-height:0;width:100%'
+      document.querySelector('#canvasEditorScreen').hidden = false; document.body.classList.add('canvas-surface-open'); showCanvasEditor()
+      window.qaText = addCanvasText({ x: 700, y: 80 }, { focus: false }); setCanvasTextValue(qaText, '素材参考测试')
+      canvasState.scale = 1; canvasState.x = 100; canvasState.y = 0; applyCanvasTransformNow(); selectCanvasNode(qaText)
+    })
+    const file = { name: '横版素材.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aJ1sAAAAASUVORK5CYII=', 'base64') }
+    await page.locator('.canvas-node-text .flora-generator-reference-input').setInputFiles(file)
+    await page.waitForFunction(() => qaText.dataset.floraReferenceUploading !== 'true' && canvasState.connections.some(c => c.to === qaText.dataset.id))
+    await page.evaluate(() => {
+      window.qaMaterial = getCanvasNode(canvasState.connections.find(c => c.to === qaText.dataset.id).from)
+      qaMaterial.dataset.qaMaterial = 'upload'; setCanvasNodePoint(qaMaterial, { x: 40, y: 80 }); updateCanvasNodePosition(qaMaterial); selectCanvasNode(qaMaterial)
+    })
+    await page.waitForFunction(() => qaMaterial.querySelector('.canvas-image-upload img')?.naturalWidth > 0)
+    await page.waitForTimeout(200)
+    const material = page.locator('[data-qa-material="upload"]')
+    const state = await material.evaluate(node => ({ kind: node.dataset.floraKind, adaptive: node.dataset.floraAdaptiveMedia, width: node.dataset.width, height: node.dataset.height, media: [...node.querySelectorAll('img')].map(img => ({ src: img.src, width: img.naturalWidth, height: img.naturalHeight })), buttons: [...node.querySelectorAll('.flora-node-toolbar button')].map(b => ({ action: b.dataset.floraAction, hidden: b.hidden, svg: !!b.querySelector('svg'), glyph: b.querySelector('i')?.outerHTML })) }))
+    if (state.adaptive !== 'true' || state.buttons.some(b => !b.hidden && !b.svg)) console.log(JSON.stringify(state))
+    await page.screenshot({ path: path.join(output, 'uploaded.png') })
+    const shell = await material.locator(':scope > .flora-node-shell').boundingBox()
+    assert.ok(Math.abs(shell.width / shell.height - 1.5) < .005, '通过添加素材创建的图片节点应使用真实图片比例')
+    const image = await material.locator('.canvas-image-upload img').boundingBox()
+    for (const key of ['x', 'y', 'width', 'height']) assert.ok(Math.abs(shell[key] - image[key]) < 1, `素材图片 ${key} 贴合主体`)
+    const buttons = material.locator('.flora-node-toolbar button:not([hidden])')
+    assert.equal(await buttons.count(), 9, '图片工具栏有放大查看、放大、抠图、裁剪、扩图、换角度、下载、替换、删除')
+    for (const button of await buttons.all()) assert.equal(await button.locator('svg').count(), 1, '每个工具栏按钮都有可见图标')
+    assert.equal(await material.locator(':scope > .canvas-node-bar').evaluate(el => getComputedStyle(el).display), 'none', '只有一个外置标题，不显示内部重复标题')
+    const saved = await material.evaluate(el => serializeCanvasNode(el))
+    assert.ok(Math.abs(saved.width / saved.height - 1.5) < .005, '保存图片真实比例')
+    await page.evaluate(item => {
+      window.qaRestored = restoreCanvasBoardNode({ ...item, id: 'qa-material-restored', x: 40, y: 80 }, {}, { maxId: 0 })
+      qaRestored.dataset.qaMaterial = 'restored'; selectCanvasNode(qaRestored)
+    }, saved)
+    const restored = page.locator('[data-qa-material="restored"]')
+    await page.waitForTimeout(150)
+    const restoredBox = await restored.locator(':scope > .flora-node-shell').boundingBox()
+    assert.ok(Math.abs(restoredBox.width / restoredBox.height - 1.5) < .005, '缓存图片恢复后仍保持比例')
+    assert.equal(await restored.locator('.flora-node-toolbar button:not([hidden]) svg').count(), 9, '恢复节点图标齐全')
+    await page.evaluate(() => { unmountCanvasVirtualNode(qaRestored.dataset.id, qaRestored); selectCanvasNode(qaMaterial) })
+    const chooser = page.waitForEvent('filechooser')
+    await material.locator('[data-flora-action="replace"]').click()
+    await (await chooser).setFiles({ ...file, name: '竖版素材.png' })
+    await page.waitForFunction(() => qaMaterial.querySelector('.canvas-image-upload img')?.naturalHeight === 1536)
+    await page.waitForTimeout(150)
+    const portrait = await material.locator(':scope > .flora-node-shell').boundingBox()
+    assert.ok(Math.abs(portrait.width / portrait.height - 2 / 3) < .005, '替换竖图后同步节点比例')
+    assert.equal(await material.locator('.flora-node-toolbar button:not([hidden]) svg').count(), 9, '替换图片重建工具栏后图标齐全')
+    assert.equal(await page.evaluate(() => canvasState.connections.filter(c => c.from === qaMaterial.dataset.id && c.to === qaText.dataset.id).length), 1, '替换保留参考连接')
+    for (const width of [390, 768, 1440, 1728]) {
+      await page.setViewportSize({ width, height: 1050 })
+      for (const scale of [.65, 1.23]) {
+        await page.evaluate(({ width, scale }) => { canvasState.scale = scale; canvasState.x = width / 2 - 240 * scale; canvasState.y = 60; applyCanvasTransformNow(); selectCanvasNode(qaMaterial) }, { width, scale })
+        await page.waitForTimeout(80)
+        const box = await material.locator(':scope > .flora-node-shell').boundingBox(), img = await material.locator('.canvas-image-upload img').boundingBox()
+        assert.ok(Math.abs(box.width / box.height - 2 / 3) < .005)
+        for (const key of ['x', 'y', 'width', 'height']) assert.ok(Math.abs(box[key] - img[key]) < 1, `${width}/${scale} 图片贴合节点`)
+        assert.equal(await material.locator('.flora-node-toolbar button:not([hidden]) svg').count(), 9)
+        await page.screenshot({ path: path.join(output, `${width}-${scale}-selected.png`) })
+      }
+    }
+    assert.equal(await page.evaluate(() => getCanvasTextValue(qaText)), '素材参考测试')
+    assert.deepEqual(errors, [])
+    console.log(JSON.stringify({ ok: true, widths: [390, 768, 1440, 1728], scales: [.65, 1.23], errors }))
+  } finally { await browser.close() }
+})().catch(error => { console.error(error); process.exitCode = 1 })

@@ -1,0 +1,567 @@
+{
+  "started": 1792814034.3915868,
+  "csv_sha256": "a6b81431f651aa1bf44887348c9ca6d2eb5d5f8db73f2cd75d6cadf5eff46cb2",
+  "executed": true,
+  "free_before": 24664215552,
+  "items": [
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\video-generator-icon-20261023\\stage-r7",
+      "status": "deleted",
+      "files": 1274
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v302-isolated-gui-20261021\\.ai-runtime\\versions\\isolated-drag-fix",
+      "status": "deleted",
+      "files": 1275
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.2-targeted-20261021\\runtime-full",
+      "status": "deleted",
+      "files": 1274
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.2-stability-20261020\\中文交互验收\\AI OS\\.ai-runtime\\versions\\3.0.1-win-x64",
+      "status": "deleted",
+      "files": 1275
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.2-stability-20261020\\preview-runtime",
+      "status": "deleted",
+      "files": 1274
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.2-port-hover-fix-20261020\\preview-runtime",
+      "status": "deleted",
+      "files": 1274
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.2-interaction-final-20261020\\preview-runtime",
+      "status": "deleted",
+      "files": 1274
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.2-history-immediate-20261020\\preview-runtime",
+      "status": "deleted",
+      "files": 1274
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-updater-closeout-20261019\\r9中文独立验收\\AI OS 3.0.1\\.ai-runtime\\versions\\3.0.1-win-x64",
+      "status": "deleted",
+      "files": 1275
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\中文安装验收\\AI OS 3.0.1-r3\\.ai-runtime\\versions\\3.0.1-win-x64",
+      "status": "deleted",
+      "files": 1271
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\中文安装验收\\AI OS 3.0.1\\.ai-runtime\\versions\\3.0.1-win-x64",
+      "status": "deleted",
+      "files": 1271
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\candidate-3.0.1-r9\\.ai-runtime\\versions\\3.0.1-win-x64",
+      "status": "deleted",
+      "files": 1274
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\candidate-3.0.1-r8\\.ai-runtime\\versions\\3.0.1-win-x64",
+      "status": "deleted",
+      "files": 1271
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\candidate-3.0.1-r7\\.ai-runtime\\versions\\3.0.1-win-x64",
+      "status": "deleted",
+      "files": 1271
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\candidate-3.0.1-r6\\.ai-runtime\\versions\\3.0.1-win-x64",
+      "status": "deleted",
+      "files": 1271
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\candidate-3.0.1-r5\\.ai-runtime\\versions\\3.0.1-win-x64",
+      "status": "deleted",
+      "files": 1271
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\candidate-3.0.1-r4\\.ai-runtime\\versions\\3.0.1-win-x64",
+      "status": "deleted",
+      "files": 1271
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\candidate-3.0.1-r3\\.ai-runtime\\versions\\3.0.1-win-x64",
+      "status": "deleted",
+      "files": 1271
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\candidate-3.0.1-r2\\.ai-runtime\\versions\\3.0.1-win-x64",
+      "status": "deleted",
+      "files": 1271
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\candidate-3.0.1-last2\\.ai-runtime\\versions\\3.0.1-win-x64",
+      "status": "deleted",
+      "files": 1274
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\candidate-3.0.1-last1\\.ai-runtime\\versions\\3.0.1-win-x64",
+      "status": "deleted",
+      "files": 1274
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\candidate-3.0.1\\.ai-runtime\\versions\\3.0.1-win-x64",
+      "status": "deleted",
+      "files": 1271
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-release-execution-20261020\\最终ZIP中文验收\\AI OS 3.0.1\\.ai-runtime\\versions\\3.0.1-win-x64",
+      "status": "deleted",
+      "files": 1274
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-release-execution-20261020\\中文安装验收\\AI OS 3.0.1\\.ai-runtime\\versions\\3.0.2-win-x64",
+      "status": "deleted",
+      "files": 1274
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-release-execution-20261020\\中文安装验收\\AI OS 3.0.1\\.ai-runtime\\versions\\3.0.1-win-x64",
+      "status": "deleted",
+      "files": 1275
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-release-execution-20261020\\中文品牌验收\\AI OS 3.0.1\\.ai-runtime\\versions\\3.0.1-win-x64",
+      "status": "deleted",
+      "files": 1274
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-release-execution-20261020\\update-test-objects\\3.0.3",
+      "status": "deleted",
+      "files": 1274
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-release-execution-20261020\\update-test-objects\\3.0.2",
+      "status": "deleted",
+      "files": 1274
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-last-fix-20261019\\末轮中文安装\\AI OS 3.0.1\\.ai-runtime\\versions\\3.0.1-win-x64",
+      "status": "deleted",
+      "files": 1274
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-last-fix-20261019\\最终中文验收\\AI OS 3.0.1\\.ai-runtime\\versions\\3.0.1-win-x64",
+      "status": "deleted",
+      "files": 1274
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-last-fix-20261019\\中文客户端验收\\AI OS 3.0.1\\.ai-runtime\\versions\\3.0.1-win-x64",
+      "status": "deleted",
+      "files": 1274
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-last-fix-20261019\\update-final\\中文独立安装\\AI OS 开发重启测试\\.ai-runtime\\versions\\3.0.2-win-x64",
+      "status": "deleted",
+      "files": 1274
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-last-fix-20261019\\update-final\\中文独立安装\\AI OS 开发重启测试\\.ai-runtime\\versions\\3.0.1-win-x64",
+      "status": "deleted",
+      "files": 1274
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-last-fix-20261019\\update-final\\development-release-objects\\source-3.0.2",
+      "status": "deleted",
+      "files": 1274
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-last-fix-20261019\\update\\中文独立安装\\AI OS 开发重启测试\\.ai-runtime\\versions\\3.0.2-win-x64",
+      "status": "deleted",
+      "files": 1273
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-last-fix-20261019\\update\\中文独立安装\\AI OS 开发重启测试\\.ai-runtime\\versions\\3.0.1-win-x64",
+      "status": "deleted",
+      "files": 1273
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-last-fix-20261019\\update\\development-release-objects\\source-3.0.2",
+      "status": "deleted",
+      "files": 1273
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-final-go-no-go-20261018\\测试中文路径\\AI OS v3.0.1 候选\\.ai-runtime\\versions\\1.0.5-win-x64",
+      "status": "deleted",
+      "files": 1270
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-final-go-no-go-20261018\\full-candidate-20261018\\.ai-runtime\\versions\\1.0.5-win-x64",
+      "status": "deleted",
+      "files": 1270
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\media-naming-20261022\\runtime",
+      "status": "deleted",
+      "files": 1274
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\interaction-final-fix-20261019\\runtime",
+      "status": "deleted",
+      "files": 1274
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\image-generator-icon-unselected-20261023\\stage-r6",
+      "status": "deleted",
+      "files": 1274
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\image-generator-icon-unselected-20261023\\stage-r5",
+      "status": "deleted",
+      "files": 1274
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\image-generator-icon-unselected-20261023\\stage-r4",
+      "status": "deleted",
+      "files": 1274
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\image-generator-icon-unselected-20261023\\stage-r3",
+      "status": "deleted",
+      "files": 1274
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\image-generator-icon-unselected-20261023\\stage-r2",
+      "status": "deleted",
+      "files": 1274
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\image-generator-icon-20261023\\stage",
+      "status": "deleted",
+      "files": 1274
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\image-click-stability-20261021\\candidate-source",
+      "status": "deleted",
+      "files": 1274
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\comfy-result-visual-20261023\\stage",
+      "status": "deleted",
+      "files": 1274
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\canvas-final-adjustments-20261019\\staging-source-runtime",
+      "status": "deleted",
+      "files": 1274
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\canvas-final-adjustments-20261019\\staging-r2",
+      "status": "deleted",
+      "files": 1274
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\angle-result-geometry-20261022\\candidate-source-9",
+      "status": "deleted",
+      "files": 1274
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\angle-result-geometry-20261022\\candidate-source-8",
+      "status": "deleted",
+      "files": 1274
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\angle-result-geometry-20261022\\candidate-source-7",
+      "status": "deleted",
+      "files": 1274
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\angle-result-geometry-20261022\\candidate-source-6",
+      "status": "deleted",
+      "files": 1274
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\angle-result-geometry-20261022\\candidate-source-5",
+      "status": "deleted",
+      "files": 1274
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\angle-result-geometry-20261022\\candidate-source-4",
+      "status": "deleted",
+      "files": 1274
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\angle-result-geometry-20261022\\candidate-source-3",
+      "status": "deleted",
+      "files": 1274
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\angle-result-geometry-20261022\\candidate-source-2",
+      "status": "deleted",
+      "files": 1274
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\versions\\dev-preview-3.0.2-1792485035506-5796cc75",
+      "status": "deleted",
+      "files": 1274
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\versions\\dev-preview-3.0.2-1792491265945-31426e15",
+      "status": "deleted",
+      "files": 1274
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\versions\\dev-preview-3.0.2-1792552516428-5e4c823b",
+      "status": "deleted",
+      "files": 1274
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\versions\\dev-preview-3.0.2-1792555139724-f576ee77",
+      "status": "deleted",
+      "files": 1274
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\versions\\dev-preview-3.0.2-1792559591243-a6eb5c3c",
+      "status": "deleted",
+      "files": 1274
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\versions\\dev-preview-3.0.2-1792569642686-c386f00f",
+      "status": "deleted",
+      "files": 1274
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\versions\\dev-preview-3.0.2-1792644761764-bdfc154b",
+      "status": "deleted",
+      "files": 1274
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\versions\\dev-preview-3.0.2-1792648470193-7f19f615",
+      "status": "deleted",
+      "files": 1274
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\versions\\dev-preview-3.0.2-1792650923889-1d9867c2",
+      "status": "deleted",
+      "files": 1274
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\versions\\dev-preview-3.0.2-1792651665797-730b9f85",
+      "status": "deleted",
+      "files": 1274
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\versions\\dev-preview-3.0.2-1792651994023-ea9b4a44",
+      "status": "deleted",
+      "files": 1274
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\versions\\dev-preview-3.0.2-1792658240356-770f5d2a",
+      "status": "deleted",
+      "files": 1274
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\versions\\dev-preview-3.0.2-1792660077727-c222533b",
+      "status": "deleted",
+      "files": 1274
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\versions\\dev-preview-3.0.2-1792661716691-2ae712ac",
+      "status": "deleted",
+      "files": 1274
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\versions\\dev-preview-3.0.2-1792666590491-9ae5167b",
+      "status": "deleted",
+      "files": 1274
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Preview-Staging\\video-hover-icon-20261023-stage-r1",
+      "status": "deleted",
+      "files": 1274
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Preview-Staging\\video-generator-icon-20261023-stage-r7",
+      "status": "deleted",
+      "files": 1274
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\release-3.0.1-r9\\AI-OS-Component-3.0.1-workbench-core.zip",
+      "status": "deleted",
+      "files": 1
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\release-3.0.1-r9\\AI-OS-Runtime-3.0.1-win-x64.zip",
+      "status": "deleted",
+      "files": 1
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\release-3.0.1-r9\\AI-OS-v3.0.1-win-x64-Portable.zip",
+      "status": "deleted",
+      "files": 1
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\release-3.0.1-r8\\AI-OS-Component-3.0.1-workbench-core.zip",
+      "status": "deleted",
+      "files": 1
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\release-3.0.1-r8\\AI-OS-Runtime-3.0.1-win-x64.zip",
+      "status": "deleted",
+      "files": 1
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\release-3.0.1-r8\\AI-OS-v3.0.1-win-x64-Portable.zip",
+      "status": "deleted",
+      "files": 1
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\release-3.0.1-r7\\AI-OS-Component-3.0.1-workbench-core.zip",
+      "status": "deleted",
+      "files": 1
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\release-3.0.1-r7\\AI-OS-v3.0.1-win-x64-Portable.zip",
+      "status": "deleted",
+      "files": 1
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\release-3.0.1-r6\\AI-OS-Component-3.0.1-workbench-core.zip",
+      "status": "deleted",
+      "files": 1
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\release-3.0.1-r4\\AI-OS-Component-3.0.1-workbench-core.zip",
+      "status": "deleted",
+      "files": 1
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\release-3.0.1-r4\\AI-OS-Runtime-3.0.1-win-x64.zip",
+      "status": "deleted",
+      "files": 1
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\release-3.0.1-r4\\AI-OS-v3.0.1-win-x64-Portable.zip",
+      "status": "deleted",
+      "files": 1
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\release-3.0.1-r3\\AI-OS-Component-3.0.1-workbench-core.zip",
+      "status": "deleted",
+      "files": 1
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\release-3.0.1-r3\\AI-OS-Runtime-3.0.1-win-x64.zip",
+      "status": "deleted",
+      "files": 1
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\release-3.0.1-r3\\AI-OS-v3.0.1-win-x64-Portable.zip",
+      "status": "deleted",
+      "files": 1
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\release-3.0.1-r2\\AI-OS-Component-3.0.1-workbench-core.zip",
+      "status": "deleted",
+      "files": 1
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\release-3.0.1-r2\\AI-OS-Runtime-3.0.1-win-x64.zip",
+      "status": "deleted",
+      "files": 1
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\release-3.0.1-r2\\AI-OS-v3.0.1-win-x64-Portable.zip",
+      "status": "deleted",
+      "files": 1
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\release-3.0.1-last2\\AI-OS-Component-3.0.1-workbench-core.zip",
+      "status": "deleted",
+      "files": 1
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\release-3.0.1-last2\\AI-OS-Runtime-3.0.1-win-x64.zip",
+      "status": "deleted",
+      "files": 1
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\release-3.0.1-last2\\AI-OS-v3.0.1-win-x64-Portable.zip",
+      "status": "deleted",
+      "files": 1
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\release-3.0.1-last1\\AI-OS-Component-3.0.1-workbench-core.zip",
+      "status": "deleted",
+      "files": 1
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\release-3.0.1-last1\\AI-OS-Runtime-3.0.1-win-x64.zip",
+      "status": "deleted",
+      "files": 1
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\release-3.0.1-last1\\AI-OS-v3.0.1-win-x64-Portable.zip",
+      "status": "deleted",
+      "files": 1
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\release-3.0.1\\AI-OS-Component-3.0.1-workbench-core.zip",
+      "status": "deleted",
+      "files": 1
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\release-3.0.1\\AI-OS-Runtime-3.0.1-win-x64.zip",
+      "status": "deleted",
+      "files": 1
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\release-3.0.1\\AI-OS-v3.0.1-win-x64-Portable.zip",
+      "status": "deleted",
+      "files": 1
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-release-execution-20261020\\update-test-objects\\workbench-core-3.0.3.zip",
+      "status": "deleted",
+      "files": 1
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\baseline-asset-inventory-20261016\\golden-restore-check",
+      "status": "deleted",
+      "files": 26357
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.publish\\SuperQAI\\dist\\AI-OS-Portable-2.0.1-win-x64",
+      "status": "deleted",
+      "files": 1245
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.publish\\SuperQAI\\dist\\AI-OS-Portable-2.0.2-win-x64",
+      "status": "deleted",
+      "files": 1247
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.publish\\SuperQAI\\dist\\AI-OS-Portable-2.0.3-win-x64",
+      "status": "deleted",
+      "files": 1247
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.publish\\SuperQAI\\dist\\AI-OS-Portable-2.0.4-win-x64",
+      "status": "deleted",
+      "files": 1247
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.publish\\SuperQAI\\dist\\AI-OS-Portable-2.0.5-win-x64",
+      "status": "deleted",
+      "files": 1246
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.design\\deploy-backups\\2026-10-22T10-54-50-733Z-preview-identity",
+      "status": "deleted",
+      "files": 2
+    }
+  ],
+  "free_after_latest": 107678257152,
+  "free_after": 107678257152,
+  "free_delta_bytes": 83014041600,
+  "finished": 1792814191.9218502
+}

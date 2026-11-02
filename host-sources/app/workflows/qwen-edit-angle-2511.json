@@ -1,0 +1,238 @@
+{
+  "168": {
+    "inputs": {
+      "clip_name": "qwen_2.5_vl_7b_fp8_scaled.safetensors",
+      "type": "qwen_image",
+      "device": "default"
+    },
+    "class_type": "CLIPLoader"
+  },
+  "169": {
+    "inputs": {
+      "vae_name": "qwen_image_vae.safetensors"
+    },
+    "class_type": "VAELoader"
+  },
+  "170": {
+    "inputs": {
+      "anything": [
+        "175",
+        0
+      ]
+    },
+    "class_type": "easy cleanGpuUsed"
+  },
+  "171": {
+    "inputs": {
+      "unet_name": "qwen_image_edit_2511_bf16.safetensors",
+      "weight_dtype": "fp8_e4m3fn"
+    },
+    "class_type": "UNETLoader"
+  },
+  "172": {
+    "inputs": {
+      "lora_name": "Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors",
+      "strength_model": 1,
+      "model": [
+        "171",
+        0
+      ]
+    },
+    "class_type": "LoraLoaderModelOnly"
+  },
+  "173": {
+    "inputs": {
+      "image": "白鹿、谭松韵今日撞衫，新中式裙子！！_2_胆小面包o_来自小红书网页版.jpg"
+    },
+    "class_type": "LoadImage"
+  },
+  "174": {
+    "inputs": {
+      "lora_name": "qwen-image-edit-2511-multiple-angles-lora.safetensors",
+      "strength_model": 1.0000000000000002,
+      "model": [
+        "172",
+        0
+      ]
+    },
+    "class_type": "LoraLoaderModelOnly"
+  },
+  "175": {
+    "inputs": {
+      "seed": [
+        "177",
+        0
+      ],
+      "steps": 6,
+      "cfg": 1,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "denoise": 1,
+      "model": [
+        "184",
+        0
+      ],
+      "positive": [
+        "180",
+        0
+      ],
+      "negative": [
+        "182",
+        0
+      ],
+      "latent_image": [
+        "178",
+        0
+      ]
+    },
+    "class_type": "KSampler"
+  },
+  "176": {
+    "inputs": {
+      "upscale_method": "lanczos",
+      "megapixels": 1.5,
+      "resolution_steps": 1,
+      "image": [
+        "173",
+        0
+      ]
+    },
+    "class_type": "ImageScaleToTotalPixels"
+  },
+  "177": {
+    "inputs": {
+      "value": 681090750327174
+    },
+    "class_type": "PrimitiveInt"
+  },
+  "178": {
+    "inputs": {
+      "pixels": [
+        "176",
+        0
+      ],
+      "vae": [
+        "169",
+        0
+      ]
+    },
+    "class_type": "VAEEncode"
+  },
+  "179": {
+    "inputs": {
+      "prompt": [
+        "187",
+        0
+      ],
+      "clip": [
+        "168",
+        0
+      ],
+      "vae": [
+        "169",
+        0
+      ],
+      "image1": [
+        "176",
+        0
+      ]
+    },
+    "class_type": "TextEncodeQwenImageEditPlus"
+  },
+  "180": {
+    "inputs": {
+      "reference_latents_method": "index_timestep_zero",
+      "conditioning": [
+        "179",
+        0
+      ]
+    },
+    "class_type": "FluxKontextMultiReferenceLatentMethod"
+  },
+  "181": {
+    "inputs": {
+      "prompt": "",
+      "clip": [
+        "168",
+        0
+      ],
+      "vae": [
+        "169",
+        0
+      ],
+      "image1": [
+        "176",
+        0
+      ]
+    },
+    "class_type": "TextEncodeQwenImageEditPlus"
+  },
+  "182": {
+    "inputs": {
+      "reference_latents_method": "index_timestep_zero",
+      "conditioning": [
+        "181",
+        0
+      ]
+    },
+    "class_type": "FluxKontextMultiReferenceLatentMethod"
+  },
+  "183": {
+    "inputs": {
+      "shift": 3,
+      "model": [
+        "174",
+        0
+      ]
+    },
+    "class_type": "ModelSamplingAuraFlow"
+  },
+  "184": {
+    "inputs": {
+      "strength": 0.9500000000000002,
+      "pre_cfg": false,
+      "model": [
+        "183",
+        0
+      ]
+    },
+    "class_type": "CFGNorm"
+  },
+  "185": {
+    "inputs": {
+      "samples": [
+        "175",
+        0
+      ],
+      "vae": [
+        "169",
+        0
+      ]
+    },
+    "class_type": "VAEDecode"
+  },
+  "186": {
+    "inputs": {
+      "filename_prefix": "ComfyUI",
+      "images": [
+        "185",
+        0
+      ]
+    },
+    "class_type": "SaveImage"
+  },
+  "187": {
+    "inputs": {
+      "horizontal_angle": 49,
+      "vertical_angle": 0,
+      "zoom": 5,
+      "default_prompts": false,
+      "camera_view": false,
+      "image": [
+        "173",
+        0
+      ]
+    },
+    "class_type": "QwenMultiangleCameraNode"
+  }
+}

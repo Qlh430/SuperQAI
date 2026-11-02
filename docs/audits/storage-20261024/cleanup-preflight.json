@@ -1,0 +1,991 @@
+{
+  "started": 1792813388.3487005,
+  "csv_sha256": "a6b81431f651aa1bf44887348c9ca6d2eb5d5f8db73f2cd75d6cadf5eff46cb2",
+  "executed": false,
+  "items": [
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\video-generator-icon-20261023\\stage-r7",
+      "category": "planning-runtime",
+      "eligible": true,
+      "files": 1274,
+      "logical_bytes": 976289987,
+      "directories": 140
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v302-isolated-gui-20261021\\.ai-runtime\\versions\\isolated-drag-fix",
+      "category": "planning-runtime",
+      "eligible": true,
+      "files": 1275,
+      "logical_bytes": 976263754,
+      "directories": 140
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.2-targeted-20261021\\runtime-full",
+      "category": "planning-runtime",
+      "eligible": true,
+      "files": 1274,
+      "logical_bytes": 976250995,
+      "directories": 140
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.2-stability-20261020\\中文交互验收\\AI OS\\.ai-runtime\\versions\\3.0.1-win-x64",
+      "category": "planning-runtime",
+      "eligible": true,
+      "files": 1275,
+      "logical_bytes": 976253281,
+      "directories": 144
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.2-stability-20261020\\preview-runtime",
+      "category": "planning-runtime",
+      "eligible": true,
+      "files": 1274,
+      "logical_bytes": 976254306,
+      "directories": 140
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.2-port-hover-fix-20261020\\preview-runtime",
+      "category": "planning-runtime",
+      "eligible": true,
+      "files": 1274,
+      "logical_bytes": 976255611,
+      "directories": 140
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.2-interaction-final-20261020\\preview-runtime",
+      "category": "planning-runtime",
+      "eligible": true,
+      "files": 1274,
+      "logical_bytes": 976266046,
+      "directories": 140
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.2-history-immediate-20261020\\preview-runtime",
+      "category": "planning-runtime",
+      "eligible": true,
+      "files": 1274,
+      "logical_bytes": 976264801,
+      "directories": 140
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-updater-closeout-20261019\\r9中文独立验收\\AI OS 3.0.1\\.ai-runtime\\versions\\3.0.1-win-x64",
+      "category": "planning-runtime",
+      "eligible": true,
+      "files": 1275,
+      "logical_bytes": 976217460,
+      "directories": 140
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\中文安装验收\\AI OS 3.0.1-r3\\.ai-runtime\\versions\\3.0.1-win-x64",
+      "category": "planning-runtime",
+      "eligible": true,
+      "files": 1271,
+      "logical_bytes": 975960315,
+      "directories": 139
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\中文安装验收\\AI OS 3.0.1\\.ai-runtime\\versions\\3.0.1-win-x64",
+      "category": "planning-runtime",
+      "eligible": true,
+      "files": 1271,
+      "logical_bytes": 975957853,
+      "directories": 139
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\candidate-3.0.1-r9\\.ai-runtime\\versions\\3.0.1-win-x64",
+      "category": "planning-runtime",
+      "eligible": true,
+      "files": 1274,
+      "logical_bytes": 976216488,
+      "directories": 140
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\candidate-3.0.1-r8\\.ai-runtime\\versions\\3.0.1-win-x64",
+      "category": "planning-runtime",
+      "eligible": true,
+      "files": 1271,
+      "logical_bytes": 976194328,
+      "directories": 139
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\candidate-3.0.1-r7\\.ai-runtime\\versions\\3.0.1-win-x64",
+      "category": "planning-runtime",
+      "eligible": true,
+      "files": 1271,
+      "logical_bytes": 976194328,
+      "directories": 139
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\candidate-3.0.1-r6\\.ai-runtime\\versions\\3.0.1-win-x64",
+      "category": "planning-runtime",
+      "eligible": true,
+      "files": 1271,
+      "logical_bytes": 975961205,
+      "directories": 139
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\candidate-3.0.1-r5\\.ai-runtime\\versions\\3.0.1-win-x64",
+      "category": "planning-runtime",
+      "eligible": true,
+      "files": 1271,
+      "logical_bytes": 975960315,
+      "directories": 139
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\candidate-3.0.1-r4\\.ai-runtime\\versions\\3.0.1-win-x64",
+      "category": "planning-runtime",
+      "eligible": true,
+      "files": 1271,
+      "logical_bytes": 975960315,
+      "directories": 139
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\candidate-3.0.1-r3\\.ai-runtime\\versions\\3.0.1-win-x64",
+      "category": "planning-runtime",
+      "eligible": true,
+      "files": 1271,
+      "logical_bytes": 975960315,
+      "directories": 139
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\candidate-3.0.1-r2\\.ai-runtime\\versions\\3.0.1-win-x64",
+      "category": "planning-runtime",
+      "eligible": true,
+      "files": 1271,
+      "logical_bytes": 975958701,
+      "directories": 139
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\candidate-3.0.1-last2\\.ai-runtime\\versions\\3.0.1-win-x64",
+      "category": "planning-runtime",
+      "eligible": true,
+      "files": 1274,
+      "logical_bytes": 976215780,
+      "directories": 140
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\candidate-3.0.1-last1\\.ai-runtime\\versions\\3.0.1-win-x64",
+      "category": "planning-runtime",
+      "eligible": true,
+      "files": 1274,
+      "logical_bytes": 976215698,
+      "directories": 140
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\candidate-3.0.1\\.ai-runtime\\versions\\3.0.1-win-x64",
+      "category": "planning-runtime",
+      "eligible": true,
+      "files": 1271,
+      "logical_bytes": 975957853,
+      "directories": 139
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-release-execution-20261020\\最终ZIP中文验收\\AI OS 3.0.1\\.ai-runtime\\versions\\3.0.1-win-x64",
+      "category": "planning-runtime",
+      "eligible": true,
+      "files": 1274,
+      "logical_bytes": 976245318,
+      "directories": 140
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-release-execution-20261020\\中文安装验收\\AI OS 3.0.1\\.ai-runtime\\versions\\3.0.2-win-x64",
+      "category": "planning-runtime",
+      "eligible": true,
+      "files": 1274,
+      "logical_bytes": 976243830,
+      "directories": 140
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-release-execution-20261020\\中文安装验收\\AI OS 3.0.1\\.ai-runtime\\versions\\3.0.1-win-x64",
+      "category": "planning-runtime",
+      "eligible": true,
+      "files": 1275,
+      "logical_bytes": 976244152,
+      "directories": 140
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-release-execution-20261020\\中文品牌验收\\AI OS 3.0.1\\.ai-runtime\\versions\\3.0.1-win-x64",
+      "category": "planning-runtime",
+      "eligible": true,
+      "files": 1274,
+      "logical_bytes": 976243901,
+      "directories": 140
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-release-execution-20261020\\update-test-objects\\3.0.3",
+      "category": "planning-runtime",
+      "eligible": true,
+      "files": 1274,
+      "logical_bytes": 976244054,
+      "directories": 140
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-release-execution-20261020\\update-test-objects\\3.0.2",
+      "category": "planning-runtime",
+      "eligible": true,
+      "files": 1274,
+      "logical_bytes": 976243830,
+      "directories": 140
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-last-fix-20261019\\末轮中文安装\\AI OS 3.0.1\\.ai-runtime\\versions\\3.0.1-win-x64",
+      "category": "planning-runtime",
+      "eligible": true,
+      "files": 1274,
+      "logical_bytes": 976215780,
+      "directories": 140
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-last-fix-20261019\\最终中文验收\\AI OS 3.0.1\\.ai-runtime\\versions\\3.0.1-win-x64",
+      "category": "planning-runtime",
+      "eligible": true,
+      "files": 1274,
+      "logical_bytes": 976215807,
+      "directories": 140
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-last-fix-20261019\\中文客户端验收\\AI OS 3.0.1\\.ai-runtime\\versions\\3.0.1-win-x64",
+      "category": "planning-runtime",
+      "eligible": true,
+      "files": 1274,
+      "logical_bytes": 976215698,
+      "directories": 140
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-last-fix-20261019\\update-final\\中文独立安装\\AI OS 开发重启测试\\.ai-runtime\\versions\\3.0.2-win-x64",
+      "category": "planning-runtime",
+      "eligible": true,
+      "files": 1274,
+      "logical_bytes": 976215685,
+      "directories": 140
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-last-fix-20261019\\update-final\\中文独立安装\\AI OS 开发重启测试\\.ai-runtime\\versions\\3.0.1-win-x64",
+      "category": "planning-runtime",
+      "eligible": true,
+      "files": 1274,
+      "logical_bytes": 976215671,
+      "directories": 140
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-last-fix-20261019\\update-final\\development-release-objects\\source-3.0.2",
+      "category": "planning-runtime",
+      "eligible": true,
+      "files": 1274,
+      "logical_bytes": 976215685,
+      "directories": 140
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-last-fix-20261019\\update\\中文独立安装\\AI OS 开发重启测试\\.ai-runtime\\versions\\3.0.2-win-x64",
+      "category": "planning-runtime",
+      "eligible": true,
+      "files": 1273,
+      "logical_bytes": 976209536,
+      "directories": 139
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-last-fix-20261019\\update\\中文独立安装\\AI OS 开发重启测试\\.ai-runtime\\versions\\3.0.1-win-x64",
+      "category": "planning-runtime",
+      "eligible": true,
+      "files": 1273,
+      "logical_bytes": 976209522,
+      "directories": 139
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-last-fix-20261019\\update\\development-release-objects\\source-3.0.2",
+      "category": "planning-runtime",
+      "eligible": true,
+      "files": 1273,
+      "logical_bytes": 976209536,
+      "directories": 139
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-final-go-no-go-20261018\\测试中文路径\\AI OS v3.0.1 候选\\.ai-runtime\\versions\\1.0.5-win-x64",
+      "category": "planning-runtime",
+      "eligible": true,
+      "files": 1270,
+      "logical_bytes": 975724895,
+      "directories": 139
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-final-go-no-go-20261018\\full-candidate-20261018\\.ai-runtime\\versions\\1.0.5-win-x64",
+      "category": "planning-runtime",
+      "eligible": true,
+      "files": 1270,
+      "logical_bytes": 975724895,
+      "directories": 139
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\media-naming-20261022\\runtime",
+      "category": "planning-runtime",
+      "eligible": true,
+      "files": 1274,
+      "logical_bytes": 976289049,
+      "directories": 144
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\interaction-final-fix-20261019\\runtime",
+      "category": "planning-runtime",
+      "eligible": true,
+      "files": 1274,
+      "logical_bytes": 976237591,
+      "directories": 140
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\image-generator-icon-unselected-20261023\\stage-r6",
+      "category": "planning-runtime",
+      "eligible": true,
+      "files": 1274,
+      "logical_bytes": 976289987,
+      "directories": 140
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\image-generator-icon-unselected-20261023\\stage-r5",
+      "category": "planning-runtime",
+      "eligible": true,
+      "files": 1274,
+      "logical_bytes": 976290005,
+      "directories": 140
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\image-generator-icon-unselected-20261023\\stage-r4",
+      "category": "planning-runtime",
+      "eligible": true,
+      "files": 1274,
+      "logical_bytes": 976290023,
+      "directories": 140
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\image-generator-icon-unselected-20261023\\stage-r3",
+      "category": "planning-runtime",
+      "eligible": true,
+      "files": 1274,
+      "logical_bytes": 976289851,
+      "directories": 140
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\image-generator-icon-unselected-20261023\\stage-r2",
+      "category": "planning-runtime",
+      "eligible": true,
+      "files": 1274,
+      "logical_bytes": 976289395,
+      "directories": 140
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\image-generator-icon-20261023\\stage",
+      "category": "planning-runtime",
+      "eligible": true,
+      "files": 1274,
+      "logical_bytes": 976289305,
+      "directories": 140
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\image-click-stability-20261021\\candidate-source",
+      "category": "planning-runtime",
+      "eligible": true,
+      "files": 1274,
+      "logical_bytes": 976267242,
+      "directories": 140
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\comfy-result-visual-20261023\\stage",
+      "category": "planning-runtime",
+      "eligible": true,
+      "files": 1274,
+      "logical_bytes": 976289320,
+      "directories": 140
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\canvas-final-adjustments-20261019\\staging-source-runtime",
+      "category": "planning-runtime",
+      "eligible": true,
+      "files": 1274,
+      "logical_bytes": 976216336,
+      "directories": 140
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\canvas-final-adjustments-20261019\\staging-r2",
+      "category": "planning-runtime",
+      "eligible": true,
+      "files": 1274,
+      "logical_bytes": 976218500,
+      "directories": 140
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\angle-result-geometry-20261022\\candidate-source-9",
+      "category": "planning-runtime",
+      "eligible": true,
+      "files": 1274,
+      "logical_bytes": 976274649,
+      "directories": 140
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\angle-result-geometry-20261022\\candidate-source-8",
+      "category": "planning-runtime",
+      "eligible": true,
+      "files": 1274,
+      "logical_bytes": 976273919,
+      "directories": 140
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\angle-result-geometry-20261022\\candidate-source-7",
+      "category": "planning-runtime",
+      "eligible": true,
+      "files": 1274,
+      "logical_bytes": 976270449,
+      "directories": 140
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\angle-result-geometry-20261022\\candidate-source-6",
+      "category": "planning-runtime",
+      "eligible": true,
+      "files": 1274,
+      "logical_bytes": 976268910,
+      "directories": 140
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\angle-result-geometry-20261022\\candidate-source-5",
+      "category": "planning-runtime",
+      "eligible": true,
+      "files": 1274,
+      "logical_bytes": 976268691,
+      "directories": 140
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\angle-result-geometry-20261022\\candidate-source-4",
+      "category": "planning-runtime",
+      "eligible": true,
+      "files": 1274,
+      "logical_bytes": 976268669,
+      "directories": 140
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\angle-result-geometry-20261022\\candidate-source-3",
+      "category": "planning-runtime",
+      "eligible": true,
+      "files": 1274,
+      "logical_bytes": 976268466,
+      "directories": 140
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\angle-result-geometry-20261022\\candidate-source-2",
+      "category": "planning-runtime",
+      "eligible": true,
+      "files": 1274,
+      "logical_bytes": 976268122,
+      "directories": 140
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\versions\\dev-preview-3.0.2-1792485035506-5796cc75",
+      "category": "obsolete-preview",
+      "eligible": true,
+      "files": 1274,
+      "logical_bytes": 976264801,
+      "directories": 140
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\versions\\dev-preview-3.0.2-1792491265945-31426e15",
+      "category": "obsolete-preview",
+      "eligible": true,
+      "files": 1274,
+      "logical_bytes": 976266046,
+      "directories": 140
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\versions\\dev-preview-3.0.2-1792552516428-5e4c823b",
+      "category": "obsolete-preview",
+      "eligible": true,
+      "files": 1274,
+      "logical_bytes": 976251558,
+      "directories": 140
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\versions\\dev-preview-3.0.2-1792555139724-f576ee77",
+      "category": "obsolete-preview",
+      "eligible": true,
+      "files": 1274,
+      "logical_bytes": 976250407,
+      "directories": 140
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\versions\\dev-preview-3.0.2-1792559591243-a6eb5c3c",
+      "category": "obsolete-preview",
+      "eligible": true,
+      "files": 1274,
+      "logical_bytes": 976251293,
+      "directories": 140
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\versions\\dev-preview-3.0.2-1792569642686-c386f00f",
+      "category": "obsolete-preview",
+      "eligible": true,
+      "files": 1274,
+      "logical_bytes": 976250995,
+      "directories": 140
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\versions\\dev-preview-3.0.2-1792644761764-bdfc154b",
+      "category": "obsolete-preview",
+      "eligible": true,
+      "files": 1274,
+      "logical_bytes": 976268122,
+      "directories": 140
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\versions\\dev-preview-3.0.2-1792648470193-7f19f615",
+      "category": "obsolete-preview",
+      "eligible": true,
+      "files": 1274,
+      "logical_bytes": 976268466,
+      "directories": 140
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\versions\\dev-preview-3.0.2-1792650923889-1d9867c2",
+      "category": "obsolete-preview",
+      "eligible": true,
+      "files": 1274,
+      "logical_bytes": 976268669,
+      "directories": 140
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\versions\\dev-preview-3.0.2-1792651665797-730b9f85",
+      "category": "obsolete-preview",
+      "eligible": true,
+      "files": 1274,
+      "logical_bytes": 976268691,
+      "directories": 140
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\versions\\dev-preview-3.0.2-1792651994023-ea9b4a44",
+      "category": "obsolete-preview",
+      "eligible": true,
+      "files": 1274,
+      "logical_bytes": 976268910,
+      "directories": 140
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\versions\\dev-preview-3.0.2-1792658240356-770f5d2a",
+      "category": "obsolete-preview",
+      "eligible": true,
+      "files": 1274,
+      "logical_bytes": 976270449,
+      "directories": 140
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\versions\\dev-preview-3.0.2-1792660077727-c222533b",
+      "category": "obsolete-preview",
+      "eligible": true,
+      "files": 1274,
+      "logical_bytes": 976273919,
+      "directories": 140
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\versions\\dev-preview-3.0.2-1792661716691-2ae712ac",
+      "category": "obsolete-preview",
+      "eligible": true,
+      "files": 1274,
+      "logical_bytes": 976226411,
+      "directories": 140
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\versions\\dev-preview-3.0.2-1792666590491-9ae5167b",
+      "category": "obsolete-preview",
+      "eligible": true,
+      "files": 1274,
+      "logical_bytes": 976274649,
+      "directories": 140
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Preview-Staging\\video-hover-icon-20261023-stage-r1",
+      "category": "external-stage",
+      "eligible": true,
+      "files": 1274,
+      "logical_bytes": 976290276,
+      "directories": 140
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Preview-Staging\\video-generator-icon-20261023-stage-r7",
+      "category": "external-stage",
+      "eligible": true,
+      "files": 1274,
+      "logical_bytes": 976290013,
+      "directories": 140
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\release-3.0.1-r9\\AI-OS-Component-3.0.1-workbench-core.zip",
+      "category": "obsolete-release-zip",
+      "eligible": true,
+      "files": 1,
+      "logical_bytes": 195497280,
+      "directories": 0
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\release-3.0.1-r9\\AI-OS-Runtime-3.0.1-win-x64.zip",
+      "category": "obsolete-release-zip",
+      "eligible": true,
+      "files": 1,
+      "logical_bytes": 483442158,
+      "directories": 0
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\release-3.0.1-r9\\AI-OS-v3.0.1-win-x64-Portable.zip",
+      "category": "obsolete-release-zip",
+      "eligible": true,
+      "files": 1,
+      "logical_bytes": 483530983,
+      "directories": 0
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\release-3.0.1-r8\\AI-OS-Component-3.0.1-workbench-core.zip",
+      "category": "obsolete-release-zip",
+      "eligible": true,
+      "files": 1,
+      "logical_bytes": 195554401,
+      "directories": 0
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\release-3.0.1-r8\\AI-OS-Runtime-3.0.1-win-x64.zip",
+      "category": "obsolete-release-zip",
+      "eligible": true,
+      "files": 1,
+      "logical_bytes": 483434230,
+      "directories": 0
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\release-3.0.1-r8\\AI-OS-v3.0.1-win-x64-Portable.zip",
+      "category": "obsolete-release-zip",
+      "eligible": true,
+      "files": 1,
+      "logical_bytes": 483522929,
+      "directories": 0
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\release-3.0.1-r7\\AI-OS-Component-3.0.1-workbench-core.zip",
+      "category": "obsolete-release-zip",
+      "eligible": true,
+      "files": 1,
+      "logical_bytes": 195554401,
+      "directories": 0
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\release-3.0.1-r7\\AI-OS-v3.0.1-win-x64-Portable.zip",
+      "category": "obsolete-release-zip",
+      "eligible": true,
+      "files": 1,
+      "logical_bytes": 158185576,
+      "directories": 0
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\release-3.0.1-r6\\AI-OS-Component-3.0.1-workbench-core.zip",
+      "category": "obsolete-release-zip",
+      "eligible": true,
+      "files": 1,
+      "logical_bytes": 195554401,
+      "directories": 0
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\release-3.0.1-r4\\AI-OS-Component-3.0.1-workbench-core.zip",
+      "category": "obsolete-release-zip",
+      "eligible": true,
+      "files": 1,
+      "logical_bytes": 195494788,
+      "directories": 0
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\release-3.0.1-r4\\AI-OS-Runtime-3.0.1-win-x64.zip",
+      "category": "obsolete-release-zip",
+      "eligible": true,
+      "files": 1,
+      "logical_bytes": 483372860,
+      "directories": 0
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\release-3.0.1-r4\\AI-OS-v3.0.1-win-x64-Portable.zip",
+      "category": "obsolete-release-zip",
+      "eligible": true,
+      "files": 1,
+      "logical_bytes": 483461559,
+      "directories": 0
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\release-3.0.1-r3\\AI-OS-Component-3.0.1-workbench-core.zip",
+      "category": "obsolete-release-zip",
+      "eligible": true,
+      "files": 1,
+      "logical_bytes": 195494788,
+      "directories": 0
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\release-3.0.1-r3\\AI-OS-Runtime-3.0.1-win-x64.zip",
+      "category": "obsolete-release-zip",
+      "eligible": true,
+      "files": 1,
+      "logical_bytes": 483372860,
+      "directories": 0
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\release-3.0.1-r3\\AI-OS-v3.0.1-win-x64-Portable.zip",
+      "category": "obsolete-release-zip",
+      "eligible": true,
+      "files": 1,
+      "logical_bytes": 483461559,
+      "directories": 0
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\release-3.0.1-r2\\AI-OS-Component-3.0.1-workbench-core.zip",
+      "category": "obsolete-release-zip",
+      "eligible": true,
+      "files": 1,
+      "logical_bytes": 195494480,
+      "directories": 0
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\release-3.0.1-r2\\AI-OS-Runtime-3.0.1-win-x64.zip",
+      "category": "obsolete-release-zip",
+      "eligible": true,
+      "files": 1,
+      "logical_bytes": 483372554,
+      "directories": 0
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\release-3.0.1-r2\\AI-OS-v3.0.1-win-x64-Portable.zip",
+      "category": "obsolete-release-zip",
+      "eligible": true,
+      "files": 1,
+      "logical_bytes": 483461253,
+      "directories": 0
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\release-3.0.1-last2\\AI-OS-Component-3.0.1-workbench-core.zip",
+      "category": "obsolete-release-zip",
+      "eligible": true,
+      "files": 1,
+      "logical_bytes": 195496995,
+      "directories": 0
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\release-3.0.1-last2\\AI-OS-Runtime-3.0.1-win-x64.zip",
+      "category": "obsolete-release-zip",
+      "eligible": true,
+      "files": 1,
+      "logical_bytes": 483441869,
+      "directories": 0
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\release-3.0.1-last2\\AI-OS-v3.0.1-win-x64-Portable.zip",
+      "category": "obsolete-release-zip",
+      "eligible": true,
+      "files": 1,
+      "logical_bytes": 483530694,
+      "directories": 0
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\release-3.0.1-last1\\AI-OS-Component-3.0.1-workbench-core.zip",
+      "category": "obsolete-release-zip",
+      "eligible": true,
+      "files": 1,
+      "logical_bytes": 195496979,
+      "directories": 0
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\release-3.0.1-last1\\AI-OS-Runtime-3.0.1-win-x64.zip",
+      "category": "obsolete-release-zip",
+      "eligible": true,
+      "files": 1,
+      "logical_bytes": 483441851,
+      "directories": 0
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\release-3.0.1-last1\\AI-OS-v3.0.1-win-x64-Portable.zip",
+      "category": "obsolete-release-zip",
+      "eligible": true,
+      "files": 1,
+      "logical_bytes": 483530676,
+      "directories": 0
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\release-3.0.1\\AI-OS-Component-3.0.1-workbench-core.zip",
+      "category": "obsolete-release-zip",
+      "eligible": true,
+      "files": 1,
+      "logical_bytes": 195494821,
+      "directories": 0
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\release-3.0.1\\AI-OS-Runtime-3.0.1-win-x64.zip",
+      "category": "obsolete-release-zip",
+      "eligible": true,
+      "files": 1,
+      "logical_bytes": 483372418,
+      "directories": 0
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-today-20261019\\release-3.0.1\\AI-OS-v3.0.1-win-x64-Portable.zip",
+      "category": "obsolete-release-zip",
+      "eligible": true,
+      "files": 1,
+      "logical_bytes": 483461117,
+      "directories": 0
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\v3.0.1-release-execution-20261020\\update-test-objects\\workbench-core-3.0.3.zip",
+      "category": "obsolete-release-zip",
+      "eligible": true,
+      "files": 1,
+      "logical_bytes": 195503172,
+      "directories": 0
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.planning\\baseline-asset-inventory-20261016\\golden-restore-check",
+      "category": "golden-restore-copy",
+      "eligible": true,
+      "files": 26357,
+      "logical_bytes": 2581177862,
+      "directories": 2412
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.publish\\SuperQAI\\dist\\AI-OS-Portable-2.0.1-win-x64",
+      "category": "publish-unpacked",
+      "eligible": true,
+      "files": 1245,
+      "logical_bytes": 975549073,
+      "directories": 134
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.publish\\SuperQAI\\dist\\AI-OS-Portable-2.0.2-win-x64",
+      "category": "publish-unpacked",
+      "eligible": true,
+      "files": 1247,
+      "logical_bytes": 975570224,
+      "directories": 136
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.publish\\SuperQAI\\dist\\AI-OS-Portable-2.0.3-win-x64",
+      "category": "publish-unpacked",
+      "eligible": true,
+      "files": 1247,
+      "logical_bytes": 975579677,
+      "directories": 134
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.publish\\SuperQAI\\dist\\AI-OS-Portable-2.0.4-win-x64",
+      "category": "publish-unpacked",
+      "eligible": true,
+      "files": 1247,
+      "logical_bytes": 975582396,
+      "directories": 134
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.publish\\SuperQAI\\dist\\AI-OS-Portable-2.0.5-win-x64",
+      "category": "publish-unpacked",
+      "eligible": true,
+      "files": 1246,
+      "logical_bytes": 752655351,
+      "directories": 136
+    },
+    {
+      "path": "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\.design\\deploy-backups\\2026-10-22T10-54-50-733Z-preview-identity",
+      "category": "design-identical-backup",
+      "eligible": true,
+      "files": 2,
+      "logical_bytes": 467183,
+      "directories": 1
+    }
+  ],
+  "controls": {
+    "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\.active-runtime": "b96b73a5accf378c8dacf3471dc2da797a3af3f3de804967e8b29c728ad97975",
+    "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\AI OS.exe": "63126a6286bab172815b14dcf605810411ed401343dc99a3b788335ff12167b1",
+    "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\ai-os-portable.json": "cd2962bb0cf9c5a8ca07ddf8e812012e5d657ca9d487df040a35e3879cfb6d5f",
+    "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\dev-preview\\1792397772557-aaab8524.json": "fb29e281b87685480c3b8fbf3dad713ad4803bc18ea725cfbebd6a443b9787cc",
+    "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\dev-preview\\1792408093586-8d420198.json": "47e474dff64768d123e06dc980e7db1da974b2dc71a151724aec150021aa1568",
+    "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\dev-preview\\1792420091938-c28cd86e.json": "502e1433960a49789b08477070a64b566ddb7e0c81de062e39954f543ef7ca41",
+    "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\dev-preview\\1792425106358-2f5d80a5.json": "c07cb8e879f77dce34472d1ac06aa1da8eca6f8a0bf6666a768bd73c910bb1d9",
+    "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\dev-preview\\1792472101755-8d95f3b6.json": "def0982f3f7d2695ce28707d8ce2603eb037666f5d7c786d78426c2627e63488",
+    "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\dev-preview\\1792474604824-1ddb5790.json": "2137c5c8f095319125bd84971a3c2a1e931d553bc4bc9ec56d1845ba3ce394ef",
+    "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\dev-preview\\1792476637356-9768011c.json": "2d2af7559dd13bed4798ad20b26082797e11b499276fc45bf5417c7e707f5ec4",
+    "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\dev-preview\\1792485035506-5796cc75.json": "1a38e4205710789f2c25c4b057779e1a218afa335fae62ae07ef639828d6aa20",
+    "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\dev-preview\\1792491265945-31426e15.json": "b44076489c3170ad9c881e77f6c1dfef62c1e6b8106c61c969302f4e214d5e94",
+    "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\dev-preview\\1792495559912-e4286100.json": "5743cea250944c40bf2bd7a290f9be088e31825fb0ebf4fe5306177951b0d78b",
+    "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\dev-preview\\1792552516428-5e4c823b.json": "b5d12e0e1f7284718f5824a8ad22a07a1b418aed5aa05f950e828a35ba33ced6",
+    "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\dev-preview\\1792555139724-f576ee77.json": "db13e9f880d0e08bca6860e7b034f1d06fc1b6ec6eadf8ede311af01f51ae725",
+    "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\dev-preview\\1792559591243-a6eb5c3c.json": "22525e5b88611c65159ebbd61a605192d5bd42855e19cc03450e952bf9aadc22",
+    "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\dev-preview\\1792569642686-c386f00f.json": "bc19d413aa975da65581fadd962d16c50575c336ac1a85281e2976555f16a5c1",
+    "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\dev-preview\\1792577639944-ccbe52a1.json": "60ce177a8b81f59f7de15190670971af6d3f7699a2b619f6d8428f525d673209",
+    "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\dev-preview\\1792578763499-1e6a0822.json": "060ec45eccc69a1b937fa82de9c28250ba59d86c33ea5417e3ff51ff3d7422ba",
+    "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\dev-preview\\1792644761764-bdfc154b.json": "d30c01efaff713a57435242330510a8770367fd8609a14969ad060b2d22021d3",
+    "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\dev-preview\\1792648470193-7f19f615.json": "704ebbe62676e429a06434b670558332facf39eefa56116e2e5ec1d838112202",
+    "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\dev-preview\\1792650923889-1d9867c2.json": "52853bdc30d8b3ba62d0166d5e0c49fa00fc4db0e053223ab18ac142376f7a40",
+    "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\dev-preview\\1792651665797-730b9f85.json": "22b52c40f73afd17a107ddc916cfdf32acbe84ae9ccf748c5af8ab444abdda3e",
+    "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\dev-preview\\1792651994023-ea9b4a44.json": "8fcd98fdb7e97e87b4212b99ef63021340479e03987739e2b65a9eade346f306",
+    "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\dev-preview\\1792658240356-770f5d2a.json": "4f9096fe92a7965e7afd2a6874412d1b1160fde3429f364c184ba867c7df04c1",
+    "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\dev-preview\\1792660077727-c222533b.json": "731977013da98012aaa9cd5e7667af097bb74710c5a5cdb2a73fd8dbbbb31bf1",
+    "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\dev-preview\\1792661716691-2ae712ac.json": "406454068f58d6238eaf34c28dfe2c750c0086aa957a934a486bcff6e3aa88eb",
+    "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\dev-preview\\1792666590491-9ae5167b.json": "c1cfef0a259cbdd1f053dd21a23d5f8cdd6f3c225558074e849b7dd2e3585a2c",
+    "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\dev-preview\\1792681933371-b0cf3897.json": "b6b8d4f60b47a394b9294df90ce9075a074be835e3ef5ff424019c1ce7bb72a2",
+    "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\dev-preview\\1792723288200-3af42268.json": "9fbca5b7e6d1e83169eecd7805714095fe70bdcb492a225ba975cd4bcffdf500",
+    "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\dev-preview\\1792725202495-6a979828.json": "ca644737a5c16886f2122aa652c9aa003e4c470ffa706aa2bd1c13da62b758cd",
+    "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\dev-preview\\1792727489007-38968a2e.json": "7cece6bc8b62918d94021eafd4df5ac189082531092ec50f50bb2a52c8d10732",
+    "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\dev-preview\\1792728750775-fdf059ca.json": "d3aa4d7b4c9b704b3e251520ea0d5beb44c6dcb4b2996b58f314c6fa86764f9c",
+    "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\dev-preview\\1792734142319-a2aa1b18.json": "8ba2319cac6da06bcd5d018b5e88936b1094436126478f452a4792c2dc2f3bf7",
+    "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\dev-preview\\1792735348169-e53586b8.json": "9fa52ac1e2e400ddab88f54fd9552d4b87529bb20a9d65966cca75a5f45ecb62",
+    "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\dev-preview\\1792736688892-e9ac35f7.json": "8fe368a5aee8dea9606541dd08ab44e64bc852c0dc0d6ffc450b1d6ae95b4570",
+    "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\dev-preview\\1792738083172-dde9423e.json": "eabae1bb27980a117f459571d9da6d42ce11c01117ba839fa7d7bc366e72f34a",
+    "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\dev-preview\\1792740383778-6f9d0c69.json": "36e1229574c4284760cf70ff8963efaf8f1cd061235c4010d89c1d61a31e67e2",
+    "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\dev-preview\\1792743232638-89fbf651.json": "17d0cf8b1f0a733370043677fbb4b7edeead003f2351ed0704684eba561bcf01",
+    "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\dev-preview\\1792745279756-f169dcc4.json": "bca39633d5f59fb5a30b4fb68929244179e44f182eef8adc22040f151d842390",
+    "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\dev-preview\\1792746893682-8c31a498.json": "d58494032ec948e409f72152068a51a0f580d76c47182fc8c8cba17e582c9d1e",
+    "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\dev-preview\\1792749439059-148099c5.json": "9b8a4955d08704363916c84e407ea5899c5b20a0d201562d3271f2df9f1fac05",
+    "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\dev-preview\\1792749992553-2a9a2dff.json": "be724890cd2edab61a5861a416f1ee906e1682bdf0d7af3e9e455d5c31062d0e",
+    "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\dev-preview\\1792751891350-1a0ebb54.json": "d3d06ce2e41ad513e80226e4cd0b61c70111c2f84d10ee4fd66bec128fd94fc9",
+    "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\dev-preview\\1792753884005-a67fed82.json": "69aa48d7a34b5d0f3620ecaa18d8752814c08b99a8e5f545daa55ce206df4aa5",
+    "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\dev-preview\\1792755198807-1eb1a04e.json": "64dbadbc7d98595ec7ed6c4b57a11683b5c06ef5dddaf24c3adbc4c91d4172df",
+    "Q:\\音乐\\Documents\\AI-OS-Portable-1.0.5-win-x64\\AI-OS-Portable-1.0.5-win-x64\\.ai-runtime\\dev-preview\\activation-backup-2026-10-21T00-27-33-503Z.json": "292299a9f5f0bdd81abf736790454174d82b805ffa157338d8221356b54dee1a"
+  },
+  "runtimes": [
+    {
+      "candidate": "dev-preview-3.0.2-1792755198807-1eb1a04e",
+      "files": 1274,
+      "bad": [],
+      "missing": [],
+      "extra": [],
+      "treeHash": "4bf38168359871980f2b2ee5f86ed02345aa8942e8df5831790053b119a35a72"
+    },
+    {
+      "candidate": "dev-preview-3.0.2-1792495559912-e4286100",
+      "files": 1274,
+      "bad": [],
+      "missing": [],
+      "extra": [],
+      "treeHash": "fa2b53efb795076d26aec76d0ef6fe1db0194cd4b04546ffa33fa71a5f20eff9"
+    },
+    {
+      "candidate": "dev-preview-3.0.1-1792425106358-2f5d80a5",
+      "files": 1275,
+      "bad": [],
+      "missing": [],
+      "extra": [],
+      "treeHash": "eaaaad4f46866786d986e7a2b2d291d3a9073a989f27e7776c89535754ab86c1"
+    },
+    {
+      "candidate": "dev-preview-3.0.2-1792578763499-1e6a0822",
+      "files": 1279,
+      "bad": [],
+      "missing": [],
+      "extra": [
+        "resources/app/data/backups/snapshot-2026-10-22T03-19-28-999Z/manifest.json",
+        "resources/app/data/backups/snapshot-2026-10-22T03-19-28-999Z/system.sqlite",
+        "resources/app/data/system.sqlite",
+        "resources/app/data/system.sqlite-shm",
+        "resources/app/data/system.sqlite-wal"
+      ],
+      "treeHash": "a3a1f6ba7afdbb22de45a40be6e56f5dd4b8d9abddd4ee74999ec2adf5ae88f2"
+    }
+  ],
+  "data_files": 8755,
+  "data_bytes": 1444584265,
+  "data_vs_audit_missing": [],
+  "data_vs_audit_size_changes": [],
+  "new_reference_hits": {},
+  "eligible": 111,
+  "elapsed_seconds": 610.0194382667542
+}

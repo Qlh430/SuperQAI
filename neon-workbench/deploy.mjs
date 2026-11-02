@@ -152,7 +152,8 @@ const selectedComponents = process.argv.slice(2).find(argument => argument.start
 if (previewMode === 'build' && !selectedComponents) throw new Error('开发预览仅允许显式白名单组件组装；禁止重跑旧的全量部署。')
 if (selectedComponents) {
   const { deployComponents } = await import('./component-deploy.mjs')
-  const result = await deployComponents({ source, runtime, names: selectedComponents.slice('--components='.length).split(','), transforms: {
+  const verifyOnly = process.argv.includes('--verify-components')
+  const result = await deployComponents({ source, runtime, names: selectedComponents.slice('--components='.length).split(','), build: !verifyOnly, verifyOnly, transforms: {
     "desktop-shell.js": text => {
       let shell = patchDesktopShell(text.replaceAll("AI OS", "BenDo"))
       if (!shell.includes("openInlineApp: showInlineApp")) {
@@ -167,6 +168,7 @@ if (selectedComponents) {
     }),
     "server.js": text => patchAssetServer(text.replaceAll("\r\n", "\n")),
   } })
+  if (verifyOnly && result.changed.length) throw new Error('发布资源与当前源码不一致：' + result.changed.join(', '))
   const previewVersion = process.argv.find(argument => argument.startsWith('--preview-version='))?.slice('--preview-version='.length)
   if (previewVersion) {
     if (previewMode !== 'build' || !/^\d+\.\d+\.\d+$/.test(previewVersion)) throw new Error('预览版本仅允许用于独立运行时。')

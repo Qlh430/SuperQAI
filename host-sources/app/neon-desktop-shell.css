@@ -1,0 +1,418 @@
+/* ============================================================================
+   Neon Design System - Desktop Shell Override
+   登录界面 Neon 暗黑主题覆盖
+   ============================================================================ */
+
+/* ===== 覆盖 :root 变量为 Neon 主题 ===== */
+:root {
+  /* 保持系统缩放变量 */
+  --system-scale: 1;
+  --system-viewport-width: calc(100vw / var(--system-scale));
+  --system-viewport-height: calc(100vh / var(--system-scale));
+  
+  /* 覆盖为 Neon 色彩 */
+  --os-cloud: var(--neon-card) !important;
+  --os-frost: rgba(26, 26, 26, 0.76) !important;
+  --os-frost-strong: rgba(26, 26, 26, 0.9) !important;
+  --os-ink: var(--neon-foreground) !important;
+  --os-muted: var(--neon-muted-fg) !important;
+  --os-line: rgba(42, 42, 42, 0.5) !important;
+  --os-accent: var(--neon-primary) !important;
+  --os-accent-soft: rgba(0, 255, 65, 0.14) !important;
+  --os-red: var(--neon-destructive) !important;
+  --os-amber: #ffb800 !important;
+  --os-green: var(--neon-primary) !important;
+  --os-shadow: 0 28px 80px rgba(0, 0, 0, 0.6), 0 2px 8px rgba(0, 0, 0, 0.4) !important;
+  --os-radius: 12px !important;
+  
+  font-family: var(--neon-font-sans) !important;
+}
+
+/* ===== 暗黑背景替换 ===== */
+body::before {
+  background: 
+    radial-gradient(circle at var(--os-pointer-x, 70%) var(--os-pointer-y, 22%), 
+      rgba(0, 255, 65, 0.15) 0%, 
+      rgba(0, 255, 65, 0.05) 24%, 
+      transparent 46%),
+    radial-gradient(circle at 88% 78%, 
+      rgba(0, 255, 170, 0.1) 0%, 
+      transparent 38%),
+    radial-gradient(circle at 15% 74%, 
+      rgba(0, 255, 136, 0.08) 0%, 
+      transparent 40%),
+    linear-gradient(135deg, 
+      #0a0a0a 0%, 
+      #0f0f0f 48%, 
+      #0a0a0a 100%) !important;
+}
+
+/* ===== 噪点纹理保持 ===== */
+body::after {
+  opacity: 0.15 !important;
+}
+
+/* ===== 登录门户 ===== */
+.ai-os-auth-gate {
+  color: var(--neon-foreground) !important;
+}
+
+/* ===== 极光背景 - 改为霓虹绿渐变 ===== */
+.ai-os-auth-aurora {
+  background: conic-gradient(
+    from 210deg, 
+    rgba(0, 255, 65, 0.3), 
+    rgba(0, 255, 136, 0.15), 
+    rgba(0, 255, 170, 0.2), 
+    rgba(0, 200, 100, 0.2), 
+    rgba(0, 255, 65, 0.3)
+  ) !important;
+  filter: blur(80px) !important;
+}
+
+@keyframes ai-os-breathe {
+  0%, 100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scale(1.1) rotate(10deg);
+    opacity: 0.8;
+  }
+}
+
+/* ===== 登录卡片 - Neon 暗黑毛玻璃 ===== */
+.ai-os-auth-card {
+  padding: 32px !important;
+  border: 1px solid rgba(0, 255, 65, 0.3) !important;
+  border-radius: var(--neon-radius-xl) !important;
+  background: rgba(26, 26, 26, 0.7) !important;
+  box-shadow: 
+    var(--neon-glow-subtle),
+    0 36px 100px rgba(0, 0, 0, 0.6), 
+    inset 0 1px rgba(0, 255, 65, 0.1) !important;
+  backdrop-filter: blur(40px) saturate(120%) !important;
+  -webkit-backdrop-filter: blur(40px) saturate(120%) !important;
+}
+
+/* ===== 品牌标识 ===== */
+.ai-os-auth-brand strong,
+.ai-os-sidebar-brand strong {
+  color: var(--neon-foreground) !important;
+}
+
+.ai-os-auth-brand span,
+.ai-os-sidebar-brand span {
+  color: var(--neon-primary) !important;
+  text-shadow: var(--neon-glow-subtle) !important;
+}
+
+/* ===== Logo 图标 ===== */
+.ai-os-auth-brand img,
+.ai-os-sidebar-brand img {
+  filter: drop-shadow(0 0 8px rgba(0, 255, 65, 0.4)) !important;
+}
+
+/* ===== 输入框 ===== */
+.ai-os-auth-card input[type="text"],
+.ai-os-auth-card input[type="password"],
+.ai-os-auth-card input[type="email"] {
+  background: var(--neon-input) !important;
+  color: var(--neon-foreground) !important;
+  border: 1px solid var(--neon-border) !important;
+  border-radius: var(--neon-radius-md) !important;
+  padding: 12px 16px !important;
+  font-family: var(--neon-font-sans) !important;
+  transition: var(--neon-transition-base) !important;
+}
+
+.ai-os-auth-card input[type="text"]:focus,
+.ai-os-auth-card input[type="password"]:focus,
+.ai-os-auth-card input[type="email"]:focus {
+  border-color: var(--neon-primary) !important;
+  box-shadow: 0 0 0 3px rgba(0, 255, 65, 0.2) !important;
+  outline: none !important;
+}
+
+.ai-os-auth-card input::placeholder {
+  color: var(--neon-muted-fg) !important;
+  opacity: 0.6 !important;
+}
+
+/* ===== 按钮 - 霓虹绿主题 ===== */
+.ai-os-auth-card button[type="submit"],
+.ai-os-auth-card .ai-os-auth-submit,
+.ai-os-auth-card .primary-button {
+  background: var(--neon-primary) !important;
+  color: var(--neon-primary-fg) !important;
+  border: none !important;
+  border-radius: var(--neon-radius-md) !important;
+  padding: 12px 24px !important;
+  font-weight: var(--neon-font-semibold) !important;
+  font-family: var(--neon-font-sans) !important;
+  cursor: pointer !important;
+  transition: var(--neon-transition-base) !important;
+  box-shadow: var(--neon-glow-subtle) !important;
+}
+
+.ai-os-auth-card button[type="submit"]:hover,
+.ai-os-auth-card .ai-os-auth-submit:hover,
+.ai-os-auth-card .primary-button:hover {
+  box-shadow: var(--neon-glow-primary) !important;
+  transform: translateY(-2px) !important;
+}
+
+.ai-os-auth-card button[type="submit"]:active,
+.ai-os-auth-card .ai-os-auth-submit:active {
+  transform: translateY(0) !important;
+}
+
+.ai-os-auth-card button[type="submit"]:disabled,
+.ai-os-auth-card .ai-os-auth-submit:disabled {
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
+  box-shadow: none !important;
+}
+
+/* ===== 次要按钮 ===== */
+.ai-os-auth-card .secondary-button,
+.ai-os-auth-card button[type="button"] {
+  background: var(--neon-secondary) !important;
+  color: var(--neon-foreground) !important;
+  border: 1px solid var(--neon-border) !important;
+  border-radius: var(--neon-radius-md) !important;
+  padding: 12px 24px !important;
+  font-family: var(--neon-font-sans) !important;
+  transition: var(--neon-transition-base) !important;
+}
+
+.ai-os-auth-card .secondary-button:hover,
+.ai-os-auth-card button[type="button"]:hover {
+  border-color: var(--neon-primary) !important;
+  background: var(--neon-card) !important;
+}
+
+/* ===== 错误消息 ===== */
+.ai-os-auth-error,
+.ai-os-auth-card .error-message {
+  color: var(--neon-destructive) !important;
+  background: rgba(255, 0, 65, 0.1) !important;
+  border: 1px solid var(--neon-destructive) !important;
+  border-radius: var(--neon-radius-md) !important;
+  padding: 12px 16px !important;
+  margin: 12px 0 !important;
+  font-size: var(--neon-text-sm) !important;
+}
+
+/* ===== 成功消息 ===== */
+.ai-os-auth-success,
+.ai-os-auth-card .success-message {
+  color: var(--neon-primary) !important;
+  background: rgba(0, 255, 65, 0.1) !important;
+  border: 1px solid var(--neon-primary) !important;
+  border-radius: var(--neon-radius-md) !important;
+  padding: 12px 16px !important;
+  margin: 12px 0 !important;
+  box-shadow: var(--neon-glow-subtle) !important;
+}
+
+/* ===== 加载状态 ===== */
+.ai-os-auth-loading,
+.ai-os-auth-card .loading {
+  border: 3px solid var(--neon-muted) !important;
+  border-top-color: var(--neon-primary) !important;
+  animation: neon-spin 0.8s linear infinite !important;
+}
+
+/* ===== 链接 ===== */
+.ai-os-auth-card a {
+  color: var(--neon-primary) !important;
+  text-decoration: none !important;
+  transition: var(--neon-transition-fast) !important;
+}
+
+.ai-os-auth-card a:hover {
+  color: var(--neon-chart-2) !important;
+  text-decoration: underline !important;
+}
+
+/* ===== 复选框 ===== */
+.ai-os-auth-card input[type="checkbox"] {
+  appearance: none !important;
+  width: 20px !important;
+  height: 20px !important;
+  border: 2px solid var(--neon-border) !important;
+  border-radius: var(--neon-radius-sm) !important;
+  background: var(--neon-input) !important;
+  cursor: pointer !important;
+  transition: var(--neon-transition-fast) !important;
+}
+
+.ai-os-auth-card input[type="checkbox"]:checked {
+  background: var(--neon-primary) !important;
+  border-color: var(--neon-primary) !important;
+  box-shadow: var(--neon-glow-subtle) !important;
+}
+
+.ai-os-auth-card input[type="checkbox"]:checked::after {
+  content: "✓" !important;
+  display: block !important;
+  text-align: center !important;
+  color: var(--neon-primary-fg) !important;
+  font-size: 14px !important;
+  line-height: 16px !important;
+}
+
+/* ===== 表单标签 ===== */
+.ai-os-auth-card label {
+  color: var(--neon-foreground) !important;
+  font-weight: var(--neon-font-medium) !important;
+  font-size: var(--neon-text-sm) !important;
+  margin-bottom: 8px !important;
+  display: block !important;
+}
+
+/* ===== 分隔线 ===== */
+.ai-os-auth-card hr {
+  border: none !important;
+  border-top: 1px solid var(--neon-border) !important;
+  margin: 24px 0 !important;
+}
+
+/* ===== OAuth 按钮 ===== */
+.ai-os-auth-card .oauth-button,
+.ai-os-auth-card [class*="oauth"] {
+  background: var(--neon-card) !important;
+  border: 1px solid var(--neon-border) !important;
+  color: var(--neon-foreground) !important;
+  border-radius: var(--neon-radius-md) !important;
+  padding: 12px 24px !important;
+  transition: var(--neon-transition-base) !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+}
+
+.ai-os-auth-card .oauth-button:hover,
+.ai-os-auth-card [class*="oauth"]:hover {
+  border-color: var(--neon-primary) !important;
+  box-shadow: var(--neon-glow-subtle) !important;
+}
+
+/* ===== 提示文本 ===== */
+.ai-os-auth-card .hint-text,
+.ai-os-auth-card .helper-text,
+.ai-os-auth-card small {
+  color: var(--neon-muted-fg) !important;
+  font-size: var(--neon-text-sm) !important;
+}
+
+/* ===== 标题 ===== */
+.ai-os-auth-card h1,
+.ai-os-auth-card h2,
+.ai-os-auth-card h3 {
+  color: var(--neon-foreground) !important;
+  margin-bottom: 16px !important;
+}
+
+.ai-os-auth-card h1 {
+  font-size: var(--neon-text-3xl) !important;
+  font-weight: var(--neon-font-bold) !important;
+}
+
+.ai-os-auth-card h2 {
+  font-size: var(--neon-text-2xl) !important;
+  font-weight: var(--neon-font-semibold) !important;
+}
+
+/* ===== 欢迎文本 ===== */
+.ai-os-auth-welcome {
+  color: var(--neon-foreground) !important;
+  text-align: center !important;
+  margin-bottom: 24px !important;
+}
+
+/* ===== 页脚 ===== */
+.ai-os-auth-footer {
+  color: var(--neon-muted-fg) !important;
+  text-align: center !important;
+  margin-top: 24px !important;
+  font-size: var(--neon-text-sm) !important;
+}
+
+/* ===== Logo 容器 ===== */
+.ai-os-auth-logo {
+  text-align: center !important;
+  margin-bottom: 32px !important;
+}
+
+.ai-os-auth-logo img {
+  filter: drop-shadow(0 0 12px rgba(0, 255, 65, 0.5)) !important;
+}
+
+/* ===== 表单组 ===== */
+.ai-os-auth-form-group {
+  margin-bottom: 20px !important;
+}
+
+/* ===== 记住我 ===== */
+.ai-os-auth-remember {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  margin: 16px 0 !important;
+}
+
+/* ===== 密码可见性切换 ===== */
+.ai-os-auth-password-toggle {
+  position: absolute !important;
+  right: 12px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  background: none !important;
+  border: none !important;
+  color: var(--neon-muted-fg) !important;
+  cursor: pointer !important;
+  padding: 4px !important;
+  transition: var(--neon-transition-fast) !important;
+}
+
+.ai-os-auth-password-toggle:hover {
+  color: var(--neon-primary) !important;
+}
+
+/* ===== 响应式调整 ===== */
+@media (max-width: 640px) {
+  .ai-os-auth-card {
+    padding: 24px !important;
+    width: calc(100vw - 24px) !important;
+  }
+  
+  .ai-os-auth-aurora {
+    width: 90vw !important;
+  }
+}
+
+/* ===== 动画 ===== */
+@keyframes neon-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ===== 特殊：卡片标题带霓虹装饰 ===== */
+.ai-os-auth-card-title {
+  position: relative !important;
+  padding-bottom: 16px !important;
+  margin-bottom: 24px !important;
+}
+
+.ai-os-auth-card-title::after {
+  content: "" !important;
+  position: absolute !important;
+  bottom: 0 !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  width: 60px !important;
+  height: 2px !important;
+  background: var(--neon-primary) !important;
+  box-shadow: var(--neon-glow-subtle) !important;
+}
