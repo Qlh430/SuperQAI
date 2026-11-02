@@ -1,0 +1,20 @@
+/*
+ * v3.0.1 production compatibility contract, adopted 2026-10-20.
+ * Keep the shipped utility vocabulary available to restored/embedded legacy HTML
+ * without scanning test fixtures, reports or generated runtime files.
+ * These are newly explicit CSS sources, NOT recovered historical scan inputs.
+ * Tailwind/tw-animate remain the authority for the utility implementations.
+ * No selectors, declarations or candidate lists are read from compiled CSS.
+ */
+@layer utilities {
+  .collapse { @apply collapse; }
+  .visible\! { visibility: visible !important; }
+  .capitalize { @apply capitalize; }
+  .lowercase { @apply lowercase; }
+  .ordinal { @apply ordinal; }
+  .shadow { @apply shadow; }
+  .grayscale { @apply grayscale; }
+  .sepia { @apply sepia; }
+  .backdrop-filter { @apply backdrop-filter; }
+  .fade-out { --tw-exit-opacity: 0; }
+}

@@ -1,5 +1,58 @@
 /* Shared Neon surface pass for the legacy canvas engine. Behaviour and node
    geometry stay in the engine; this file only normalizes public surfaces. */
+#canvasEditorScreen .canvas-script-preview {
+  display: flex; flex-direction: column; justify-content: center; align-items: center;
+  min-height: 260px; height: 100%; gap: 20px; padding: 24px;
+  color: var(--canvas-neon-text); text-align: center; overflow-wrap: anywhere;
+}
+#canvasEditorScreen .canvas-script-preview strong { font-size: 20px; line-height: 1.5; }
+#canvasEditorScreen .canvas-script-preview p { color: var(--canvas-neon-muted); font-size: 14px; line-height: 1.7; margin: 0; }
+#canvasEditorScreen .canvas-script-preview button {
+  border: 1px solid var(--canvas-neon-border); background: var(--canvas-neon-card);
+  color: var(--canvas-neon-text); border-radius: var(--radius, 12px); min-height: 44px; padding: 10px 20px;
+  cursor: pointer; font: inherit; pointer-events: auto;
+}
+#canvasEditorScreen .canvas-script-preview button:hover { background: var(--canvas-neon-surface); border-color: var(--canvas-neon-primary); }
+#canvasEditorScreen .canvas-script-preview button:focus-visible { outline: 2px solid var(--canvas-neon-primary); outline-offset: 3px; }
+#neonEngineSurface #canvasEditorScreen .canvas-connections {
+  visibility: visible !important;
+}
+/* Panning with the pointer button held: nothing inside the canvas can be
+   clicked until release, so the whole plane leaves hit-testing for the duration
+   of the drag. The gate is lifted on release; the !important is required because
+   node chrome opts back in with pointer-events: auto !important. */
+#neonEngineSurface #canvasEditorScreen #infiniteCanvas.is-canvas-panning .canvas-plane * {
+  pointer-events: none !important;
+}
+/* Hydrating a light node into its full representation changes the DOM height
+   around the current viewport. Keep the canvas scroll position stable while
+   that replacement is painted; the interaction bridge restores the explicit
+   user position when needed. */
+#neonEngineSurface #canvasEditorScreen #infiniteCanvas {
+  overflow: clip;
+  overflow-anchor: none;
+}
+#neonEngineSurface #canvasEditorScreen .canvas-connection-path {
+  stroke: var(--canvas-neon-muted) !important;
+  stroke-width: 3px !important;
+  stroke-dasharray: 6px 6px !important;
+  stroke-linecap: round;
+  vector-effect: none;
+  opacity: .4 !important;
+  filter: none !important;
+}
+#neonEngineSurface #canvasEditorScreen .canvas-connection-path:is(.is-related, .is-hovered, .canvas-connection-temp) {
+  stroke: var(--canvas-neon-primary) !important;
+  stroke-width: 3px !important;
+  opacity: .4 !important;
+}
+#neonEngineSurface #canvasEditorScreen .canvas-connection-temp {
+  stroke-dasharray: 6px 6px !important;
+}
+#neonEngineSurface #canvasEditorScreen .canvas-connection-hit {
+  stroke-width: calc(16px * var(--collab-inverse-scale, 1)) !important;
+  vector-effect: non-scaling-stroke;
+}
 #canvasEditorScreen {
   --canvas-neon-bg: var(--neon-background, #0f0f0f);
   --canvas-neon-card: var(--neon-card, #1a1a1a);
@@ -9,11 +62,27 @@
   --canvas-neon-muted: var(--neon-muted-fg, #888);
   --canvas-neon-primary: var(--neon-primary, #00ff41);
   --canvas-neon-danger: var(--neon-destructive, #ff0041);
+
+  /* Flora-like node shell: compact identity band, content-first body and a
+     separate action/status floor. Width stays at the saved 292px contract so
+     existing boards do not reflow while the visual shell becomes lighter. */
+  --radius-node-outer: 12px;
+  --radius-node-inner: 8px;
+  --node-header-band-height: 48px;
+  --node-shell-padding-block: 12px;
+  --node-shell-padding-inline: 12px;
+  --node-icon: 24px;
+  --node-icon-glyph: 14px;
+  --node-icon-gap: 6px;
+  --node-subtitle-gap: 2px;
+  --node-status-band-height: 28px;
+  --node-status-dot: 6px;
+  --node-status-gap: 6px;
 }
 
 #canvasEditorScreen,
 #canvasEditorScreen * {
-  scrollbar-color: color-mix(in srgb, var(--canvas-neon-primary) 62%, var(--canvas-neon-muted)) transparent;
+  scrollbar-color: color-mix(in srgb, var(--canvas-neon-muted) 55%, var(--canvas-neon-bg)) transparent;
   scrollbar-width: thin;
 }
 
@@ -32,19 +101,19 @@
 #canvasEditorScreen *::-webkit-scrollbar-thumb {
   border: 2px solid var(--canvas-neon-bg);
   border-radius: 999px;
-  background: color-mix(in srgb, var(--canvas-neon-primary) 62%, var(--canvas-neon-muted));
-  box-shadow: 0 0 8px color-mix(in srgb, var(--canvas-neon-primary) 18%, transparent);
+  background: color-mix(in srgb, var(--canvas-neon-muted) 55%, var(--canvas-neon-bg));
+  box-shadow: none;
 }
 
 #canvasEditorScreen::-webkit-scrollbar-thumb:hover,
 #canvasEditorScreen *::-webkit-scrollbar-thumb:hover {
-  background: var(--canvas-neon-primary);
+  background: color-mix(in srgb, var(--canvas-neon-muted) 80%, var(--canvas-neon-bg));
 }
 
 #canvasEditorScreen .canvas-editor-navigation,
 #canvasEditorScreen .canvas-actions,
 #canvasEditorScreen .canvas-status,
-#canvasEditorScreen .canvas-image-toolbar,
+#canvasEditorScreen .canvas-node-action-bar,
 #canvasEditorScreen .canvas-mask-toolbar,
 #canvasEditorScreen .canvas-grid-editor-toolbar {
   border-color: var(--canvas-neon-border);
@@ -57,7 +126,7 @@
 
 #canvasEditorScreen .canvas-editor-navigation .text-action,
 #canvasEditorScreen .canvas-actions .text-action,
-#canvasEditorScreen .canvas-image-toolbar button,
+#canvasEditorScreen .canvas-node-action-bar .canvas-node-action,
 #canvasEditorScreen .canvas-mask-toolbar button,
 #canvasEditorScreen .canvas-grid-editor-toolbar button {
   color: var(--canvas-neon-muted);
@@ -65,11 +134,12 @@
 
 #canvasEditorScreen .canvas-editor-navigation .text-action:hover,
 #canvasEditorScreen .canvas-actions .text-action:hover:not(:disabled),
-#canvasEditorScreen .canvas-image-toolbar button:hover,
+#canvasEditorScreen .canvas-node-action-bar .canvas-node-action:hover,
+#canvasEditorScreen .canvas-node-action-bar .canvas-node-action:focus-visible,
 #canvasEditorScreen .canvas-mask-toolbar button:hover,
 #canvasEditorScreen .canvas-grid-editor-toolbar button:hover {
   color: var(--canvas-neon-text);
-  background: rgba(0, 255, 65, .10);
+  background: rgba(255, 255, 255, .10);
 }
 
 #canvasEditorScreen .canvas-actions .text-action.primary-dark,
@@ -84,19 +154,293 @@
   box-shadow: 0 0 10px rgba(0, 255, 65, .22);
 }
 
+.canvas-mask-modal.is-over-canvas-workbench {
+  z-index: 2147483001;
+}
+.canvas-mask-prompt-field {
+  display: grid;
+  gap: 8px;
+  width: min(100%, 980px);
+  margin: 0 auto;
+  color: var(--neon-muted-foreground, #888);
+  font: inherit;
+  font-size: 13px;
+}
+.canvas-mask-redraw-prompt {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 72px;
+  resize: vertical;
+  border: 1px solid var(--neon-border, rgba(148, 163, 184, .28));
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: var(--neon-input, rgba(255, 255, 255, .04));
+  color: var(--neon-foreground, #fff);
+  font: inherit;
+}
+.canvas-mask-redraw-prompt:focus-visible {
+  outline: 2px solid var(--neon-ring, var(--neon-primary, #00ff41));
+  outline-offset: 2px;
+}
+.canvas-mask-submit-row {
+  display: flex;
+  justify-content: flex-end;
+  width: min(100%, 980px);
+  margin: 0 auto;
+}
+.canvas-mask-submit-row .canvas-mask-submit {
+  min-width: 132px;
+  min-height: 40px;
+  border-color: var(--neon-primary, #00ff41);
+  background: var(--neon-primary, #00ff41);
+  color: #0a0a0a;
+}
+.canvas-mask-submit-row .canvas-mask-submit:disabled { cursor: wait; opacity: .72; }
+
 #canvasEditorScreen .canvas-node:not(.canvas-node-frameless),
 #canvasEditorScreen .canvas-node-gallery,
 #canvasEditorScreen .canvas-node-group {
   border-color: var(--canvas-neon-border);
   background: var(--canvas-neon-card);
   color: var(--canvas-neon-text);
-  box-shadow: var(--neon-shadow-md, 0 4px 6px rgba(0, 0, 0, .6));
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--canvas-neon-bg) 72%, transparent);
+}
+
+/* Light paints Full's floating identity and native body directly on one plane. */
+#canvasEditorScreen #canvasPlane .canvas-light-visual {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  pointer-events: none; border-radius: var(--canvas-light-radius, 16px);
+}
+#canvasEditorScreen #canvasPlane .canvas-light-node.is-selected::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  border: 1px solid var(--canvas-neon-primary); border-radius: var(--canvas-light-radius, 16px);
+}
+#canvasEditorScreen #canvasPlane .canvas-light-node {
+  --canvas-light-color: var(--canvas-neon-border);
+  --canvas-light-tag-color: var(--canvas-neon-muted);
+  --canvas-light-tag-foreground: var(--canvas-neon-text);
+  box-sizing: border-box;
+  overflow: visible;
+  pointer-events: auto;
+  border: 0;
+  border-radius: 0;
+  outline: none;
+  background: transparent;
+  box-shadow: none;
+  color: var(--canvas-neon-text);
+  user-select: none;
+}
+#canvasEditorScreen #canvasPlane .canvas-light-node::before {
+  content: "";
+  position: absolute;
+  box-sizing: border-box;
+  display: none;
+  top: var(--canvas-light-body-top, 56px);
+  right: 0;
+  bottom: 0;
+  left: 0;
+  pointer-events: none;
+}
+#canvasEditorScreen #canvasPlane .canvas-light-node[data-has-body-surface="true"]::before {
+  display: block;
+  border: 1px solid var(--canvas-neon-border);
+  border-radius: var(--canvas-light-radius, 16px);
+  background: var(--canvas-neon-card);
+  box-shadow: 0 18px 48px color-mix(in srgb, var(--canvas-neon-bg) 72%, transparent);
+}
+#canvasEditorScreen #canvasPlane .canvas-light-node[data-has-body-surface="true"][data-visual-state="selected"]::before,
+#canvasEditorScreen #canvasPlane .canvas-light-node[data-has-body-surface="true"][data-visual-state="focused"]::before,
+#canvasEditorScreen #canvasPlane .canvas-light-node[data-has-body-surface="true"][data-visual-state="connecting"]::before {
+  border-color: var(--canvas-neon-primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--canvas-neon-primary) 68%, transparent), 0 18px 48px color-mix(in srgb, var(--canvas-neon-bg) 72%, transparent);
+}
+#canvasEditorScreen #canvasPlane .canvas-light-node[data-has-body-surface="true"][data-visual-state="hover"]::before {
+  border-color: color-mix(in srgb, var(--canvas-neon-border) 82%, var(--canvas-neon-muted));
+}
+#canvasEditorScreen #canvasPlane .canvas-light-icon {
+  position: static;
+  flex: 0 0 16px;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  color: var(--canvas-light-color);
+}
+/* Groups are independent translucent frames, never content/card containers. */
+#canvasEditorScreen #canvasPlane .canvas-light-node[data-canvas-visual-kind="group"]::before {
+  display: block;
+  top: 0;
+  border: 1px solid color-mix(in srgb, var(--canvas-group-tint) 58%, color-mix(in srgb, #fff 18%, transparent));
+  border-radius: 28px;
+  background: color-mix(in srgb, var(--canvas-group-tint) 16%, color-mix(in srgb, #fff 6%, transparent));
+  box-shadow: none;
+}
+#canvasEditorScreen #canvasPlane .canvas-light-node[data-canvas-visual-kind="group"] .canvas-light-identity {
+  top: -36px; right: 64px; height: 28px; transform: none;
+}
+#canvasEditorScreen #canvasPlane .canvas-light-node[data-canvas-visual-kind="group"] .canvas-light-title { font-size: 13px; }
+#canvasEditorScreen #canvasPlane .canvas-light-node[data-canvas-visual-kind="group"] .canvas-light-icon,
+#canvasEditorScreen #canvasPlane .canvas-light-node[data-canvas-visual-kind="group"] .canvas-light-tag,
+#canvasEditorScreen #canvasPlane .canvas-light-node[data-canvas-visual-kind="group"] .canvas-light-status { display: none; }
+#canvasEditorScreen #canvasPlane .canvas-light-group-count {
+  position: absolute; top: -36px; right: 0; height: 28px; display: flex; align-items: center;
+  color: var(--canvas-neon-muted); font: 500 12px/1.2 var(--neon-font-sans, Inter, "Microsoft YaHei", sans-serif);
+}
+#canvasEditorScreen #canvasPlane .canvas-light-identity {
+  position: absolute;
+  top: -48px;
+  right: 4px;
+  left: 0;
+  height: var(--canvas-light-header-height, 48px);
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  transform: translateY(calc(-8px * var(--collab-inverse-scale, 1)));
+  overflow: hidden;
+}
+#canvasEditorScreen #canvasPlane .canvas-light-node[data-has-tag="true"] .canvas-light-identity { right: 58%; }
+#canvasEditorScreen #canvasPlane .canvas-light-title,
+#canvasEditorScreen #canvasPlane .canvas-light-kind,
+#canvasEditorScreen #canvasPlane .canvas-light-tag,
+#canvasEditorScreen #canvasPlane .canvas-light-status,
+#canvasEditorScreen #canvasPlane .canvas-light-summary {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#canvasEditorScreen #canvasPlane .canvas-light-title {
+  position: static;
+  flex: 1 1 auto;
+  left: auto;
+  bottom: auto;
+  width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  color: var(--canvas-neon-muted);
+  font: 500 16px/1.2 var(--neon-font-sans, Inter, "Microsoft YaHei", sans-serif);
+}
+#canvasEditorScreen #canvasPlane .canvas-light-kind {
+  display: none;
+  color: var(--canvas-neon-muted);
+  font: 500 9px/1.15 var(--neon-font-sans, Inter, "Microsoft YaHei", sans-serif);
+}
+#canvasEditorScreen #canvasPlane .canvas-light-tag {
+  position: absolute;
+  top: -46px;
+  transform: translateY(calc(-8px * var(--collab-inverse-scale, 1)));
+  right: 0;
+  z-index: 1;
+  max-width: 55%;
+  box-sizing: border-box;
+  height: 44px;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 10px;
+  background: var(--canvas-light-tag-color);
+  color: var(--canvas-light-tag-foreground);
+  font: 500 14px/1.5 var(--neon-font-sans, Inter, "Microsoft YaHei", sans-serif);
+}
+#canvasEditorScreen #canvasPlane .canvas-light-icon svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 1.8;
+}
+#canvasEditorScreen #canvasPlane .canvas-light-tag-dot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+#canvasEditorScreen #canvasPlane .canvas-light-media,
+#canvasEditorScreen #canvasPlane .canvas-light-summary {
+  position: absolute;
+  top: var(--canvas-light-body-top, 56px);
+  right: 0;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  border-radius: var(--canvas-light-radius, 16px);
+}
+#canvasEditorScreen #canvasPlane .canvas-light-media {
+  object-fit: contain;
+  background: color-mix(in srgb, var(--canvas-neon-bg) 56%, var(--canvas-neon-card));
+}
+#canvasEditorScreen #canvasPlane .canvas-light-summary {
+  display: block;
+  padding: 16px;
+  overflow: hidden;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  color: var(--canvas-neon-text);
+  font: 500 14px/1.45 var(--neon-font-sans, Inter, "Microsoft YaHei", sans-serif);
+}
+#canvasEditorScreen #canvasPlane .canvas-light-status {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  z-index: 1;
+  max-width: 58%;
+  color: var(--canvas-neon-muted);
+  font: 500 11px/1.25 var(--neon-font-sans, Inter, "Microsoft YaHei", sans-serif);
+}
+#canvasEditorScreen #canvasPlane .canvas-light-status[hidden] { display: none; }
+#canvasEditorScreen #canvasPlane .canvas-light-node.is-selected { outline: none; }
+#canvasEditorScreen #canvasPlane .canvas-light-status[data-state="running"] { color: var(--canvas-neon-primary); }
+#canvasEditorScreen #canvasPlane .canvas-light-status[data-state="failed"] { color: var(--canvas-neon-danger); }
+#canvasEditorScreen #canvasPlane .canvas-light-status[data-state="done"] { color: var(--canvas-neon-primary); }
+
+/* Flora's card reads as one continuous surface. Keep the identity band quiet
+   and reserve the only strong line for selection, connection and focus. */
+#canvasEditorScreen .canvas-node:not(.canvas-node-frameless) > .canvas-node-bar,
+#canvasEditorScreen .canvas-node-gallery > .canvas-node-bar,
+#canvasEditorScreen .canvas-node-group > .canvas-node-bar {
+  min-height: var(--node-header-band-height);
+  height: var(--node-header-band-height);
+  padding: 8px var(--node-shell-padding-inline) 6px;
+  gap: var(--space-2);
+}
+
+#canvasEditorScreen .canvas-node-bar .canvas-node-icon {
+  border-radius: 6px;
+}
+
+#canvasEditorScreen .canvas-node-bar .canvas-node-heading {
+  gap: var(--node-subtitle-gap);
+}
+
+#canvasEditorScreen .canvas-node-bar .canvas-node-subtitle {
+  font-size: 9px;
+  letter-spacing: .01em;
+}
+
+#canvasEditorScreen .canvas-node-bar button:not(.canvas-node-download) {
+  width: 28px;
+  height: 28px;
+  min-height: 28px;
+  border-radius: 7px;
+}
+
+#canvasEditorScreen .canvas-node:not(.canvas-node-frameless) > .canvas-node-footer,
+#canvasEditorScreen .canvas-node:not(.canvas-node-frameless) > .canvas-h3-footer,
+#canvasEditorScreen .canvas-node-gallery-container > .canvas-gallery-container-footer {
+  min-height: var(--node-status-band-height);
+  height: var(--node-status-band-height);
+  margin-inline: var(--node-shell-padding-inline);
+  padding-inline: 8px;
+  border-top: 1px solid color-mix(in srgb, var(--canvas-neon-border) 78%, transparent);
 }
 
 #canvasEditorScreen .canvas-node.is-selected,
 #canvasEditorScreen .canvas-node:focus-within {
   border-color: var(--canvas-neon-primary);
-  box-shadow: 0 0 0 1px var(--canvas-neon-primary), 0 0 18px rgba(0, 255, 65, .18);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--canvas-neon-primary) 68%, transparent), 0 8px 24px color-mix(in srgb, var(--canvas-neon-bg) 72%, transparent);
 }
 
 #canvasEditorScreen .canvas-node-bar,
@@ -258,6 +602,372 @@
 #canvasEditorScreen .canvas-node-status[data-state="failed"],
 #canvasEditorScreen .canvas-h3-status[data-state="failed"] {
   color: var(--canvas-neon-danger);
+}
+
+/* Neon Flow state vocabulary: execution state is communicated by a small
+   semantic marker, never by a permanent glow around the whole node. */
+#canvasEditorScreen :is(.canvas-node-status, .canvas-h3-status)[data-state="queued"]::before,
+#canvasEditorScreen :is(.canvas-node-status, .canvas-h3-status)[data-state="running"]::before {
+  border-color: var(--canvas-neon-primary);
+  background: color-mix(in srgb, var(--canvas-neon-primary) 45%, transparent);
+}
+
+#canvasEditorScreen :is(.canvas-node-status, .canvas-h3-status)[data-state="stopped"]::before,
+#canvasEditorScreen :is(.canvas-node-status, .canvas-h3-status)[data-state="skipped"]::before {
+  border-color: var(--canvas-neon-muted);
+}
+
+#canvasEditorScreen .canvas-node[data-canvas-node-kind] > .canvas-node-bar {
+  min-width: 0;
+}
+
+#canvasEditorScreen .canvas-node[data-canvas-node-kind] > .canvas-node-bar .canvas-node-heading {
+  min-width: 0;
+}
+
+/* Node execution/upload messages remain available to runtime logic, but the
+   canvas card itself stays clean. The global canvas status surface remains the
+   place for runtime feedback. */
+#canvasEditorScreen #canvasPlane .canvas-node :is(
+  .canvas-light-status,
+  .canvas-note-status,
+  .canvas-node-status,
+  .canvas-node-footer-status,
+  .canvas-node-bar-status,
+  .canvas-h3-status,
+  .canvas-api-video-status,
+  .canvas-llm-status,
+  .canvas-audio-generator-status,
+  .canvas-comfy-status,
+  .flora-node-live-status
+) {
+  display: none !important;
+}
+
+/* Ports are quiet at rest and become discoverable on hover/focus. The port
+   remains a real button so keyboard users can enter connection mode. */
+#canvasEditorScreen .canvas-port {
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  min-height: 16px;
+  border: 2px solid var(--canvas-neon-card);
+  background: var(--canvas-neon-muted);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--canvas-neon-muted) 42%, transparent);
+  font-size: 0;
+  transition: background-color 140ms ease, border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
+}
+
+#canvasEditorScreen .canvas-port::after {
+  content: "";
+  display: block;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 60%;
+  height: 60%;
+  max-width: 14px;
+  max-height: 14px;
+  transform: translate(-50%, -50%);
+  background: linear-gradient(currentColor, currentColor) center / 100% 2px no-repeat,
+    linear-gradient(currentColor, currentColor) center / 2px 100% no-repeat;
+  color: currentColor;
+  pointer-events: none;
+  opacity: .78;
+}
+
+#canvasEditorScreen .canvas-port:hover,
+#canvasEditorScreen .canvas-port:focus-visible,
+#canvasEditorScreen .canvas-node.is-connecting .canvas-port {
+  border-color: var(--canvas-neon-muted);
+  background: var(--canvas-neon-bg);
+  box-shadow: none;
+  transform: none;
+}
+
+#canvasEditorScreen .canvas-port[data-canvas-port-kind="input"] {
+  background: color-mix(in srgb, var(--canvas-neon-muted) 72%, var(--canvas-neon-bg));
+}
+
+#canvasEditorScreen .canvas-port[data-canvas-port-kind="output"] {
+  background: var(--canvas-neon-bg);
+}
+
+#canvasEditorScreen .canvas-port[data-canvas-port-kind="output"]::after {
+  color: var(--canvas-neon-muted);
+}
+
+/* ---------------------------------------------------------------------------
+   Flora interaction contract
+   The node is quiet at rest: its type label sits above one continuous card.
+   Editing and connection affordances are revealed only while the pointer is
+   over the node, while it has keyboard focus, or while it is selected. The
+   reveal uses opacity/visibility so the persisted node geometry never jumps.
+--------------------------------------------------------------------------- */
+#canvasEditorScreen {
+  --canvas-node-card-radius: 28px;
+  --canvas-hover-transition: 160ms ease;
+}
+
+#canvasEditorScreen .canvas-node:not(.canvas-node-frameless),
+#canvasEditorScreen .canvas-node-gallery,
+#canvasEditorScreen .canvas-node-group {
+  position: absolute;
+  overflow: visible;
+  border-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+#canvasEditorScreen .canvas-node:not(.canvas-node-frameless)::before,
+#canvasEditorScreen .canvas-node-gallery::before,
+#canvasEditorScreen .canvas-node-group::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  inset: var(--node-header-band-height) 0 0;
+  border: 1px solid var(--canvas-neon-border);
+  border-radius: var(--canvas-node-card-radius);
+  background: var(--canvas-neon-card);
+  box-shadow: 0 18px 48px color-mix(in srgb, var(--canvas-neon-bg) 72%, transparent);
+  pointer-events: none;
+  transition: border-color var(--canvas-hover-transition), box-shadow var(--canvas-hover-transition);
+}
+
+#canvasEditorScreen .canvas-node > *,
+#canvasEditorScreen .canvas-node-gallery > *,
+#canvasEditorScreen .canvas-node-group > * {
+  position: relative;
+  z-index: 1;
+}
+
+#canvasEditorScreen .canvas-node:not(.canvas-node-frameless) > .canvas-node-bar,
+#canvasEditorScreen .canvas-node-gallery > .canvas-node-bar,
+#canvasEditorScreen .canvas-node-group > .canvas-node-bar {
+  position: relative;
+  z-index: 2;
+  min-height: var(--node-header-band-height);
+  height: var(--node-header-band-height);
+  padding: 13px 0 7px;
+  gap: 6px;
+  border: 0 !important;
+  background: transparent !important;
+  color: var(--canvas-neon-muted);
+  box-shadow: none !important;
+}
+
+#canvasEditorScreen .canvas-node-bar .canvas-node-icon {
+  width: 18px;
+  height: 18px;
+  flex-basis: 18px;
+  border: 0 !important;
+  border-radius: 0;
+  background: transparent !important;
+  color: var(--canvas-neon-muted) !important;
+}
+
+#canvasEditorScreen .canvas-node-bar .canvas-node-icon svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 1.8;
+}
+
+#canvasEditorScreen .canvas-node-bar .canvas-node-heading {
+  gap: 0;
+}
+
+#canvasEditorScreen .canvas-node-bar .canvas-node-title,
+#canvasEditorScreen .canvas-node-bar .canvas-node-title-input {
+  color: var(--canvas-neon-muted) !important;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+#canvasEditorScreen .canvas-node-bar .canvas-node-subtitle,
+#canvasEditorScreen .canvas-node-bar .canvas-node-bar-status {
+  display: none !important;
+}
+
+/* Title actions and resize affordances are part of the hover layer. */
+#canvasEditorScreen .canvas-node-bar button,
+#canvasEditorScreen .canvas-resize-handle,
+#canvasEditorScreen .canvas-node-download {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity var(--canvas-hover-transition), visibility 0s linear var(--canvas-hover-transition);
+}
+
+#canvasEditorScreen :is(.canvas-node:hover, .canvas-node:focus-within, .canvas-node.is-selected, .canvas-node.is-connecting) > .canvas-node-bar button,
+#canvasEditorScreen :is(.canvas-node:hover, .canvas-node:focus-within, .canvas-node.is-selected, .canvas-node.is-connecting) .canvas-resize-handle,
+#canvasEditorScreen :is(.canvas-node:hover, .canvas-node:focus-within, .canvas-node.is-selected, .canvas-node.is-connecting) .canvas-node-download {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transition-delay: 0s;
+}
+
+/* Frameless media nodes inherit a legacy display:none rule. Their resize
+   affordance still belongs to the Neon hover layer and must be available on
+   the selected node's lower-right corner. */
+#canvasEditorScreen :is(.canvas-node:hover, .canvas-node:focus-within, .canvas-node.is-selected, .canvas-node.is-connecting) > .canvas-resize-handle {
+  display: block !important;
+}
+
+/* The shared node stylesheet hides the handle for frameless media. Override
+   that legacy rule with the same explicit selected/hover state. */
+#neonEngineSurface #canvasEditorScreen #canvasPlane :is(.canvas-node-frameless:hover, .canvas-node-frameless:focus-within, .canvas-node-frameless.is-selected, .canvas-node-frameless.is-connecting) > .canvas-resize-handle {
+  display: block !important;
+  width: 30px !important;
+  height: 30px !important;
+  right: -5px !important;
+  bottom: -5px !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node[data-flora-node="true"].is-selected > .canvas-resize-handle,
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node[data-flora-node="true"]:hover > .canvas-resize-handle {
+  display: block !important;
+  width: 30px !important;
+  height: 30px !important;
+  right: -5px !important;
+  bottom: -5px !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+
+/* Footer and primary actions stay in flow, but only become actionable on the
+   hover layer. This keeps card height stable while matching Flora's quiet rest
+   state. */
+#canvasEditorScreen :is(.canvas-node > .canvas-node-actions, .canvas-node > .canvas-node-footer, .canvas-node > .canvas-h3-footer, .canvas-gallery-container > .canvas-gallery-container-footer) {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(6px);
+  transition: opacity var(--canvas-hover-transition), transform var(--canvas-hover-transition), visibility 0s linear var(--canvas-hover-transition);
+}
+
+#canvasEditorScreen :is(.canvas-node:hover, .canvas-node:focus-within, .canvas-node.is-selected, .canvas-node.is-connecting) > .canvas-node-actions,
+#canvasEditorScreen :is(.canvas-node:hover, .canvas-node:focus-within, .canvas-node.is-selected, .canvas-node.is-connecting) > .canvas-node-footer,
+#canvasEditorScreen :is(.canvas-node:hover, .canvas-node:focus-within, .canvas-node.is-selected, .canvas-node.is-connecting) > .canvas-h3-footer,
+#canvasEditorScreen :is(.canvas-node:hover, .canvas-node:focus-within, .canvas-node.is-selected, .canvas-node.is-connecting) > .canvas-gallery-container-footer {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0);
+  transition-delay: 0s;
+}
+
+#canvasEditorScreen .canvas-node > .canvas-node-actions .canvas-node-run,
+#canvasEditorScreen .canvas-node > .canvas-node-controls > .canvas-node-run,
+#canvasEditorScreen .canvas-node > .canvas-node-controls > .canvas-comfy-run,
+#canvasEditorScreen .canvas-node > .canvas-llm-controls > .canvas-node-run {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--canvas-hover-transition);
+}
+
+#canvasEditorScreen :is(.canvas-node:hover, .canvas-node:focus-within, .canvas-node.is-selected, .canvas-node.is-connecting) > .canvas-node-actions .canvas-node-run,
+#canvasEditorScreen :is(.canvas-node:hover, .canvas-node:focus-within, .canvas-node.is-selected, .canvas-node.is-connecting) > .canvas-node-controls > .canvas-node-run,
+#canvasEditorScreen :is(.canvas-node:hover, .canvas-node:focus-within, .canvas-node.is-selected, .canvas-node.is-connecting) > .canvas-node-controls > .canvas-comfy-run,
+#canvasEditorScreen :is(.canvas-node:hover, .canvas-node:focus-within, .canvas-node.is-selected, .canvas-node.is-connecting) > .canvas-llm-controls > .canvas-node-run {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Handles are real buttons for keyboard and drag connection support, but are
+   visually absent until the node becomes interactive. */
+#canvasEditorScreen .canvas-node .canvas-port {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  transform: translate(var(--canvas-port-anchor-x, 0px), -50%) scale(.78) !important;
+  transition: opacity var(--canvas-hover-transition), transform var(--canvas-hover-transition), visibility 0s linear var(--canvas-hover-transition) !important;
+}
+
+#canvasEditorScreen :is(.canvas-node:hover, .canvas-node:focus-within, .canvas-node.is-selected, .canvas-node.is-connecting) .canvas-port {
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+  transform: translate(var(--canvas-port-anchor-x, 0px), -50%) scale(1) !important;
+  transition-delay: 0s !important;
+}
+
+/* The legacy Neon page layer has a more specific, important card rule. Keep
+   this explicit three-surface scope so the quiet shell wins that cascade. */
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node:not(.canvas-node-frameless),
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node-gallery,
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node-group {
+  border-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node.is-selected,
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node:focus-within {
+  border-color: transparent !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node.is-selected::before,
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node:focus-within::before {
+  border-color: var(--canvas-neon-primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--canvas-neon-primary) 68%, transparent), 0 18px 48px color-mix(in srgb, var(--canvas-neon-bg) 72%, transparent);
+}
+
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node:not(.canvas-node-frameless) > .canvas-node-bar,
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node-gallery > .canvas-node-bar,
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node-group > .canvas-node-bar {
+  border-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+#canvasEditorScreen :is(.canvas-node:not(.is-selected), .canvas-node:not(:focus-within)):not(:hover) .canvas-node-status {
+  opacity: 0;
+}
+
+/* Canvas chrome is a contextual layer. Entering the canvas, focusing it, or
+   selecting a node reveals the toolbar without reserving canvas space. */
+#canvasEditorScreen .canvas-actions {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(-8px);
+  transition: opacity var(--canvas-hover-transition), transform var(--canvas-hover-transition), visibility 0s linear var(--canvas-hover-transition);
+}
+
+#canvasEditorScreen .canvas-status {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: none;
+  transform: translate(-50%, 0);
+}
+
+/* The zoom readout belongs to the active canvas workspace, never to a node's
+   representation level. The editor's hidden state already owns its lifetime. */
+#canvasEditorScreen:focus-within .canvas-actions,
+#canvasEditorScreen:has(.canvas-node:hover) .canvas-actions,
+#canvasEditorScreen:has(.canvas-node.is-selected) .canvas-actions,
+#canvasEditorScreen:has(.canvas-node.is-connecting) .canvas-actions {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0);
+  transition-delay: 0s;
+}
+
+/* 画布右上角功能栏常驻：不等悬停/选中才出现（下面的状态条仍按需显示）。 */
+#canvasEditorScreen .canvas-actions {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: none;
+  transition-delay: 0s;
 }
 
 #canvasEditorScreen input:focus-visible,
@@ -499,3 +1209,532 @@
   min-height: 34px;
   border-radius: var(--neon-radius-sm, 8px);
 }
+/* The engine surface is a body-level fixed layer at z-index 2147483000, well
+   above the desktop lightbox. A preview opened from a canvas node is hosted on
+   the body next to the surface and must stack above it. */
+body > .lightbox.is-over-canvas {
+  z-index: 2147483100;
+}
+
+/* 组上方工具栏：颜色 / 布局 / 解组。外观沿用画布节点头部的同一套语言：
+   由单选状态控制显示，鼠标移开不收起。 */
+/* 组工具栏浮在组框上方正中间：一条独立的深色胶囊，和节点标题栏分开。 */
+#canvasEditorScreen .canvas-node-group > .canvas-group-tools {
+  position: absolute;
+  z-index: 8;
+  bottom: calc(100% + 48px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--canvas-neon-border, #30363d);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--canvas-neon-card, #161b22) 96%, transparent);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, .45);
+  white-space: nowrap;
+}
+
+#canvasEditorScreen .canvas-selection-tools {
+  position: absolute;
+  z-index: 8;
+  right: 0;
+  bottom: calc(100% + 8px);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--canvas-neon-border, #30363d);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--canvas-neon-card, #161b22) 96%, transparent);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, .45);
+  white-space: nowrap;
+}
+
+/* 拖动中的选框只有范围反馈；盖过上方 Neon 工具栏 display 规则。
+   松手后由现有 selection frame 逻辑仅为有效多选显示操作。 */
+#canvasEditorScreen .canvas-selection-box.is-marquee .canvas-selection-tools {
+  display: none;
+}
+
+/* 这里的按钮要带文字，必须盖过「标题栏按钮一律 28×28 圆形」的通用规则。 */
+#canvasEditorScreen .canvas-node-group .canvas-group-tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: auto;
+  min-width: 0;
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--canvas-neon-muted, #8b949e);
+  font: 600 12px/1 var(--neon-font-sans, Inter, "Microsoft YaHei", sans-serif);
+  cursor: pointer;
+}
+
+#canvasEditorScreen .canvas-selection-tool {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--canvas-neon-muted, #8b949e);
+  font: 600 12px/1 var(--neon-font-sans, Inter, "Microsoft YaHei", sans-serif);
+  cursor: pointer;
+}
+
+#canvasEditorScreen .canvas-node-group .canvas-group-tool svg {
+  width: 14px;
+  height: 14px;
+}
+
+#canvasEditorScreen .canvas-selection-tool svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* 单选组时工具栏按钮持续可用，不能在鼠标经过时淡出。 */
+#canvasEditorScreen .canvas-node-group .canvas-group-tool {
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+
+#canvasEditorScreen .canvas-node-group .canvas-group-tool:hover,
+#canvasEditorScreen .canvas-node-group .canvas-group-tool:focus-visible,
+#canvasEditorScreen .canvas-selection-tool:hover,
+#canvasEditorScreen .canvas-selection-tool:focus-visible {
+  border-color: color-mix(in srgb, var(--canvas-neon-primary, #00ff41) 45%, transparent);
+  background: color-mix(in srgb, var(--canvas-neon-primary, #00ff41) 10%, transparent);
+  color: var(--canvas-neon-text, #fff);
+}
+
+#canvasEditorScreen .canvas-group-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  border: 1px solid var(--canvas-neon-border, #30363d);
+  background: var(--canvas-group-swatch, var(--canvas-neon-border, #30363d));
+}
+
+/* 菜单挂在 body 上（组内成员层级更高，留在组里会被盖住），所以要盖过画布引擎层。 */
+.canvas-group-menu {
+  position: fixed;
+  z-index: 2147483200;
+  min-width: 168px;
+  display: grid;
+  gap: 2px;
+  padding: 6px;
+  border: 1px solid var(--canvas-neon-border, #30363d);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--canvas-neon-card, #161b22) 98%, transparent);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, .5);
+  font: 600 12px/1.3 var(--neon-font-sans, Inter, "Microsoft YaHei", sans-serif);
+}
+
+.canvas-group-menu[hidden] {
+  display: none !important;
+}
+
+.canvas-group-menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--canvas-neon-text, #fff);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.canvas-group-menu button span {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.canvas-group-menu button em {
+  font-style: normal;
+  font-weight: 500;
+  font-size: 11px;
+  color: var(--canvas-neon-muted, #8b949e);
+}
+
+.canvas-group-menu button:hover,
+.canvas-group-menu button:focus-visible,
+.canvas-group-menu button.is-active {
+  background: color-mix(in srgb, var(--canvas-neon-primary, #00ff41) 12%, transparent);
+}
+
+/* 颜色面板：竖排一圈色点（参考图那种列），菜单挂在 body 上，所以色点样式不能再
+   依赖 #canvasEditorScreen 作用域，否则色点量出来是 0×0 的空白按钮。 */
+.canvas-group-menu[data-group-menu="color"] {
+  grid-auto-flow: row;
+  min-width: 0;
+  width: 46px;
+  gap: 4px;
+  padding: 8px;
+}
+
+.canvas-group-menu .canvas-group-swatch-button {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  justify-content: center;
+  border-radius: 999px;
+}
+
+.canvas-group-menu .canvas-group-swatch {
+  display: block;
+  width: 20px;
+  height: 20px;
+  box-sizing: border-box;
+  border: 2px solid color-mix(in srgb, var(--canvas-group-swatch, #30363d) 78%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--canvas-group-swatch, #30363d) 22%, transparent);
+}
+
+/* 「默认」是空颜色：只画一圈描边，不填色，和参考图最上面那个空圈一致。 */
+.canvas-group-menu .canvas-group-swatch-button[data-group-color=""] .canvas-group-swatch {
+  background: transparent;
+  border-color: color-mix(in srgb, var(--canvas-neon-muted, #8b949e) 62%, transparent);
+}
+
+.canvas-group-menu .canvas-group-swatch-button.is-active .canvas-group-swatch {
+  border-color: var(--canvas-group-swatch, #30363d);
+  background: color-mix(in srgb, var(--canvas-group-swatch, #30363d) 40%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--canvas-group-swatch, #30363d) 34%, transparent);
+}
+
+.canvas-group-menu .canvas-group-swatch-button[data-group-color=""].is-active .canvas-group-swatch {
+  /* 「默认」始终是空心圈：选中它只加一圈高亮，不填色，免得看起来像选了个灰色。 */
+  background: transparent;
+  border-color: var(--canvas-neon-muted, #8b949e);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--canvas-neon-muted, #8b949e) 30%, transparent);
+}
+
+/* 组颜色：给组框上一层淡淡的主色调，边框略深。 */
+#canvasEditorScreen .canvas-node-group[data-group-color]::before {
+  border-color: color-mix(in srgb, var(--canvas-group-tint) 58%, color-mix(in srgb, #fff 18%, transparent));
+  background: color-mix(in srgb, var(--canvas-group-tint) 16%, color-mix(in srgb, #fff 6%, transparent));
+}
+
+/* 组框是白色透明的一层：参考图里组框在深色画布上是一块很淡的白底加一圈浅描边。
+   底色只在成员之间的空隙里看得见，组里的图片始终画在它上面（排序由
+   syncCanvasNodeStacking 的 sortCanvasGroupsBelowMembers 保证）。
+   选择器要压过画布骨架里那条基础规则（它带 :not()，权重更高）。
+   inset 归零：组框从组的顶边开始，组里只剩这一层框，顶部不再留出标题带。
+   原来那条带正好只有组框阴影渗出去的暗色，看着就是一块压在组上的遮挡。 */
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node-group::before {
+  inset: 0;
+  border-color: color-mix(in srgb, #fff 22%, transparent);
+  background: color-mix(in srgb, #fff 7%, transparent);
+}
+
+/* 组标题栏只留一个安静的名字：底色、描边、阴影都不画，删掉右上角的删除叉
+   （解组按钮已经能把组拆掉，再挂个叉只是多一层遮挡）。
+   遗留的标题栏带 backdrop-filter: blur(16px)，组框从顶边开始画之后，这层模糊会把
+   框外的暗色抹进组顶那条带里，看起来就是压在组上的一块暗色遮挡；组标题栏不需要
+   玻璃底，直接关掉。 */
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node-group > .canvas-node-bar {
+  position: absolute !important;
+  left: 0;
+  right: 0;
+  top: -36px;
+  min-height: 28px !important;
+  height: 28px !important;
+  align-items: center;
+  padding: 0;
+  padding-right: 64px;
+  pointer-events: auto !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node-group > .canvas-node-bar .canvas-node-title {
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--canvas-neon-muted);
+  cursor: text;
+  outline-color: var(--canvas-neon-primary);
+}
+
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node-group > .canvas-node-bar .canvas-node-delete {
+  display: none !important;
+}
+
+/* 节点标签控件按「有标签或选中」出现在节点右上角。组框没有可贴标签的头部，
+   选中组时那块控件只会占住组框右上角，所以组上不挂它。 */
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node-group > .flora-node-tag {
+  display: none !important;
+}
+
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node-group[data-group-color]::before {
+  border-color: color-mix(in srgb, var(--canvas-group-tint) 58%, color-mix(in srgb, #fff 18%, transparent));
+  background: color-mix(in srgb, var(--canvas-group-tint) 16%, color-mix(in srgb, #fff 6%, transparent));
+}
+
+/* 组不是 Flora 节点，这里给组的端口补上和其它节点同一套 Flora 端口外形：
+   28px 空心圆、2px 描边、画布底色做圆心，挂在组框右边中间（与普通节点输出端
+   口同一个间距），实际悬停组时才出现。骨架规则把组的直接子元素统一设成
+   position: relative，绝对定位要显式写回来，否则端口会落回组框左上角的流式位置。 */
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node-group > .canvas-port {
+  display: grid !important;
+  place-items: center !important;
+  box-sizing: border-box !important;
+  position: absolute !important;
+  top: 50% !important;
+  left: auto !important;
+  right: calc(-14px - 38px * var(--collab-inverse-scale, 1)) !important;
+  z-index: 30 !important;
+  width: 28px !important;
+  height: 28px !important;
+  min-width: 28px !important;
+  min-height: 28px !important;
+  padding: 0 !important;
+  border: 2px solid var(--canvas-neon-muted) !important;
+  border-radius: 50% !important;
+  background: var(--canvas-neon-bg) !important;
+  color: var(--canvas-neon-muted) !important;
+  box-shadow: none !important;
+  font-size: 0 !important;
+  transform: translateY(-50%) scale(var(--collab-inverse-scale, 1)) !important;
+  transform-origin: center;
+}
+
+/* 端口圆心里的加号跟普通节点一致：竖横两条细线，颜色跟着描边走。 */
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node-group > .canvas-port-input {
+  left: calc(-14px - 38px * var(--collab-inverse-scale, 1)) !important;
+  right: auto !important;
+}
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node-group > .canvas-port::after {
+  content: "" !important;
+  color: currentColor !important;
+  opacity: 1 !important;
+}
+
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node-group > .canvas-port:is(:hover, :focus-visible) {
+  border-color: var(--canvas-neon-text) !important;
+  color: var(--canvas-neon-text) !important;
+  outline: none;
+}
+
+/* 成员数标签跟着组标题排到标题栏右侧：组框现在画在成员下面，留在成员区域里的
+   标签会被成员图片盖住（遗留 styles.css 把它放在 left:16px / top:54px 的正文流里）。 */
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node-group > .canvas-group-count {
+  position: absolute;
+  top: -36px;
+  right: 0;
+  left: auto;
+  width: auto;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+  color: var(--canvas-neon-muted);
+  pointer-events: none;
+}
+
+/* 组体在成员下方接收空白拖动；图片仍由更高的成员层独立接收。 */
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node-group {
+  pointer-events: auto !important;
+  cursor: grab;
+  min-width: 0 !important;
+  min-height: 0 !important;
+}
+
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node-group > .canvas-resize-handle {
+  position: absolute !important;
+  right: -5px;
+  bottom: -5px;
+  width: 30px;
+  height: 30px;
+  z-index: 30 !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  cursor: nwse-resize;
+}
+
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node-group > .canvas-resize-handle::after {
+  content: "";
+  display: block;
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  width: 10px;
+  height: 10px;
+  border-right: 2px solid var(--canvas-neon-muted);
+  border-bottom: 2px solid var(--canvas-neon-muted);
+}
+
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node-group > .canvas-resize-handle:is(:hover, :focus-visible)::after {
+  border-color: var(--canvas-neon-primary);
+}
+
+/* The group itself stays below its members so blank-space dragging works
+   without covering media. Its resize affordance lives in the plane overlay,
+   which keeps the hit target above member cards at the shared lower-right
+   corner. */
+#neonEngineSurface #canvasEditorScreen #canvasPlane > .canvas-group-resize-proxy {
+  position: absolute !important;
+  /* Groups use a high stacking order so their frame stays above members. The
+     resize proxy must sit above that frame to receive the corner pointer. */
+  z-index: 1000000 !important;
+  width: 30px !important;
+  height: 30px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+  cursor: nwse-resize;
+}
+
+#neonEngineSurface #canvasEditorScreen #canvasPlane > .canvas-group-resize-proxy[hidden] {
+  display: none !important;
+  pointer-events: none !important;
+}
+
+#neonEngineSurface #canvasEditorScreen #canvasPlane > .canvas-group-resize-proxy::after {
+  content: "";
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  width: 10px;
+  height: 10px;
+  border-right: 2px solid var(--canvas-neon-muted);
+  border-bottom: 2px solid var(--canvas-neon-muted);
+}
+
+#neonEngineSurface #canvasEditorScreen #canvasPlane > .canvas-group-resize-proxy:is(:hover, :focus-visible)::after {
+  border-color: var(--canvas-neon-primary);
+}
+
+#neonEngineSurface #canvasEditorScreen #canvasPlane > .canvas-group-resize-proxy:is(:hover, :focus-visible) {
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+
+/* 左键框选：拖拽框和选中范围都要一眼看得见（画布里原来那套令牌渲染出来近乎透明）。 */
+#neonEngineSurface #canvasEditorScreen .canvas-selection-box {
+  border: 1.5px solid var(--canvas-neon-primary, #00ff41);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--canvas-neon-primary, #00ff41) 10%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, #000 45%, transparent);
+}
+
+/* 正在拖的这一下用虚线，跟松手后的选中范围框区分开。 */
+#neonEngineSurface #canvasEditorScreen .canvas-selection-box.is-marquee {
+  border-style: dashed;
+  background: color-mix(in srgb, var(--canvas-neon-primary, #00ff41) 7%, transparent);
+}
+
+#neonEngineSurface #canvasEditorScreen .canvas-selection-resize-handle {
+  position: absolute;
+  right: -6px;
+  bottom: -6px;
+  z-index: 20;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  pointer-events: auto;
+  cursor: nwse-resize;
+}
+
+#neonEngineSurface #canvasEditorScreen .canvas-selection-resize-handle::after {
+  content: "";
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  width: 10px;
+  height: 10px;
+  border-right: 2px solid var(--canvas-neon-muted);
+  border-bottom: 2px solid var(--canvas-neon-muted);
+}
+
+#neonEngineSurface #canvasEditorScreen .canvas-selection-resize-handle:is(:hover, :focus-visible)::after {
+  border-color: var(--canvas-neon-primary);
+}
+
+#neonEngineSurface #canvasEditorScreen .canvas-selection-box.is-marquee .canvas-selection-resize-handle {
+  display: none;
+}
+
+#neonEngineSurface #canvasEditorScreen .canvas-node[data-canvas-group-member="true"] > .canvas-node-bar,
+#neonEngineSurface #canvasEditorScreen .canvas-node[data-canvas-group-member="true"] .flora-node-image-dimensions {
+  display: none !important;
+}
+
+/* The visible node title is owned by Flora. Keep the legacy compatibility bar
+   in the DOM for serialization and rename plumbing, but never paint it on a
+   regular node where it overlaps the Flora title and media toolbar. */
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node:not(.canvas-node-group) > .canvas-node-bar {
+  display: none !important;
+}
+
+/* 框选期间不要抓手光标：那会儿不是在平移画布。 */
+#neonEngineSurface #infiniteCanvas.is-marquee-selecting,
+#neonEngineSurface #infiniteCanvas.is-marquee-selecting * {
+  cursor: default !important;
+}
+
+/* Shared stacking contract; ordinary wires are physically behind BOTH Scene
+   pixels and Light/Full DOM. Only the active drag preview occupies the upper
+   fixed layer. The transformed wrappers have constant DOM cost. */
+#canvasEditorScreen .canvas-wire-plane { position:absolute;left:0;top:0;width:1px;height:1px;overflow:visible;transform-origin:0 0;pointer-events:none; }
+#canvasEditorScreen .canvas-normal-wire-plane { z-index:0; }
+#canvasEditorScreen .canvas-scene-layer { z-index:1; }
+#canvasEditorScreen .canvas-plane { z-index:2; }
+#canvasEditorScreen .canvas-active-wire-plane { z-index:3; }
+
+/* Paper is the complete note surface in every representation, with no inset
+   dark body underneath the canvas projection. Selection adds an outline only. */
+#canvasEditorScreen #canvasPlane .canvas-light-node[data-canvas-visual-kind="note"]::before {
+  background: transparent; border: 0; box-shadow: none;
+}
+#canvasEditorScreen #canvasPlane .canvas-hover-port-proxy > .flora-node-content { position:absolute;inset:0;pointer-events:none; }
+#canvasEditorScreen #canvasPlane .canvas-hover-port-proxy > .canvas-port {
+  display:grid;place-items:center;box-sizing:border-box;padding:0;border:2px solid var(--canvas-neon-muted);border-radius:50%;background:var(--canvas-neon-bg);color:var(--canvas-neon-muted);box-shadow:none;
+}
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-hover-port-proxy > .canvas-port:hover,
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-hover-port-proxy > .canvas-port:focus-visible {
+  border-color:var(--canvas-neon-muted) !important;
+  background:var(--canvas-neon-bg) !important;
+  color:var(--canvas-neon-muted) !important;
+  box-shadow:none !important;
+  transform:translateY(-50%) scale(var(--collab-inverse-scale, 1)) !important;
+}
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-hover-port-proxy > .canvas-port.is-magnetized,
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-hover-port-proxy > .canvas-port.is-magnetized:hover {
+  outline:2px solid var(--canvas-neon-primary) !important;
+  outline-offset:1px;
+  background:var(--canvas-neon-bg) !important;
+  color:var(--canvas-neon-primary) !important;
+  box-shadow:none !important;
+  transform:translateY(-50%) scale(var(--collab-inverse-scale, 1)) !important;
+}
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-hover-port-proxy > .canvas-port.is-magnetized {
+  outline:2px solid var(--canvas-neon-primary) !important;
+  outline-offset:1px;
+}
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-hover-port-proxy > .canvas-port::after { content:'+';font:400 20px/1 system-ui;color:var(--canvas-neon-muted) !important; }
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-hover-port-proxy > .canvas-port.is-magnetized::after { color:var(--canvas-neon-primary) !important; }

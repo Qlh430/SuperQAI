@@ -1,5 +1,6 @@
-@import "tailwindcss";
+@import "tailwindcss" source(none);
 @import "tw-animate-css";
+@import "./legacy-utility-compat.css";
 @import "@fontsource-variable/inter";
 
 @custom-variant dark (&:is(.dark *));
@@ -274,6 +275,21 @@ html[data-motion="reduced"] *, html[data-motion="reduced"] *::before, html[data-
   column-width: 13rem;
   column-gap: 1rem;
 }
+/* Natural-ratio waterfall in chronological reading order. Avoid dense packing:
+   backfilling a gap would place an older record above a newer record. */
+.neon-history-masonry {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 13rem), 1fr));
+  grid-auto-rows: 1px;
+  grid-auto-flow: row;
+  column-gap: 1rem;
+}
+.neon-history-masonry-item { min-width:0; align-self:start; }
+.neon-history-masonry-content { display:flow-root; }
+.neon-history-masonry-content > .neon-resource-card { display:block; margin:0; }
+.neon-history-card .neon-resource-preview[data-kind="image"] { min-height:0;position:relative; }
+.neon-history-card .neon-resource-preview img { position:absolute;inset:0;width:100%;height:100%;max-height:none;object-fit:contain; }
+.neon-history-summary { display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden;overflow-wrap:anywhere;max-height:3.75rem;line-height:1.25rem; }
 .neon-resource-card {
   display: inline-block;
   width: 100%;
@@ -302,9 +318,160 @@ html[data-motion="reduced"] *, html[data-motion="reduced"] *::before, html[data-
 }
 .neon-resource-preview[data-kind="video"] { aspect-ratio: 16 / 10; }
 .neon-resource-preview[data-kind="audio"] { min-height: 10rem; }
+
+/* 概览的“最近素材”：列数由 Home 按容器宽度算出来（能放几张就放几张，正好铺满一行），
+   每张卡片的图片保持素材自身比例，只给一个高度上限。 */
+.neon-recent-grid .neon-resource-preview img {
+  max-height: 20rem;
+}
+
 @media (max-width: 767px) {
   .neon-asset-library-layout { grid-template-columns: 1fr; gap: 1rem; }
   .neon-asset-directory { position: static; }
   .neon-asset-masonry { column-width: 9.5rem; column-gap: .75rem; }
+  .neon-history-masonry { grid-template-columns:repeat(auto-fill,minmax(min(100%,9.5rem),1fr)); column-gap:.75rem; }
   .neon-resource-card { margin-bottom: .75rem; }
 }
+
+html.neon-canvas-asset-overlay,
+html.neon-canvas-asset-overlay body,
+html.neon-canvas-asset-overlay #root { background: transparent !important; }
+html.neon-canvas-asset-overlay .neon-workbench-shell { visibility: hidden; }
+html.neon-canvas-asset-overlay [data-slot="dialog-overlay"],
+html.neon-canvas-asset-overlay [data-slot="dialog-content"] { visibility: visible; }
+
+/* Exact production scan boundary; generated from source paths, never class candidates. */
+@source "App.tsx";
+@source "assets/react.svg";
+@source "assets/vite.svg";
+@source "components/add-to-asset-dialog.tsx";
+@source "components/asset-preview.tsx";
+@source "components/canvas-name-dialog.tsx";
+@source "components/media-card.tsx";
+@source "components/page-boundary.tsx";
+@source "components/project-share-editor.tsx";
+@source "components/provider-diagnostics.tsx";
+@source "components/provider-editor.tsx";
+@source "components/provider-model-settings.tsx";
+@source "components/resource-actions.tsx";
+@source "components/ui/_shared.ts";
+@source "components/ui/badge.tsx";
+@source "components/ui/button.tsx";
+@source "components/ui/card.tsx";
+@source "components/ui/dialog.tsx";
+@source "components/ui/input.tsx";
+@source "components/ui/native-select.tsx";
+@source "components/ui/separator.tsx";
+@source "components/ui/sheet.tsx";
+@source "components/ui/sidebar.tsx";
+@source "components/ui/skeleton.tsx";
+@source "components/ui/switch.tsx";
+@source "components/ui/table.tsx";
+@source "components/ui/tabs.tsx";
+@source "components/ui/textarea.tsx";
+@source "components/ui/tooltip.tsx";
+@source "components/workbench.tsx";
+@source "hooks/use-mobile.ts";
+@source "lib/api.ts";
+@source "lib/asset-library.ts";
+@source "lib/asset-media.ts";
+@source "lib/canvas-naming.ts";
+@source "lib/chat-result.ts";
+@source "lib/history-media.ts";
+@source "lib/id.ts";
+@source "lib/production.ts";
+@source "lib/text.ts";
+@source "lib/utils.ts";
+@source "main.tsx";
+@source "pages/advanced-settings.tsx";
+@source "pages/asset-library.tsx";
+@source "pages/creative.tsx";
+@source "pages/history.tsx";
+@source "pages/management.tsx";
+@source "pages/projects.tsx";
+@source "pages/script-production.tsx";
+@source "../design-sources/asset-history-deploy-patches.cjs";
+@source "../design-sources/audio-output-persistence.js";
+@source "../design-sources/auth-onboarding-patches.cjs";
+@source "../design-sources/background-removal-service.js";
+@source "../design-sources/background-removal-ui.js";
+@source "../design-sources/canvas-asset-entry.js";
+@source "../design-sources/canvas-asset-library.js";
+@source "../design-sources/canvas-audio-generator.js";
+@source "../design-sources/canvas-comfy-node-renderer.js";
+@source "../design-sources/canvas-db-worker.js";
+@source "../design-sources/canvas-document-reader-entry.js";
+@source "../design-sources/canvas-feature-registry.js";
+@source "../design-sources/canvas-features/node-audio.js";
+@source "../design-sources/canvas-features/node-image.js";
+@source "../design-sources/canvas-features/node-note.js";
+@source "../design-sources/canvas-features/node-script.js";
+@source "../design-sources/canvas-features/node-text.js";
+@source "../design-sources/canvas-features/node-upload.js";
+@source "../design-sources/canvas-features/node-video.js";
+@source "../design-sources/canvas-features/tool-angle.js";
+@source "../design-sources/canvas-features/tool-crop.js";
+@source "../design-sources/canvas-features/tool-cutout.js";
+@source "../design-sources/canvas-features/tool-outpaint.js";
+@source "../design-sources/canvas-features/tool-upscale.js";
+@source "../design-sources/canvas-file-import.js";
+@source "../design-sources/canvas-h3-node-renderer.js";
+@source "../design-sources/canvas-image-toolbar.js";
+@source "../design-sources/canvas-legacy-migrator.js";
+@source "../design-sources/canvas-media-gc-service.js";
+@source "../design-sources/canvas-media-lifecycle.js";
+@source "../design-sources/canvas-media-references.js";
+@source "../design-sources/canvas-node-tag-rules.js";
+@source "../design-sources/canvas-project-http-api.js";
+@source "../design-sources/canvas-project-service.js";
+@source "../design-sources/canvas-representation-host.js";
+@source "../design-sources/canvas-representation-manager.js";
+@source "../design-sources/canvas-scene-layer.js";
+@source "../design-sources/canvas-scene-rules.js";
+@source "../design-sources/canvas-schema.js";
+@source "../design-sources/canvas-script-production.js";
+@source "../design-sources/canvas-storage-http-api.js";
+@source "../design-sources/canvas-text-node-renderer.js";
+@source "../design-sources/canvas-virtualizer.js";
+@source "../design-sources/chat-http-api.js";
+@source "../design-sources/comfy-workflow-task-service.js";
+@source "../design-sources/comfyui-client.js";
+@source "../design-sources/curated-asset-http-api.js";
+@source "../design-sources/curated-asset-service.js";
+@source "../design-sources/desktop-shell-before-bridge.js";
+@source "../design-sources/desktop-startup.html";
+@source "../design-sources/flora-connection-interaction.js";
+@source "../design-sources/flora-generation-history.js";
+@source "../design-sources/flora-generator-composer.js";
+@source "../design-sources/flora-generator-parameters.js";
+@source "../design-sources/flora-midjourney-settings.js";
+@source "../design-sources/flora-node-shell.js";
+@source "../design-sources/flora-node-tags.js";
+@source "../design-sources/flora-text-tools.js";
+@source "../design-sources/history-http-api.js";
+@source "../design-sources/image-model-picker.js";
+@source "../design-sources/image-thumbnail-store.js";
+@source "../design-sources/media-generation-http-api.js";
+@source "../design-sources/media-protocol-adapters.js";
+@source "../design-sources/midjourney-parameter-rules.js";
+@source "../design-sources/minimax-h3-task-service.js";
+@source "../design-sources/minimax-h3-workflow.js";
+@source "../design-sources/neon-globals.json";
+@source "../design-sources/node-action-bar.js";
+@source "../design-sources/project-share-access.js";
+@source "../design-sources/provider-http-api.js";
+@source "../design-sources/provider-model-rules.js";
+@source "../design-sources/provider-protocol-engine.js";
+@source "../design-sources/provider-protocol-registry.js";
+@source "../design-sources/provider-test-result.js";
+@source "../design-sources/resource-access.js";
+@source "../design-sources/resource-http-api.js";
+@source "../design-sources/runtime-index-before-isolation.html";
+@source "../design-sources/script-before-save-bridge.js";
+@source "../design-sources/static-http-api.cjs";
+@source "../design-sources/system-db.js";
+@source "../design-sources/workflows/minimax-h3-video-frames.json";
+@source "../design-sources/workflows/minimax-h3-video.json";
+@source "../design-sources/workflows/qwen-image21-edit.json";
+@source "../design-sources/workflows/qwen-image21-generate.json";
+@source "components/history-masonry.tsx";

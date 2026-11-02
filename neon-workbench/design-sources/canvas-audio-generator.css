@@ -1,0 +1,106 @@
+.canvas-audio-generator-body { display:flex; flex-direction:column; gap:12px; min-width:0; color:var(--canvas-neon-text,var(--neon-foreground)); }
+.canvas-audio-generator-result { display:flex; align-items:center; justify-content:center; min-height:128px; width:100%; }
+.canvas-audio-generator-result audio { width:100%; max-width:100%; }
+.canvas-audio-generator-result [hidden] { display:none; }
+.canvas-audio-generator-empty,.canvas-audio-generator-refs,.canvas-audio-generator-status,.canvas-audio-generator-disclosure { margin:0; font-size:12px; line-height:1.5; color:var(--canvas-neon-muted,var(--neon-muted-foreground)); }
+.canvas-audio-generator-prompt,.canvas-audio-generator-controls input,.canvas-audio-generator-controls select { box-sizing:border-box; min-width:0; width:100%; border:1px solid var(--canvas-neon-border,var(--neon-border)); border-radius:8px; background:var(--neon-input,var(--canvas-neon-card)); color:var(--canvas-neon-text,var(--neon-foreground)); font:inherit; font-size:14px; padding:8px 12px; min-height:44px; }
+.canvas-audio-generator-prompt,.canvas-audio-generator-lyrics { resize:vertical; }
+.canvas-audio-generator-lyrics[hidden],.canvas-audio-generator-speed[hidden],.canvas-audio-generator-voice[hidden] { display:none; }
+/* Music uses one continuous prompt surface: the description and lyrics are
+   separated by the same quiet rule as the reference composer. Speech keeps a
+   single borderless text surface. */
+.flora-generator-prompt-area:has(.canvas-audio-generator-prompt) { gap:0 !important; }
+.flora-generator-prompt-area:has(.canvas-audio-generator-prompt) :is(.canvas-audio-generator-prompt,.canvas-audio-generator-lyrics) {
+  box-sizing:border-box;
+  width:100% !important;
+  min-height:72px;
+  margin:0 !important;
+  padding:14px 0 !important;
+  border:0 !important;
+  border-radius:0 !important;
+  background:transparent !important;
+}
+#neonEngineSurface #canvasEditorScreen #canvasPlane .flora-generator-composer .flora-generator-prompt-area:is([data-audio-mode="music"],[data-audio-layout="design"]) .canvas-audio-generator-prompt {
+  border-bottom:1px solid var(--canvas-neon-border,var(--neon-border)) !important;
+  padding-bottom:16px !important;
+}
+#neonEngineSurface #canvasEditorScreen #canvasPlane .flora-generator-composer .flora-generator-prompt-area:is([data-audio-mode="music"],[data-audio-layout="design"]) .canvas-audio-generator-prompt:is(:focus,:focus-visible) {
+  border-bottom-color:var(--canvas-neon-border,var(--neon-border)) !important;
+}
+#neonEngineSurface #canvasEditorScreen #canvasPlane .flora-generator-composer .flora-generator-prompt-area[data-audio-layout="design"] {
+  display:grid;
+  grid-template-rows:repeat(2,minmax(96px,1fr));
+}
+#neonEngineSurface #canvasEditorScreen #canvasPlane .flora-generator-composer .flora-generator-prompt-area[data-audio-layout="design"] :is(.canvas-audio-generator-prompt,.canvas-audio-generator-lyrics) {
+  height:100% !important;
+  min-height:0 !important;
+  max-height:none;
+}
+#neonEngineSurface #canvasEditorScreen #canvasPlane .flora-generator-composer .flora-generator-prompt-area:is([data-audio-mode="music"],[data-audio-layout="design"]) .canvas-audio-generator-lyrics {
+  padding-top:16px !important;
+}
+#neonEngineSurface #canvasEditorScreen #canvasPlane .flora-generator-composer .flora-generator-prompt-area[data-audio-mode="speech"]:not([data-audio-layout="design"]) .canvas-audio-generator-prompt {
+  border-bottom:0 !important;
+  padding-bottom:14px !important;
+}
+/* Expanded music editing divides the available text surface equally. */
+#neonEngineSurface #canvasEditorScreen #canvasPlane .flora-generator-composer.is-expanded .flora-generator-prompt-area:is([data-audio-mode="music"],[data-audio-layout="design"]) {
+  display:grid;
+  grid-template-rows:repeat(2,minmax(0,1fr));
+}
+#neonEngineSurface #canvasEditorScreen #canvasPlane .flora-generator-composer.is-expanded .flora-generator-prompt-area:is([data-audio-mode="music"],[data-audio-layout="design"]) :is(.canvas-audio-generator-prompt,.canvas-audio-generator-lyrics) {
+  height:100% !important;
+  min-height:0 !important;
+  max-height:none;
+  overflow-y:auto;
+}
+.canvas-audio-generator-controls { display:flex; flex-wrap:wrap; align-items:center; gap:8px; min-width:0; }
+.canvas-audio-generator-mode,.canvas-audio-generator-speed,.canvas-audio-generator-voice { box-sizing:border-box; min-width:0; width:auto; border:1px solid transparent; border-radius:8px; background:transparent; color:var(--canvas-neon-text,var(--neon-foreground)); font:inherit; font-size:13px; padding:7px 8px; min-height:36px; }
+.canvas-audio-generator-mode { font-weight:600; }
+.canvas-audio-generator-mode:focus-visible,.canvas-audio-generator-speed:focus-visible,.canvas-audio-generator-voice:focus-visible { outline:2px solid var(--canvas-neon-primary,var(--neon-ring)); outline-offset:2px; }
+.canvas-audio-generator-model { flex:1 1 160px; }
+.canvas-audio-generator-model[data-selected="true"] { color:var(--canvas-neon-primary,var(--neon-primary)); }
+/* Footer choices must retain their label and native arrow space when wrapping. */
+#neonEngineSurface #canvasEditorScreen #canvasPlane .flora-generator-composer .flora-generator-settings .canvas-audio-generator-controls {
+  flex:1 1 100%;
+  width:100%;
+}
+#neonEngineSurface #canvasEditorScreen #canvasPlane .flora-generator-settings .canvas-audio-generator-controls > :is(.canvas-audio-generator-mode,.canvas-audio-generator-model,.canvas-audio-generator-speed,.canvas-audio-generator-voice) {
+  flex:0 0 auto;
+  width:auto !important;
+  max-width:100%;
+  padding-right:32px;
+}
+#neonEngineSurface #canvasEditorScreen #canvasPlane .flora-generator-settings .canvas-audio-generator-controls > .canvas-audio-generator-voice {
+  min-width:min(176px,100%);
+}
+.canvas-audio-generator-parameters { display:flex; flex-wrap:wrap; gap:8px; width:100%; }
+.canvas-audio-generator-param { display:flex; flex-direction:column; gap:4px; flex:1 1 100px; min-width:0; font-size:12px; color:var(--canvas-neon-muted,var(--neon-muted-foreground)); }
+.canvas-node-audio-generator .flora-generator-parameter-trigger[hidden],
+.canvas-audio-generator-reference[hidden],.canvas-audio-generator-reference [hidden] { display:none !important; }
+.canvas-audio-generator-reference { display:flex; flex:0 0 auto; flex-wrap:wrap; align-items:center; gap:8px; min-width:0; }
+.canvas-audio-reference-name { flex:1 1 160px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--canvas-neon-muted,var(--neon-muted-foreground)); font-size:12px; }
+.canvas-audio-reference-player { width:100%; height:44px; }
+.canvas-audio-reference-remove { min-height:44px; padding:8px 12px; border:1px solid var(--canvas-neon-border,var(--neon-border)); border-radius:8px; background:var(--canvas-neon-bg,var(--neon-background)); color:var(--canvas-neon-text,var(--neon-foreground)); font:inherit; font-size:12px; cursor:pointer; }
+.canvas-audio-reference-remove:hover { background:var(--neon-input,var(--canvas-neon-card)); }
+/* Parameter fields share the input sizing, rather than footer select sizing. */
+#neonEngineSurface #canvasEditorScreen #canvasPlane .flora-generator-parameter-popover .canvas-audio-generator-param { flex:1 1 0; }
+#neonEngineSurface #canvasEditorScreen #canvasPlane .flora-generator-parameter-popover .canvas-audio-generator-param :is(input,select) {
+  flex:none;
+  width:100%;
+  height:44px;
+  min-height:44px;
+  max-height:44px;
+  border:0;
+  font:400 12px/20px var(--neon-font-sans,Inter,"Microsoft YaHei",sans-serif);
+}
+.canvas-audio-generator-run { position:relative; min-height:44px; padding:8px 16px; border:1px solid var(--canvas-neon-border,var(--neon-border)); border-radius:8px; background:var(--canvas-neon-primary,var(--neon-primary)); color:var(--canvas-neon-bg,var(--neon-background)); font:inherit; font-size:14px; cursor:pointer; }
+.canvas-audio-generator-run:hover:not(:disabled) { filter:brightness(1.08); }
+.canvas-audio-generator-run:disabled { opacity:.5; cursor:default; }
+.canvas-audio-generator-prompt:focus-visible,.canvas-audio-generator-lyrics:focus-visible,.canvas-audio-generator-controls input:focus-visible,.canvas-audio-generator-controls select:focus-visible,.canvas-audio-generator-run:focus-visible { outline:2px solid var(--canvas-neon-primary,var(--neon-ring)); outline-offset:2px; }
+.canvas-audio-generator-status[data-state="error"] { color:var(--canvas-neon-danger,var(--neon-destructive)); }
+.canvas-audio-generator-status[data-state="success"] { color:var(--canvas-neon-primary,var(--neon-primary)); }
+.canvas-audio-generator-run.is-generating::after { content:""; display:inline-block; width:12px; height:12px; margin-left:8px; border:2px solid currentColor; border-right-color:transparent; border-radius:50%; animation:canvas-audio-spinner .8s linear infinite; }
+@keyframes canvas-audio-spinner { to { transform:rotate(360deg); } }
+@media(max-width:480px) { .canvas-audio-generator-controls { align-items:stretch; } .canvas-audio-generator-run { width:100%; } }
+

@@ -1,0 +1,177 @@
+{
+  "7": {
+    "inputs": {
+      "audio": "06（烟嗓女音）参考音频.wav"
+    },
+    "class_type": "LoadAudio",
+    "_meta": {
+      "title": "加载音频"
+    }
+  },
+  "96": {
+    "inputs": {
+      "text": "大帅哥～你总不想大家都知道，你只用我的工作流，也不点赞也不互动，连关注三连都落下了吧～"
+    },
+    "class_type": "CR Text",
+    "_meta": {
+      "title": "🔤 CR Text"
+    }
+  },
+  "152": {
+    "inputs": {
+      "text": "高冷御姐音，妩媚诱惑，情绪为挑逗"
+    },
+    "class_type": "CR Text",
+    "_meta": {
+      "title": "🔤 CR Text"
+    }
+  },
+  "153": {
+    "inputs": {
+      "text": "刚说的话转头就忘球了，要做的事全靠备忘录续命，找东西全凭缘分，脑壳内存只够装开心的事，烦心事直接一键清空，莫来头得很撒！"
+    },
+    "class_type": "CR Text",
+    "_meta": {
+      "title": "🔤 CR Text"
+    }
+  },
+  "157": {
+    "inputs": {
+      "text": "搞 AI 创作的日常才恼火哦，前一秒还为生成的完美画面狂喜得很，后一秒就因为关键词差一个字直接翻车，反复在 “我是大神” 和 “我啥也不是” 之间横跳，心态都搞崩球了嗦！"
+    },
+    "class_type": "CR Text",
+    "_meta": {
+      "title": "🔤 CR Text"
+    }
+  },
+  "181": {
+    "inputs": {
+      "text": [
+        "96",
+        0
+      ],
+      "instruct": [
+        "152",
+        0
+      ],
+      "model_choice": "1.7B",
+      "device": "auto",
+      "precision": "bf16",
+      "language": "Auto",
+      "seed": 227411266187471,
+      "max_new_tokens": 2048,
+      "top_p": 1,
+      "top_k": 50,
+      "temperature": 0.9,
+      "repetition_penalty": 1.05,
+      "attention": "sdpa",
+      "unload_model_after_generate": false
+    },
+    "class_type": "FB_Qwen3TTSVoiceDesign",
+    "_meta": {
+      "title": "🎨 Qwen3-TTS VoiceDesign"
+    }
+  },
+  "182": {
+    "inputs": {
+      "text": [
+        "153",
+        0
+      ],
+      "speaker": "Ryan",
+      "model_choice": "1.7B",
+      "device": "auto",
+      "precision": "bf16",
+      "language": "Auto",
+      "seed": 306124952499920,
+      "instruct": "",
+      "max_new_tokens": 2048,
+      "top_p": 1,
+      "top_k": 50,
+      "temperature": 0.9,
+      "repetition_penalty": 1.05,
+      "attention": "sdpa",
+      "unload_model_after_generate": false,
+      "custom_model_path": "",
+      "custom_speaker_name": ""
+    },
+    "class_type": "FB_Qwen3TTSCustomVoice",
+    "_meta": {
+      "title": "🎵 Qwen3-TTS CustomVoice"
+    }
+  },
+  "184": {
+    "inputs": {
+      "target_text": [
+        "157",
+        0
+      ],
+      "model_choice": "1.7B",
+      "device": "auto",
+      "precision": "bf16",
+      "language": "Auto",
+      "ref_text": "",
+      "seed": 112144364683531,
+      "max_new_tokens": 2048,
+      "top_p": 1,
+      "top_k": 50,
+      "temperature": 0.9,
+      "repetition_penalty": 1.05,
+      "x_vector_only": true,
+      "instruct": "",
+      "attention": "sdpa",
+      "unload_model_after_generate": false,
+      "custom_model_path": "",
+      "ref_audio": [
+        "7",
+        0
+      ]
+    },
+    "class_type": "FB_Qwen3TTSVoiceClone",
+    "_meta": {
+      "title": "🎭 Qwen3-TTS VoiceClone"
+    }
+  },
+  "188": {
+    "inputs": {
+      "filename_prefix": "audio/ComfyUI",
+      "format": "flac",
+      "audio": [
+        "184",
+        0
+      ]
+    },
+    "class_type": "SaveAudioAdvanced",
+    "_meta": {
+      "title": "保存音频（高级）"
+    }
+  },
+  "189": {
+    "inputs": {
+      "filename_prefix": "audio/ComfyUI",
+      "format": "flac",
+      "audio": [
+        "182",
+        0
+      ]
+    },
+    "class_type": "SaveAudioAdvanced",
+    "_meta": {
+      "title": "保存音频（高级）"
+    }
+  },
+  "191": {
+    "inputs": {
+      "filename_prefix": "audio/ComfyUI",
+      "format": "flac",
+      "audio": [
+        "181",
+        0
+      ]
+    },
+    "class_type": "SaveAudioAdvanced",
+    "_meta": {
+      "title": "保存音频（高级）"
+    }
+  }
+}

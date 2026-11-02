@@ -24,6 +24,15 @@ html[data-ai-os-dev-refresh="true"] #aiOsStartupGate {
   opacity: 0;
 }
 
+/* If the shell and Neon iframe are already mounted, a missed readiness event
+   must not trap the user behind the slow-start gate. The JS keeps the normal
+   error path; this is only a visual fallback after the slow state. */
+body:has(#aiOsNeonFrame) #aiOsStartupGate.is-slow {
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
 #aiOsStartupGate.is-dev-reload {
   inset: 14px auto auto 50%;
   width: max-content;
@@ -87,11 +96,11 @@ html[data-ai-os-dev-refresh="true"] #aiOsStartupGate {
   height: 50px;
   place-items: center;
   border-radius: 15px;
-  color: var(--neon-primary-foreground, oklch(0.18 0.04 150));
-  font: 700 28px/1 Georgia, serif;
-  background: var(--neon-primary, oklch(0.86 0.22 145));
+  color: var(--neon-foreground, #fff);
+  background: transparent;
   box-shadow: none;
 }
+.ai-os-startup-brand-mark svg { width: 40px; height: 40px; fill: currentColor; }
 
 .ai-os-startup-brand strong,
 .ai-os-startup-brand span {

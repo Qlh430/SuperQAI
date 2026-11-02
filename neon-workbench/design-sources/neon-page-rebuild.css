@@ -450,6 +450,13 @@ body.canvas-surface-open #aiOsLaunchpad {
   border-left: 1px solid #34382d !important;
   box-shadow: -24px 0 60px rgba(0,0,0,.44) !important;
 }
+
+/* Agent 面板从功能栏下方开始：功能栏固定在视口 top 16 + 高 40，这里留 8px 间隙，
+   面板顶边不再被常驻功能栏压住；高度同步减去这段，底边仍在工作区底部。 */
+#neonEngineSurface .canvas-workspace .canvas-agent-panel {
+  top: 64px !important;
+  height: calc(100% - 64px) !important;
+}
 #neonEngineSurface .canvas-agent-header,
 #neonEngineSurface .canvas-agent-messages {
   color: var(--neon-foreground, #f5f6f0) !important;
@@ -1122,4 +1129,23 @@ body.canvas-surface-open #aiOsLaunchpad {
 #neonEngineSurface .canvas-asset-search::after {
   content: "" !important;
   display: none !important;
+}
+
+/* Canvas asset waterfall: keep each card at its intrinsic height while the
+   measured row span lets the next asset sit directly below it. */
+#neonEngineSurface .canvas-asset-grid {
+  display: grid !important;
+  grid-auto-flow: row !important;
+  grid-auto-rows: 1px !important;
+  row-gap: 0 !important;
+  --canvas-asset-card-gap: 10px;
+  align-items: start !important;
+}
+#neonEngineSurface .canvas-asset-card {
+  height: max-content !important;
+  align-self: start !important;
+  margin: 0 !important;
+}
+@media (max-width: 520px) {
+  #neonEngineSurface .canvas-asset-grid { --canvas-asset-card-gap: 8px; }
 }
