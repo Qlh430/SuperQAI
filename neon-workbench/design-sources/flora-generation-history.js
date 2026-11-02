@@ -44,8 +44,14 @@
         item[key] = source;
       }
     }
-    for (const key of ["text", "prompt", "model"]) {
+    for (const key of ["text", "prompt", "model", "assetId", "name"]) {
       if (value[key] != null) item[key] = String(value[key]);
+    }
+    if (value.kind === "text") {
+      if (["completed", "incomplete"].includes(value.completionStatus)) item.completionStatus = value.completionStatus;
+      for (const key of ["finishReason", "incompleteReason", "warning"]) {
+        if (typeof value[key] === "string") item[key] = value[key].slice(0, 400);
+      }
     }
     if (value.midjourneyParameters && typeof value.midjourneyParameters === "object") {
       const params = {};
@@ -117,6 +123,20 @@
     if (data.currentGenerationId === item.id) emit("flora-generation-history-select", node, previous || item);
     sync(node);
     emit("flora-generation-history-change", node);
+    if (item.kind !== "text" && root.resolveCanvasMediaAsset) {
+      // Resolve once on result creation, never on pointer/selection or rendering.
+      const source = item.savedUrl || item.src;
+      void root.resolveCanvasMediaAsset(source).then(asset => {
+        if (!asset) return;
+        const latest = serialize(node);
+        const entry = latest.generationHistory.find(value => value.id === item.id && (value.savedUrl || value.src) === source);
+        if (!entry) return;
+        entry.assetId = asset.id; entry.name = asset.name;
+        write(node, latest);
+        if (latest.currentGenerationId === item.id) node.dataset.assetId = asset.id;
+        emit("flora-generation-history-change", node);
+      }).catch(error => console.warn("素材名称读取失败", error));
+    }
     return previous || item;
   }
 
@@ -303,6 +323,7 @@
     trigger.disabled = true;
     state.status.textContent = "正在准备下载…";
     try {
+      const asset = item.kind === "text" ? null : await root.resolveCanvasMediaAsset?.(safeSource(item));
       let blob;
       if (item.kind === "text") blob = new Blob([item.text || ""], { type: "text/plain;charset=utf-8" });
       else {
@@ -319,7 +340,7 @@
       const extensions = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp", "image/svg+xml": "svg", "video/mp4": "mp4", "video/webm": "webm", "audio/mpeg": "mp3", "audio/wav": "wav", "audio/ogg": "ogg" };
       const extension = item.kind === "text" ? "txt" : extensions[blob.type.split(";")[0]] || ({ image: "png", video: "mp4", audio: "mp3" })[item.kind];
       anchor.href = url;
-      anchor.download = `生成${kindLabels[item.kind]}-${item.id.replace(/[^a-z0-9_-]/gi, "_")}.${extension}`;
+      anchor.download = asset?.downloadName || `${String(item.name || `生成${kindLabels[item.kind]}`).replace(/[\\/:*?"<>|]/g, "_")}.${extension}`;
       anchor.hidden = true;
       state.panel.append(anchor); anchor.click(); anchor.remove();
       state.urls.add(url);

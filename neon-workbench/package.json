@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build && node build-document-reader.mjs",
+    "dev:workbench": "vite --configLoader native --mode daily",
+    "update:workbench": "node deploy.mjs --daily-workbench",
+    "build": "tsc -b && vite build --configLoader native && node build-document-reader.mjs",
     "lint": "oxlint",
     "preview": "vite preview"
   },

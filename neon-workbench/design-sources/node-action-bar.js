@@ -59,6 +59,7 @@
     toolbar.addEventListener("pointerdown", (event) => event.stopPropagation());
     toolbar.addEventListener("dblclick", (event) => event.stopPropagation());
     appendTo?.append(toolbar);
+    root.NeonCanvasAssets?.mountToolbar?.(toolbar);
     root.lucide?.createIcons?.({ root: toolbar, attrs: { "aria-hidden": "true", "stroke-width": 1.8 } });
 
     return {

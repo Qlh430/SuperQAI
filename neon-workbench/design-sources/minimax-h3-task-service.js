@@ -8,6 +8,7 @@ const H3_FRAMES_MODES = ["text", "first", "last"];
 
 function createMinimaxH3TaskService({
   mediaTaskService,
+  registerMedia,
   updateTask,
   cleanupTasks,
   workflowFile,
@@ -68,6 +69,9 @@ function createMinimaxH3TaskService({
         providerId: payload.providerId || payload.provider_id || getDefaultProviderId(),
         modelId: payload.modelId || payload.model_id || payload.model || "minimax-h3",
       });
+      updateTask(result.task_id, { ownerUserId: req.auth?.user?.id });
+      // A fast provider may complete before its request returns the task ID.
+      await registerTaskVideos(result.task_id, mediaTaskService.get(result.task_id)?.videos || []);
       sendJson(res, 202, { task_id: result.task_id });
     } catch (error) {
       sendJson(res, 400, { error: formatErrorMessage(error) });
@@ -179,6 +183,7 @@ function createMinimaxH3TaskService({
       throw new Error(`ComfyUI 已完成，但未找到可保存的视频。保存节点：${outputIds.join("、")}；返回节点：${observed}。`);
     }
 
+    await registerTaskVideos(taskId, videos);
     updateTask(taskId, {
       status: "success",
       progress: 100,
@@ -187,6 +192,14 @@ function createMinimaxH3TaskService({
       comfy: comfyUrl,
       seed,
     });
+  }
+
+  async function registerTaskVideos(taskId, videos) {
+    const owner = mediaTaskService.get(taskId)?.ownerUserId;
+    if (owner && registerMedia) for (const video of videos) {
+      const url = typeof video === "string" ? video : video.url;
+      if (url?.startsWith("/output/")) await registerMedia(owner, { url, filename: path.basename(url) }, "video/mp4", { source: "generated" });
+    }
   }
 
   async function uploadMediaReferenceToComfy(comfyUrl, reference, kind, index, token) {

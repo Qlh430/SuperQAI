@@ -32,9 +32,37 @@
   color: var(--canvas-neon-text, #fff);
 }
 
+/* 外层只定位：透明标题带与定位容器不能接住指针，空白交给下层组/画布。
+   内容表面、文字与可见控件各自声明命中，不扩大节点的可点击区域。 */
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node[data-flora-node="true"],
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node[data-flora-node="true"] > .flora-node-label,
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node[data-flora-node="true"] > .flora-node-tag {
+  pointer-events: none !important;
+}
+
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node[data-flora-node="true"] :is(.flora-node-label-icon, .flora-node-label-title, .flora-node-title-editor),
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node[data-flora-node="true"] > .flora-node-tag > button {
+  pointer-events: auto;
+}
+
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node[data-flora-node="true"] .flora-node-label-title {
+  min-width: 0 !important;
+  min-height: 0 !important;
+}
+
 #canvasEditorScreen .canvas-node[data-flora-node="true"] > :not(.flora-node-shell):not(.flora-node-label) {
   position: relative;
   z-index: 1;
+}
+
+/* The shared child-layer rule above intentionally gives legacy bridges a
+   stable stacking context. The resize affordance is the one direct child that
+   must leave normal flow: otherwise its corner glyph is painted beside the
+   title instead of at the node's lower-right corner. */
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node[data-flora-node="true"] > .canvas-resize-handle {
+  position: absolute !important;
+  right: -5px !important;
+  bottom: -5px !important;
 }
 
 #canvasEditorScreen .flora-node-card {
@@ -46,7 +74,7 @@
   background: var(--canvas-neon-card, #1a1a1a);
   box-shadow: 0 18px 48px color-mix(in srgb, var(--canvas-neon-bg, #0f0f0f) 72%, transparent);
   pointer-events: none;
-  transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+  transition: none;
 }
 
 #canvasEditorScreen .flora-node-content {
@@ -143,16 +171,25 @@
   gap: 7px;
   min-height: var(--flora-node-header-height, 48px);
   min-width: 0;
+  width: 100%;
   max-width: 100%;
   color: var(--canvas-neon-muted, #888);
   pointer-events: auto;
   user-select: none;
+  /* Leave clear screen-space breathing room above the node body at every zoom. */
+  transform: translateY(calc(-8px * var(--collab-inverse-scale, 1)));
+  transform-origin: left bottom;
 }
 
 #canvasEditorScreen .flora-node-label-icon {
   display: grid;
+  flex: 0 0 16px;
   width: 16px;
   height: 16px;
+  min-width: 16px;
+  min-height: 16px;
+  position: relative;
+  z-index: 1;
   place-items: center;
   color: currentColor;
 }
@@ -169,8 +206,13 @@
 
 #canvasEditorScreen .flora-node-label-title {
   display: block;
+  flex: 1 1 auto;
   min-width: 0;
-  max-width: calc(100% - 23px);
+  width: 0;
+  max-width: none;
+  box-sizing: border-box;
+  position: relative;
+  z-index: 1;
   overflow: hidden;
   padding: 0;
   border: 0;
@@ -186,6 +228,13 @@
 #canvasEditorScreen .flora-node-label-title:hover,
 #canvasEditorScreen .flora-node-label-title:focus-visible {
   color: var(--canvas-neon-text, #fff);
+}
+
+/* Light nodes have a separate class from the regular canvas-node adapter.
+   Reserve the same header lane for their tag so a long title never runs below
+   it, regardless of representation or selection state. */
+#neonEngineSurface #canvasEditorScreen #canvasPlane :is(.canvas-node, .canvas-light-node):has(> .flora-node-tag:not([hidden])) > .flora-node-label {
+  max-width: calc(45% - 8px) !important;
 }
 
 #canvasEditorScreen .flora-node-actions {
@@ -346,9 +395,10 @@
 /* 图片工具的参数面板：放大 / 扩图 / 换角度从工具栏点开，参数与「执行」都留在这里。 */
 #canvasEditorScreen .flora-node-tool-panel {
   position: absolute;
-  z-index: 31;
-  top: 52px;
-  left: 12px;
+  z-index: 60;
+  top: calc(100% + 12px);
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
   width: 336px;
   max-width: min(336px, 88vw);
@@ -382,9 +432,8 @@
   display: none !important;
 }
 
-/* 生成节点的操作区挂在节点下方，会把裁剪操作条盖住（实测操作条 687~737 被 691~941 的面板压住，
-   点确认命中不了）。裁剪期间让它让位，退出后由 CSS 自动恢复。 */
-#canvasEditorScreen .canvas-node[data-inline-tool="crop"] .flora-generator-composer {
+/* 下方由图片工具接管时，普通生成操作区让位；关闭工具后自动恢复。 */
+#canvasEditorScreen .canvas-node:is([data-inline-tool="crop"], [data-inline-tool="outpaint"], [data-flora-tool-panel="upscale"]) .flora-generator-composer {
   display: none !important;
 }
 
@@ -783,7 +832,7 @@
 /* 操作条浮在节点下方（不占节点内部空间）。 */
 .canvas-inline-crop-bar {
   position: absolute;
-  top: calc(100% + 12px);
+  top: var(--crop-controls-top, calc(100% + 12px));
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -797,11 +846,21 @@
   color: var(--canvas-neon-muted, #888);
   font: 600 12px/1.4 var(--neon-font-sans, Inter, "PingFang SC", "Microsoft YaHei", sans-serif);
   white-space: nowrap;
+  width: max-content;
+  max-width: var(--crop-controls-max-width, calc(100vw - 32px));
+  flex-wrap: wrap;
+  justify-content: center;
 }
 
 .canvas-inline-crop-spacer {
   width: 8px;
 }
+
+.canvas-inline-crop[data-crop-custom-open="true"] .canvas-inline-crop-bar {
+  top: calc(var(--crop-controls-top, 100%) + 64px);
+}
+
+.canvas-inline-crop-bar > button[hidden] { display: none !important; }
 
 /* 只作用于操作条自身的按钮：菜单现在挂在操作条里，不能被这条规则带偏。 */
 .canvas-inline-crop-bar > button {
@@ -840,6 +899,12 @@
   color: var(--canvas-neon-text, #fff);
 }
 
+.canvas-inline-crop-option[aria-pressed="true"] {
+  border-color: color-mix(in srgb, var(--canvas-neon-primary, #00ff41) 55%, var(--canvas-neon-border, #2a2a2a));
+  background: color-mix(in srgb, var(--canvas-neon-primary, #00ff41) 12%, transparent);
+  color: var(--canvas-neon-text, #fff);
+}
+
 .canvas-inline-crop-confirm {
   padding: 0 18px;
   font-weight: 700;
@@ -868,6 +933,12 @@
 
 .canvas-inline-crop-menu[hidden] {
   display: none !important;
+}
+
+.canvas-inline-crop-menu[data-crop-menu-panel="custom"] {
+  width: max-content;
+  max-height: none;
+  overflow: visible;
 }
 
 .canvas-inline-crop-menu button {
@@ -911,86 +982,56 @@
 }
 
 .canvas-inline-crop-custom {
-  display: grid;
-  gap: 12px;
-  padding: 10px;
-}
-
-.canvas-inline-crop-custom header {
   display: flex;
   align-items: center;
   gap: 8px;
-}
-
-.canvas-inline-crop-custom header strong {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--canvas-neon-text, #fff);
-}
-
-.canvas-inline-crop-custom-back {
-  width: 26px;
-  height: 26px;
-  padding: 0;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--canvas-neon-muted, #888);
-  font-size: 15px;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.canvas-inline-crop-custom p {
-  margin: 0;
-  text-align: center;
-  color: var(--canvas-neon-text, #fff);
-  font: 700 12px/1.4 var(--neon-font-sans, Inter, "PingFang SC", "Microsoft YaHei", sans-serif);
+  padding: 2px;
 }
 
 .canvas-inline-crop-custom-fields {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .canvas-inline-crop-custom-fields label {
-  display: grid;
+  display: flex;
+  align-items: center;
   gap: 6px;
-  justify-items: center;
   color: var(--canvas-neon-muted, #888);
   font-size: 12px;
 }
 
 .canvas-inline-crop-custom-fields input {
-  width: 118px;
-  height: 40px;
-  padding: 0 12px;
+  width: 56px;
+  height: 32px;
+  padding: 0 8px;
   border: 1px solid var(--canvas-neon-border, #2a2a2a);
   border-radius: 10px;
   background: color-mix(in srgb, var(--canvas-neon-text, #fff) 5%, transparent);
   color: var(--canvas-neon-text, #fff);
-  font: 600 14px/1 var(--neon-font-sans, Inter, "PingFang SC", "Microsoft YaHei", sans-serif);
+  font: inherit;
   text-align: center;
 }
 
 .canvas-inline-crop-custom-confirm {
-  height: 44px;
-  border: 0;
-  border-radius: 12px;
-  background: var(--canvas-neon-text, #fff);
-  color: var(--canvas-neon-bg, #0f0f0f);
-  font: 700 14px/1 var(--neon-font-sans, Inter, "PingFang SC", "Microsoft YaHei", sans-serif);
+  width: auto !important;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  color: var(--canvas-neon-text, #fff);
+  font: inherit;
   cursor: pointer;
 }
 
-/* 浅色确认按钮要保持自己的填充，不能被菜单项的通用 hover 底色盖掉。 */
 .canvas-inline-crop-menu .canvas-inline-crop-custom-confirm:hover,
 .canvas-inline-crop-menu .canvas-inline-crop-custom-confirm:focus-visible {
-  background: var(--canvas-neon-text, #fff);
-  color: var(--canvas-neon-bg, #0f0f0f);
+  background: color-mix(in srgb, var(--canvas-neon-primary, #00ff41) 18%, transparent);
 }
+
+.canvas-inline-crop-custom :disabled { opacity: .5; cursor: default; }
 
 .canvas-inline-crop-bar button:focus-visible,
 .canvas-inline-crop-line:focus-visible,
@@ -1083,13 +1124,16 @@
 }
 
 #canvasEditorScreen .flora-node-tool-field > span {
+  flex-shrink: 0;
   font: 600 12px/1.2 var(--neon-font-sans, Inter, "PingFang SC", "Microsoft YaHei", sans-serif);
   color: var(--canvas-neon-muted, #888);
 }
 
 #canvasEditorScreen .flora-node-tool-field select {
+  flex: 1;
+  width: 0;
   min-height: 36px;
-  min-width: 132px;
+  min-width: 0;
   padding: 0 10px;
   border: 1px solid var(--canvas-neon-border, #2a2a2a);
   border-radius: 10px;
@@ -1229,7 +1273,14 @@
   display: none;
 }
 
-#canvasEditorScreen :is(.canvas-node[data-flora-node="true"].is-selected, .canvas-node[data-flora-node="true"].selected, .canvas-node[data-flora-node="true"].is-connecting) .flora-node-toolbar {
+/* 顶部工具栏只服务单选节点；多选时直接退出布局，悬停、焦点和连线状态均不例外。
+   批量选择工具条不属于节点，继续提供打组/布局等操作。 */
+#canvasEditorScreen:not([data-node-selection="single"]) .canvas-node :is(.canvas-node-action-bar, .flora-node-toolbar, .canvas-group-tools),
+#canvasEditorScreen .canvas-node:not(.is-selected):not(.selected) :is(.canvas-node-action-bar, .flora-node-toolbar, .canvas-group-tools) {
+  display: none !important;
+}
+
+#canvasEditorScreen :is(.canvas-node[data-flora-node="true"].is-selected, .canvas-node[data-flora-node="true"].selected) .flora-node-toolbar {
   opacity: 1;
   visibility: visible;
   pointer-events: auto;
@@ -1268,15 +1319,14 @@
   white-space: nowrap;
 }
 
-/* Keep the Flora toolbar visually compact while giving pointer and touch
-   input a 44px target around each icon. The pseudo-element stays inside the
-   same button, so keyboard focus and event delegation keep one target. */
+/* 按钮的命中范围与实际可见按钮一致，不用透明伪元素向外扩展。 */
 #canvasEditorScreen .flora-node-toolbar .flora-node-action::before {
   content: "";
   position: absolute;
   inset: -6px;
   border-radius: 12px;
   background: transparent;
+  pointer-events: none;
 }
 
 /* 工具栏动作统一为「图标 + 中文标签」：文字负责说清动作，图标只做辅助，
@@ -1308,6 +1358,11 @@
 #canvasEditorScreen .flora-node-toolbar .flora-node-action svg {
   width: 17px;
   height: 17px;
+}
+
+/* 窄屏保留同款按钮尺寸，收紧动作间距，让末尾更多操作完整可见。 */
+@media (max-width: 480px) {
+  #canvasEditorScreen .flora-node-toolbar { gap: 0; }
 }
 
 #canvasEditorScreen .flora-node-toolbar .flora-node-action:hover,
@@ -1413,9 +1468,32 @@
 }
 #canvasEditorScreen .canvas-node-text .canvas-text-markdown {
   min-height: 1.55em;
+  color: var(--canvas-neon-text, #fff) !important;
+  overflow-wrap: anywhere;
+  word-break: break-word;
   /* Chinese fallback fonts often have no italic face. The host disables font
      synthesis globally; permit slanted glyphs only in rich text content. */
   font-synthesis-style: auto;
+}
+#canvasEditorScreen .canvas-node-text .canvas-text-markdown :is(p, div, h1, h2, h3, h4, h5, h6, li, blockquote, strong, em, u, s, td, th) {
+  color: var(--canvas-neon-text, #fff) !important;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+#canvasEditorScreen .canvas-node-text .canvas-text-markdown :is(pre, code) {
+  max-width: 100%;
+  color: var(--canvas-neon-text, #fff) !important;
+  white-space: pre-wrap !important;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+#canvasEditorScreen .canvas-node-text .canvas-text-markdown code {
+  color: var(--canvas-neon-primary, #00ff41) !important;
+}
+#canvasEditorScreen .canvas-node-text .canvas-text-markdown a {
+  color: var(--canvas-neon-primary, #00ff41) !important;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 #canvasEditorScreen .canvas-node-text .flora-text-format-tools {
   display: inline-flex;
@@ -1537,20 +1615,66 @@
 }
 
 #canvasEditorScreen .canvas-node[data-flora-kind="note"] .canvas-note-text {
+  box-sizing: border-box;
   flex: 1 1 auto;
-  height: auto;
+  height: 132px;
   min-height: 132px;
-  padding: 4px 0;
+  margin: 0;
+  /* Match the Light preview's 16px inset and regular text. Extra editor
+     padding moved the placeholder as soon as a note became selected. */
+  padding: 0;
+  font-weight: 400;
   overflow: auto;
   color: inherit;
   background: transparent;
   border: 0;
+  cursor: default;
+}
+
+#canvasEditorScreen .canvas-node[data-flora-kind="note"][data-note-editing="true"] .canvas-note-text {
+  cursor: text;
+}
+
+#canvasEditorScreen .canvas-node[data-flora-kind="note"] .canvas-note-text[data-empty="true"]::before {
+  opacity: 1;
+}
+
+#canvasEditorScreen .canvas-node[data-flora-kind="note"][data-note-editing="true"] .canvas-note-text[data-empty="true"]::before {
+  opacity: .42;
+}
+
+#canvasEditorScreen .canvas-node[data-flora-kind="note"] :is(
+  .canvas-light-status,
+  .canvas-note-status,
+  .canvas-node-status,
+  .canvas-node-footer-status,
+  .canvas-node-bar-status,
+  .canvas-h3-status,
+  .canvas-api-video-status,
+  .canvas-llm-status,
+  .canvas-audio-generator-status,
+  .canvas-comfy-status,
+  .flora-node-live-status
+) {
+  display: none !important;
+}
+
+/* Lightweight notes have no live generation state.  Their generic visual
+   status otherwise falls back to the registry's “待完成” label before the
+   node hydrates into the full editor. */
+#canvasEditorScreen .canvas-light-node[data-canvas-visual-kind="note"] .canvas-light-status {
+  display: none !important;
 }
 
 #canvasEditorScreen .canvas-node[data-flora-kind="note"] .canvas-note-palette {
-  top: auto;
+  display: flex !important;
+  width: 220px !important;
+  flex: 0 0 auto;
+  position: absolute !important;
+  z-index: 30 !important;
+  top: -72px !important;
   right: 12px;
-  bottom: 48px;
+  bottom: auto !important;
   left: auto;
   height: 34px;
   padding: 0 8px;
@@ -1564,11 +1688,153 @@
   transform: translateY(6px);
 }
 
+#canvasEditorScreen .canvas-node[data-flora-kind="note"] .canvas-note-body {
+  box-sizing: border-box;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+#canvasEditorScreen .canvas-node[data-flora-kind="note"] .canvas-note-palette .canvas-note-swatch {
+  width: 18px !important;
+  min-width: 18px !important;
+  height: 18px !important;
+  min-height: 18px !important;
+  flex: 0 0 18px !important;
+}
+
+#canvasEditorScreen .flora-node-toolbar .canvas-note-palette.flora-note-inline-palette {
+  position: static !important;
+  display: flex !important;
+  width: auto !important;
+  min-width: 0 !important;
+  height: 34px !important;
+  margin: 0 !important;
+  padding: 0 8px !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+  transform: none !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+#canvasEditorScreen .flora-node-toolbar {
+  overflow: visible;
+}
+
+#canvasEditorScreen .flora-node-toolbar .canvas-note-palette.flora-note-inline-palette,
+#canvasEditorScreen .flora-node-toolbar .canvas-note-palette.flora-note-inline-palette .canvas-note-swatch {
+  overflow: visible !important;
+}
+
+#canvasEditorScreen .flora-node-toolbar .canvas-note-palette .canvas-note-swatch.is-active {
+  position: relative;
+  z-index: 2;
+  box-shadow:
+    0 0 0 2px var(--canvas-neon-popover, #1f1f1f),
+    0 0 0 4px var(--canvas-neon-primary, #00ff41);
+}
+
+/* Note swatches keep their own pastel fill when the shared canvas button
+   focus/active rules are applied.  The selected ring is a neutral contrast
+   ring, so choosing yellow cannot make the center appear neon green. */
+#canvasEditorScreen .flora-node-toolbar .canvas-note-palette .canvas-note-swatch {
+  appearance: none;
+  border: 0 !important;
+  outline: none !important;
+  background-image: none !important;
+}
+
+#canvasEditorScreen .flora-node-toolbar .canvas-note-palette .canvas-note-swatch[data-note-color="yellow"] {
+  background: #fdf1b8 !important;
+}
+
+#canvasEditorScreen .flora-node-toolbar .canvas-note-palette .canvas-note-swatch[data-note-color="pink"] {
+  background: #fbdfe4 !important;
+}
+
+#canvasEditorScreen .flora-node-toolbar .canvas-note-palette .canvas-note-swatch[data-note-color="orange"] {
+  background: #fcdcc4 !important;
+}
+
+#canvasEditorScreen .flora-node-toolbar .canvas-note-palette .canvas-note-swatch[data-note-color="green"] {
+  background: #dbedd2 !important;
+}
+
+#canvasEditorScreen .flora-node-toolbar .canvas-note-palette .canvas-note-swatch[data-note-color="blue"] {
+  background: #d6e6fb !important;
+}
+
+#canvasEditorScreen .flora-node-toolbar .canvas-note-palette .canvas-note-swatch[data-note-color="purple"] {
+  background: #e3ddfa !important;
+}
+
+#canvasEditorScreen .flora-node-toolbar .canvas-note-palette .canvas-note-swatch.is-active {
+  box-shadow:
+    0 0 0 2px var(--canvas-neon-popover, #1f1f1f),
+    0 0 0 4px rgba(255, 255, 255, .78) !important;
+}
+
+/* Keep the note label's leading glyph visible after the Flora shell lifts the
+   legacy note body into the shared node layout. */
+#canvasEditorScreen .canvas-node[data-flora-kind="note"] > .flora-node-label .flora-node-label-icon {
+  display: grid !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  flex: 0 0 16px;
+  width: 16px !important;
+  height: 16px !important;
+  overflow: visible;
+}
+
+#canvasEditorScreen .canvas-node[data-flora-kind="note"] > .flora-node-label .flora-node-label-icon :is(svg, i) {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  width: 16px !important;
+  height: 16px !important;
+}
+
+/* The palette is already inside the toolbar; remove the legacy breathing room
+   around its final delete action while preserving a usable hit target. */
+#canvasEditorScreen .flora-node-toolbar .canvas-note-palette.flora-note-inline-palette {
+  gap: 6px !important;
+  padding: 0 2px !important;
+}
+
+#canvasEditorScreen .flora-node-toolbar .canvas-note-palette .canvas-note-palette-divider {
+  margin: 0 1px !important;
+}
+
+#canvasEditorScreen .flora-node-toolbar .canvas-note-palette .canvas-note-remove {
+  width: 26px !important;
+  min-width: 26px !important;
+  height: 26px !important;
+  min-height: 26px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
 #canvasEditorScreen .canvas-node[data-flora-kind="note"].is-flora-palette-open .canvas-note-palette {
   opacity: 1;
   visibility: visible;
-  pointer-events: auto;
+  pointer-events: auto !important;
+  z-index: 20 !important;
   transform: translateY(0);
+}
+
+#canvasEditorScreen .canvas-node[data-flora-kind="note"].is-palette-below .canvas-note-palette {
+  top: -72px !important;
+  bottom: auto !important;
+}
+
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node[data-flora-adaptive-media="true"]
+  :is(.flora-node-content, .flora-node-result-area, .canvas-media-shell, .canvas-image-upload, .canvas-video-preview) {
+  transition: none !important;
 }
 
 /* -------------------------------------------------------------------------
@@ -1839,25 +2105,25 @@
   box-shadow: none !important;
 }
 
-/* Stage 1 fixed geometry: every node content surface uses the same 400x400
-   board-space footprint. The title is an external label band above that
-   surface; it does not consume the 400px content area. */
+/* Flora keeps a 400px default body, but the saved/manual dimensions must be
+   allowed to reach the shell. Otherwise the resize handle changes the model
+   while this fixed rule immediately paints the old 400px box back over it. */
 #neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node[data-flora-node="true"] {
-  width: 400px !important;
-  height: calc(400px + var(--flora-node-header-height, 48px)) !important;
-  min-width: 400px !important;
-  min-height: calc(400px + var(--flora-node-header-height, 48px)) !important;
-  max-width: 400px !important;
-  max-height: calc(400px + var(--flora-node-header-height, 48px)) !important;
+  width: var(--flora-node-width, 400px) !important;
+  height: calc(var(--flora-node-height, 400px) + var(--flora-node-header-height, 48px)) !important;
+  min-width: var(--flora-node-width, 400px) !important;
+  min-height: calc(var(--flora-node-height, 400px) + var(--flora-node-header-height, 48px)) !important;
+  max-width: var(--flora-node-width, 400px) !important;
+  max-height: calc(var(--flora-node-height, 400px) + var(--flora-node-header-height, 48px)) !important;
 }
 
 #neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node[data-flora-node="true"] > .flora-node-shell {
-  width: 400px !important;
-  height: 400px !important;
-  min-width: 400px !important;
-  min-height: 400px !important;
-  max-width: 400px !important;
-  max-height: 400px !important;
+  width: var(--flora-node-width, 400px) !important;
+  height: var(--flora-node-height, 400px) !important;
+  min-width: var(--flora-node-width, 400px) !important;
+  min-height: var(--flora-node-height, 400px) !important;
+  max-width: var(--flora-node-width, 400px) !important;
+  max-height: var(--flora-node-height, 400px) !important;
 }
 
 #neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node[data-flora-node="true"] .flora-node-card {
@@ -1875,12 +2141,29 @@
   overflow: hidden !important;
 }
 
-/* Resize is intentionally disabled while the first fixed-size node contract
-   is in effect; later node-specific resizing can add an explicit opt-in. */
+/* Flora nodes use the shared lower-right resize affordance. The Neon hover
+   layer still decides when it is visible and interactive. */
 #neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node[data-flora-node="true"] .canvas-resize-handle,
 #neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node[data-flora-node="true"] > .canvas-resize-handle {
-  display: none !important;
-  pointer-events: none !important;
+  display: block !important;
+}
+
+/* The shared Neon hover layer still controls opacity, visibility and pointer
+   hit testing. This rule only restores the visible corner affordance that the
+   legacy fixed-size contract hid for Flora nodes. */
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node[data-flora-node="true"] > .canvas-resize-handle::after {
+  content: "" !important;
+  display: block !important;
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  width: 10px;
+  height: 10px;
+  border-right: 2px solid var(--canvas-neon-muted);
+  border-bottom: 2px solid var(--canvas-neon-muted);
+}
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node[data-flora-node="true"] > .canvas-resize-handle:is(:hover, :focus-visible)::after {
+  border-color: var(--canvas-neon-primary);
 }
 
 #neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node.canvas-node-note[data-flora-node="true"] .canvas-note-body,
@@ -1985,17 +2268,17 @@
 /* Media nodes use the same Flora shell in every state.  The result well is
    the primary surface; upload affordances stay compact at the top and never
    force the 400x400 node to grow. */
-#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node[data-flora-node="true"]:is([data-flora-kind="upload"], [data-flora-kind="video"], [data-flora-kind="audio"], :is([data-flora-kind="asset-video"], [data-flora-kind="video-api"], [data-flora-kind="minimax-h3"]), :is([data-flora-kind="asset-audio"], [data-flora-kind="audio-generator"]), [data-flora-kind="asset-collection"]) .flora-node-input-area:empty {
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node[data-flora-node="true"]:is([data-flora-kind="upload"], [data-flora-kind="video"], [data-flora-kind="audio"], :is([data-flora-kind="video"], [data-flora-kind="asset-video"], [data-flora-kind="video-api"], [data-flora-kind="minimax-h3"]), :is([data-flora-kind="audio"], [data-flora-kind="asset-audio"], [data-flora-kind="audio-generator"]), [data-flora-kind="asset-collection"]) .flora-node-input-area:empty {
   display: none !important;
 }
 
-#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node[data-flora-node="true"]:is([data-flora-kind="upload"], [data-flora-kind="video"], [data-flora-kind="audio"], :is([data-flora-kind="asset-video"], [data-flora-kind="video-api"], [data-flora-kind="minimax-h3"]), :is([data-flora-kind="asset-audio"], [data-flora-kind="audio-generator"]), [data-flora-kind="asset-collection"]) .flora-node-input-area:not(:empty) {
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node[data-flora-node="true"]:is([data-flora-kind="upload"], [data-flora-kind="video"], [data-flora-kind="audio"], :is([data-flora-kind="video"], [data-flora-kind="asset-video"], [data-flora-kind="video-api"], [data-flora-kind="minimax-h3"]), :is([data-flora-kind="audio"], [data-flora-kind="asset-audio"], [data-flora-kind="audio-generator"]), [data-flora-kind="asset-collection"]) .flora-node-input-area:not(:empty) {
   flex: 0 0 auto !important;
   min-height: 0 !important;
   padding: 12px 16px 0 !important;
 }
 
-#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node[data-flora-node="true"]:is([data-flora-kind="upload"], [data-flora-kind="video"], [data-flora-kind="audio"], :is([data-flora-kind="asset-video"], [data-flora-kind="video-api"], [data-flora-kind="minimax-h3"]), :is([data-flora-kind="asset-audio"], [data-flora-kind="audio-generator"]), [data-flora-kind="asset-collection"]) .flora-node-result-area {
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node[data-flora-node="true"]:is([data-flora-kind="upload"], [data-flora-kind="video"], [data-flora-kind="audio"], :is([data-flora-kind="video"], [data-flora-kind="asset-video"], [data-flora-kind="video-api"], [data-flora-kind="minimax-h3"]), :is([data-flora-kind="audio"], [data-flora-kind="asset-audio"], [data-flora-kind="audio-generator"]), [data-flora-kind="asset-collection"]) .flora-node-result-area {
   flex: 1 1 auto !important;
   min-height: 0 !important;
   max-height: none !important;
@@ -2004,7 +2287,7 @@
 }
 
 #neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node[data-flora-node="true"]:is([data-flora-kind="upload"], [data-flora-kind="asset-collection"]) .flora-node-result-area > .canvas-image-upload,
-#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node[data-flora-node="true"]:is([data-flora-kind="video"], [data-flora-kind="audio"], :is([data-flora-kind="asset-video"], [data-flora-kind="video-api"], [data-flora-kind="minimax-h3"]), :is([data-flora-kind="asset-audio"], [data-flora-kind="audio-generator"])) .flora-node-result-area > .canvas-media-shell {
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node[data-flora-node="true"]:is([data-flora-kind="video"], [data-flora-kind="audio"], :is([data-flora-kind="video"], [data-flora-kind="asset-video"], [data-flora-kind="video-api"], [data-flora-kind="minimax-h3"]), :is([data-flora-kind="audio"], [data-flora-kind="asset-audio"], [data-flora-kind="audio-generator"])) .flora-node-result-area > .canvas-media-shell {
   display: flex !important;
   flex: 1 1 auto !important;
   min-height: 0 !important;
@@ -2264,6 +2547,12 @@
   background: transparent !important;
 }
 
+/* Adaptive media is edge-to-edge, so the legacy ready band would both push the
+   media down and print a status sentence inside the frame. */
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node[data-flora-node="true"][data-flora-adaptive-media="true"] > .flora-node-shell > .flora-node-content > .canvas-node-status {
+  display: none !important;
+}
+
 #neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node[data-flora-node="true"][data-flora-adaptive-media="true"] :is(.flora-node-live-status, .canvas-media-preview-label) {
   opacity: 0 !important;
   visibility: hidden !important;
@@ -2407,15 +2696,11 @@
   display: none !important;
 }
 
-#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node[data-flora-node="true"][data-flora-adaptive-media="true"] .flora-node-port-layer .canvas-port {
-  opacity: 0 !important;
-  pointer-events: none !important;
-  transition: opacity 140ms ease;
-}
-
-#neonEngineSurface #canvasEditorScreen #canvasPlane :is(.canvas-node[data-flora-node="true"][data-flora-adaptive-media="true"]:hover, .canvas-node[data-flora-node="true"][data-flora-adaptive-media="true"]:focus-within, .canvas-node[data-flora-node="true"][data-flora-adaptive-media="true"].is-selected, .canvas-node[data-flora-node="true"][data-flora-adaptive-media="true"].selected, .canvas-node[data-flora-node="true"][data-flora-adaptive-media="true"].is-connecting) .flora-node-port-layer .canvas-port {
-  opacity: 1 !important;
-  pointer-events: auto !important;
+/* Group members keep the Flora identity label, but never paint the legacy
+   compatibility title/dimension row above the media surface. */
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node[data-canvas-group-member="true"] > .canvas-node-bar,
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node[data-canvas-group-member="true"] .flora-node-image-dimensions {
+  display: none !important;
 }
 
 #neonEngineSurface #infiniteCanvas.flora-hide-image-info .canvas-image-info {
@@ -2445,12 +2730,12 @@
 }
 
 #neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node[data-flora-node="true"] .flora-node-port-layer .canvas-port-input {
-  left: -42px !important;
+  left: calc(-14px - 38px * var(--collab-inverse-scale, 1)) !important;
   right: auto !important;
 }
 
 #neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node[data-flora-node="true"] .flora-node-port-layer .canvas-port-output {
-  right: -42px !important;
+  right: calc(-14px - 38px * var(--collab-inverse-scale, 1)) !important;
   left: auto !important;
 }
 
@@ -2468,8 +2753,8 @@
 }
 
 #neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node[data-flora-node="true"] .flora-node-port-layer .canvas-port:is(:hover, :focus-visible) {
-  border-color: var(--canvas-neon-text) !important;
-  color: var(--canvas-neon-text) !important;
+  border-color: var(--canvas-neon-muted) !important;
+  color: var(--canvas-neon-muted) !important;
   outline: none;
 }
 
@@ -2485,21 +2770,149 @@
   visibility: visible !important;
   opacity: 1 !important;
   pointer-events: auto !important;
-  border-color: var(--canvas-neon-primary) !important;
-  color: var(--canvas-neon-primary) !important;
+  border-color: var(--canvas-neon-muted) !important;
+  color: var(--canvas-neon-muted) !important;
   transition: opacity 140ms ease, color 140ms ease, border-color 140ms ease !important;
+}
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-assets-member-port:is(.is-magnetized, :focus-visible) {
+  border-color: var(--canvas-neon-muted) !important;
+  background: var(--canvas-neon-bg) !important;
+  color: var(--canvas-neon-muted) !important;
+}
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-assets-member-port:is(.is-magnetized, :focus-visible)::after {
+  color: var(--canvas-neon-muted) !important;
+}
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-assets-member-port.is-magnetized {
+  outline: 2px solid var(--canvas-neon-primary) !important;
+  outline-offset: 1px;
 }
 #neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node[data-flora-node="true"] .flora-node-port-layer .canvas-port.is-snap-target,
 #neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-assets-member-port.is-snap-target {
   outline: 2px solid var(--canvas-neon-primary) !important;
   outline-offset: 3px;
 }
+
+/* 端口跟随实际悬停对象，不能由选中、焦点停留或外侧靠近激活。
+   所有权由指针命中的可见内容确定；组和成员互斥。键盘端口焦点仍可用。 */
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node:not([data-flora-port-hover="true"]):not(.is-selected):not(.selected) .canvas-port:not(:focus-visible) {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  transition: none !important;
+}
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node[data-flora-port-hover="true"] .canvas-port,
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node:is(.is-selected, .selected) .canvas-port,
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node .canvas-port:focus-visible {
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+  transition-delay: 0s !important;
+}
+/* Sticky notes use their own restrained paper surface without changing the
+   shared Flora shell or the text node editing surface. */
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node.canvas-node-note[data-flora-node="true"] .flora-node-card {
+  border: 0 !important;
+  border-radius: 12px !important;
+  background: var(--canvas-note-paper, #e6d990) !important;
+  color: #242522 !important;
+  box-shadow: none !important;
+}
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node.canvas-node-note[data-note-color="yellow"] { --canvas-note-paper: #e6d990; }
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node.canvas-node-note[data-note-color="pink"] { --canvas-note-paper: #e8b3c1; }
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node.canvas-node-note[data-note-color="orange"] { --canvas-note-paper: #e8bd8f; }
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node.canvas-node-note[data-note-color="green"] { --canvas-note-paper: #b7d0a6; }
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node.canvas-node-note[data-note-color="blue"] { --canvas-note-paper: #a9c8da; }
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node.canvas-node-note[data-note-color="purple"] { --canvas-note-paper: #c3b2d7; }
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node.canvas-node-note[data-flora-node="true"] .canvas-note-body,
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node.canvas-node-note[data-flora-node="true"] .canvas-note-text {
+  background: transparent !important;
+  color: #242522 !important;
+}
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node.canvas-node-note[data-flora-node="true"] .canvas-note-body.flora-node-editor {
+  padding: 8px !important;
+}
+#canvasEditorScreen .canvas-light-node[data-canvas-visual-kind="note"] {
+  background: var(--canvas-note-paper, #e6d990) !important;
+  color: #242522 !important;
+  border-radius: 12px !important;
+}
+/* 端口本身保持屏幕尺寸，间距也同步补偿缩放；磁吸后仍留在内容外侧。
+   旧伪元素不能在组内空白上形成另一块透明点击范围。 */
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-port::before {
+  pointer-events: none !important;
+}
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node-group > .canvas-port.is-magnetized {
+  border-color: var(--canvas-neon-primary) !important;
+  color: var(--canvas-neon-primary) !important;
+}
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node-group > .canvas-port.is-snap-target {
+  outline: 2px solid var(--canvas-neon-primary) !important;
+  outline-offset: 3px;
+}
 @media (prefers-reduced-motion: reduce) {
   #neonEngineSurface #canvasEditorScreen .canvas-port { transition: none !important; }
+}
+
+/* Port feedback controls visibility only. Full nodes and the lightweight hover
+   proxy share one neutral circle and plus across hover, magnet and snap states. */
+#neonEngineSurface #canvasEditorScreen #canvasPlane :is(.canvas-port, .canvas-assets-member-port),
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-hover-port-proxy > .canvas-port,
+#neonEngineSurface #canvasEditorScreen #canvasPlane :is(.canvas-port, .canvas-assets-member-port):is(:hover, :focus-visible, .is-magnetized, .is-snap-target),
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node[data-flora-node="true"] .flora-node-port-layer .canvas-port:is(:hover, :focus-visible, .is-magnetized, .is-snap-target),
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-hover-port-proxy > .canvas-port:is(:hover, :focus-visible, .is-magnetized, .is-snap-target) {
+  border-color: var(--canvas-neon-muted) !important;
+  background: var(--canvas-neon-bg) !important;
+  color: var(--canvas-neon-muted) !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+#neonEngineSurface #canvasEditorScreen #canvasPlane :is(.canvas-port, .canvas-assets-member-port)::after,
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node[data-flora-node="true"] .flora-node-port-layer .canvas-port::after,
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-hover-port-proxy > .canvas-port::after {
+  content: "" !important;
+  position: absolute !important;
+  left: 50% !important;
+  top: 50% !important;
+  width: 46% !important;
+  height: 46% !important;
+  max-width: none !important;
+  max-height: none !important;
+  transform: translate(-50%, -50%) !important;
+  background: linear-gradient(currentColor, currentColor) center / 100% 1px no-repeat,
+    linear-gradient(currentColor, currentColor) center / 1px 100% no-repeat !important;
+  color: var(--canvas-neon-muted) !important;
+  opacity: 1 !important;
 }
 #neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node[data-flora-kind="text"],
 #neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node[data-flora-kind="note"] {
   --flora-node-header-height: 48px;
+}
+
+/* One screen-stable connector language across Full, Light proxies and members. */
+#neonEngineSurface #canvasEditorScreen #canvasPlane :is(.canvas-port, .canvas-assets-member-port),
+#neonEngineSurface #canvasEditorScreen #canvasPlane :is(.canvas-port, .canvas-assets-member-port):is(:hover, :focus-visible, .is-magnetized, .is-snap-target, .is-connected),
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node.is-connecting :is(.canvas-port, .canvas-assets-member-port) {
+  display: grid !important;
+  place-items: center !important;
+  box-sizing: border-box !important;
+  width: 28px !important;
+  height: 28px !important;
+  min-width: 28px !important;
+  min-height: 28px !important;
+  padding: 0 !important;
+  border: 1px solid var(--canvas-neon-muted) !important;
+  border-radius: 50% !important;
+  background: var(--canvas-neon-bg) !important;
+  color: var(--canvas-neon-muted) !important;
+  box-shadow: none !important;
+  transform: translateY(-50%) scale(var(--collab-inverse-scale, 1)) !important;
+}
+#neonEngineSurface #canvasEditorScreen #canvasPlane :is(.canvas-port, .canvas-assets-member-port)::after {
+  width: 46% !important;
+  height: 46% !important;
+  background: linear-gradient(currentColor, currentColor) center / 100% 1px no-repeat,
+    linear-gradient(currentColor, currentColor) center / 1px 100% no-repeat !important;
+  color: var(--canvas-neon-muted) !important;
 }
 
 #neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node[data-flora-kind="text"]
@@ -2671,13 +3084,13 @@
    legacy renderer. The shell only replaces the browser chrome with the same
    quiet controls and surface language used by the rest of the canvas. */
 #neonEngineSurface #canvasEditorScreen #canvasPlane
-  .canvas-node[data-flora-node="true"]:is(:is([data-flora-kind="asset-video"], [data-flora-kind="video-api"], [data-flora-kind="minimax-h3"]), :is([data-flora-kind="asset-audio"], [data-flora-kind="audio-generator"]))
+  .canvas-node[data-flora-node="true"]:is(:is([data-flora-kind="video"], [data-flora-kind="asset-video"], [data-flora-kind="video-api"], [data-flora-kind="minimax-h3"]), :is([data-flora-kind="audio"], [data-flora-kind="asset-audio"], [data-flora-kind="audio-generator"]))
   .canvas-media-preview-label {
   display: none !important;
 }
 
 #neonEngineSurface #canvasEditorScreen #canvasPlane
-  .canvas-node[data-flora-node="true"]:is(:is([data-flora-kind="asset-video"], [data-flora-kind="video-api"], [data-flora-kind="minimax-h3"]), :is([data-flora-kind="asset-audio"], [data-flora-kind="audio-generator"]))
+  .canvas-node[data-flora-node="true"]:is(:is([data-flora-kind="video"], [data-flora-kind="asset-video"], [data-flora-kind="video-api"], [data-flora-kind="minimax-h3"]), :is([data-flora-kind="audio"], [data-flora-kind="asset-audio"], [data-flora-kind="audio-generator"]))
   .canvas-media-shell.has-media {
   position: relative !important;
   padding: 0 !important;
@@ -2685,7 +3098,7 @@
 }
 
 #neonEngineSurface #canvasEditorScreen #canvasPlane
-  .canvas-node[data-flora-node="true"]:is([data-flora-kind="asset-video"], [data-flora-kind="video-api"], [data-flora-kind="minimax-h3"])
+  .canvas-node[data-flora-node="true"]:is([data-flora-kind="video"], [data-flora-kind="asset-video"], [data-flora-kind="video-api"], [data-flora-kind="minimax-h3"])
   .canvas-video-preview {
   border-radius: 15px !important;
   background: #050608 !important;
@@ -2693,7 +3106,7 @@
 }
 
 #neonEngineSurface #canvasEditorScreen #canvasPlane
-  .canvas-node[data-flora-node="true"]:is([data-flora-kind="asset-video"], [data-flora-kind="video-api"], [data-flora-kind="minimax-h3"])
+  .canvas-node[data-flora-node="true"]:is([data-flora-kind="video"], [data-flora-kind="asset-video"], [data-flora-kind="video-api"], [data-flora-kind="minimax-h3"])
   .flora-video-center {
   position: absolute !important;
   z-index: 3 !important;
@@ -2718,7 +3131,7 @@
 }
 
 #neonEngineSurface #canvasEditorScreen #canvasPlane
-  .canvas-node[data-flora-node="true"]:is([data-flora-kind="asset-video"], [data-flora-kind="video-api"], [data-flora-kind="minimax-h3"])
+  .canvas-node[data-flora-node="true"]:is([data-flora-kind="video"], [data-flora-kind="asset-video"], [data-flora-kind="video-api"], [data-flora-kind="minimax-h3"])
   .flora-video-center:is(:hover, :focus-visible) {
   background: rgba(26, 29, 34, .92) !important;
   transform: translate(-50%, -50%) scale(1.05) !important;
@@ -2727,7 +3140,7 @@
 }
 
 #neonEngineSurface #canvasEditorScreen #canvasPlane
-  .canvas-node[data-flora-node="true"]:is([data-flora-kind="asset-video"], [data-flora-kind="video-api"], [data-flora-kind="minimax-h3"])
+  .canvas-node[data-flora-node="true"]:is([data-flora-kind="video"], [data-flora-kind="asset-video"], [data-flora-kind="video-api"], [data-flora-kind="minimax-h3"])
   .flora-video-center[data-playing="true"] {
   opacity: 0 !important;
   visibility: hidden !important;
@@ -2736,7 +3149,7 @@
 }
 
 #neonEngineSurface #canvasEditorScreen #canvasPlane
-  .canvas-node[data-flora-node="true"]:is([data-flora-kind="asset-video"], [data-flora-kind="video-api"], [data-flora-kind="minimax-h3"])
+  .canvas-node[data-flora-node="true"]:is([data-flora-kind="video"], [data-flora-kind="asset-video"], [data-flora-kind="video-api"], [data-flora-kind="minimax-h3"])
   .flora-video-controls {
   position: absolute !important;
   z-index: 4 !important;
@@ -2765,7 +3178,7 @@
 }
 
 #neonEngineSurface #canvasEditorScreen #canvasPlane
-  .canvas-node[data-flora-node="true"]:is([data-flora-kind="asset-video"], [data-flora-kind="video-api"], [data-flora-kind="minimax-h3"]):is(:hover, :focus-within)
+  .canvas-node[data-flora-node="true"]:is([data-flora-kind="video"], [data-flora-kind="asset-video"], [data-flora-kind="video-api"], [data-flora-kind="minimax-h3"]):is(:hover, :focus-within)
   .flora-video-controls {
   opacity: 1 !important;
   visibility: visible !important;
@@ -2775,7 +3188,7 @@
 }
 
 #neonEngineSurface #canvasEditorScreen #canvasPlane
-  .canvas-node[data-flora-node="true"]:is([data-flora-kind="asset-video"], [data-flora-kind="video-api"], [data-flora-kind="minimax-h3"])
+  .canvas-node[data-flora-node="true"]:is([data-flora-kind="video"], [data-flora-kind="asset-video"], [data-flora-kind="video-api"], [data-flora-kind="minimax-h3"])
   :is(.flora-video-play, .flora-video-expand) {
   display: grid !important;
   width: 24px !important;
@@ -2791,7 +3204,7 @@
 }
 
 #neonEngineSurface #canvasEditorScreen #canvasPlane
-  .canvas-node[data-flora-node="true"]:is([data-flora-kind="asset-video"], [data-flora-kind="video-api"], [data-flora-kind="minimax-h3"])
+  .canvas-node[data-flora-node="true"]:is([data-flora-kind="video"], [data-flora-kind="asset-video"], [data-flora-kind="video-api"], [data-flora-kind="minimax-h3"])
   :is(.flora-video-play, .flora-video-expand):is(:hover, :focus-visible) {
   background: color-mix(in srgb, var(--canvas-neon-primary, #00ff41) 16%, transparent) !important;
   color: var(--canvas-neon-primary, #00ff41) !important;
@@ -2800,7 +3213,7 @@
 }
 
 #neonEngineSurface #canvasEditorScreen #canvasPlane
-  .canvas-node[data-flora-node="true"]:is([data-flora-kind="asset-video"], [data-flora-kind="video-api"], [data-flora-kind="minimax-h3"])
+  .canvas-node[data-flora-node="true"]:is([data-flora-kind="video"], [data-flora-kind="asset-video"], [data-flora-kind="video-api"], [data-flora-kind="minimax-h3"])
   .flora-video-time {
   color: var(--canvas-neon-text, #fff) !important;
   font: 600 10px/1 var(--neon-font-sans, Inter, "PingFang SC", "Microsoft YaHei", sans-serif);
@@ -2810,7 +3223,7 @@
 }
 
 #neonEngineSurface #canvasEditorScreen #canvasPlane
-  .canvas-node[data-flora-node="true"]:is([data-flora-kind="asset-video"], [data-flora-kind="video-api"], [data-flora-kind="minimax-h3"])
+  .canvas-node[data-flora-node="true"]:is([data-flora-kind="video"], [data-flora-kind="asset-video"], [data-flora-kind="video-api"], [data-flora-kind="minimax-h3"])
   .flora-video-progress {
   width: 100% !important;
   min-width: 0 !important;
@@ -2826,7 +3239,7 @@
 }
 
 #neonEngineSurface #canvasEditorScreen #canvasPlane
-  .canvas-node[data-flora-node="true"]:is([data-flora-kind="asset-video"], [data-flora-kind="video-api"], [data-flora-kind="minimax-h3"])
+  .canvas-node[data-flora-node="true"]:is([data-flora-kind="video"], [data-flora-kind="asset-video"], [data-flora-kind="video-api"], [data-flora-kind="minimax-h3"])
   .flora-video-progress::-webkit-slider-runnable-track {
   height: 2px !important;
   border-radius: 999px !important;
@@ -2838,7 +3251,7 @@
 }
 
 #neonEngineSurface #canvasEditorScreen #canvasPlane
-  .canvas-node[data-flora-node="true"]:is([data-flora-kind="asset-video"], [data-flora-kind="video-api"], [data-flora-kind="minimax-h3"])
+  .canvas-node[data-flora-node="true"]:is([data-flora-kind="video"], [data-flora-kind="asset-video"], [data-flora-kind="video-api"], [data-flora-kind="minimax-h3"])
   .flora-video-progress::-webkit-slider-thumb {
   width: 8px !important;
   height: 8px !important;
@@ -2852,13 +3265,13 @@
 }
 
 #neonEngineSurface #canvasEditorScreen #canvasPlane
-  .canvas-node[data-flora-node="true"]:is([data-flora-kind="asset-video"], [data-flora-kind="video-api"], [data-flora-kind="minimax-h3"])
+  .canvas-node[data-flora-node="true"]:is([data-flora-kind="video"], [data-flora-kind="asset-video"], [data-flora-kind="video-api"], [data-flora-kind="minimax-h3"])
   .flora-video-progress:focus-visible::-webkit-slider-thumb {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--canvas-neon-primary, #00ff41) 48%, transparent) !important;
 }
 
 #neonEngineSurface #canvasEditorScreen #canvasPlane
-  .canvas-node[data-flora-node="true"]:is([data-flora-kind="asset-video"], [data-flora-kind="video-api"], [data-flora-kind="minimax-h3"])
+  .canvas-node[data-flora-node="true"]:is([data-flora-kind="video"], [data-flora-kind="asset-video"], [data-flora-kind="video-api"], [data-flora-kind="minimax-h3"])
   .flora-video-progress::-moz-range-track {
   height: 2px !important;
   border: 0 !important;
@@ -2867,7 +3280,7 @@
 }
 
 #neonEngineSurface #canvasEditorScreen #canvasPlane
-  .canvas-node[data-flora-node="true"]:is([data-flora-kind="asset-video"], [data-flora-kind="video-api"], [data-flora-kind="minimax-h3"])
+  .canvas-node[data-flora-node="true"]:is([data-flora-kind="video"], [data-flora-kind="asset-video"], [data-flora-kind="video-api"], [data-flora-kind="minimax-h3"])
   .flora-video-progress::-moz-range-progress {
   height: 2px !important;
   border-radius: 999px !important;
@@ -2875,7 +3288,7 @@
 }
 
 #neonEngineSurface #canvasEditorScreen #canvasPlane
-  .canvas-node[data-flora-node="true"]:is([data-flora-kind="asset-video"], [data-flora-kind="video-api"], [data-flora-kind="minimax-h3"])
+  .canvas-node[data-flora-node="true"]:is([data-flora-kind="video"], [data-flora-kind="asset-video"], [data-flora-kind="video-api"], [data-flora-kind="minimax-h3"])
   .flora-video-progress::-moz-range-thumb {
   width: 8px !important;
   height: 8px !important;
@@ -2885,7 +3298,7 @@
 }
 
 #neonEngineSurface #canvasEditorScreen #canvasPlane
-  .canvas-node[data-flora-node="true"]:is([data-flora-kind="asset-video"], [data-flora-kind="video-api"], [data-flora-kind="minimax-h3"])
+  .canvas-node[data-flora-node="true"]:is([data-flora-kind="video"], [data-flora-kind="asset-video"], [data-flora-kind="video-api"], [data-flora-kind="minimax-h3"])
   :is(.flora-video-play, .flora-video-expand) svg {
   width: 14px !important;
   height: 14px !important;
@@ -2893,7 +3306,7 @@
 }
 
 #neonEngineSurface #canvasEditorScreen #canvasPlane
-  .canvas-node[data-flora-node="true"]:is([data-flora-kind="asset-video"], [data-flora-kind="video-api"], [data-flora-kind="minimax-h3"])
+  .canvas-node[data-flora-node="true"]:is([data-flora-kind="video"], [data-flora-kind="asset-video"], [data-flora-kind="video-api"], [data-flora-kind="minimax-h3"])
   .flora-video-center svg {
   width: 19px !important;
   height: 19px !important;
@@ -2901,7 +3314,7 @@
 }
 
 #neonEngineSurface #canvasEditorScreen #canvasPlane
-  .canvas-node[data-flora-node="true"]:is([data-flora-kind="asset-video"], [data-flora-kind="video-api"], [data-flora-kind="minimax-h3"])
+  .canvas-node[data-flora-node="true"]:is([data-flora-kind="video"], [data-flora-kind="asset-video"], [data-flora-kind="video-api"], [data-flora-kind="minimax-h3"])
   .canvas-media-shell.has-media:fullscreen {
   width: 100vw !important;
   height: 100vh !important;
@@ -2913,7 +3326,7 @@
 }
 
 #neonEngineSurface #canvasEditorScreen #canvasPlane
-  .canvas-node[data-flora-node="true"]:is([data-flora-kind="asset-video"], [data-flora-kind="video-api"], [data-flora-kind="minimax-h3"])
+  .canvas-node[data-flora-node="true"]:is([data-flora-kind="video"], [data-flora-kind="asset-video"], [data-flora-kind="video-api"], [data-flora-kind="minimax-h3"])
   .canvas-media-shell.has-media:fullscreen > .canvas-video-preview {
   width: 100vw !important;
   height: 100vh !important;
@@ -2924,7 +3337,7 @@
 }
 
 #neonEngineSurface #canvasEditorScreen #canvasPlane
-  .canvas-node[data-flora-node="true"]:is([data-flora-kind="asset-video"], [data-flora-kind="video-api"], [data-flora-kind="minimax-h3"])
+  .canvas-node[data-flora-node="true"]:is([data-flora-kind="video"], [data-flora-kind="asset-video"], [data-flora-kind="video-api"], [data-flora-kind="minimax-h3"])
   .canvas-media-shell.has-media:fullscreen .flora-video-controls {
   right: 14px !important;
   bottom: 14px !important;
@@ -2936,7 +3349,7 @@
 }
 
 #neonEngineSurface #canvasEditorScreen #canvasPlane
-  .canvas-node[data-flora-node="true"]:is([data-flora-kind="asset-audio"], [data-flora-kind="audio-generator"])
+  .canvas-node[data-flora-node="true"]:is([data-flora-kind="audio"], [data-flora-kind="asset-audio"], [data-flora-kind="audio-generator"])
   .canvas-audio-preview.flora-native-audio {
   position: absolute !important;
   width: 1px !important;
@@ -2946,20 +3359,20 @@
 }
 
 #neonEngineSurface #canvasEditorScreen #canvasPlane
-  .canvas-node[data-flora-node="true"]:is([data-flora-kind="asset-audio"], [data-flora-kind="audio-generator"])
+  .canvas-node[data-flora-node="true"]:is([data-flora-kind="audio"], [data-flora-kind="asset-audio"], [data-flora-kind="audio-generator"])
   .flora-audio-player {
   position: absolute !important;
   z-index: 2 !important;
   inset: 0 !important;
   display: grid !important;
-  grid-template-columns: 44px minmax(0, 1fr);
-  grid-template-rows: 44px 16px;
+  grid-template-columns: 32px minmax(0, 1fr);
+  grid-template-rows: 44px 32px;
   grid-template-areas:
-    "play timeline"
+    "timeline timeline"
     "play time";
   align-items: center;
   align-content: center;
-  gap: 4px 12px;
+  gap: 8px 10px;
   box-sizing: border-box;
   padding: 16px;
 }
@@ -2967,8 +3380,8 @@
 #neonEngineSurface #canvasEditorScreen #canvasPlane .flora-audio-play {
   grid-area: play;
   display: grid !important;
-  width: 44px !important;
-  height: 44px !important;
+  width: 32px !important;
+  height: 32px !important;
   padding: 0 !important;
   place-items: center !important;
   border: 1px solid color-mix(in srgb, var(--canvas-neon-border, #2a2a2a) 88%, var(--canvas-neon-muted, #888)) !important;
@@ -2976,7 +3389,7 @@
   background: color-mix(in srgb, var(--canvas-neon-card, #1a1a1a) 92%, transparent) !important;
   color: var(--canvas-neon-text, #fff) !important;
   cursor: pointer !important;
-  transition: background-color 150ms ease, border-color 150ms ease, transform 150ms ease;
+  transition: background-color 150ms ease, border-color 150ms ease;
 }
 
 #neonEngineSurface #canvasEditorScreen #canvasPlane .flora-audio-play:hover,
@@ -2984,7 +3397,7 @@
   border-color: var(--canvas-neon-primary, #00ff41) !important;
   background: color-mix(in srgb, var(--canvas-neon-primary, #00ff41) 14%, var(--canvas-neon-card, #1a1a1a)) !important;
   outline: none !important;
-  transform: scale(1.04);
+  transform: none;
 }
 
 #neonEngineSurface #canvasEditorScreen #canvasPlane .flora-audio-play svg {
@@ -3062,9 +3475,9 @@
   white-space: nowrap;
 }
 
-/* Audio keeps the shared Flora outer card and inset. A second media frame and
-   the single-item ready footer only duplicate that structure. */
-#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node[data-flora-node="true"][data-flora-kind="asset-audio"] {
+/* Uploaded and generated audio share the same landscape player footprint. */
+#neonEngineSurface #canvasEditorScreen #canvasPlane
+  .canvas-node[data-flora-node="true"]:is([data-flora-kind="audio"], [data-flora-kind="asset-audio"], [data-flora-kind="audio-generator"]) {
   width: var(--flora-node-width, 400px) !important;
   min-width: var(--flora-node-width, 400px) !important;
   max-width: var(--flora-node-width, 400px) !important;
@@ -3073,7 +3486,8 @@
   max-height: calc(var(--flora-node-height, 128px) + 48px) !important;
 }
 
-#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node[data-flora-node="true"][data-flora-kind="asset-audio"] > .flora-node-shell {
+#neonEngineSurface #canvasEditorScreen #canvasPlane
+  .canvas-node[data-flora-node="true"]:is([data-flora-kind="audio"], [data-flora-kind="asset-audio"], [data-flora-kind="audio-generator"]) > .flora-node-shell {
   width: var(--flora-node-width, 400px) !important;
   min-width: var(--flora-node-width, 400px) !important;
   max-width: var(--flora-node-width, 400px) !important;
@@ -3097,6 +3511,16 @@
 
 #neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node[data-flora-node="true"][data-flora-kind="asset-audio"]
   .flora-node-live-status[data-flora-audio-ready="true"] {
+  display: none !important;
+}
+
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node[data-flora-kind="audio-generator"]
+  .canvas-audio-generator-empty {
+  display: none !important;
+}
+
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node[data-flora-kind="audio-generator"]
+  .canvas-audio-generator-result:not(:has(.canvas-audio-preview[src])) {
   display: none !important;
 }
 
@@ -3162,9 +3586,14 @@
 }
 
 #neonEngineSurface #canvasEditorScreen #canvasPlane .flora-generator-placeholder svg {
-  width: 40px;
-  height: 40px;
+  width: 80px;
+  height: 80px;
   stroke-width: 1.5;
+}
+
+#neonEngineSurface #canvasEditorScreen #canvasPlane .flora-generator-placeholder .flora-video-placeholder-icon {
+  width: 80px;
+  height: 80px;
 }
 
 #neonEngineSurface #canvasEditorScreen #canvasPlane .flora-generator-placeholder[hidden] {
@@ -3371,11 +3800,18 @@
 }
 #neonEngineSurface #canvasEditorScreen #canvasPlane .flora-reference-materials {
   display: flex;
-  flex: 0 0 auto;
+  flex: 0 1 auto;
+  box-sizing: border-box;
   min-width: 0;
   align-items: center;
   gap: 8px;
+  /* Leave room for the remove buttons, focus ring and sorting markers.
+     Compensating margins keep the thumbnails aligned with the prompt. */
+  padding: 8px;
+  margin: -8px;
   overflow-x: auto;
+  overflow-y: hidden;
+  scroll-padding-inline: 8px;
   scrollbar-width: none;
 }
 #neonEngineSurface #canvasEditorScreen #canvasPlane .flora-reference-materials::-webkit-scrollbar { display: none; }
@@ -3422,7 +3858,27 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+  pointer-events: none;
 }
+
+#neonEngineSurface #canvasEditorScreen #canvasPlane .flora-reference-thumb {
+  touch-action: none;
+  user-select: none;
+  cursor: grab;
+}
+#neonEngineSurface #canvasEditorScreen #canvasPlane .flora-reference-thumb:hover { border-color: var(--canvas-neon-primary); }
+#neonEngineSurface #canvasEditorScreen #canvasPlane .flora-reference-thumb:focus-visible {
+  outline: 2px solid var(--neon-ring, var(--canvas-neon-primary));
+  outline-offset: -3px;
+}
+#neonEngineSurface #canvasEditorScreen #canvasPlane .flora-reference-card.is-sort-dragging { opacity: .45; }
+#neonEngineSurface #canvasEditorScreen #canvasPlane .is-sort-dragging .flora-reference-thumb { cursor: grabbing; }
+#neonEngineSurface #canvasEditorScreen #canvasPlane .flora-reference-card:is(.is-sort-before, .is-sort-after)::after {
+  content: ''; position: absolute; top: 4px; bottom: 4px; width: 2px;
+  background: var(--canvas-neon-primary); border-radius: 2px; pointer-events: none;
+}
+#neonEngineSurface #canvasEditorScreen #canvasPlane .flora-reference-card.is-sort-before::after { left: -5px; }
+#neonEngineSurface #canvasEditorScreen #canvasPlane .flora-reference-card.is-sort-after::after { right: -5px; }
 #neonEngineSurface #canvasEditorScreen #canvasPlane .flora-reference-thumb svg {
   width: 22px;
   height: 22px;
@@ -3874,6 +4330,71 @@
   position: relative;
 }
 
+/* H3 prompt editor: the textarea remains the editing authority while this
+   mirror paints only the semantic @ references. Keeping one geometry and one
+   scroll position avoids caret jumps and preserves the existing node size. */
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-h3-prompt-editor {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 110px;
+  overflow: hidden;
+}
+
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-h3-prompt-editor > .canvas-h3-prompt-highlight,
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-h3-prompt-editor > .canvas-h3-prompt {
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 12px 0 36px;
+  border: 0;
+  font: inherit;
+  line-height: inherit;
+  letter-spacing: inherit;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-h3-prompt-highlight {
+  z-index: 0;
+  overflow: hidden;
+  color: var(--canvas-neon-text, #fff);
+  pointer-events: none;
+}
+
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-h3-prompt-highlight .is-reference {
+  color: var(--canvas-neon-primary, #00ff41);
+  font-weight: 600;
+}
+
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-h3-prompt-highlight .is-placeholder {
+  color: var(--canvas-neon-muted, #888);
+}
+
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-h3-prompt-editor > .canvas-h3-prompt {
+  z-index: 1;
+  resize: none;
+  background: transparent;
+  color: transparent;
+  font: inherit;
+  line-height: inherit;
+  letter-spacing: inherit;
+  -webkit-text-fill-color: transparent;
+  caret-color: var(--canvas-neon-text, #fff);
+}
+
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-h3-prompt-editor > .canvas-h3-prompt::placeholder {
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-h3-prompt-editor > .canvas-h3-prompt::selection {
+  background: color-mix(in srgb, var(--canvas-neon-primary, #00ff41) 24%, transparent);
+}
+
 #neonEngineSurface #canvasEditorScreen #canvasPlane .flora-generator-prompt-area .canvas-h3-mention-menu {
   /* 顶层 popover 定位：由脚本按输入框坐标设置 inset，避免被操作区裁切。 */
   position: fixed;
@@ -3963,8 +4484,13 @@
 
 #neonEngineSurface #canvasEditorScreen #canvasPlane .flora-generator-prompt-area .canvas-h3-mention-option b {
   display: block;
-  color: var(--canvas-neon-text);
+  color: var(--canvas-neon-primary, #00ff41);
   font: 600 13px/18px var(--neon-font-sans, Inter, "Microsoft YaHei", sans-serif);
+}
+
+#neonEngineSurface #canvasEditorScreen #canvasPlane .flora-generator-prompt-area .canvas-h3-mention-option > span {
+  display: block;
+  min-width: 0;
 }
 
 #neonEngineSurface #canvasEditorScreen #canvasPlane .flora-generator-prompt-area .canvas-h3-mention-option small {
@@ -4156,7 +4682,7 @@ body > .canvas-angle-dialog.is-over-canvas-workbench {
   width: var(--canvas-angle-size);
   height: var(--canvas-angle-size);
   transform-style: preserve-3d;
-  transform: rotateX(var(--canvas-angle-x, 0deg)) rotateY(var(--canvas-angle-y, 0deg));
+  transform: scale(var(--canvas-angle-zoom, 1)) rotateX(var(--canvas-angle-x, 0deg)) rotateY(var(--canvas-angle-y, 0deg));
   transition: transform 120ms ease;
   cursor: grab;
   touch-action: none;
@@ -4504,7 +5030,8 @@ body > .canvas-angle-dialog.is-over-canvas-workbench {
 }
 
 #neonEngineSurface #canvasEditorScreen #canvasPlane .flora-generator-reference-area {
-  flex-wrap: nowrap; gap: 8px; overflow-x: auto; scrollbar-width: none;
+  /* Only the material band scrolls; the add/expand controls stay reachable. */
+  flex-wrap: nowrap; gap: 8px; overflow: visible;
 }
 #neonEngineSurface #canvasEditorScreen #canvasPlane .flora-generator-reference-area > :is(.canvas-node-refs, .canvas-llm-images, .flora-generator-text-references) {
   display: contents; flex: none;
@@ -4952,6 +5479,11 @@ body > .canvas-angle-dialog.is-over-canvas-workbench {
   color: var(--canvas-neon-danger);
 }
 
+#neonEngineSurface #canvasEditorScreen #canvasPlane .flora-generator-status[data-state="warning"],
+#canvasEditorScreen .canvas-node-status[data-state="warning"] {
+  color: var(--neon-warning);
+}
+
 /* Image generation uses the chosen aspect ratio before a result arrives, then
    the decoded result. The image itself fills the single Flora surface. */
 #neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node[data-flora-node="true"][data-flora-image-preview="true"] {
@@ -4988,8 +5520,60 @@ body > .canvas-angle-dialog.is-over-canvas-workbench {
   object-fit: contain !important;
 }
 
+/* A Qwen angle result uses the source image's media rectangle as its body.
+   Keep Flora's shared 48px title/tag band above that exact media geometry. */
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node[data-flora-angle-result="true"] {
+  width: var(--flora-node-width) !important;
+  min-width: var(--flora-node-width) !important;
+  max-width: var(--flora-node-width) !important;
+  height: calc(var(--flora-node-height) + var(--flora-node-header-height, 48px)) !important;
+  min-height: calc(var(--flora-node-height) + var(--flora-node-header-height, 48px)) !important;
+  max-height: calc(var(--flora-node-height) + var(--flora-node-header-height, 48px)) !important;
+}
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node[data-flora-angle-result="true"] > .flora-node-shell {
+  top: var(--flora-node-header-height, 48px) !important;
+  width: var(--flora-node-width) !important;
+  min-width: var(--flora-node-width) !important;
+  max-width: var(--flora-node-width) !important;
+  height: var(--flora-node-height) !important;
+  min-height: var(--flora-node-height) !important;
+  max-height: var(--flora-node-height) !important;
+}
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node[data-flora-angle-result="true"] > .flora-node-shell > .flora-node-content,
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node[data-flora-angle-result="true"] .flora-node-result-area {
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  flex: 1 1 auto !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 16px !important;
+  gap: 0 !important;
+  overflow: hidden !important;
+  background: transparent !important;
+}
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node[data-flora-angle-result="true"] .flora-node-result-area > .canvas-node-result:not([hidden]),
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node[data-flora-angle-result="true"] .flora-node-result-area > .canvas-node-result img {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  max-width: none !important;
+  max-height: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 16px !important;
+  object-fit: cover !important;
+  background: transparent !important;
+}
+
 /* External titles and dimensions share the Flora chrome, independently of media pixels. */
 #neonEngineSurface #canvasEditorScreen #canvasPlane .flora-node-label-title[hidden] { display: none !important; }
+
 #neonEngineSurface #canvasEditorScreen #canvasPlane .flora-node-title-editor {
   min-width: 0; width: calc(100% - 64px); padding: 4px 6px;
   border: 1px solid var(--canvas-neon-border, #30363d); border-radius: 6px;
@@ -4999,21 +5583,7 @@ body > .canvas-angle-dialog.is-over-canvas-workbench {
 #neonEngineSurface #canvasEditorScreen #canvasPlane .flora-node-title-editor:focus-visible {
   outline: 1px solid var(--canvas-neon-primary, #00ff41); outline-offset: 2px;
 }
-#neonEngineSurface #canvasEditorScreen #canvasPlane .flora-node-image-dimensions {
-  position: absolute; z-index: 44; left: 50%;
-  bottom: calc(100% + var(--flora-node-header-height, 48px) + 12px * var(--collab-inverse-scale, 1));
-  transform: translateX(-50%) scale(var(--collab-inverse-scale, 1)); transform-origin: center bottom;
-  height: 20px; white-space: nowrap; pointer-events: none;
-  color: var(--canvas-neon-muted, #9aa4ae);
-  font: 400 12px/20px var(--neon-font-sans, Inter, "Microsoft YaHei", sans-serif);
-  opacity: 0; visibility: hidden;
-}
-#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node:is(:hover, :focus-within, .is-selected, .selected) .flora-node-image-dimensions:not([hidden]) {
-  opacity: 1; visibility: visible;
-}
-#neonEngineSurface #canvasEditorScreen #canvasPlane .flora-node-toolbar.has-image-dimensions {
-  bottom: calc(100% + var(--flora-node-header-height, 48px) + 38px * var(--collab-inverse-scale, 1));
-}
+#neonEngineSurface #canvasEditorScreen #canvasPlane .flora-node-image-dimensions { display: none !important; }
 
 /* The adaptive media fills its card. Paint selection above the pixels. */
 #neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node[data-flora-adaptive-media="true"] .flora-node-shell::after {
@@ -5026,6 +5596,38 @@ body > .canvas-angle-dialog.is-over-canvas-workbench {
 
 #neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node-text :is(.flora-node-card, .flora-node-editor-surface, .canvas-text) {
   background: var(--flora-text-background, var(--canvas-neon-card)) !important;
+}
+
+/* Text nodes keep one neutral surface in the resting, hover and selected
+   states. Selection still controls stacking and toolbar visibility, but does
+   not recolour the Markdown content or add a second green frame. */
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node-text :is(.flora-node-card, .flora-node-editor-surface, .canvas-text),
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node-text:hover :is(.flora-node-card, .flora-node-editor-surface, .canvas-text),
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node-text:is(.is-selected, .selected, :focus-within) :is(.flora-node-card, .flora-node-editor-surface, .canvas-text),
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node-text .flora-node-shell[data-state~="hover"] .flora-node-card,
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node-text .flora-node-shell.is-hover .flora-node-card,
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node-text .flora-node-shell.is-selected .flora-node-card,
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node-text .flora-node-shell.is-connecting .flora-node-card {
+  border-color: var(--canvas-neon-border, #2a2a2a) !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Full and projected text use this same scroll box in every state. Reserving
+   a second gutter on the editor surface only when selected changes wrapping. */
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node-text .canvas-text {
+  box-sizing: border-box;
+  height: var(--canvas-node-text-height, auto);
+  min-height: 142px;
+  max-height: 1200px;
+  overflow: auto;
+  scrollbar-gutter: stable;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal !important;
+}
+#neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node-text .canvas-text[data-text-overflow="true"] {
+  overflow: auto;
 }
 .flora-text-palette {
   position: fixed; z-index: 2147483100; display: flex; gap: 4px; padding: 5px;
@@ -5063,4 +5665,49 @@ body > .canvas-angle-dialog.is-over-canvas-workbench {
 @media (max-width: 640px) {
   #neonEngineSurface #canvasEditorScreen #canvasPlane .flora-text-expanded-dialog { padding: 12px; }
   #neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node-text .flora-text-expanded-dialog .canvas-text { padding: 16px !important; }
+}
+
+/* L2 shares Flora's card and type tokens; no hidden Full node controls. */
+#canvasEditorScreen .canvas-light-node {
+  box-sizing: border-box;
+  overflow: visible;
+  pointer-events: auto;
+  border: 1px solid var(--canvas-neon-border, #2a2a2a);
+  border-radius: 16px;
+  background: var(--canvas-neon-card, #1a1a1a);
+  color: var(--canvas-neon-text, #fff);
+}
+#canvasEditorScreen .canvas-light-title {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 12px);
+  font: 500 14px/20px var(--font-sans, system-ui);
+  color: var(--canvas-neon-muted, #888);
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#canvasEditorScreen .canvas-light-node.is-selected {
+  outline: 2px solid var(--canvas-neon-primary, #00ff41);
+  outline-offset: 0;
+}
+#canvasEditorScreen .canvas-light-node > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: inherit;
+}
+#canvasEditorScreen .canvas-light-summary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 16px;
+  box-sizing: border-box;
+  font: 400 14px/20px var(--font-sans, system-ui);
+  color: var(--canvas-neon-muted, #888);
+  overflow: hidden;
+  white-space: pre-wrap;
 }

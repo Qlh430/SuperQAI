@@ -1,9 +1,15 @@
 /* Native canvas adapters use the same Neon semantic tokens as the workbench. */
 #neonEngineSurface #canvasEditorScreen #canvasPlane .canvas-node > .flora-node-tag {
   position: absolute; z-index: 6; top: 0; right: 0; display: flex; align-items: center; max-width: 55%; height: 48px; gap: 0;
+  transform: translateY(calc(-8px * var(--collab-inverse-scale, 1)));
+  transform-origin: right bottom;
   pointer-events: auto; user-select: none;
 }
-#canvasEditorScreen .canvas-node[data-has-node-tag="true"] > .flora-node-label { max-width: 42%; }
+/* The tag affordance is painted over the node's top-right corner, so a long
+   external title has to stop before it instead of running underneath. A named
+   tag can reach 55% of the node; the bare trigger only needs its 44px target. */
+#canvasEditorScreen .canvas-node:has(> .flora-node-tag:not([hidden])) > .flora-node-label { max-width: calc(100% - 56px); }
+#canvasEditorScreen .canvas-node[data-has-node-tag="true"]:has(> .flora-node-tag:not([hidden])) > .flora-node-label { max-width: 42%; }
 #canvasEditorScreen .canvas-node > .flora-node-tag .flora-tag-trigger { min-width: 44px; max-width: 100%; }
 .flora-node-tag[hidden], .flora-tag-remove[hidden], .flora-tag-manager [hidden], .flora-tag-picker [hidden] { display: none !important; }
 .flora-tag-action {

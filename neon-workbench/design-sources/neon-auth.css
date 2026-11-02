@@ -34,9 +34,26 @@ html[data-ai-auth="login"] #aiOsStartupGate {
 }
 
 #aiOsStartupGate .ai-os-startup-brand-mark {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  flex: 0 0 48px;
+  overflow: hidden;
   color: var(--neon-primary-fg);
-  background: var(--neon-primary);
+  background: transparent;
+  border-radius: var(--neon-radius-md);
   box-shadow: var(--neon-glow-subtle);
+}
+
+#aiOsStartupGate .ai-os-startup-brand-mark svg,
+#aiOsAuthGate .ai-os-brand-mark svg {
+  display: block;
+  width: 40px;
+  height: 40px;
+  max-width: 100%;
+  max-height: 100%;
+  margin: 0;
 }
 
 #aiOsStartupGate .ai-os-startup-brand span,
@@ -110,9 +127,24 @@ html[data-ai-auth="login"] body::after {
 }
 
 .ai-os-brand-mark {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  overflow: hidden;
   color: var(--neon-primary-fg);
-  background: var(--neon-primary);
+  background: transparent;
+  border-radius: var(--neon-radius-md);
   box-shadow: var(--neon-glow-subtle);
+}
+
+/* Same supplied SVG as startup/home, with no legacy placeholder frame. */
+#aiOsAuthGate .ai-os-brand-mark {
+  color: var(--neon-primary);
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .ai-os-eyebrow {

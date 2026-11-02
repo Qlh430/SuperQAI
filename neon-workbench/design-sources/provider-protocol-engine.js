@@ -53,7 +53,27 @@ function redact(value, secrets = []) {
     .replace(/("?(?:api[_-]?key|wallet[_-]?key|authorization)"?\s*[:=]\s*")([^"]+)(")/gi, "$1[REDACTED]$3");
 }
 
-function errorForStatus(status, detail, provider, model) {
+function quotaRequestDiagnostic(detail, request) {
+  // Explain a reservation failure without equating it with an empty account.
+  // Use the serialized request, so model defaults and protocol translation are
+  // reflected accurately. Never change the budget or resubmit a rejected call.
+  if (!request || !["openai-chat", "openai-responses", "anthropic-messages", "gemini-content"].includes(request.parse)) return "";
+  const text = String(detail || "");
+  const preconsume = /pre[- ]?consume|pre[- ]?charge|预扣|预消费/i.test(text);
+  const amounts = text.match(/current balance:\s*([^,()]+),\s*required:\s*([^()]+)/i);
+  const reason = preconsume
+    ? `上游预扣校验未通过${amounts ? `（当前可用余额 ${amounts[1].trim()}，本次预扣 ${amounts[2].trim()}）` : ""}。有余额仍可能无法覆盖本次预扣。`
+    : "上游拒绝了本次额度校验，请核对该 API Key、模型权限与额度限制。";
+  const body = request.body || {};
+  const budgets = ["max_tokens", "max_completion_tokens", "max_output_tokens"]
+    .filter(key => body[key] !== undefined && body[key] !== null)
+    .map(key => `${key}=${Number(body[key])}`);
+  if (body.generationConfig?.maxOutputTokens != null) budgets.push(`maxOutputTokens=${Number(body.generationConfig.maxOutputTokens)}`);
+  const budget = budgets.length ? `本次输出上限：${budgets.join("，")}。` : "本次未指定输出上限，采用上游默认预算。";
+  return `${reason}${budget}可在该模型的“默认参数（JSON）”中核对输出预算，再手动提交。`;
+}
+
+function errorForStatus(status, detail, provider, model, request) {
   const numericStatus = Number(status || 0);
   const quotaRejected = isQuotaRejection(numericStatus, detail);
   // Moderation rejections are about the request content, not the account or the
@@ -71,6 +91,7 @@ function errorForStatus(status, detail, provider, model) {
     retryable = true;
   }
   const safeDetail = redact(detail, [provider?.apiKey, provider?.api_key, provider?.walletKey, provider?.wallet_api_key]);
+  const diagnosis = quotaRejected ? quotaRequestDiagnostic(safeDetail, request) : "";
   return new ProtocolEngineError({
     code: quotaRejected ? "UPSTREAM_QUOTA_EXHAUSTED" : code,
     providerId: String(provider?.id || ""),
@@ -81,7 +102,7 @@ function errorForStatus(status, detail, provider, model) {
     // the turn — unless the rejection was about the content itself. Transport
     // failures keep their own unknown-submission handling.
     fallbackAllowed: quotaRejected || (!contentRejected && numericStatus >= 400 && numericStatus < 500),
-    safeMessage: `上游服务返回 HTTP ${numericStatus}${safeDetail ? `：${safeDetail}` : ""}`,
+    safeMessage: `${diagnosis}${diagnosis ? "\n" : ""}上游服务返回 HTTP ${numericStatus}${safeDetail ? `：${safeDetail}` : ""}`,
   });
 }
 
@@ -94,7 +115,9 @@ function normalizeError(error, provider, model, options = {}) {
       modelId: modelIdOf(model),
       retryable: true,
       stage: error.stage || "total",
-      safeMessage: `上游服务${error.stage === "connect" ? "连接" : error.stage === "first-event" ? "首个事件" : "总请求"}超时。`,
+      safeMessage: error.stage === "connect" ? "等待上游响应超时。"
+        : error.stage === "first-event" ? "等待模型首次输出超时。"
+          : "等待模型生成超时；上游可能仍在处理，请检查平台任务记录后再重试。",
     });
   }
   if (error?.name === "AbortError" || error?.code === "REQUEST_ABORTED") {
@@ -507,10 +530,26 @@ function openAiImageParams(params = {}) {
   )));
 }
 
-function effectiveModelParams(model, params = {}) {
+function effectiveModelParams(model, params = {}, provider = {}) {
   const overrides = model?.metadata?.parameterOverrides;
   const defaults = overrides && typeof overrides === "object" && !Array.isArray(overrides) ? overrides : {};
-  return { ...defaults, ...(params && typeof params === "object" && !Array.isArray(params) ? params : {}) };
+  const supplied = params && typeof params === "object" && !Array.isArray(params) ? params : {};
+  const merged = { ...defaults, ...supplied };
+  const budgets = ["max_tokens", "max_completion_tokens", "max_output_tokens", "maxTokens"];
+  if (budgets.some(key => supplied[key] !== undefined && supplied[key] !== null)) {
+    for (const key of budgets) if (supplied[key] === undefined || supplied[key] === null) delete merged[key];
+  }
+  // ApiMart rejects this model's omitted output budget during pre-consumption
+  // even with a positive balance. A bounded request was accepted by the same
+  // key/model. Keep a useful reasoning + answer allowance; administrators and
+  // explicit requests can still choose a larger budget for long-form work.
+  let host = "";
+  try { host = new URL(provider.baseUrl || provider.base_url).hostname; } catch {}
+  if (host === "api.apimart.ai" && modelIdOf(model) === "deepseek-v4.1-flash"
+    && !budgets.some(key => merged[key] !== undefined && merged[key] !== null)) {
+    merged.max_tokens = 8192;
+  }
+  return merged;
 }
 
 function buildBody(kind, modelId, input = {}, params = {}, stream = false) {
@@ -531,7 +570,7 @@ function buildBody(kind, modelId, input = {}, params = {}, stream = false) {
       delete body.parallel_tool_calls;
       delete body.tools;
     }
-    if (stream) body.stream = true;
+    body.stream = Boolean(stream);
     return body;
   }
   if (kind === "openai-responses") {
@@ -541,7 +580,7 @@ function buildBody(kind, modelId, input = {}, params = {}, stream = false) {
     if (instructions) body.instructions = instructions;
     const tools = openAiToolsToResponses(input.tools);
     if (tools.length) body.tools = tools;
-    const maxOutputTokens = params.max_output_tokens ?? params.max_tokens ?? params.maxTokens;
+    const maxOutputTokens = params.max_output_tokens ?? params.max_completion_tokens ?? params.max_tokens ?? params.maxTokens;
     if (maxOutputTokens !== undefined) body.max_output_tokens = maxOutputTokens;
     if (params.reasoning !== undefined) body.reasoning = params.reasoning;
     else if (params.reasoning_effort !== undefined) body.reasoning = { effort: params.reasoning_effort };
@@ -561,14 +600,16 @@ function buildBody(kind, modelId, input = {}, params = {}, stream = false) {
     const systemMessage = messages.find((message) => message.role === "system");
     const body = {
       model: modelId,
-      max_tokens: params.max_tokens ?? params.maxTokens ?? 1024,
+      // Messages requires an explicit budget. 4096 also fits legacy Claude 3
+      // models; larger supported budgets may be configured per model/request.
+      max_tokens: params.max_tokens ?? params.max_completion_tokens ?? params.max_output_tokens ?? params.maxTokens ?? 4096,
       messages: chatMessagesToAnthropic(messages),
     };
     const system = input.system || contentAsText(systemMessage?.content);
     if (system) body.system = system;
     const tools = openAiToolsToAnthropic(input.tools);
     if (tools.length) body.tools = tools;
-    addDefined(body, params, ["max_tokens", "maxTokens", "signal", "connectTimeoutMs", "firstEventTimeoutMs", "totalTimeoutMs"]);
+    addDefined(body, params, ["max_tokens", "max_completion_tokens", "max_output_tokens", "maxTokens", "signal", "connectTimeoutMs", "firstEventTimeoutMs", "totalTimeoutMs"]);
     if (stream) body.stream = true;
     return body;
   }
@@ -621,6 +662,24 @@ function normalizedToolCalls(value) {
   })).filter((call) => call.name);
 }
 
+function completionDetails(reason = "", streamEndedEarly = false) {
+  const finishReason = String(reason || "");
+  const normalized = finishReason.toLowerCase();
+  const limit = ["length", "max_tokens", "max_output_tokens"].includes(normalized);
+  const filtered = ["content_filter", "safety", "recitation", "blocklist", "prohibited_content"].includes(normalized);
+  const failed = ["incomplete", "error", "failed"].includes(normalized);
+  const incomplete = limit || filtered || failed || streamEndedEarly;
+  return {
+    finishReason,
+    completionStatus: incomplete ? "incomplete" : "completed",
+    incompleteReason: limit ? "output_limit" : filtered ? "content_filter" : failed ? "upstream_incomplete" : streamEndedEarly ? "stream_interrupted" : "",
+    warning: limit ? "已保留部分内容：达到模型输出上限，请继续生成剩余内容。"
+      : filtered ? "已保留部分内容：上游内容安全限制导致输出未完成。"
+        : failed ? "已保留部分内容：上游报告生成未完成，请检查平台记录。"
+          : streamEndedEarly ? "已保留部分内容：上游输出提前中断，请检查平台记录后继续。" : "",
+  };
+}
+
 function parseResult(kind, payload) {
   if (kind === "openai-chat") {
     const message = payload?.choices?.[0]?.message || {};
@@ -631,6 +690,7 @@ function parseResult(kind, payload) {
       toolCalls: normalizedToolCalls(message.tool_calls),
       responseId: String(payload?.id || ""),
       model: String(payload?.model || ""),
+      ...completionDetails(payload?.choices?.[0]?.finish_reason),
     };
   }
   if (kind === "openai-responses") {
@@ -643,17 +703,18 @@ function parseResult(kind, payload) {
       toolCalls: normalizedToolCalls(calls),
       responseId: String(payload?.id || ""),
       model: String(payload?.model || ""),
+      ...completionDetails(payload?.incomplete_details?.reason || (payload?.status === "incomplete" ? "incomplete" : payload?.status === "completed" ? "stop" : "")),
     };
   }
   if (kind === "anthropic-message") {
     const blocks = Array.isArray(payload?.content) ? payload.content : [];
     const text = blocks.filter((block) => block?.type === "text").map((block) => block.text || "").join("");
     const calls = blocks.filter((block) => block?.type === "tool_use").map((block) => ({ id: block.id, name: block.name, input: block.input }));
-    return { text, usage: payload?.usage ?? null, toolCalls: normalizedToolCalls(calls) };
+    return { text, usage: payload?.usage ?? null, toolCalls: normalizedToolCalls(calls), ...completionDetails(payload?.stop_reason) };
   }
   if (kind === "gemini-content") {
     const parts = (payload?.candidates || []).flatMap((candidate) => candidate?.content?.parts || []);
-    return { text: parts.map((part) => part?.text || "").filter(Boolean).join("\n"), usage: payload?.usageMetadata ?? null, toolCalls: [] };
+    return { text: parts.map((part) => part?.text || "").filter(Boolean).join("\n"), usage: payload?.usageMetadata ?? null, toolCalls: [], ...completionDetails(payload?.candidates?.[0]?.finishReason) };
   }
   if (kind === "gemini-image") {
     const parts = (payload?.candidates || []).flatMap((candidate) => candidate?.content?.parts || []);
@@ -744,7 +805,11 @@ function raceOperation(promise, scope, timeoutMs, stage) {
       callback(value);
     };
     const onAbort = () => finish(reject, scope.signal.reason || timeoutCause("total"));
-    const timer = setTimeout(() => finish(reject, timeoutCause(effectiveStage)), duration);
+    const timer = setTimeout(() => {
+      const cause = timeoutCause(effectiveStage);
+      finish(reject, cause);
+      scope.controller.abort(cause);
+    }, duration);
     scope.signal.addEventListener("abort", onAbort, { once: true });
     Promise.resolve(promise).then((value) => finish(resolve, value), (error) => finish(reject, error));
   });
@@ -821,7 +886,7 @@ function createProtocolEngine({ registry = createProtocolRegistry(), fetchImpl, 
   function buildRequest(provider, model, intent, input = {}, params = {}) {
     assertCustomIntent(provider, model, intent);
     const { protocolId, modelProtocol, definition, platformDefinition, adapter } = resolve(provider, model);
-    const effectiveParams = effectiveModelParams(model, params);
+    const effectiveParams = effectiveModelParams(model, params, provider);
     if (definition.connectionType === "cli") {
       throw new ProtocolEngineError({
         code: "CLI_LOCAL_ONLY",
@@ -865,24 +930,6 @@ function createProtocolEngine({ registry = createProtocolRegistry(), fetchImpl, 
     ) {
       body.reasoning_effort = "none";
     }
-    // APIMart's OpenAI-compatible chat gateway defaults to SSE when the
-    // `stream` field is omitted. The settings-page test expects a normal JSON
-    // response so its parser can inspect the reply, and the Canvas Agent's
-    // tool turns need the same treatment: their SSE body cannot be parsed as
-    // the JSON completion the agent loop expects. Make that intent explicit
-    // without changing streaming calls or other OpenAI-compatible providers.
-    if (
-      String(intent).startsWith("llm.")
-      && definition.id === "openai"
-      && !operation.stream
-      && body
-      && typeof body === "object"
-      && !Array.isArray(body)
-      && (providerHasHost(provider, "apimart.ai") || providerHasHost(provider, "apib.ai"))
-      && body.stream === undefined
-    ) {
-      body.stream = false;
-    }
     const apimartGemini = definition.id === "gemini"
       && (providerHasHost(provider, "apimart.ai") || providerHasHost(provider, "apib.ai"));
     const baseUrl = apimartGemini ? providerBaseUrl(provider).replace(/\/v1(?:beta)?$/i, "") : providerBaseUrl(provider);
@@ -908,12 +955,9 @@ function createProtocolEngine({ registry = createProtocolRegistry(), fetchImpl, 
     const imageRequest = String(request.intent || "").startsWith("image.");
     const scope = createRequestScope(imageRequest ? { ...options, totalTimeoutMs: positiveTimeout(options.totalTimeoutMs, 300_000) } : options);
     const connectTimeoutMs = positiveTimeout(options.connectTimeoutMs, DEFAULT_TIMEOUTS.connectTimeoutMs);
-    // A non-streaming reply is only handed over once the provider has finished
-    // generating it, so waiting for its headers is a "when does the answer
-    // start" budget, not a connection budget. Bounding it by the connect
-    // timeout alone kills every reply that takes longer than the socket dial
-    // allowance (the Canvas Agent asks for 4s there while its answers routinely
-    // need 6s), so the first-answer allowance is honoured as a floor.
+    // fetch resolves on response headers. Synchronous generation may withhold
+    // headers until the entire answer is ready; only streaming/discovery use
+    // the first-response allowance. Socket dial limits live in the transport.
     const headerWaitMs = Math.max(
       connectTimeoutMs,
       positiveTimeout(options.firstEventTimeoutMs, DEFAULT_TIMEOUTS.firstEventTimeoutMs),
@@ -932,15 +976,14 @@ function createProtocolEngine({ registry = createProtocolRegistry(), fetchImpl, 
           purpose: request.method === "GET" ? "model-discovery" : "model-execution",
           providerId: String(provider?.id || ""),
         },
-      // fetch resolves at response headers, which synchronous image APIs may
-      // withhold until generation finishes. Socket connection limits live in
-      // the transport; use the full image deadline while waiting for output.
-      }), scope, imageRequest ? Math.max(1, scope.deadline - Date.now()) : headerWaitMs, imageRequest ? "total" : "connect");
+      }), scope, imageRequest || (request.method !== "GET" && !request.stream)
+        ? Math.max(1, scope.deadline - Date.now()) : headerWaitMs,
+      imageRequest || (request.method !== "GET" && !request.stream) ? "total" : "first-event");
       return { response, scope };
     } catch (error) {
       scope.cleanup();
       const normalized = normalizeError(error, provider, model, { intent: request.intent });
-      if (imageRequest && normalized.submissionState !== "not_submitted") {
+      if ((imageRequest || (request.method !== "GET" && normalized.code === "UPSTREAM_TIMEOUT")) && normalized.submissionState !== "not_submitted") {
         normalized.submissionState = "unknown";
         normalized.retryable = false;
       }
@@ -952,15 +995,15 @@ function createProtocolEngine({ registry = createProtocolRegistry(), fetchImpl, 
     return raceOperation(response.text(), scope, Math.max(1, scope.deadline - Date.now()), "total");
   }
 
-  async function ensureSuccess(response, scope, provider, model) {
+  async function ensureSuccess(response, scope, provider, model, request) {
     if (response?.ok) return;
     let detail = "";
     try {
       detail = await readText(response, scope);
     } catch (error) {
-      throw normalizeError(error, provider, model, { intent });
+      throw normalizeError(error, provider, model);
     }
-    throw errorForStatus(response?.status, detail, provider, model);
+    throw errorForStatus(response?.status, detail, provider, model, request);
   }
 
   // An upstream that rejects function tools together with a reasoning budget is
@@ -989,7 +1032,7 @@ function createProtocolEngine({ registry = createProtocolRegistry(), fetchImpl, 
   async function executeOnce(provider, model, intent, input = {}, params = {}, options = {}) {
     assertCustomIntent(provider, model, intent);
     const { adapter, protocolId, modelProtocol } = resolve(provider, model);
-    const effectiveParams = effectiveModelParams(model, params);
+    const effectiveParams = effectiveModelParams(model, params, provider);
     if (options.resumeTask && (!adapter || options.resumeTask.protocol !== protocolId)) {
       throw new ProtocolEngineError({ code: "UPSTREAM_PROTOCOL", retryable: false, safeMessage: "原任务的 API 配置已变更，请恢复原配置后继续查询。" });
     }
@@ -1016,7 +1059,7 @@ function createProtocolEngine({ registry = createProtocolRegistry(), fetchImpl, 
     const request = buildRequest(provider, model, intent, preparedInput, params);
     const { response, scope } = await openResponse(request, provider, model, options);
     try {
-      await ensureSuccess(response, scope, provider, model);
+      await ensureSuccess(response, scope, provider, model, request);
       const text = await readText(response, scope);
       // Some OpenAI-compatible relays answer a non-streaming call with an SSE
       // body anyway. Reading it as JSON would report "无法解析的数据" even though
@@ -1029,18 +1072,18 @@ function createProtocolEngine({ registry = createProtocolRegistry(), fetchImpl, 
             .filter((line) => line.startsWith("data:"))
             .map((line) => line.slice(5).trim())
             .join("\n");
-          if (!data || data === "[DONE]") continue;
-          try {
-            consumeStreamPayload(eventStreamKind, JSON.parse(data), state, null);
-          } catch {
-            // Provider keep-alives and non-JSON SSE events carry no result.
-          }
+          if (data === "[DONE]") { state.terminal = true; continue; }
+          if (!data) continue;
+          let payload;
+          try { payload = JSON.parse(data); } catch { continue; }
+          consumeStreamPayload(eventStreamKind, payload, state, null);
         }
         if (state.text || state.toolMap.size || state.usage) {
           return {
             text: state.text,
             usage: state.usage,
             toolCalls: streamToolCalls(state),
+            ...completionDetails(state.finishReason, !state.terminal),
             ...(state.reasoningContent ? { reasoningContent: state.reasoningContent } : {}),
           };
         }
@@ -1057,7 +1100,7 @@ function createProtocolEngine({ registry = createProtocolRegistry(), fetchImpl, 
         });
       }
       if (isQuotaRejection(response.status, payload)) {
-        throw errorForStatus(response.status, text, provider, model);
+        throw errorForStatus(response.status, text, provider, model, request);
       }
       // Keep application failures and asynchronous submission evidence through
       // parsing. A successful HTTP response alone is not a completed generation.
@@ -1087,19 +1130,28 @@ function createProtocolEngine({ registry = createProtocolRegistry(), fetchImpl, 
       return {
         text: parsed.text,
         usage: parsed.usage,
+        finishReason: parsed.finishReason,
+        completionStatus: parsed.completionStatus,
+        incompleteReason: parsed.incompleteReason,
+        warning: parsed.warning,
         ...(parsed.reasoningContent ? { reasoningContent: parsed.reasoningContent } : {}),
         ...(parsed.toolCalls?.length ? { toolCalls: parsed.toolCalls } : {}),
         ...(parsed.responseId ? { responseId: parsed.responseId } : {}),
         ...(parsed.model ? { model: parsed.model } : {}),
       };
     } catch (error) {
-      throw normalizeError(error, provider, model);
+      const normalized = normalizeError(error, provider, model);
+      if (normalized.code === "UPSTREAM_TIMEOUT") { normalized.submissionState = "unknown"; normalized.retryable = false; }
+      throw normalized;
     } finally {
       scope.cleanup();
     }
   }
 
   function consumeStreamPayload(streamKind, payload, state, onDelta) {
+    if (payload?.error || payload?.type === "error" || payload?.type === "response.failed") {
+      throw new ProtocolEngineError({ code: "UPSTREAM_TASK_FAILED", retryable: false, safeMessage: "上游文本服务返回失败，请检查平台任务记录。" });
+    }
     let text = "";
     let reasoningContent = "";
     let toolDeltas = [];
@@ -1111,12 +1163,20 @@ function createProtocolEngine({ registry = createProtocolRegistry(), fetchImpl, 
         : typeof delta.reasoningContent === "string" ? delta.reasoningContent : "";
       toolDeltas = Array.isArray(delta.tool_calls) ? delta.tool_calls : [];
       if (payload?.usage) state.usage = payload.usage;
+      if (payload?.choices?.[0]?.finish_reason) {
+        state.finishReason = payload.choices[0].finish_reason;
+        state.terminal = true;
+      }
     } else if (streamKind === "responses-sse") {
       if (payload?.type === "response.output_text.delta") text = String(payload.delta || "");
       if (payload?.type === "response.function_call_arguments.delta") {
         toolDeltas = [{ index: payload.output_index || 0, id: payload.item_id, function: { name: payload.name, arguments: payload.delta } }];
       }
       if (payload?.response?.usage) state.usage = payload.response.usage;
+      if (["response.completed", "response.incomplete"].includes(payload?.type)) {
+        state.terminal = true;
+        state.finishReason = payload?.response?.incomplete_details?.reason || (payload.type === "response.incomplete" ? "incomplete" : "stop");
+      }
     } else if (streamKind === "anthropic-sse") {
       if (payload?.type === "content_block_start" && payload?.content_block?.type === "tool_use") {
         toolDeltas = [{ index: payload.index || 0, id: payload.content_block.id, function: { name: payload.content_block.name, arguments: "" } }];
@@ -1126,10 +1186,13 @@ function createProtocolEngine({ registry = createProtocolRegistry(), fetchImpl, 
         if (payload?.delta?.partial_json) toolDeltas = [{ index: payload.index || 0, function: { arguments: payload.delta.partial_json } }];
       }
       if (payload?.usage) state.usage = payload.usage;
+      if (payload?.delta?.stop_reason) { state.finishReason = payload.delta.stop_reason; state.terminal = true; }
+      if (payload?.type === "message_stop") state.terminal = true;
     } else if (streamKind === "gemini-sse") {
       const parsed = parseResult("gemini-content", payload);
       text = parsed.text;
       if (parsed.usage) state.usage = parsed.usage;
+      if (parsed.finishReason) { state.finishReason = parsed.finishReason; state.terminal = true; }
     }
     if (reasoningContent) state.reasoningContent = `${state.reasoningContent || ""}${reasoningContent}`;
     if (text) {
@@ -1168,7 +1231,7 @@ function createProtocolEngine({ registry = createProtocolRegistry(), fetchImpl, 
   async function streamOnce(provider, model, intent, input = {}, params = {}, onDelta, options = {}) {
     assertCustomIntent(provider, model, intent);
     const { definition, adapter, modelProtocol } = resolve(provider, model);
-    const effectiveParams = effectiveModelParams(model, params);
+    const effectiveParams = effectiveModelParams(model, params, provider);
     if (adapter) {
       if (typeof adapter.stream === "function") {
         try {
@@ -1189,6 +1252,10 @@ function createProtocolEngine({ registry = createProtocolRegistry(), fetchImpl, 
         ...(result?.reasoningContent ? { reasoningContent: result.reasoningContent } : {}),
         ...(result?.responseId ? { responseId: result.responseId } : {}),
         ...(result?.model ? { model: result.model } : {}),
+        finishReason: result?.finishReason,
+        completionStatus: result?.completionStatus,
+        incompleteReason: result?.incompleteReason,
+        warning: result?.warning,
       };
     }
     const requestedIntent = modelOperationsFor(definition)[`${intent}.stream`] ? `${intent}.stream` : intent;
@@ -1203,12 +1270,16 @@ function createProtocolEngine({ registry = createProtocolRegistry(), fetchImpl, 
         ...(result?.reasoningContent ? { reasoningContent: result.reasoningContent } : {}),
         ...(result?.responseId ? { responseId: result.responseId } : {}),
         ...(result?.model ? { model: result.model } : {}),
+        finishReason: result?.finishReason,
+        completionStatus: result?.completionStatus,
+        incompleteReason: result?.incompleteReason,
+        warning: result?.warning,
       };
     }
     const { response, scope } = await openResponse(request, provider, model, options);
     let reader = null;
     try {
-      await ensureSuccess(response, scope, provider, model);
+      await ensureSuccess(response, scope, provider, model, request);
       reader = response?.body?.getReader?.();
       if (!reader) throw new Error("上游流式响应没有可读取的数据体。");
       const decoder = new TextDecoder();
@@ -1220,13 +1291,12 @@ function createProtocolEngine({ registry = createProtocolRegistry(), fetchImpl, 
       let done = false;
       const consumeEvent = (block) => {
         const data = block.split(/\r?\n/).filter((line) => line.startsWith("data:")).map((line) => line.slice(5).trim()).join("\n");
-        if (!data || data === "[DONE]") return;
+        if (data === "[DONE]") { state.terminal = true; state.done = true; return; }
+        if (!data) return;
         sawEvent = true;
-        try {
-          consumeStreamPayload(request.stream, JSON.parse(data), state, onDelta);
-        } catch {
-          // Provider keep-alives and non-JSON SSE events are ignored.
-        }
+        let payload;
+        try { payload = JSON.parse(data); } catch { return; }
+        consumeStreamPayload(request.stream, payload, state, onDelta);
       };
       while (!done) {
         const remainingTotal = Math.max(1, scope.deadline - Date.now());
@@ -1237,22 +1307,32 @@ function createProtocolEngine({ registry = createProtocolRegistry(), fetchImpl, 
         const blocks = buffer.split(/\r?\n\r?\n/);
         buffer = blocks.pop() || "";
         for (const block of blocks) consumeEvent(block);
+        if (state.done) {
+          // A broken transport may never settle cancel(). Cleanup must not
+          // turn a completed reply into an unbounded wait.
+          try { Promise.resolve(reader.cancel()).catch(() => {}); } catch {}
+          done = true;
+        }
       }
       buffer += decoder.decode();
       if (buffer.trim()) consumeEvent(buffer);
       const toolCalls = streamToolCalls(state);
-      onDelta?.({ type: "done", usage: state.usage, toolCalls });
+      const completion = completionDetails(state.finishReason, !state.terminal);
+      onDelta?.({ type: "done", usage: state.usage, toolCalls, ...completion });
       return {
         text: state.text,
         usage: state.usage,
         toolCalls,
+        ...completion,
         ...(state.reasoningContent ? { reasoningContent: state.reasoningContent } : {}),
       };
     } catch (error) {
-      try { await reader?.cancel?.(); } catch {}
-      throw normalizeError(error, provider, model, { intent });
+      try { Promise.resolve(reader?.cancel?.()).catch(() => {}); } catch {}
+      const normalized = normalizeError(error, provider, model, { intent });
+      if (normalized.code === "UPSTREAM_TIMEOUT") { normalized.submissionState = "unknown"; normalized.retryable = false; }
+      throw normalized;
     } finally {
-      reader?.releaseLock?.();
+      try { reader?.releaseLock?.(); } catch {}
       scope.cleanup();
     }
   }

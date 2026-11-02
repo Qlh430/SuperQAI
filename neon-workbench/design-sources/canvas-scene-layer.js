@@ -25,6 +25,59 @@
     return Number.isFinite(number) ? number : fallback;
   }
 
+  function colorWithAlpha(value, alpha, fallback) {
+    const color = String(value || '').trim();
+    const match = color.match(/^#([0-9a-f]{6})$/i);
+    if (!match) return fallback;
+    const red = parseInt(match[1].slice(0, 2), 16);
+    const green = parseInt(match[1].slice(2, 4), 16);
+    const blue = parseInt(match[1].slice(4, 6), 16);
+    return `rgba(${red}, ${green}, ${blue}, ${Math.max(0, Math.min(1, alpha))})`;
+  }
+
+  const ICON_PATHS = Object.freeze({
+    type: 'M4 7V4h16v3M9 20h6M12 4v16',
+    image: 'M3 5h18v14H3zM7.5 9.5h.01M4 17l5-5 4 4 2-2 5 5',
+    'image-plus': 'M3 5h18v14H3zM7.5 9.5h.01M4 17l5-5 4 4 2-2 5 5M18 2v6M15 5h6',
+    video: 'M4 6h10a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Zm12 4 6-3v10l-6-3',
+    film: 'M4 4h16v16H4zM8 4v16M16 4v16M4 9h4M16 9h4M4 15h4M16 15h4',
+    sparkles: 'm12 3-1.4 4.6L6 9l4.6 1.4L12 15l1.4-4.6L18 9l-4.6-1.4L12 3ZM19 15l-.8 2.2L16 18l2.2.8L19 21l.8-2.2L22 18l-2.2-.8L19 15ZM5 15l-.7 1.8L2.5 18l1.8.7L5 20.5l.7-1.8 1.8-.7-1.8-.7L5 15Z',
+    'wand-sparkles': 'm15 4 5 5M4 20l11-11M18 15l-.8 2.2L15 18l2.2.8L18 21l.8-2.2L21 18l-2.2-.8L18 15Z',
+    workflow: 'M5 4h5v5H5zM14 15h5v5h-5zM14 4h5v5h-5zM10 6.5h4M16.5 9v6M10 17.5h4',
+    bot: 'M8 10h.01M16 10h.01M9 15h6M12 3v3M5 8h14v10H5z',
+    'sticky-note': 'M5 3h14v12l-5 6H5zM14 21v-6h5',
+    'audio-lines': 'M5 10v4M9 7v10M13 4v16M17 8v8M21 10v4',
+    clapperboard: 'M4 5h16v15H4zM4 9h16M8 5l3 4M14 5l3 4',
+    images: 'M4 4h14v14H4zM7 7h14v14H7zM9 17l3-3 3 3 2-2 3 3',
+    'layers-3': 'm12 3 9 5-9 5-9-5 9-5ZM3 12l9 5 9-5M3 16l9 5 9-5',
+    'play-square': 'M4 4h16v16H4zM10 8l6 4-6 4z',
+    'layout-grid': 'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z',
+    box: 'M4 7 12 3l8 4-8 4-8-4ZM4 7v10l8 4 8-4V7M12 11v10',
+    'repeat-2': 'm17 2 4 4-4 4M3 6h18M7 22l-4-4 4-4M21 18H3',
+  });
+
+  function drawNodeIcon(context, icon, left, top, size, color) {
+    const dimension = Math.max(1, finite(size, 12));
+    context.save();
+    context.translate(left, top);
+    context.scale(dimension / 24, dimension / 24);
+    context.strokeStyle = color;
+    context.lineWidth = 2.7;
+    context.lineCap = 'round';
+    context.lineJoin = 'round';
+    const path = ICON_PATHS[String(icon || '')] || ICON_PATHS.box;
+    if (typeof Path2D === 'function') context.stroke(new Path2D(path));
+    else { context.strokeRect(5, 5, 14, 14); context.beginPath(); context.moveTo(8, 12); context.lineTo(16, 12); context.stroke(); }
+    context.restore();
+  }
+
+  function statusColor(state, theme) {
+    if (state === 'failed') return theme?.danger || '#ff4d6d';
+    if (state === 'running') return theme?.primary || '#00ff41';
+    if (state === 'done') return theme?.success || theme?.primary || '#00ff41';
+    return theme?.muted || '#888';
+  }
+
   class CanvasSceneLayer {
     constructor({ canvas, devicePixelRatio = 1, createBuffer } = {}) {
       if (!canvas?.getContext) throw new Error("Canvas scene layer requires a canvas.");
@@ -52,6 +105,10 @@
       this.renderedGeometryCount = 0;
       this.lastTransform = null;
       this.currentTransform = null;
+      this.renderCount = 0;
+      this.reprojectCount = 0;
+      this.candidatesRead = 0;
+      this.visualSummary = { icon: 0, title: 0, kind: 0, tag: 0, status: 0, colored: 0 };
     }
 
     resize(width, height, padding = this.padding) {
@@ -76,6 +133,7 @@
       this.spriteCount = 0;
       this.connectionCount = 0;
       this.renderedGeometryCount = 0;
+      this.visualSummary = { icon: 0, title: 0, kind: 0, tag: 0, status: 0, colored: 0 };
       this.lastTransform = null;
       this.currentTransform = null;
       this.canvas.style.transform = "";
@@ -92,15 +150,15 @@
 
     reproject(transform = {}) {
       if (!this.lastTransform) return false;
+      this.reprojectCount += 1;
       this.currentTransform = { ...transform };
       const previousScale = Math.max(0.000001, finite(this.lastTransform.scale, 1));
       const nextScale = Math.max(0.000001, finite(transform.scale, 1));
       const ratio = nextScale / previousScale;
-      // The canvas is laid out at (-padding, -padding), so that base offset is
-      // already included in its local coordinate space. Adding it again here
-      // shifts the scene away from the pointer anchor whenever scale changes.
-      const translateX = finite(transform.x) - ratio * finite(this.lastTransform.x);
-      const translateY = finite(transform.y) - ratio * finite(this.lastTransform.y);
+      // Raster coordinates include padding, but the element's -padding layout
+      // offset is outside its CSS scale. Cancel the scaled padding as well.
+      const translateX = finite(transform.x) - ratio * finite(this.lastTransform.x) + (1 - ratio) * this.padding;
+      const translateY = finite(transform.y) - ratio * finite(this.lastTransform.y) + (1 - ratio) * this.padding;
       this.canvas.style.transformOrigin = "0 0";
       this.canvas.style.transform = `translate3d(${translateX}px, ${translateY}px, 0) scale(${ratio})`;
       return true;
@@ -158,55 +216,119 @@
       );
     }
 
-    drawNode(context, node, transform, textured, resolveTexture, resolveNodeBounds, resolveNodeLabel, renderBounds) {
+    drawNode(context, node, transform, textured, resolveTexture, resolveNodeBounds, resolveNodeLabel, resolveNodeVisualGeometry, renderBounds) {
       const imageNode = ["image", "upload"].includes(String(node.kind || ""));
-      const texture = node.previewSource && typeof resolveTexture === "function"
+      const visuals = globalThis.CanvasNodeVisuals;
+      const texture = !visuals && node.previewSource && typeof resolveTexture === "function"
         ? resolveTexture(node.previewSource, node, { cachedOnly: !textured }) : null;
       const ready = texture && typeof texture.then !== "function" && (texture.complete === undefined || texture.complete);
       const envelope = geometryRules.getNodeRect(node);
-      const rect = imageNode ? (resolveNodeBounds?.(node) || geometryRules.getImageContentRect(envelope, {
+      const geometry = node.visualGeometry || resolveNodeVisualGeometry?.(node.id) || null;
+      const rect = geometry?.outerBounds || resolveNodeBounds?.(node) || (imageNode ? geometryRules.getImageContentRect(envelope, {
         width: texture?.naturalWidth ?? texture?.width, height: texture?.naturalHeight ?? texture?.height,
-      })) : envelope;
+      }) : envelope);
+      const mediaRect = geometry?.mediaBounds || geometry?.contentBounds || rect;
       const topLeft = this.toScreen(rect.left, rect.top, transform);
       const scale = Math.max(0.000001, finite(transform.scale, 1));
       const width = Math.max(0.25, (rect.right - rect.left) * scale);
       const height = Math.max(0.25, (rect.bottom - rect.top) * scale);
+      const mediaTopLeft = this.toScreen(mediaRect.left, mediaRect.top, transform);
+      const mediaWidth = Math.max(0.25, (mediaRect.right - mediaRect.left) * scale);
+      const mediaHeight = Math.max(0.25, (mediaRect.bottom - mediaRect.top) * scale);
       if (renderBounds && (
         topLeft.x + width < renderBounds.left
         || topLeft.y + height < renderBounds.top
         || topLeft.x > renderBounds.right
         || topLeft.y > renderBounds.bottom
       )) return false;
-      if (!imageNode) {
-        context.fillStyle = SURFACES[String(node.kind || "")] || "#25262a";
-        context.fillRect(topLeft.x, topLeft.y, width, height);
-        context.strokeStyle = "rgba(126, 146, 255, 0.68)";
-        context.lineWidth = Math.min(1, Math.max(0.35, scale));
-        context.strokeRect(topLeft.x, topLeft.y, width, height);
+      const rich = node.representation !== 'canvas' && width >= 140;
+      const bodySurface = geometry?.bodySurface ?? true;
+      const isGroup = node.kind === 'group';
+      if (bodySurface) {
+          context.fillStyle = node.kind==='note' ? (node.visualContent || visuals?.project(node))?.paperColor || '#e6d990'
+            : isGroup ? 'rgba(255,255,255,.06)' : this.theme?.card || SURFACES[String(node.kind || "")] || "#1a1a1a";
+        context.beginPath();
+        const radius = Math.min(finite(geometry?.borderRadius, 16) * scale, width / 2, height / 2);
+        context.roundRect(topLeft.x, topLeft.y, width, height, radius);
+        context.fill();
+        if(isGroup && node.groupColor){context.fillStyle=colorWithAlpha(node.groupColor,.16,'rgba(255,255,255,.07)');context.fill();}
+        const visualState = node.visualState || 'normal';
+        context.strokeStyle = ['selected','focused','connecting'].includes(visualState)
+          ? this.theme?.primary || '#00ff41'
+          : visualState === 'hover'
+            ? colorWithAlpha(this.theme?.muted, .72, this.theme?.border || '#2a2a2a')
+            : isGroup ? colorWithAlpha(node.groupColor,.58,'rgba(255,255,255,.22)') : this.theme?.border || '#2a2a2a';
+        context.lineWidth = ['selected','focused','connecting'].includes(visualState) ? Math.min(2, Math.max(1, 2 * scale)) : Math.min(1, Math.max(0.35, scale));
+        context.stroke();
       }
-      if (ready) {
-        if (imageNode) context.drawImage(texture, topLeft.x, topLeft.y, width, height);
-        else this.drawContain(context, texture, topLeft.x, topLeft.y, width, height);
+      if (visuals && geometry) {
+        visuals.paint(context, node.visualContent || visuals.project(node), geometry, transform, {theme:this.theme,resolveTexture,node,cachedOnly:!textured});
+      } else if (ready) {
+        context.save();
+        context.beginPath();context.roundRect(mediaTopLeft.x, mediaTopLeft.y, mediaWidth, mediaHeight, Math.min(finite(geometry?.borderRadius, 16) * scale, mediaWidth / 2, mediaHeight / 2));context.clip();
+        this.drawContain(context, texture, mediaTopLeft.x, mediaTopLeft.y, mediaWidth, mediaHeight);
+        context.restore();
       }
-      if (!imageNode && node.title && width >= 96 && height >= 34) {
-        context.fillStyle = "rgba(255,255,255,0.94)";
-        context.font = `${Math.max(8, Math.min(13, 11 * scale))}px system-ui, sans-serif`;
-        context.fillText(String(node.title).slice(0, 80), topLeft.x + 6, topLeft.y + 16, width - 12);
+      const identityColor = node.nodeColor || node.groupColor || this.theme?.muted || '#888';
+      if (node.icon) this.visualSummary.icon += 1;
+      if (node.title) this.visualSummary.title += 1;
+      if (node.kindLabel) this.visualSummary.kind += 1;
+      if (node.tag?.name) this.visualSummary.tag += 1;
+      if (node.status?.text) this.visualSummary.status += 1;
+      if (node.nodeColor || node.groupColor) this.visualSummary.colored += 1;
+      const header = geometry?.headerBounds || {left:rect.left,top:rect.top-48,right:rect.right,bottom:rect.top};
+      const headerTop = this.toScreen(header.left, header.top, transform);
+      if (!isGroup) headerTop.y -= 8;
+      const headerWidth = Math.max(1,(header.right-header.left)*scale);
+      const iconSize = 16 * scale;
+      if (isGroup) {
+        context.fillStyle=this.theme?.muted||'#888';context.font=`500 ${13*scale}px system-ui, sans-serif`;
+        context.fillText(String(node.groupTitle||node.title||'组'),headerTop.x,headerTop.y+18*scale,Math.max(1,headerWidth-72*scale));
+        context.font=`400 ${12*scale}px system-ui, sans-serif`;context.textAlign='right';
+        context.fillText(`${node.groupMembers?.length||0} 个节点`,headerTop.x+headerWidth,headerTop.y+18*scale);context.textAlign='start';
+      } else if (headerWidth > 0) {
+        drawNodeIcon(context, node.icon || 'box', headerTop.x, headerTop.y + 16 * scale, iconSize, identityColor);
+        if (node.title) {
+          context.fillStyle = this.theme?.muted || '#888';
+          context.font = `500 ${16 * scale}px system-ui, sans-serif`;
+          const titleLeft = headerTop.x + 23 * scale;
+          const reservedTagWidth = node.tag?.name ? Math.min(headerWidth * .55, 220) : 0;
+          const titleWidth = Math.max(1,headerWidth-titleLeft+headerTop.x-reservedTagWidth-4);
+          context.save(); context.beginPath(); context.rect(titleLeft, headerTop.y + 10 * scale, titleWidth, 28 * scale); context.clip();
+          context.fillText(String(node.title).slice(0, 80), titleLeft, headerTop.y + 29.6 * scale); context.restore();
+        }
       }
-      const label = resolveNodeLabel?.(node);
-      if (label && (width < 48 || scale < .25)) {
-        const radius = Math.max(1, Math.min(4, 4 * scale));
-        context.fillStyle = label.color; context.beginPath();
-        context.arc(topLeft.x + width - radius, topLeft.y - radius * 2, radius, 0, Math.PI * 2); context.fill();
+      if (!visuals && node.kind === 'text' && node.text && !ready) {
+        context.fillStyle = this.theme?.text || '#fff';
+        context.font = `${Math.max(9, Math.min(14, 14 * scale))}px system-ui, sans-serif`;
+        context.fillText(String(node.text).slice(0, 120), topLeft.x + 12 * scale, topLeft.y + 28 * scale, Math.max(1,width - 24 * scale));
       }
-      if (label && width >= 48 && scale >= .25) {
-        const font = Math.max(8, Math.min(14, 14 * scale));
+      const label = node.tag || resolveNodeLabel?.(node);
+      if (label && !isGroup) {
+        const font = 14 * scale;
         context.font = `500 ${font}px system-ui, sans-serif`;
-        const text = String(label.name), badgeWidth = Math.min(width, context.measureText(text).width + 16 * scale);
-        const badgeHeight = 28 * scale, left = topLeft.x + width - badgeWidth, top = topLeft.y - badgeHeight - 8 * scale;
+        const text = String(label.name), badgeWidth = Math.min(width * .55, context.measureText(text).width + 40 * scale);
+        const badgeHeight = 44 * scale, left = topLeft.x + width - badgeWidth, top = headerTop.y + 2 * scale;
         context.fillStyle = label.color;
-        context.beginPath(); context.roundRect(left, top, badgeWidth, badgeHeight, 8 * scale); context.fill();
-        context.fillStyle = label.foreground; context.fillText(text, left + 8 * scale, top + badgeHeight * .72, badgeWidth - 12 * scale);
+        context.beginPath(); context.roundRect(left, top, badgeWidth, badgeHeight, 10 * scale); context.fill();
+        context.fillStyle = label.foreground;
+        context.beginPath();context.arc(left+16*scale,top+22*scale,4*scale,0,Math.PI*2);context.fill();
+        context.fillText(text, left + 28 * scale, top + 27.6 * scale, badgeWidth - 40 * scale);
+      }
+      const state = node.status?.state || 'idle';
+      const status = node.status?.text || '';
+      const quietStatus = node.kind==='note' || !['running','failed'].includes(state) && ['image','text','llm','minimax-h3','video-api','audio-generator','midjourney','comfy','asset-collection','video','audio','asset-video','asset-audio','video-output'].includes(node.kind);
+      if (!isGroup && !quietStatus && width > 0 && height > 0) {
+        const dot = Math.max(2, Math.min(5, 5 * scale));
+        context.fillStyle = statusColor(state, this.theme);
+        context.beginPath(); context.arc(topLeft.x + width - dot - Math.max(4, 6 * scale), topLeft.y + height - dot - Math.max(4, 6 * scale), dot, 0, Math.PI * 2); context.fill();
+        if (status) {
+          context.fillStyle = this.theme?.muted || '#888';
+          context.font = `500 ${11 * scale}px system-ui, sans-serif`;
+          context.textAlign = 'right';
+          context.fillText(String(status).slice(0, 24), topLeft.x + width - 8 * scale, topLeft.y + height - 10.75 * scale, Math.max(1, width * .58));
+          context.textAlign = 'start';
+        }
       }
       this.hitRegions.push({
         id: String(node.id),
@@ -217,12 +339,20 @@
         top: topLeft.y - this.padding,
         right: topLeft.x + width - this.padding,
         bottom: topLeft.y + height - this.padding,
+        header: {left:headerTop.x-this.padding, top:headerTop.y-this.padding,
+          right:headerTop.x+headerWidth-this.padding, bottom:headerTop.y+(header.bottom-header.top)*scale-this.padding},
       });
       return true;
     }
 
-    render({ visualNodes = [], visualConnections = [], texturedNodeIds = [], selectedIds = new Set(), transform = {}, resolveTexture, resolveNodeBounds, resolveNodeLabel } = {}) {
+    render({ visualNodes = [], visualConnections = [], texturedNodeIds = [], selectedIds = new Set(), transform = {}, resolveTexture, resolveNodeBounds, resolveNodeLabel, resolveNodeVisualGeometry } = {}) {
+      this.renderCount += 1;
+      this.candidatesRead += visualNodes.length;
       const context = this.bufferContext;
+      const style = this.canvas.ownerDocument?.defaultView?.getComputedStyle?.(this.canvas);
+      const token = (name, fallback) => style?.getPropertyValue(`--canvas-neon-${name}`).trim() || fallback;
+      this.theme = {card:token('card','#1a1a1a'),border:token('border','#2a2a2a'),text:token('text','#fff'),muted:token('muted','#888'),primary:token('primary','#00ff41')};
+      this.visualSummary = { icon: 0, title: 0, kind: 0, tag: 0, status: 0, colored: 0 };
       const drawTransform = {
         ...transform,
         x: finite(transform.x) + this.padding,
@@ -245,10 +375,18 @@
               zOrder: finite(node[6]),
               previewSource: String(node[7] || ""),
               title: String(node[8] || "节点"),
+              nodeLabelId: String(node[9] || ""),
+              icon: String(node[10] || "box"),
+              kindLabel: String(node[11] || ""),
+              tag: node[12] || null,
+              status: node[13] || null,
+              groupColor: String(node[14] || ""),
+              nodeColor: String(node[15] || ""),
+              tone: String(node[16] || "neutral"),
             }
           : node
       ))
-        .sort((left, right) => finite(left.zOrder) - finite(right.zOrder));
+        .sort((left, right) => Number(left.kind !== 'group') - Number(right.kind !== 'group') || finite(left.zOrder) - finite(right.zOrder));
       const textured = new Set(Array.isArray(texturedNodeIds) ? texturedNodeIds.map(String) : []);
       const renderBounds = {
         left: -32,
@@ -301,21 +439,22 @@
         if (renderedConnectionCount) {
           const style = this.canvas.ownerDocument?.defaultView?.getComputedStyle?.(this.canvas);
           const lineColor = style?.getPropertyValue("--canvas-neon-muted").trim();
-          context.strokeStyle = lineColor || "#888";
-          context.lineWidth = 2.5;
-          context.setLineDash([7, 5]);
+          context.strokeStyle = colorWithAlpha(lineColor, .4, "rgba(136, 136, 136, 0.4)");
+          const wireScale = Math.max(0.000001, finite(transform.scale, 1));
+          context.lineWidth = 3 * wireScale;
+          context.setLineDash([6 * wireScale, 6 * wireScale]);
           context.stroke();
           context.setLineDash([]);
         }
       }
       let renderedNodeCount = 0;
       nodes.forEach(node => {
-        const rendered = this.drawNode(context, node, drawTransform, textured.has(String(node.id)), resolveTexture, resolveNodeBounds, resolveNodeLabel, renderBounds);
+        const rendered = this.drawNode(context, node, drawTransform, textured.has(String(node.id)), resolveTexture, resolveNodeBounds, resolveNodeLabel, resolveNodeVisualGeometry, renderBounds);
         if (!rendered) return;
         renderedNodeCount += 1;
         const region = this.hitRegions.at(-1);
-        if (region?.id === String(node.id) && selectedIds.has(region.id)) {
-          context.strokeStyle = "#6691ff";
+        if (region?.id === String(node.id) && selectedIds.has(region.id) && node.visualGeometry?.bodySurface === false) {
+          context.strokeStyle = this.theme.primary;
           context.lineWidth = 2;
           context.strokeRect(region.left + this.padding, region.top + this.padding, region.right - region.left, region.bottom - region.top);
         }
@@ -358,6 +497,8 @@
       if (!Number.isFinite(pointX) || !Number.isFinite(pointY)) return null;
       for (let index = this.hitRegions.length - 1; index >= 0; index -= 1) {
         const region = this.hitRegions[index];
+        const header = region.header;
+        if (header && pointX >= header.left && pointX <= header.right && pointY >= header.top && pointY <= header.bottom) return {id:region.id,item:region.item};
         if (
           pointX >= region.left && pointX <= region.right
           && pointY >= region.top && pointY <= region.bottom
@@ -397,8 +538,12 @@
         spriteCount: this.spriteCount,
         connectionCount: this.connectionCount,
         renderedGeometryCount: this.renderedGeometryCount,
+        renderCount: this.renderCount,
+        reprojectCount: this.reprojectCount,
+        candidatesRead: this.candidatesRead,
         aggregateCardCount: 0,
         blankNodeCount: 0,
+        visualSummary: { ...this.visualSummary },
       };
     }
   }

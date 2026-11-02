@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AI OS</title>
+    <title>BenDo</title>
     <!--
       three.js is vendored under assets/vendor/three. The official addons import
       the bare "three" specifier, so the import map is what lets the 3D stage
@@ -62,14 +62,14 @@
   <link rel="stylesheet" href="./neon-page-rebuild.css?v=20260930-rebuild5" />
   <link rel="stylesheet" href="./neon-workbench.css?v=20260930-rebuild" />\n  <style>#aiOsNeonRoot:not([hidden]){position:fixed;inset:0;z-index:9999;display:block;background:oklch(0.145 0.01 264)}#aiOsNeonRoot[hidden]{display:none}</style>\n</head>
   <body>
-    <section class="ai-os-startup-gate" id="aiOsStartupGate" role="status" aria-live="polite" aria-busy="true" aria-label="AI OS 正在启动">
+    <section class="ai-os-startup-gate" id="aiOsStartupGate" role="status" aria-live="polite" aria-busy="true" aria-label="BenDo 正在启动">
       <div class="ai-os-startup-panel">
         <div class="ai-os-startup-brand">
-          <span class="ai-os-startup-brand-mark" aria-hidden="true">∞</span>
-          <div><strong>AI OS</strong><span>本地创作工作台</span></div>
+          <span class="ai-os-startup-brand-mark" aria-hidden="true"><!-- __BENDO_STARTUP_LOGO__ --></span>
+          <div><strong>BenDo</strong><span>本地创作工作台</span></div>
         </div>
         <div class="ai-os-startup-heading">
-          <strong id="aiOsStartupStatus">正在准备 AI OS</strong>
+          <strong id="aiOsStartupStatus">正在准备 BenDo</strong>
           <span class="ai-os-startup-spinner" aria-hidden="true"></span>
         </div>
         <p class="ai-os-startup-detail" id="aiOsStartupDetail">正在加载桌面组件与图标…</p>
@@ -87,8 +87,8 @@
       <div class="ai-os-auth-aurora" aria-hidden="true"></div>
       <div class="ai-os-auth-card">
         <div class="ai-os-auth-brand">
-          <span class="ai-os-brand-mark" aria-hidden="true">∞</span>
-          <div><strong>AI OS</strong><span>局域网创作空间</span></div>
+          <span class="ai-os-brand-mark" aria-hidden="true"><!-- __BENDO_STARTUP_LOGO__ --></span>
+          <div><strong>BenDo</strong><span>局域网创作空间</span></div>
         </div>
         <div class="ai-os-auth-copy">
           <p class="ai-os-eyebrow" id="aiOsAuthEyebrow">安全登录</p>
@@ -98,7 +98,7 @@
         <form class="ai-os-auth-form" id="aiOsLoginForm">
           <label><span>账号</span><input id="aiOsLoginUsername" name="username" autocomplete="username" required /></label>
           <label><span>密码</span><input id="aiOsLoginPassword" name="password" type="password" autocomplete="current-password" required /></label>
-          <button type="submit">登录 AI OS</button>
+          <button type="submit">登录 BenDo</button>
         </form>
         <form class="ai-os-auth-form" id="aiOsBootstrapForm" hidden>
           <label><span>管理员账号</span><input name="username" autocomplete="username" value="SuperQ" required /></label>
@@ -116,7 +116,7 @@
       <header class="ai-os-menu-bar">
         <div class="ai-os-menu-left">
           <span class="ai-os-menu-logo">∞</span>
-          <strong>AI OS</strong>
+          <strong>BenDo</strong>
           <span id="aiOsActiveApp">工作台</span>
         </div>
         <div class="ai-os-menu-right">

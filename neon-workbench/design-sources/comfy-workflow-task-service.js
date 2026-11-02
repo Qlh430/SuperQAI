@@ -6,6 +6,7 @@ const path = require("node:path");
 
 function createComfyWorkflowTaskService({
   mediaTaskService,
+  registerMedia,
   updateTask,
   cleanupTasks,
   workflowFiles,
@@ -43,6 +44,7 @@ function createComfyWorkflowTaskService({
     "runninghubOutpaint",
     "flux2KleinEdit",
     "qwenEditAngle",
+    "qwenImage21Redraw",
     "removeBackground",
   ]) {
     if (!workflowFiles[name]) throw new TypeError(`ComfyUI workflow task service requires workflowFiles.${name}.`);
@@ -55,6 +57,16 @@ function createComfyWorkflowTaskService({
     ? cleanupTasks
     : () => mediaTaskService.cleanupExpired();
 
+  async function saveTaskImages(taskId, ...args) {
+    const images = await comfyClient.saveHistoryImages(...args);
+    const owner = mediaTaskService.get(taskId)?.ownerUserId;
+    if (owner && registerMedia) for (const image of images) {
+      const url = typeof image === "string" ? image : image.url || image.local_url;
+      if (url?.startsWith("/output/")) await registerMedia(owner, { url, filename: path.basename(url) }, "image/png", { source: "generated" });
+    }
+    return images;
+  }
+
   function getWorkflowFile(workflowType) {
     if (workflowType === "seedvr2") return workflowFiles.seedvr2;
     if (workflowType === "shoe-swap") return workflowFiles.shoeSwap;
@@ -62,6 +74,7 @@ function createComfyWorkflowTaskService({
     if (workflowType === "runninghub-outpaint") return workflowFiles.runninghubOutpaint;
     if (workflowType === "flux2-klein-edit") return workflowFiles.flux2KleinEdit;
     if (workflowType === "qwen-edit-angle") return workflowFiles.qwenEditAngle;
+    if (workflowType === "qwen-image21-redraw") return workflowFiles.qwenImage21Redraw;
     if (workflowType === "remove-background") return workflowFiles.removeBackground;
     return workflowFiles.ttp;
   }
@@ -200,6 +213,7 @@ function createComfyWorkflowTaskService({
       const taskId = crypto.randomUUID();
       mediaTaskService.set(taskId, {
         id: taskId,
+        ownerUserId: req.auth?.user?.id,
         status: "queued",
         progress: 5,
         message: "任务已创建，准备提交 ComfyUI...",
@@ -222,6 +236,82 @@ function createComfyWorkflowTaskService({
     } catch (error) {
       sendJson(res, 500, { error: formatErrorMessage(error) });
     }
+  }
+
+  async function handleQwenImage21Redraw(req, res) {
+    try {
+      const workflowFile = workflowFiles.qwenImage21Redraw;
+      if (!fs.existsSync(workflowFile)) {
+        sendJson(res, 500, { error: "缺少 Qwen-image2.1 重绘工作流模板。" });
+        return;
+      }
+      const payload = await readJson(req);
+      const image = typeof payload.image === "string" ? payload.image : payload.image?.url || payload.image?.value || "";
+      const mask = typeof payload.mask_image === "string" ? payload.mask_image : payload.mask_image?.url || payload.mask_image?.value || "";
+      if (!image) { sendJson(res, 400, { error: "缺少原图。" }); return; }
+      if (!mask) { sendJson(res, 400, { error: "缺少遮罩，请先绘制需要处理的区域。" }); return; }
+      cleanupWorkflowTasks();
+      const taskId = crypto.randomUUID();
+      mediaTaskService.set(taskId, {
+        id: taskId,
+        ownerUserId: req.auth?.user?.id,
+        status: "queued",
+        progress: 5,
+        message: "任务已创建，准备提交重绘工作流...",
+        created_at: now(),
+        updated_at: now(),
+        images: [],
+        comfy_mode: "qwen-image21-redraw",
+      });
+      runQwenImage21RedrawTask(taskId, { ...payload, image, mask_image: mask }).catch((error) => {
+        updateWorkflowTask(taskId, {
+          status: "failed",
+          progress: 0,
+          message: `重绘失败：${formatErrorMessage(error)}`,
+          error: formatErrorMessage(error),
+        });
+      });
+      sendJson(res, 202, { task_id: taskId, mode: String(payload.prompt || "").trim() ? "redraw" : "remove" });
+    } catch (error) {
+      sendJson(res, 500, { error: formatErrorMessage(error) });
+    }
+  }
+
+  async function runQwenImage21RedrawTask(taskId, payload) {
+    updateWorkflowTask(taskId, { status: "running", progress: 10, message: "正在上传原图和遮罩到 ComfyUI..." });
+    const comfyUrl = comfyClient.normalizeUrl(payload.comfy_url);
+    const uploadToken = makeUploadToken(taskId);
+    const uploadedImage = await comfyClient.uploadDataUrl(comfyUrl, payload.image, makeUploadFilename(payload.name || "qwen_redraw_input.png", uploadToken));
+    const uploadedMask = await comfyClient.uploadDataUrl(comfyUrl, payload.mask_image, makeUploadFilename(payload.mask_name || "qwen_redraw_mask.png", `${uploadToken}_mask`));
+    const workflow = JSON.parse(fs.readFileSync(workflowFiles.qwenImage21Redraw, "utf8"));
+    if (!workflow["193"]?.inputs || !workflow["22"]?.inputs || !workflow["262"]?.inputs) {
+      throw new Error("重绘工作流缺少原图、提示词或判断输出节点。 ");
+    }
+    workflow["193"].inputs.image = uploadedImage.name;
+    workflow["22"].inputs.Text = String(payload.prompt || "").trim();
+    const maskNodeId = "290";
+    workflow[maskNodeId] = {
+      inputs: { image: uploadedMask.name, "保留透明通道": false },
+      class_type: "LoadImageGoohai",
+      _meta: { title: "加载重绘遮罩" },
+    };
+    replaceWorkflowReference(workflow, "193", 1, maskNodeId, 1);
+    if (workflow["38"]?.inputs) workflow["38"].inputs.filename_prefix = `qwen_image21_redraw_${now()}`;
+    updateWorkflowTask(taskId, { progress: 30, message: "正在提交 Qwen-image2.1 重绘队列..." });
+    const promptId = await comfyClient.submitPrompt(comfyUrl, workflow);
+    updateWorkflowTask(taskId, { progress: 38, message: "ComfyUI 已接收重绘任务，正在处理...", prompt_id: promptId, input: uploadedImage.name, mask: uploadedMask.name });
+    const history = await comfyClient.waitForHistory(comfyUrl, promptId, (status) => updateWorkflowTask(taskId, {
+      ...status,
+      message: status.message || "ComfyUI 正在处理重绘...",
+    }));
+    updateWorkflowTask(taskId, { progress: 94, message: "ComfyUI 已完成，正在保存重绘结果..." });
+    // The workflow routes the selected branch through 262, then writes the
+    // actual final image in SaveImage node 38. Intermediate IMAGE outputs are
+    // not guaranteed to be present in ComfyUI history, so read the saved
+    // result node instead of treating the branch selector as the output.
+    const images = await saveTaskImages(taskId, comfyUrl, history, `qwen_image21_redraw_${now()}_`, ["38"], { strictPreferred: true, lastOnly: true });
+    if (!images.length) throw new Error("ComfyUI 完成，但没有找到重绘结果。");
+    updateWorkflowTask(taskId, { status: "success", progress: 100, message: String(payload.prompt || "").trim() ? "局部重绘完成。" : "移除完成。", images, comfy: comfyUrl });
   }
 
   async function runQwenImage21Task(taskId, payload, mode) {
@@ -285,7 +375,7 @@ function createComfyWorkflowTaskService({
         message: status.message || "ComfyUI 正在处理 Qwen-image2.1 图像编辑...",
       }));
       updateWorkflowTask(taskId, { progress: 94, message: "ComfyUI 已完成，正在保存 Qwen-image2.1 结果..." });
-      const images = await comfyClient.saveHistoryImages(
+      const images = await saveTaskImages(taskId, 
         comfyUrl,
         history,
         `qwen_image21_edit_${now()}_`,
@@ -327,7 +417,7 @@ function createComfyWorkflowTaskService({
       message: status.message || "ComfyUI 正在处理 Qwen-image2.1 生图...",
     }));
     updateWorkflowTask(taskId, { progress: 94, message: "ComfyUI 已完成，正在保存 Qwen-image2.1 结果..." });
-    const images = await comfyClient.saveHistoryImages(
+    const images = await saveTaskImages(taskId, 
       comfyUrl,
       history,
       `qwen_image21_${now()}_`,
@@ -367,6 +457,7 @@ function createComfyWorkflowTaskService({
       const taskId = crypto.randomUUID();
       mediaTaskService.set(taskId, {
         id: taskId,
+        ownerUserId: req.auth?.user?.id,
         status: "queued",
         progress: 5,
         message: "任务已创建，准备提交 ComfyUI...",
@@ -398,6 +489,9 @@ function createComfyWorkflowTaskService({
       if (!task) {
         sendJson(res, 404, { error: "Upscale task was not found." });
         return;
+      }
+      if (task.ownerUserId && task.ownerUserId !== req.auth?.user?.id) {
+        sendJson(res, 403, { error: "无权访问此生成任务。" }); return;
       }
       sendJson(res, 200, task);
     } catch (error) {
@@ -502,7 +596,7 @@ function createComfyWorkflowTaskService({
     const history = await comfyClient.waitForHistory(comfyUrl, promptId, (status) => updateWorkflowTask(taskId, status));
     updateWorkflowTask(taskId, { progress: 94, message: "ComfyUI 已完成，正在保存高清图片..." });
     const preferredOutputIds = isSeedVr2 ? ["26", "1078"] : ["32"];
-    const images = await comfyClient.saveHistoryImages(comfyUrl, history, `upscale_${now()}_`, preferredOutputIds);
+    const images = await saveTaskImages(taskId, comfyUrl, history, `upscale_${now()}_`, preferredOutputIds);
     if (!images.length) throw new Error("ComfyUI completed, but no output image was found.");
 
     updateWorkflowTask(taskId, {
@@ -556,7 +650,7 @@ function createComfyWorkflowTaskService({
 
     const history = await comfyClient.waitForHistory(comfyUrl, promptId, (status) => updateWorkflowTask(taskId, status));
     updateWorkflowTask(taskId, { progress: 94, message: "ComfyUI 已完成，正在保存透明图片..." });
-    const images = await comfyClient.saveHistoryImages(comfyUrl, history, `cutout_${now()}_`, [], { filenamePrefix: outputPrefix });
+    const images = await saveTaskImages(taskId, comfyUrl, history, `cutout_${now()}_`, [], { filenamePrefix: outputPrefix });
     if (!images.length) throw new Error("ComfyUI 抠图完成，但没有找到输出图片。");
 
     updateWorkflowTask(taskId, {
@@ -616,7 +710,7 @@ function createComfyWorkflowTaskService({
       message: status.message || "ComfyUI 正在处理 Flux2 Klein 图片编辑...",
     }));
     updateWorkflowTask(taskId, { progress: 94, message: "ComfyUI 已完成，正在保存 Flux2 Klein 结果..." });
-    const images = await comfyClient.saveHistoryImages(
+    const images = await saveTaskImages(taskId, 
       comfyUrl,
       history,
       `flux2_klein_edit_${now()}_`,
@@ -691,7 +785,7 @@ function createComfyWorkflowTaskService({
       message: status.message || "ComfyUI 正在处理 Qwen 角度切换...",
     }));
     updateWorkflowTask(taskId, { progress: 94, message: "ComfyUI 已完成，正在保存 Qwen 结果..." });
-    const images = await comfyClient.saveHistoryImages(
+    const images = await saveTaskImages(taskId, 
       comfyUrl,
       history,
       `qwen_edit_angle_${now()}_`,
@@ -778,7 +872,7 @@ function createComfyWorkflowTaskService({
       message: status.message || "ComfyUI 正在处理换鞋，可能需要几分钟...",
     }));
     updateWorkflowTask(taskId, { progress: 94, message: "ComfyUI 已完成，正在保存换鞋结果..." });
-    let images = await comfyClient.saveHistoryImages(
+    let images = await saveTaskImages(taskId, 
       comfyUrl,
       history,
       `shoe_swap_${now()}_`,
@@ -788,7 +882,7 @@ function createComfyWorkflowTaskService({
     let usedFallbackOutput = false;
     if (!images.length) {
       updateWorkflowTask(taskId, { progress: 96, message: "Final stitch node had no output; saving Gemini raw shoe-swap result..." });
-      images = await comfyClient.saveHistoryImages(
+      images = await saveTaskImages(taskId, 
         comfyUrl,
         history,
         `shoe_swap_raw_${now()}_`,
@@ -870,7 +964,7 @@ function createComfyWorkflowTaskService({
       message: status.message || "ComfyUI 正在处理扩图，可能需要几分钟...",
     }));
     updateWorkflowTask(taskId, { progress: 94, message: "ComfyUI 已完成，正在保存扩图结果..." });
-    const images = await comfyClient.saveHistoryImages(comfyUrl, history, `outpaint_${now()}_`, ["591"]);
+    const images = await saveTaskImages(taskId, comfyUrl, history, `outpaint_${now()}_`, ["591"]);
     if (!images.length) throw new Error("ComfyUI completed, but no outpaint output image was found.");
 
     updateWorkflowTask(taskId, {
@@ -961,8 +1055,10 @@ function createComfyWorkflowTaskService({
     handleUpscale,
     handleUpscaleStatus,
     handleQwenImage21,
+    handleQwenImage21Redraw,
     runTask,
     runQwenImage21Task,
+    runQwenImage21RedrawTask,
     getWorkflowFile,
     qwenImage21Files,
     applyQwenImage21References,

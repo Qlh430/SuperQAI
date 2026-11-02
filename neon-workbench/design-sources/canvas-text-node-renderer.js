@@ -8,6 +8,12 @@
   const PLACEHOLDER = "写下一个想法";
   const editors = new WeakMap();
   const selectionDocuments = new WeakSet();
+  function ensureSelectionListener(document) {
+    if (selectionDocuments.has(document)) return;
+    selectionDocuments.add(document);
+    // This document listener must not share a renderer invocation's node scope.
+    document.addEventListener("selectionchange", () => document.querySelectorAll('.canvas-text[data-editing="true"]').forEach(syncToolbar));
+  }
   const FORMATS = [
     ["bold", "粗体", "bold"], ["italic", "斜体", "italic"], ["underline", "下划线", "underline"],
     ["p", "正文", "pilcrow"], ["h1", "一级标题", "heading-1"], ["h2", "二级标题", "heading-2"], ["h3", "三级标题", "heading-3"],
@@ -84,6 +90,31 @@
 
   function markEmptyState(text, value) {
     text.dataset.empty = String(value).trim() ? "false" : "true";
+  }
+
+  const TEXT_BODY_MIN_HEIGHT = 142;
+  const TEXT_BODY_MAX_HEIGHT = 1200;
+
+  function syncAutoSize(text, { persist = false } = {}) {
+    const node = text?.closest?.(".canvas-node-text");
+    if (!node || node.dataset.mediaSizeMode === "manual") return false;
+    const measured = Math.ceil(Number(text.scrollHeight) || 0);
+    if (!measured) return false;
+    const nextHeight = Math.max(TEXT_BODY_MIN_HEIGHT, Math.min(TEXT_BODY_MAX_HEIGHT, measured));
+    const next = String(nextHeight);
+    const changed = node.dataset.height !== next
+      || node.style.getPropertyValue("--flora-node-height") !== `${nextHeight}px`;
+    node.dataset.height = next;
+    node.dataset.renderedHeight = String(nextHeight + 48);
+    node.style.setProperty("--flora-node-height", `${nextHeight}px`);
+    node.style.setProperty("--canvas-node-text-height", `${nextHeight}px`);
+    text.dataset.textOverflow = String(measured > TEXT_BODY_MAX_HEIGHT);
+    if (changed) {
+      const context = editors.get(text)?.context;
+      context?.scheduleCanvasConnectionRender?.({ trailing: false });
+      if (persist) context?.scheduleCanvasSave?.(node);
+    }
+    return changed;
   }
 
   // Only semantic markup travels with a node. External fonts, colours, event
@@ -198,6 +229,7 @@
     text.title = value ? "双击编辑" : "";
     text.setAttribute("role", "textbox"); text.setAttribute("aria-multiline", "true");
     text.setAttribute("aria-label", "文字内容，双击编辑");
+    syncAutoSize(text);
     syncToolbar(text);
     text.scrollTop = scrollTop;
     return value;
@@ -382,7 +414,7 @@
     if (stopCanvasTextWheel) prompt.addEventListener("wheel", stopCanvasTextWheel);
     prompt.addEventListener("input", () => {
       node.dataset.llmPrompt = prompt.value;
-      scheduleCanvasSave?.();
+      scheduleCanvasSave?.(node);
     });
 
     let presets = null;
@@ -400,7 +432,7 @@
     fillCanvasLlmModelSelect?.(select, String(node.dataset.llmModel || ""));
     select.addEventListener("change", () => {
       node.dataset.llmModel = select.value;
-      scheduleCanvasSave?.();
+      scheduleCanvasSave?.(node);
     });
     const run = document.createElement("button");
     run.type = "button";
@@ -436,10 +468,7 @@
     editors.set(text, { context });
     const initial = normalizeSource(content);
     renderPreview(text, initial === PLACEHOLDER ? "" : initial, node.dataset.textRichHtml);
-    if (!selectionDocuments.has(document)) {
-      selectionDocuments.add(document);
-      document.addEventListener("selectionchange", () => document.querySelectorAll('.canvas-text[data-editing="true"]').forEach(syncToolbar));
-    }
+    ensureSelectionListener(document);
     text.addEventListener("pointerdown", (event) => {
       // Preview follows the canvas's normal selection and drag path. While
       // editing, keep pointer gestures inside the text for caret selection.
@@ -453,6 +482,7 @@
     });
     text.addEventListener("input", () => {
       syncContent(text);
+      syncAutoSize(text, { persist: true });
     });
     const insert = (event, data) => {
       if (text.dataset.editing !== "true" || !data) return;
@@ -470,7 +500,7 @@
         if (node.querySelector(".flora-text-format-tools")?.contains(document.activeElement)) return;
         if (text.closest('.flora-text-expanded-dialog[open]')) return;
         commitEdit(text);
-        scheduleCanvasSave?.();
+        scheduleCanvasSave?.(node);
       });
     });
     text.addEventListener("keydown", (event) => {
@@ -498,6 +528,7 @@
       ...composer,
       createCanvasResizeHandle(),
     );
+    syncAutoSize(text);
     syncCanvasTextFromLlmInputs?.(node);
     syncCanvasLlmPromptState?.(node);
     scheduleCanvasConnectionRender?.();
@@ -521,3 +552,4 @@
     setValue,
   });
 });
+

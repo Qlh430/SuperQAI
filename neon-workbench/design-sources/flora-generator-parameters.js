@@ -167,11 +167,16 @@
       && !element.matches(".canvas-node-resolution-help, .canvas-custom-size-field"));
     const h3Caption = node.dataset.floraKind === "minimax-h3" ? h3ParameterSummary(node) : "";
     const videoCaption = node.dataset.floraKind === "video-api" ? [node.dataset.apiVideoRatio, node.dataset.apiVideoResolution, node.dataset.apiVideoDuration ? `${node.dataset.apiVideoDuration}秒` : ""].filter(Boolean).join(" · ") : "";
-    const caption = [sizeLabel, resolutionLabel].filter(Boolean).join(" · ") || videoCaption || h3Caption || "参数";
+    const caption = node.dataset.floraKind === "audio-generator"
+      ? "设置"
+      : [sizeLabel, resolutionLabel].filter(Boolean).join(" · ") || videoCaption || h3Caption || "参数";
     if (state.caption.textContent !== caption) state.caption.textContent = caption;
     state.trigger.setAttribute("aria-label", `${state.label}，当前：${caption}`);
     state.trigger.title = `${state.label}：${caption}`;
     state.trigger.disabled = !(size && !size.disabled || resolution && !resolution.disabled || hasExtras);
+    const qwen = node.dataset.floraKind === "audio-generator" && node.querySelector('.canvas-audio-generator-speed')?.dataset.choices === 'qwen';
+    state.trigger.hidden = qwen;
+    if (qwen && state.popup.matches(':popover-open')) state.popup.hidePopover();
     if (presets && !size.hidden && !size.disabled) {
       for (const kind of ["size", "resolution"]) {
         renderChoiceOptions(state, kind === "size" ? state.sizeSection : state.resolutionSection, kind,
@@ -183,7 +188,7 @@
       renderChoices(state, size, state.sizeSection, "size");
       renderChoices(state, resolution, state.resolutionSection, "resolution");
     }
-    state.advancedTitle.hidden = !hasExtras;
+    state.advancedTitle.hidden = !hasExtras || node.dataset.floraKind === "audio-generator";
     if (state.settings) {
       const available = !state.settings.container.hidden;
       state.settings.trigger.hidden = !available;
@@ -223,7 +228,7 @@
     popup.id = `flora-generator-parameters-${++nextId}`;
     popup.setAttribute("popover", "auto");
     popup.setAttribute("role", "dialog");
-    const parameterLabel = ({ llm: "文本参数", "audio-generator": "音频参数", "video-api": "视频参数", "minimax-h3": "视频参数" })[node.dataset.floraKind] || "图片参数";
+    const parameterLabel = ({ llm: "文本参数", "audio-generator": "设置", "video-api": "视频参数", "minimax-h3": "视频参数" })[node.dataset.floraKind] || "图片参数";
     popup.setAttribute("aria-label", parameterLabel);
     trigger.setAttribute("aria-controls", popup.id);
     const header = document.createElement("div");

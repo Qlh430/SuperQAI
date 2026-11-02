@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>正在启动 AI OS</title>
+    <title>正在启动 BenDo</title>
     <!-- Inlined by deploy.mjs from the workbench tokens, before first paint. -->
     <style id="neon-startup-tokens">/* __NEON_STARTUP_TOKENS__ */</style>
     <style>
@@ -29,9 +29,8 @@
         display: grid;
         place-items: center;
         border-radius: var(--radius);
-        color: var(--primary-foreground);
-        font: 700 27px/1 Georgia, serif;
-        background: var(--primary);
+        color: var(--foreground);
+        background: transparent;
       }
       .brand strong { display: block; font-size: 20px; letter-spacing: 0; }
       .brand small { display: block; margin-top: 4px; color: var(--muted-foreground); font-size: 12px; }
@@ -58,11 +57,11 @@
   <body>
     <main>
       <div class="brand">
-        <span class="mark" aria-hidden="true">∞</span>
-        <div><strong>AI OS</strong><small>本地创作工作台</small></div>
+        <span class="mark" aria-hidden="true"><!-- __BENDO_STARTUP_LOGO__ --></span>
+        <div><strong>BenDo</strong><small>本地创作工作台</small></div>
       </div>
       <div class="status-row">
-        <p id="status" role="status" aria-live="polite">正在启动 AI OS</p>
+        <p id="status" role="status" aria-live="polite">正在启动 BenDo</p>
         <span class="spinner" aria-hidden="true"></span>
       </div>
       <p id="detail">正在准备启动环境，请稍候…</p>

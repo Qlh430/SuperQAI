@@ -9,6 +9,9 @@
   let returnButton = null;
   let engineKind = "";
   let revision = 0;
+  let activeBoardId = "";
+  let assetDialogRequestId = "";
+  let assetDialogState = null;
   let previousMaximizedChrome = null;
   function suppressHostChrome() {
     if (previousMaximizedChrome === null) {
@@ -26,12 +29,61 @@
     document.body.classList.remove("canvas-surface-open");
   }
   function releaseSurface() {
+    closeAssetDialog(assetDialogRequestId);
     if (surface) {
       surface.querySelectorAll(":scope > :not(header)").forEach(node => { node.hidden = true; document.body.append(node); });
       surface.remove();
     }
-    surface = null; returnButton = null; engineKind = "";
+    surface = null; returnButton = null; engineKind = ""; activeBoardId = "";
     restoreHostChrome();
+  }
+  function closeAssetDialog(requestId) {
+    if (!assetDialogState || requestId !== assetDialogRequestId) return false;
+    const saved = assetDialogState;
+    message("neon:cancel-add-assets", { requestId: assetDialogRequestId });
+    assetDialogState = null; assetDialogRequestId = "";
+    if (frame) {
+      frame.hidden = saved.hidden;
+      frame.style.display = saved.display;
+      frame.style.zIndex = saved.zIndex;
+      frame.style.pointerEvents = saved.pointerEvents;
+      frame.style.background = saved.background;
+    }
+    if (surface) {
+      surface.style.pointerEvents = saved.surfacePointerEvents;
+      surface.style.zIndex = saved.surfaceZIndex;
+    }
+    if (saved.revision === revision && saved.accountId === window.AiOsDesktop?.getSession?.()?.user?.id
+      && saved.boardId === activeBoardId && saved.focus?.isConnected) saved.focus.focus({ preventScroll: true });
+    return true;
+  }
+  function openAssetDialog(detail) {
+    const session = window.AiOsDesktop?.getSession?.();
+    const items = Array.isArray(detail?.items) ? detail.items.filter(item => {
+      if (!item || !["image", "video", "audio"].includes(item.kind) || typeof item.url !== "string" || !item.url.trim()) return false;
+      try { const url = new URL(item.url, location.origin); return ["http:", "https:"].includes(url.protocol) && !url.username && !url.password; } catch { return false; }
+    }).map(item => ({ url: item.url.trim(), kind: item.kind, title: String(item.title || ({ image: "图片", video: "视频", audio: "音频" })[item.kind]), ...(typeof item.mimeType === "string" && item.mimeType.startsWith(`${item.kind}/`) ? { mimeType: item.mimeType } : {}) })) : [];
+    if (!frame || !surface || surface.hidden || surface.style.display === "none" || engineKind !== "canvas" || !session?.user || desktop.hidden
+      || accountId !== session.user.id || !activeBoardId || String(detail?.boardId || "") !== activeBoardId || !items.length) return;
+    closeAssetDialog(assetDialogRequestId);
+    const focus = document.activeElement;
+    const requestId = `${revision}:${Date.now()}:${Math.random().toString(36).slice(2)}`;
+    assetDialogState = {
+      hidden: frame.hidden, display: frame.style.display, zIndex: frame.style.zIndex,
+      pointerEvents: frame.style.pointerEvents, background: frame.style.background,
+      surfacePointerEvents: surface.style.pointerEvents, surfaceZIndex: surface.style.zIndex, focus,
+      revision, accountId, boardId: activeBoardId,
+    };
+    assetDialogRequestId = requestId;
+    frame.hidden = false;
+    frame.style.display = "block";
+    frame.style.zIndex = "2147483600";
+    frame.style.pointerEvents = "auto";
+    frame.style.background = "transparent";
+    surface.style.pointerEvents = "none";
+    surface.style.zIndex = "2147483000";
+    frame.focus({ preventScroll: true });
+    message("neon:add-assets", { items, requestId });
   }
   function message(type, detail) {
     frame?.contentWindow?.postMessage({ type, ...detail }, location.origin);
@@ -49,7 +101,7 @@
       accountId = session.user.id;
       frame = document.createElement("iframe");
       frame.id = "aiOsNeonFrame";
-      frame.title = "AI OS Neon 工作台";
+      frame.title = "BenDo Neon 工作台";
       frame.src = "./neon-workbench.html?v=20261007-comfy-shared-composer";
       frame.style.cssText = "position:fixed;inset:0;width:100%;height:100%;border:0;z-index:9999;background:oklch(0.145 0.01 264)";
       document.body.appendChild(frame);
@@ -57,6 +109,7 @@
   }
   async function returnToWorkbench() {
     if (pending) return;
+    closeAssetDialog(assetDialogRequestId);
     const currentRevision = revision, button = returnButton;
     pending = true; button.disabled = true;
     try {
@@ -101,25 +154,35 @@
   }
   async function invoke(event) {
     if (!frame || event.source !== frame.contentWindow || event.origin !== location.origin) return;
-    if (!window.AiOsDesktop?.getSession?.()?.user || desktop.hidden) return;
+    if (window.AiOsDesktop?.getSession?.()?.user?.id !== accountId || desktop.hidden) return;
     if (event.data?.type === "neon:models-changed") {
       window.dispatchEvent(new CustomEvent("ai-os-provider-catalog-changed", {
         detail: { catalogRevision: Math.max(0, Number(event.data.catalogRevision) || 0) },
       }));
       return;
     }
+    if (event.data?.type === "neon:asset-dialog-closed") {
+      closeAssetDialog(String(event.data.requestId || ""));
+      return;
+    }
     if (event.data?.type !== "neon:action") return;
     const { action, params } = event.data;
     if (action === "logout" || action === "sessionExpired") { location.reload(); return; }
-      if (action === "hostDesktop") {
-        // 工作台页面自己起不来时，至少让用户能回到宿主桌面再决定重开还是退出，
-        // 不要把整块黑色 iframe 留在屏幕上。
-        if (frame) frame.hidden = true;
-        window.AiOsDesktop?.toast?.("已回到 AI OS 桌面，可从启动台重新打开工作台。");
+      if (action === "assetDialogClosed") { closeAssetDialog(String(params?.requestId || "")); return; }
+      if (action === "workbenchHome" || action === "hostDesktop") {
+        closeAssetDialog(assetDialogRequestId);
+        // Keep the recovery path in Neon, including older cached fallback pages.
+        if (surface) { surface.hidden = true; surface.style.display = "none"; }
+        restoreHostChrome();
+        frame.hidden = false;
+        activeBoardId = "";
+        frame.src = `./neon-workbench.html?recovery=${Date.now()}#home`;
+        frame.focus();
         return;
       }
     if (pending) return;
     if (action !== "canvas") return;
+    closeAssetDialog(assetDialogRequestId);
     pending = true;
     const currentRevision = revision, currentFrame = frame;
     const ensureCurrent = () => {
@@ -171,6 +234,13 @@
   }
   new MutationObserver(sync).observe(desktop, { attributes: true, attributeFilter: ["hidden"] });
   window.addEventListener("ai-os-session", sync);
+  window.addEventListener("canvas:board-changed", event => {
+    const nextBoardId = String(event.detail?.boardId || "");
+    if (activeBoardId === nextBoardId) return;
+    activeBoardId = nextBoardId;
+    closeAssetDialog(assetDialogRequestId);
+  });
+  window.addEventListener("neon:request-add-assets", event => openAssetDialog(event.detail));
   window.addEventListener("message", event => void invoke(event));
   sync();
 })();

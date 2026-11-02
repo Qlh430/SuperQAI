@@ -6,6 +6,10 @@ const H3_MODES = Object.freeze(["reference", "text", "first", "last"]);
 const H3_REFERENCE_WORKFLOW_NAME = "minimax-h3-video.json";
 const H3_FRAMES_WORKFLOW_NAME = "minimax-h3-video-frames.json";
 const H3_FRAMES_NODE_CLASS = "MiniMaxH3ImageToVideo";
+const H3_QUALITY_LORAS = Object.freeze({
+  4: "minimax_h3_fl2v_turbo_4step_v1.0_768p_comfyui_bf16.safetensors",
+  8: "minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors",
+});
 
 function normalizeMinimaxH3Mode(value) {
   return H3_MODES.includes(String(value || "")) ? String(value) : "reference";
@@ -36,17 +40,23 @@ const ASPECT_RATIOS = Object.freeze({
 
 function normalizeMinimaxH3Request(value = {}) {
   const prompt = String(value.prompt || "").trim();
-  if (!prompt) throw new Error("MiniMax H3 prompt is required.");
+  if (!prompt) throw new Error("请输入 MiniMax H3 视频描述。");
 
   const mode = normalizeMinimaxH3Mode(value.mode);
   const limits = minimaxH3ModeLimits(mode);
-  // 素材按生成方式裁剪：首帧只取第一张图，首尾帧取前两张，文生视频忽略素材。
-  const images = normalizeReferences(value.images, "image").slice(0, limits.images);
-  const videos = normalizeReferences(value.videos, "video").slice(0, limits.videos);
-  const audios = normalizeReferences(value.audios, "audio").slice(0, limits.audios);
-  if (images.length > LIMITS.images) throw new Error("MiniMax H3 accepts at most 9 images.");
-  if (videos.length > LIMITS.videos) throw new Error("MiniMax H3 accepts at most 3 videos.");
-  if (audios.length > LIMITS.audios) throw new Error("MiniMax H3 accepts at most 3 audio clips.");
+  const normalizedImages = normalizeReferences(value.images, "image");
+  const normalizedVideos = normalizeReferences(value.videos, "video");
+  const normalizedAudios = normalizeReferences(value.audios, "audio");
+  // 全能参考先校验完整素材，不能先截断再判断上限而静默丢失参考。
+  if (mode === "reference") {
+    if (normalizedImages.length > LIMITS.images) throw new Error("MiniMax H3 全能参考最多支持 9 张参考图片。");
+    if (normalizedVideos.length > LIMITS.videos) throw new Error("MiniMax H3 全能参考最多支持 3 段参考视频。");
+    if (normalizedAudios.length > LIMITS.audios) throw new Error("MiniMax H3 全能参考最多支持 3 段参考音频。");
+  }
+  // 模式切换仍兼容原有素材：首帧取第一张，首尾帧取前两张，文生视频忽略素材。
+  const images = normalizedImages.slice(0, limits.images);
+  const videos = normalizedVideos.slice(0, limits.videos);
+  const audios = normalizedAudios.slice(0, limits.audios);
   // <Picture n> 一类的引用标记只属于全能参考工作流；其余三种方式提示词按原样提交。
   const selected = minimaxH3ModeUsesReferenceWorkflow(mode)
     ? selectPromptReferences(prompt, { images, videos, audios })
@@ -114,7 +124,7 @@ function selectPromptReferences(prompt, references) {
     for (const match of internalPrompt.matchAll(new RegExp(expression, "g"))) {
       const sourceIndex = Number(match[1]) - 1;
       if (!Number.isSafeInteger(sourceIndex) || sourceIndex < 0 || sourceIndex >= source.length) {
-        throw new Error(`MiniMax H3 prompt reference ${match[0]} does not match a connected material.`);
+        throw new Error(`MiniMax H3 描述中的引用 ${match[0]} 没有对应的参考素材，请检查素材及引用编号。`);
       }
       seen.add(sourceIndex);
     }
@@ -221,7 +231,7 @@ function prepareMinimaxH3Workflow(template, request, outputPrefix) {
   // in the older one, MiniMaxH3DualClockSamplerT8 in the 8-step one.
   const stepsId = findWorkflowNode(workflow, { ids: ["219"], classTypes: ["BasicScheduler"], inputs: ["steps"] })
     || findWorkflowNode(workflow, { inputs: ["steps"] });
-  if (stepsId) workflow[stepsId].inputs.steps = request.steps;
+  applyMinimaxH3SamplingQuality(workflow, stepsId, request.steps);
   const durationId = findWorkflowNode(workflow, { ids: ["225"], classTypes: ["PrimitiveFloat"], inputs: ["value"] });
   if (durationId) workflow[durationId].inputs.value = request.duration;
   const seedId = findWorkflowNode(workflow, { ids: ["210"], classTypes: ["RandomNoise"], inputs: ["noise_seed"] });
@@ -270,7 +280,7 @@ function prepareMinimaxH3FramesWorkflow(template, request, outputPrefix) {
   }
   const stepsId = findWorkflowNode(workflow, { ids: ["448"], classTypes: ["MiniMaxH3DualClockSamplerT8"], inputs: ["steps"] })
     || findWorkflowNode(workflow, { inputs: ["steps"] });
-  if (stepsId) workflow[stepsId].inputs.steps = request.steps;
+  applyMinimaxH3SamplingQuality(workflow, stepsId, request.steps);
   const durationId = findWorkflowNode(workflow, { ids: ["434"], classTypes: ["PrimitiveFloat"], inputs: ["value"] });
   if (durationId) workflow[durationId].inputs.value = request.duration;
   const seedId = findWorkflowNode(workflow, { ids: ["444"], classTypes: ["RandomNoise"], inputs: ["noise_seed"] });
@@ -278,6 +288,30 @@ function prepareMinimaxH3FramesWorkflow(template, request, outputPrefix) {
   const saveId = findWorkflowNode(workflow, { ids: ["428"], classTypes: ["SaveVideo"], inputs: ["filename_prefix"] });
   if (saveId) workflow[saveId].inputs.filename_prefix = outputPrefix;
   return workflow;
+}
+
+// The distilled LoRA and sampler steps form one quality setting. Follow only
+// this sampler's model chain so other LoRAs and model branches stay unchanged.
+function applyMinimaxH3SamplingQuality(workflow, samplerId, steps) {
+  const sampler = workflow[samplerId];
+  if (!sampler) return;
+  sampler.inputs.steps = steps;
+  const visited = new Set();
+  let model = sampler.inputs.model;
+  while (Array.isArray(model)) {
+    const id = String(model[0]);
+    if (visited.has(id)) break;
+    visited.add(id);
+    const inputs = workflow[id]?.inputs;
+    if (!inputs) break;
+    const name = String(inputs.lora_name || "");
+    const filename = path.win32.basename(name);
+    if (Object.values(H3_QUALITY_LORAS).includes(filename)) {
+      inputs.lora_name = name.slice(0, name.length - filename.length) + H3_QUALITY_LORAS[steps];
+      return;
+    }
+    model = inputs.model;
+  }
 }
 
 // Template reference loaders are replaced by the ones built from the request.
@@ -332,8 +366,10 @@ function inspectComfyHistory(history) {
   }
 
   const hasSuccessMessage = messages.some((entry) => entry?.[0] === "execution_success");
-  const hasOutputs = Object.keys(history?.outputs || {}).length > 0;
-  if (status.completed === true || statusText === "success" || hasSuccessMessage || hasOutputs) {
+  // 预览/中间节点也可先产生 outputs，不能据此提前下载尚未写完的视频。
+  // 只有完全没有 status 的旧版记录才沿用 outputs 兼容判定。
+  const legacyOutputs = !history?.status && Object.keys(history?.outputs || {}).length > 0;
+  if (status.completed === true || statusText === "success" || hasSuccessMessage || legacyOutputs) {
     return { state: "success", message: "" };
   }
   return { state: "pending", message: "" };

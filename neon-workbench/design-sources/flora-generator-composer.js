@@ -1,6 +1,21 @@
 (function installFloraGeneratorComposer(root) {
   "use strict";
 
+  root.NeonCanvasPerformanceFlags ||= { incrementalIcons: true, localScale: true, dirtySave: true, scopedComposer: true };
+  const ownedPlacementProperties = root.__neonComposerPlacementProperties ||= new Set();
+  if (root.NeonCanvasPerformanceFlags.scopedComposer !== false && root.CSS?.registerProperty) {
+    for (const [name, syntax, initialValue] of [
+      ['--flora-composer-left', '<length>', '0px'],
+      ['--flora-composer-top', '<length>', '0px'],
+      ['--flora-composer-width', '<length>', '640px'],
+      ['--flora-composer-max-height', '<length>', '400px'],
+      ['--flora-composer-counter-scale', '<number>', '1'],
+    ]) {
+      if (ownedPlacementProperties.has(name)) continue;
+      try { root.CSS.registerProperty({ name, syntax, inherits: false, initialValue }); ownedPlacementProperties.add(name); } catch (_) {}
+    }
+  }
+
   const mounted = new Map();
   const enginePickers = new WeakMap();
   const COMPOSER_KINDS = new Set(["generator", "video-api", "minimax-h3", "llm", "audio-generator", "text"]);
@@ -201,7 +216,7 @@
     // The composer keeps no permanent status row: the run button already carries
     // the busy state, and progress or completion copy only pushed the panel
     // down. Guidance and failures keep their words so nothing is lost.
-    const showText = tone === "failed"
+    const showText = tone === "failed" || tone === "error" || tone === "warning"
       || /^(?:请输入|请选择|请先|请连接|请上传|请检查|请重试|请重新)/.test(nativeText)
       || /不支持|不可用|不符合|已移除|无法|不能/.test(nativeText);
     const text = showText && nativeText !== "待完成" ? nativeText : "";
@@ -270,6 +285,10 @@
     };
     for (const [name, value] of Object.entries(properties)) {
       if (state.node.style.getPropertyValue(name) !== value) state.node.style.setProperty(name, value);
+      // Keep the node's read-only geometry contract for host integrations,
+      // but only the panel consumes these values. Inputs/chrome descendants
+      // must not inherit five changing placement properties on every gesture.
+      if (ownedPlacementProperties.has(name) && state.panel.style.getPropertyValue(name) !== value) state.panel.style.setProperty(name, value);
     }
     state.composerProperties = properties;
     root.FloraGeneratorParameters?.reposition?.(state.node);
@@ -370,6 +389,9 @@
       ? `${item.name || label}\n${String(item.text || "").slice(0, 400) || "暂无正文"}`
       : item.name || label;
     thumb.setAttribute("aria-label", `${label}：${item.name || label}`);
+    thumb.draggable = false;
+    thumb.setAttribute('aria-keyshortcuts', 'Alt+ArrowLeft Alt+ArrowRight');
+    thumb.title += String.fromCharCode(10) + '拖动调整顺序，或按 Alt+方向键移动';
     thumb.append(createReferencePreview(item, type, label));
     const badge = document.createElement("span");
     badge.className = "flora-reference-index";
@@ -397,6 +419,78 @@
     return card;
   }
 
+  function bindReferenceSorting(state) {
+    const view = state.referencesView;
+    let drag = null;
+    let suppressClick = false;
+    const clearMarks = () => view.querySelectorAll('.is-sort-dragging, .is-sort-before, .is-sort-after').forEach(card => card.classList.remove('is-sort-dragging', 'is-sort-before', 'is-sort-after'));
+    const commit = (fromKey, toKey, placement, focus) => {
+      root.CanvasReferenceBridge?.sort?.({targetNodeId:state.node.dataset.id, fromKey, toKey, placement});
+      if (focus) [...view.querySelectorAll('.flora-reference-card')].find(card => card.dataset.referenceKey === fromKey)?.querySelector('.flora-reference-thumb')?.focus({preventScroll:true});
+    };
+    const cancel = () => {
+      if (!drag) return;
+      const pointerId = drag.id;
+      suppressClick = drag.moved;
+      // Suppress only the click synthesized by this pointer gesture. A
+      // cancelled drag must not swallow a later remove/preview click.
+      if (suppressClick) root.setTimeout(() => { suppressClick = false; }, 0);
+      drag = null; clearMarks();
+      if (view.hasPointerCapture?.(pointerId)) view.releasePointerCapture(pointerId);
+      document.removeEventListener('keydown', escape, true);
+    };
+    const escape = event => {
+      if (event.key === 'Escape' && drag) { event.preventDefault(); event.stopImmediatePropagation(); cancel(); }
+    };
+    view.addEventListener('dragstart', event => event.preventDefault());
+    view.addEventListener('click', event => { if (suppressClick) { suppressClick=false; event.preventDefault(); event.stopImmediatePropagation(); } }, true);
+    view.addEventListener('pointerdown', event => {
+      if (event.button !== 0 || !event.target.closest('.flora-reference-thumb')) return;
+      const card = event.target.closest('.flora-reference-card');
+      if (card.parentElement.children.length < 2) return;
+      suppressClick=false;
+      drag = {id:event.pointerId, x:event.clientX, y:event.clientY, key:card.dataset.referenceKey, type:card.dataset.referenceType, moved:false};
+      event.stopPropagation();
+      view.setPointerCapture(event.pointerId);
+      document.addEventListener('keydown', escape, true);
+    });
+    view.addEventListener('pointermove', event => {
+      if (!drag || drag.id !== event.pointerId) return;
+      if (!drag.moved && Math.hypot(event.clientX-drag.x,event.clientY-drag.y)<6) return;
+      drag.moved=true; event.preventDefault(); event.stopPropagation(); clearMarks();
+      const cards=[...view.querySelectorAll('.flora-reference-card')].filter(card => card.dataset.referenceType===drag.type);
+      const source=cards.find(card => card.dataset.referenceKey===drag.key);
+      source?.classList.add('is-sort-dragging');
+      const bounds=view.getBoundingClientRect();
+      if (event.clientX < bounds.left+24) view.scrollLeft-=16;
+      if (event.clientX > bounds.right-24) view.scrollLeft+=16;
+      drag.toKey=null;
+      const hit=document.elementFromPoint(event.clientX,event.clientY)?.closest('.flora-reference-card');
+      if (!hit || !view.contains(hit) || hit.dataset.referenceType!==drag.type || hit===source) return;
+      const box=hit.getBoundingClientRect();
+      drag.toKey=hit.dataset.referenceKey;
+      drag.placement=event.clientX < box.left+box.width/2 ? 'before' : 'after';
+      hit.classList.add(drag.placement==='before'?'is-sort-before':'is-sort-after');
+    });
+    view.addEventListener('pointerup', event => {
+      if (!drag || drag.id !== event.pointerId) return;
+      const current=drag; cancel();
+      if (current.moved && current.toKey) commit(current.key,current.toKey,current.placement,true);
+    });
+    view.addEventListener('pointercancel', cancel);
+    view.addEventListener('lostpointercapture', cancel);
+    view.addEventListener('keydown', event => {
+      if (!event.altKey || !['ArrowLeft','ArrowRight'].includes(event.key)) return;
+      const card=event.target.closest('.flora-reference-card');
+      if (!card || !event.target.closest('.flora-reference-thumb')) return;
+      const cards=[...card.parentElement.children];
+      const other=cards[cards.indexOf(card)+(event.key==='ArrowLeft'?-1:1)];
+      event.preventDefault(); event.stopPropagation();
+      if (other) commit(card.dataset.referenceKey,other.dataset.referenceKey,event.key==='ArrowLeft'?'before':'after',true);
+    });
+    state.cleanups.push(cancel);
+  }
+
   function syncReferenceMaterials(state) {
     const refs = state.sources?.refs;
     // Native renderers still own the connection data and upload state. The
@@ -408,7 +502,8 @@
       // duplicate cards in the visible operation area or accessibility tree.
       if (refs.matches?.(".canvas-node-refs")) refs.replaceChildren();
     }
-    const incoming = root.getCanvasIncomingReferenceMaterials?.(state.node.dataset.id) || [];
+    const incoming = (root.getCanvasIncomingReferenceMaterials?.(state.node.dataset.id) || [])
+      .filter(item => state.node.dataset.floraKind !== 'audio-generator' || item.type !== 'audio');
     const items = incoming.map(item => ({ ...item, referenceType: referenceType(item) }))
       .filter(item => REFERENCE_TYPES.some(entry => entry.key === item.referenceType));
     const signature = JSON.stringify(items.map(item => [item.key, item.referenceType, item.sourceNodeId, item.sourcePort, item.name, item.url, String(item.text || "").slice(0, 400)]));
@@ -416,6 +511,7 @@
       state.referencesView = document.createElement("div");
       state.referencesView.className = "flora-reference-materials";
       state.referenceArea.prepend(state.referencesView);
+      bindReferenceSorting(state);
     }
     if (signature !== state.referenceSignature) {
       state.referenceSignature = signature;
@@ -529,24 +625,9 @@
   function requestReveal(state) {
     if (!state || state.expanded || state.revealRequested || !state.node.isConnected) return;
     state.revealRequested = true;
-    // 让位是一次性动作，允许实测：视口原点可能因为宿主位移而失效，实测保证位移量准确。
-    refreshViewportOrigin();
-    const shellRect = state.shell.getBoundingClientRect();
-    const top = shellRect.bottom + 16;
-    const deltaY = (root.innerHeight || document.documentElement.clientHeight) - 16 - 160 - top;
-    // 操作区不再横向夹取，节点靠边时改为平移画布，让操作区既贴着节点又完整可见。
-    const windowWidth = Math.max(32, root.innerWidth || document.documentElement.clientWidth);
-    const width = composerPanelWidth(windowWidth, { wide: state.node.dataset.floraKind === "minimax-h3" });
-    const bounds = revealBounds(width);
-    const centredLeft = shellRect.left + shellRect.width / 2 - width / 2;
-    const margin = 16;
-    let deltaX = 0;
-    if (centredLeft + width > bounds.right - margin) deltaX = bounds.right - margin - (centredLeft + width);
-    else if (centredLeft < bounds.left + margin) deltaX = bounds.left + margin - centredLeft;
-    if (deltaY >= -0.5 && Math.abs(deltaX) < 0.5) return;
-    root.dispatchEvent(new CustomEvent("flora-generator-reveal", {
-      detail: { node: state.node, screenDeltaY: deltaY, screenDeltaX: deltaX },
-    }));
+    // Selecting a node only reveals its toolbar and composer. Do not pan or
+    // zoom the canvas to make room: the node's position and scale must remain
+    // identical before and after the click.
   }
 
   function syncAll() {
@@ -857,6 +938,11 @@
     }
     let prompt = sourceOutsidePanel(node, ".canvas-node-prompt, .canvas-api-video-prompt-input, .canvas-h3-prompt, .canvas-audio-generator-prompt", panel);
     if (prompt) prompt.classList.add("canvas-node-prompt");
+    const lyrics = node.dataset.floraKind === "audio-generator"
+      ? sourceOutsidePanel(node, ".canvas-audio-generator-lyrics", panel)
+      : null;
+    const audioReference = node.dataset.floraKind === "audio-generator"
+      ? sourceOutsidePanel(node, ".canvas-audio-generator-reference", panel) : null;
     if (node.classList.contains("canvas-node-comfy") && !state.comfyPrompt) {
       if (!prompt) {
         prompt = document.createElement("textarea");
@@ -878,7 +964,7 @@
     const run = sourceOutsidePanel(node, ".canvas-node-run, .canvas-h3-run, .canvas-audio-generator-run", panel);
     if (run) run.classList.add("canvas-node-run");
     const previous = state.sources || {};
-    for (const [name, replacement] of Object.entries({ refs, prompt, engineSwitch, controls, run })) {
+    for (const [name, replacement] of Object.entries({ refs, prompt, lyrics, audioReference, engineSwitch, controls, run })) {
       if (replacement && previous[name] && previous[name] !== replacement && panel.contains(previous[name])) {
         previous[name].remove();
       }
@@ -891,10 +977,16 @@
       parent: run.parentElement,
       next: run.nextSibling,
     };
-    state.sources = { refs, prompt, engineSwitch, controls, run };
+    state.sources = { refs, prompt, lyrics, audioReference, engineSwitch, controls, run };
     put(refs, state.referenceArea);
     placeReferenceAddButton(state);
     put(prompt, state.promptArea);
+    put(lyrics, state.promptArea);
+    if (audioReference && audioReference.previousElementSibling !== state.referenceArea) state.referenceArea.after(audioReference);
+    if (node.dataset.floraKind === "audio-generator" && state.promptArea) {
+      state.promptArea.dataset.audioMode = node.querySelector(".canvas-audio-generator-mode")?.value || "music";
+      root.CanvasAudioGenerator?.syncLayout?.(node);
+    }
     if (engineSwitch && engineSwitch !== state.settings.firstElementChild) state.settings.prepend(engineSwitch);
     put(controls, state.settings);
     put(run, state.actions);
@@ -954,12 +1046,39 @@
     if (resultArea && !placeholder) {
       placeholder = document.createElement("div");
       placeholder.className = "flora-generator-placeholder";
-      const icon = document.createElement("i");
-      icon.dataset.lucide = ({ llm: "text", "video-api": "video", "minimax-h3": "video", "audio-generator": "audio-lines" })[node.dataset.floraKind] || "image";
-      icon.setAttribute("aria-hidden", "true");
+      const videoPlaceholder = ["video-api", "minimax-h3"].includes(node.dataset.floraKind);
+      const imagePlaceholder = node.dataset.floraKind === "generator";
+      const audioPlaceholder = node.dataset.floraKind === "audio-generator";
+      let icon;
+      if (videoPlaceholder) {
+        const svgNs = "http://www.w3.org/2000/svg";
+        icon = document.createElementNS(svgNs, "svg");
+        icon.classList.add("flora-video-placeholder-icon");
+        icon.setAttribute("viewBox", "0 0 24 24");
+        icon.setAttribute("fill", "none");
+        icon.setAttribute("stroke", "currentColor");
+        icon.setAttribute("stroke-width", "1.5");
+        icon.setAttribute("stroke-linecap", "round");
+        icon.setAttribute("stroke-linejoin", "round");
+        icon.setAttribute("aria-hidden", "true");
+        const rect = document.createElementNS(svgNs, "rect");
+        rect.setAttribute("x", "2");
+        rect.setAttribute("y", "4");
+        rect.setAttribute("width", "20");
+        rect.setAttribute("height", "16");
+        rect.setAttribute("rx", "5");
+        const play = document.createElementNS(svgNs, "path");
+        play.setAttribute("d", "M9.4 8.2 Q8.5 7.7 8.5 8.8 L8.5 15.2 Q8.5 16.3 9.4 15.8 L15.6 12.4 Q16.6 12 15.6 11.6 Z");
+        icon.append(rect, play);
+      } else {
+        icon = document.createElement("i");
+        icon.dataset.lucide = ({ llm: "text", "audio-generator": "audio-lines" })[node.dataset.floraKind] || "image";
+        icon.setAttribute("aria-hidden", "true");
+      }
       const label = document.createElement("span");
       label.textContent = "生成结果";
-      placeholder.append(icon, label);
+      placeholder.append(icon);
+      if (!videoPlaceholder && !imagePlaceholder && !audioPlaceholder) placeholder.append(label);
       resultArea.append(placeholder);
       root.lucide?.createIcons?.({ attrs: { "aria-hidden": "true", "stroke-width": 1.8 } });
     }
@@ -976,7 +1095,7 @@
     if (restore) state.modelPicker?.setPresentation?.("canvas");
     else root.releaseCanvasImageModelPicker?.(state.modelSelect);
     if (restore) {
-      const { refs, prompt, engineSwitch, controls, run } = state.sources || {};
+      const { refs, prompt, lyrics, audioReference, engineSwitch, controls, run } = state.sources || {};
       const { inputArea, parameterTray, content } = state.origins || {};
       run?.querySelector(".flora-generator-run-icon")?.remove();
       run?.removeAttribute("aria-label");
@@ -991,7 +1110,12 @@
       }
       if (refs) refs.hidden = false;
       put(refs, inputArea || content);
-      put(prompt, inputArea || content);
+      put(lyrics, inputArea || content);
+      put(audioReference, inputArea || content);
+    // H3 uses a transparent textarea over a colored mirror. Move the editor
+    // wrapper as one unit so the mirror stays aligned in the shared composer.
+    const promptSurface = prompt.closest?.(".canvas-h3-prompt-editor") || prompt;
+    put(promptSurface, inputArea || content);
       if (engineSwitch) {
         const parent = state.engineOrigin?.parent;
         if (parent?.isConnected && parent !== state.settings) {

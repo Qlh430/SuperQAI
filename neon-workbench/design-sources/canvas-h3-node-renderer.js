@@ -36,8 +36,10 @@
       createCanvasNodeBar,
       createCanvasPort,
       createCanvasResizeHandle,
+      displayCanvasH3PromptReferences,
       handleCanvasH3MentionKeydown,
       renderCanvasMinimaxH3References,
+      renderCanvasH3PromptHighlight,
       runCanvasMinimaxH3Node,
       scheduleCanvasConnectionRender,
       scheduleCanvasSave,
@@ -49,7 +51,7 @@
     if (!document || !createCanvasNodeBar || !createCanvasPort || !createCanvasResizeHandle
       || !CANVAS_GENERATION_FAMILIES || !MINIMAX_H3_ASPECT_RATIOS
       || !createCanvasH3Select || !createCanvasH3Number
-      || !renderCanvasMinimaxH3References || !syncCanvasMinimaxH3Prompt
+      || !renderCanvasMinimaxH3References || !renderCanvasH3PromptHighlight || !syncCanvasMinimaxH3Prompt
       || !updateCanvasH3ResolutionHint || !updateCanvasH3MentionFromTextarea
       || !handleCanvasH3MentionKeydown || !closeCanvasH3MentionMenu) {
       throw new Error("Canvas MiniMax H3 node renderer context is incomplete.");
@@ -57,7 +59,7 @@
 
     const previous = normalizePrevious(node, options, context);
     node.innerHTML = "";
-    node.dataset.minimaxH3Prompt = String(previous.prompt || "");
+    node.dataset.minimaxH3Prompt = displayCanvasH3PromptReferences(previous.prompt);
     node.dataset.minimaxH3Model = String(previous.modelId || "minimax-h3");
     node.dataset.minimaxH3AspectRatio = previous.aspectRatio;
     node.dataset.minimaxH3Megapixels = String(previous.megapixels);
@@ -81,11 +83,16 @@
     promptLabel.className = "canvas-h3-field canvas-h3-prompt-field";
     const promptCaption = document.createElement("span");
     promptCaption.textContent = "视频描述";
+    const promptEditor = document.createElement("div");
+    promptEditor.className = "canvas-h3-prompt-editor";
+    const promptHighlight = document.createElement("div");
+    promptHighlight.className = "canvas-h3-prompt-highlight";
+    promptHighlight.setAttribute("aria-hidden", "true");
     const prompt = document.createElement("textarea");
     prompt.className = "canvas-h3-prompt";
     prompt.rows = 6;
-    prompt.placeholder = "描述镜头、人物、动作、对白和声音；可使用 <Picture 1>、<Video 1>、<Audio 1> 引用素材。";
-    prompt.value = previous.prompt;
+    prompt.placeholder = "描述镜头、人物、动作、对白和声音；输入 @ 可选择 图片1、视频1、音频1。";
+    prompt.value = displayCanvasH3PromptReferences(previous.prompt);
     prompt.setAttribute("aria-autocomplete", "list");
     prompt.setAttribute("aria-expanded", "false");
     if (stopCanvasTextWheel) prompt.addEventListener("wheel", stopCanvasTextWheel);
@@ -99,13 +106,19 @@
     });
     prompt.addEventListener("input", () => {
       node.dataset.minimaxH3Prompt = prompt.value;
+      renderCanvasH3PromptHighlight(prompt);
       updateCanvasH3MentionFromTextarea(node, prompt);
-      scheduleCanvasSave?.();
+      scheduleCanvasSave?.(node);
+    });
+    prompt.addEventListener("scroll", () => {
+      promptHighlight.scrollTop = prompt.scrollTop;
+      promptHighlight.scrollLeft = prompt.scrollLeft;
     });
     prompt.addEventListener("keydown", (event) => handleCanvasH3MentionKeydown(event, node, prompt));
     prompt.addEventListener("click", () => updateCanvasH3MentionFromTextarea(node, prompt));
     prompt.addEventListener("blur", () => globalThis.setTimeout(() => closeCanvasH3MentionMenu(prompt), 0));
-    promptLabel.append(promptCaption, prompt);
+    promptEditor.append(promptHighlight, prompt);
+    promptLabel.append(promptCaption, promptEditor);
 
     const controls = document.createElement("div");
     controls.className = "canvas-h3-controls";
@@ -173,7 +186,7 @@
         node.dataset.minimaxH3Mode = value;
         syncModeSwitch();
         node.dispatchEvent(new CustomEvent("canvas-h3-mode-change", { bubbles: true, detail: { node, mode: value } }));
-        scheduleCanvasSave?.();
+        scheduleCanvasSave?.(node);
       });
       modeSwitch.append(button);
     });
@@ -210,6 +223,7 @@
     node.append(inputPort, outputPort, bar, intro, references, promptLabel, controls, actions, footer, createCanvasResizeHandle());
     updateCanvasH3ResolutionHint(node);
     renderCanvasMinimaxH3References(node);
+    renderCanvasH3PromptHighlight(prompt);
     syncCanvasMinimaxH3Prompt(node);
     globalThis.lucide?.createIcons?.({ attrs: { "aria-hidden": "true", "stroke-width": 1.8 } });
     scheduleCanvasConnectionRender?.();
@@ -217,3 +231,4 @@
 
   return Object.freeze({ render });
 });
+

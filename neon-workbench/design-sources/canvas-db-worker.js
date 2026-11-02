@@ -819,6 +819,19 @@ const handlers = {
       .all(mediaReferenceKey(source));
   },
 
+  gcBoardMediaReferences({ boardId } = {}) {
+    const board = boardRow(boardId);
+    const refs = new Map();
+    for (const row of prepare("SELECT payload_json FROM nodes WHERE board_pk = ?").all(board.pk)) collectMediaReferences(row.payload_json, refs);
+    return [...refs.values()];
+  },
+
+  gcAllBoardMediaReferences() {
+    const refs = new Map();
+    for (const row of prepare("SELECT payload_json FROM nodes").all()) collectMediaReferences(row.payload_json, refs);
+    return [...refs.values()];
+  },
+
   getBoardState({ boardId } = {}) {
     return toBoardMeta(boardRow(boardId));
   },
@@ -830,6 +843,42 @@ const handlers = {
     prepare("UPDATE boards SET project_id = ?, updated_at = ? WHERE pk = ?")
       .run(nextProjectId, timestamp, board.pk);
     return toBoardMeta({ ...board, project_id: nextProjectId, updated_at: timestamp });
+  },
+
+  trashProjectBoards({ projectId, destinationProjectId } = {}) {
+    const source = requiredId(projectId, "Project");
+    const destination = requiredId(destinationProjectId, "Destination project");
+    if (source === destination) throw codedError("invalid_project_destination", "删除项目与恢复目录不能相同。");
+    database.exec("BEGIN IMMEDIATE");
+    try {
+      const rows = prepare("SELECT * FROM boards WHERE project_id = ? ORDER BY pk").all(source);
+      const timestamp = nowIso();
+      const snapshots = rows.map(row => ({ id: row.external_id, projectId: row.project_id, deletedAt: row.deleted_at, revision: Number(row.revision), updatedAt: row.updated_at }));
+      for (const row of rows) prepare("UPDATE boards SET project_id = ?, deleted_at = COALESCE(deleted_at, ?), revision = revision + 1, updated_at = ? WHERE pk = ?").run(destination, timestamp, timestamp, row.pk);
+      const boards = rows.map(row => toBoardMeta({ ...row, project_id: destination, deleted_at: row.deleted_at || timestamp, revision: Number(row.revision) + 1, updated_at: timestamp }));
+      database.exec("COMMIT");
+      return { boards, snapshots };
+    } catch (error) {
+      try { database.exec("ROLLBACK"); } catch {}
+      throw error;
+    }
+  },
+
+  restoreProjectBoards({ snapshots, destinationProjectId } = {}) {
+    const items = Array.isArray(snapshots) ? snapshots : [];
+    database.exec("BEGIN IMMEDIATE");
+    try {
+      for (const item of items) {
+        const result = prepare("UPDATE boards SET project_id = ?, deleted_at = ?, revision = ?, updated_at = ? WHERE external_id = ? AND project_id = ? AND revision = ?")
+          .run(item.projectId, item.deletedAt || null, item.revision, item.updatedAt, item.id, destinationProjectId, Number(item.revision) + 1);
+        if (Number(result.changes) !== 1) throw codedError("project_delete_compensation_conflict", "画布在项目删除恢复过程中发生变化，请重新加载。");
+      }
+      database.exec("COMMIT");
+      return { restoredCanvasCount: items.length };
+    } catch (error) {
+      try { database.exec("ROLLBACK"); } catch {}
+      throw error;
+    }
   },
 
   applyOperations({ boardId, baseRevision, operations } = {}) {
@@ -1080,7 +1129,7 @@ const handlers = {
     });
   },
 
-  beginLegacyImport({ board, backupFile, projectId } = {}) {
+  beginLegacyImport({ board, backupFile, projectId, rejectExisting = false } = {}) {
     const id = requiredId(board?.id, "Legacy board");
     const timestamp = nowIso();
     database.exec("BEGIN IMMEDIATE");
@@ -1088,6 +1137,9 @@ const handlers = {
       const existing = prepare(`
         SELECT pk, migration_state FROM boards WHERE external_id = ?
       `).get(id);
+      if (existing && rejectExisting) {
+        throw Object.assign(codedError("board_already_exists", "画布编号已存在，请使用新的编号导入。"), { statusCode: 409 });
+      }
       if (existing?.migration_state === "active") {
         throw codedError("board_already_active", `Canvas board is already active: ${id}`);
       }

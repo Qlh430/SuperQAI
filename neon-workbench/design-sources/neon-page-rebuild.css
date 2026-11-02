@@ -1130,3 +1130,22 @@ body.canvas-surface-open #aiOsLaunchpad {
   content: "" !important;
   display: none !important;
 }
+
+/* Canvas asset waterfall: keep each card at its intrinsic height while the
+   measured row span lets the next asset sit directly below it. */
+#neonEngineSurface .canvas-asset-grid {
+  display: grid !important;
+  grid-auto-flow: row !important;
+  grid-auto-rows: 1px !important;
+  row-gap: 0 !important;
+  --canvas-asset-card-gap: 10px;
+  align-items: start !important;
+}
+#neonEngineSurface .canvas-asset-card {
+  height: max-content !important;
+  align-self: start !important;
+  margin: 0 !important;
+}
+@media (max-width: 520px) {
+  #neonEngineSurface .canvas-asset-grid { --canvas-asset-card-gap: 8px; }
+}

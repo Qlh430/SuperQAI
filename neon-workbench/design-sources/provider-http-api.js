@@ -233,6 +233,8 @@ function createProviderHttpApi({
   assertAvailable = () => true,
   agentModelSettings = null,
   persistGeneratedAudio = null,
+  aceStepTaskService = null,
+  qwenTtsTaskService = null,
 } = {}) {
   if (!store || typeof store.listPublic !== "function" || typeof store.reveal !== "function") {
     throw new TypeError("Provider HTTP API requires a compatible Provider Store.");
@@ -393,6 +395,27 @@ function createProviderHttpApi({
               metadata: { parameterOverrides: { ...parameterOverrides } }, parameterOverrides,
             });
           }
+          if (typeof aceStepTaskService?.execute === "function"
+            && String(provider.id || "") === "local-comfyui"
+            && String(provider.protocol || provider.providerProtocol || "").toLowerCase() === "comfyui") {
+            const parameterOverrides = { duration: 120, bpm: 95, keyscale: "E minor" };
+            models.push({
+              id: "custom:local-comfyui:ace-step",
+              providerId: provider.id, providerName: provider.name || "本机 ComfyUI", modelId: "ace-step",
+              displayName: "ACE-Step", capabilities: ["audio.generate"], modelProtocol: "comfyui",
+              metadata: { parameterOverrides }, parameterOverrides,
+            });
+          }
+          if (typeof qwenTtsTaskService?.execute === "function"
+            && String(provider.id || "") === "local-comfyui"
+            && String(provider.protocol || provider.providerProtocol || "").toLowerCase() === "comfyui") {
+            models.push({
+              id: "custom:local-comfyui:qwen-tts",
+              providerId: provider.id, providerName: provider.name || "本机 ComfyUI", modelId: "qwen-tts",
+              displayName: "Qwen-TTS", capabilities: ["audio.generate"], modelProtocol: "audio-speech",
+              metadata: { qwenTts: true, parameterOverrides: {} }, parameterOverrides: {},
+            });
+          }
         }
         publicSend(res, 200, { models, revision: Math.max(0, Number(readCatalogRevision()) || 0) });
         return true;
@@ -403,6 +426,51 @@ function createProviderHttpApi({
         const provider = revealProvider(payload.providerId);
         secrets.push(provider.apiKey, provider.walletKey);
         if (provider.enabled === false) throw httpError("provider_disabled", "此服务已停用，请选择其他音频模型。", 403);
+        if (String(payload.providerId) === "local-comfyui" && String(payload.modelId) === "ace-step") {
+          if (String(provider.protocol || provider.providerProtocol || "").toLowerCase() !== "comfyui" || typeof aceStepTaskService?.execute !== "function") {
+            throw httpError("ace_step_unavailable", "ACE-Step 本机工作流尚未接入，请检查应用版本和 ComfyUI 设置。", 503);
+          }
+          const tags = String(payload.prompt || payload.input?.prompt || "").trim();
+          if (payload.mode && payload.mode !== "music") throw httpError("invalid_audio_input", "ACE-Step 仅用于音乐模式。");
+          const parameters = payload.parameters || payload.params || {};
+          if (!tags) throw httpError("invalid_audio_input", "请先填写音乐类型、情绪或乐器提示词。");
+          if (tags.length > 4096 || String(parameters.lyrics || "").length > 4096) throw httpError("invalid_audio_input", "音乐提示词和歌词不能超过 4096 个字符。");
+          if (Object.keys(parameters).some(key => !["lyrics", "duration", "bpm", "keyscale"].includes(key))) throw httpError("invalid_audio_input", "ACE-Step 只接受歌词、时长、BPM 和调式参数。");
+          const saved = await aceStepTaskService.execute({
+            tags, lyrics: String(parameters.lyrics || ""), duration: parameters.duration ?? 120,
+            bpm: parameters.bpm ?? 95, keyscale: parameters.keyscale ?? "E minor", auth,
+          });
+          sendJson(res, 200, { audio: { ...saved, contentType: saved.contentType || "audio/mpeg", modelId: "ace-step", providerId: "local-comfyui" } });
+          return true;
+        }
+        if (String(payload.providerId) === "local-comfyui" && String(payload.modelId) === "qwen-tts") {
+          if (String(provider.protocol || provider.providerProtocol || "").toLowerCase() !== "comfyui" || typeof qwenTtsTaskService?.execute !== "function") {
+            throw httpError("qwen_tts_unavailable", "Qwen-TTS 本机工作流尚未接入，请检查应用版本和 ComfyUI 设置。", 503);
+          }
+          if (payload.mode !== "speech") throw httpError("invalid_audio_input", "Qwen-TTS 仅用于语音模式。");
+          if (Object.keys(payload).some(key => !["providerId", "modelId", "mode", "prompt", "parameters"].includes(key))) throw httpError("invalid_audio_input", "Qwen-TTS 只接受语音文本和三种音色模式的参数。");
+          if (typeof payload.prompt !== "string" || !payload.prompt.trim()) throw httpError("invalid_audio_input", "请先填写要生成的语音文本。");
+          const text = payload.prompt.trim();
+          if (text.length > 4096) throw httpError("invalid_audio_input", "语音文本不能超过 4096 个字符。");
+          const parameters = payload.parameters === undefined ? {} : payload.parameters;
+          if (!parameters || typeof parameters !== "object" || Array.isArray(parameters)) throw httpError("invalid_audio_input", "语音参数必须是有效的配置对象。");
+          if (Object.keys(parameters).some(key => !["voiceMode", "speaker", "instruct", "referenceAudio"].includes(key))) throw httpError("invalid_audio_input", "Qwen-TTS 只接受音色模式、预设音色、音色描述和参考音频参数。");
+          const mode = parameters.voiceMode === undefined ? "preset" : parameters.voiceMode;
+          if (!["clone", "preset", "design"].includes(mode)) throw httpError("invalid_audio_input", "请选择有效的克隆、预设或设计音色模式。");
+          const speaker = parameters.speaker === undefined ? "Ryan" : parameters.speaker;
+          if (!["Aiden", "Dylan", "Eric", "Ono_anna", "Ryan", "Serena", "Sohee", "Uncle_fu", "Vivian"].includes(speaker)) throw httpError("invalid_audio_input", "请选择有效的 Qwen-TTS 预设音色。");
+          if (parameters.instruct !== undefined && typeof parameters.instruct !== "string") throw httpError("invalid_audio_input", "音色描述必须是文本。");
+          const instruct = (parameters.instruct || "").trim();
+          if (instruct.length > 4096) throw httpError("invalid_audio_input", "音色描述不能超过 4096 个字符。");
+          if (mode === "design" && !instruct) throw httpError("invalid_audio_input", "请先填写要设计的音色描述。");
+          if (parameters.referenceAudio !== undefined && typeof parameters.referenceAudio !== "string") throw httpError("invalid_audio_input", "参考音频必须是已上传的本地音频地址。");
+          const referenceAudio = (parameters.referenceAudio || "").trim();
+          if (referenceAudio && !/^\/output\/[^?#\s]+$/.test(referenceAudio)) throw httpError("invalid_audio_input", "参考音频必须使用已上传到本机的音频，请重新上传。");
+          if (mode === "clone" && !referenceAudio) throw httpError("invalid_audio_input", "克隆音色需要先上传参考音频。");
+          const saved = await qwenTtsTaskService.execute({ mode, text, speaker, instruct, referenceAudio, auth });
+          sendJson(res, 200, { audio: { ...saved, contentType: saved.contentType || "audio/flac", modelId: "qwen-tts", providerId: "local-comfyui" } });
+          return true;
+        }
         const model = (provider.models || []).find(item => item.id === String(payload.modelId || "").trim());
         if (!model) throw httpError("provider_model_not_found", "所选音频模型已移除，请重新选择。", 404);
         if (!model.capabilities?.includes("audio.generate")) throw httpError("audio_capability_missing", "所选模型不支持音频生成。");

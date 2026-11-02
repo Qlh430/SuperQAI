@@ -224,7 +224,7 @@
     modeSelect.addEventListener("change", () => {
       node.dataset.comfyMode = modeSelect.value;
       updateCanvasComfyHint(node);
-      scheduleCanvasSave?.();
+      scheduleCanvasSave?.(node);
     });
 
     const aspectSelect = document.createElement("select");
@@ -249,7 +249,7 @@
       // 分辨率档跟着比例换算：同一个 2K，16:9 与 1:1 提交的 MP 不是一个数。
       syncComfyMegapixelOptions(node, aspectSelect, megapixelsSelect);
       updateCanvasComfyHint(node);
-      scheduleCanvasSave?.();
+      scheduleCanvasSave?.(node);
     });
 
     const megapixelsSelect = document.createElement("select");
@@ -266,7 +266,7 @@
       const selected = COMFY_RESOLUTION_TIERS.find((spec) => String(comfyMegapixelsFor(aspectSelect.value, spec.tier)) === megapixelsSelect.value);
       if (selected) node.dataset.comfyTier = selected.tier;
       updateCanvasComfyHint(node);
-      scheduleCanvasSave?.();
+      scheduleCanvasSave?.(node);
     });
 
     const run = document.createElement("button");
@@ -308,3 +308,4 @@
     comfyTierForMegapixels,
   });
 });
+

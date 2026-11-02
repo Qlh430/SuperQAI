@@ -1,19 +1,65 @@
 (function installFloraNodeShell(root) {
   "use strict";
 
+  // Independent runtime fallbacks; no persisted canvas/config schema changes.
+  root.NeonCanvasPerformanceFlags ||= { incrementalIcons: true, localScale: true, dirtySave: true };
+  function installIncrementalIcons() {
+    if (!root.lucide?.createIcons || root.lucide.createIcons.neonIncremental) return;
+    const originalCreateIcons = root.lucide.createIcons;
+    const renderedNames = new WeakMap();
+    const pendingAttribute = "data-neon-icon-pending";
+    const createIcons = (options = {}) => {
+      if (root.NeonCanvasPerformanceFlags.incrementalIcons === false) return originalCreateIcons(options);
+      const scope = options.root || document;
+      const attribute = options.nameAttr || "data-lucide";
+      if (attribute === 'data-lucide' && (scope.querySelector('[icon-name]:not(svg)')
+        || (scope.localName !== 'svg' && scope.matches?.('[icon-name]')))) {
+        // Preserve the bundled library's deprecated-placeholder compatibility.
+        // Current canvas templates never use this rare legacy path.
+        return originalCreateIcons(options);
+      }
+      // The bundled Lucide scans document (including its existing SVGs) and
+      // ignores root. Its nameAttr option lets us reuse the exact same renderer
+      // while marking only new placeholders or explicitly renamed SVGs.
+      const candidates = Array.from(scope.querySelectorAll(`[${attribute}]`));
+      if (scope.matches?.(`[${attribute}]`)) candidates.unshift(scope);
+      const pending = candidates.filter(element => {
+        if (element.localName !== "svg") return true;
+        const name = element.getAttribute(attribute);
+        const names = [...element.classList].filter(value => value.startsWith('lucide-'));
+        if (!renderedNames.has(element) && names.length === 1 && element.classList.contains(`lucide-${name}`)) renderedNames.set(element, name);
+        return renderedNames.get(element) !== name;
+      });
+      if (!pending.length) return;
+      pending.forEach(element => element.setAttribute(pendingAttribute, element.getAttribute(attribute)));
+      try { return originalCreateIcons({ ...options, nameAttr: pendingAttribute }); }
+      finally {
+        // Generated SVGs retain the original data-lucide and all visual attrs.
+        document.querySelectorAll(`[${pendingAttribute}]`).forEach(element => {
+          if (element.localName === 'svg' && !pending.includes(element)) renderedNames.set(element, element.getAttribute(pendingAttribute));
+          element.removeAttribute(pendingAttribute);
+        });
+        pending.forEach(element => element.removeAttribute(pendingAttribute));
+      }
+    };
+    createIcons.neonIncremental = true;
+    root.lucide.createIcons = createIcons;
+  }
+  installIncrementalIcons();
+
   const META = Object.freeze({
     text: { label: "文字", icon: "type", tone: "accent" },
     note: { label: "便签", icon: "sticky-note", tone: "neutral" },
     upload: { label: "图片", icon: "image-plus", tone: "neutral" },
     video: { label: "视频", icon: "video", tone: "neutral" },
     audio: { label: "音频", icon: "audio-lines", tone: "neutral" },
-    generator: { label: "图片生成", icon: "sparkles", tone: "accent" },
+    generator: { label: "图片生成", icon: "image", tone: "accent" },
     midjourney: { label: "Midjourney", icon: "wand-sparkles", tone: "accent" },
     comfy: { label: "ComfyUI", icon: "workflow", tone: "accent" },
     llm: { label: "文本生成", icon: "text", tone: "accent" },
     "audio-generator": { label: "音频生成", icon: "audio-lines", tone: "accent" },
-    "minimax-h3": { label: "视频生成", icon: "clapperboard", tone: "accent" },
-    "video-api": { label: "视频生成", icon: "film", tone: "accent" },
+    "minimax-h3": { label: "视频生成", icon: "play-square", tone: "accent" },
+    "video-api": { label: "视频生成", icon: "play-square", tone: "accent" },
     "director-3d": { label: "3D 导演台", icon: "box", tone: "accent" },
     loop: { label: "循环", icon: "repeat-2", tone: "accent" },
     gallery: { label: "图集", icon: "images", tone: "neutral" },
@@ -30,6 +76,7 @@
   // invalidate every descendant of the canvas on each animation frame.
   if (root.CSS?.registerProperty) {
     try { root.CSS.registerProperty({ name: '--collab-inverse-scale', syntax: '<number>', inherits: false, initialValue: '1' }); } catch (_) {}
+
   }
   // Only elements that are actually painted need the counter-scale. The toolbar,
   // the image dimensions chip and the adaptive-media outline are hidden until the
@@ -42,6 +89,8 @@
   const SCALE_TARGETS = [
     '.flora-node-submit',
     '.canvas-port',
+    '.flora-node-label',
+    '.flora-node-tag:not([hidden])',
     '.flora-node-label-title',
     '.flora-generation-history-badge',
     '.canvas-collab-cursor',
@@ -59,17 +108,27 @@
     '.canvas-node[data-flora-adaptive-media="true"].is-connecting .flora-node-shell::after',
   ].join(', ');
   let scaleRule;
+  let scaleSelector = '';
   function syncScale(inverse = inverseCanvasScale) {
     const next = String(inverse);
+    // Hidden empty history badges need no compensation; the selector activates their
+    // current value synchronously when they are shown, without a new frame.
+    const targets = root.NeonCanvasPerformanceFlags.localScale === false ? SCALE_TARGETS : SCALE_TARGETS
+      .replace('.flora-generation-history-badge', '.flora-generation-history-badge:not([hidden])');
+    const selector = targets.split(',').map(value => '#canvasPlane ' + value.trim()).join(',');
     if (!scaleRule) {
       const style = document.createElement('style');
       style.dataset.floraScale = 'true';
       document.head.append(style);
       // A shared rule also covers media results, restored nodes and paths
       // created after the most recent zoom, without mutating their DOM.
-      style.sheet.insertRule(SCALE_TARGETS.split(',').map(selector => '#canvasPlane ' + selector.trim()).join(',') + ' {}');
+      style.sheet.insertRule(selector + ' {}');
       scaleRule = style.sheet.cssRules[0];
+      scaleSelector = selector;
     }
+    // CSSOM serializes commas/spaces, so compare the authored key rather than
+    // selectorText; otherwise identical selectors are rewritten every pan.
+    if (scaleSelector !== selector) { scaleRule.selectorText = selector; scaleSelector = selector; }
     if (scaleRule.style.getPropertyValue('--collab-inverse-scale') !== next) scaleRule.style.setProperty('--collab-inverse-scale', next);
     inverseCanvasScale = next;
   }
@@ -156,7 +215,7 @@
   }
 
   function syncImagePreviewDimensions(node, preferSelection = false) {
-    if (node?.dataset.floraKind !== "generator") return;
+    if (!node || (node.dataset.floraKind !== "generator" && !node.classList.contains("canvas-node-comfy"))) return;
     const size = node.querySelector(".canvas-node-size");
     const raw = size?.value === "custom" ? node.dataset.canvasSize : size?.value || node.dataset.canvasSize || "";
     const selected = String(raw).match(/^(\d+(?:\.\d+)?)\s*[:x]\s*(\d+(?:\.\d+)?)$/i);
@@ -173,8 +232,12 @@
     }
     imagePreviewStates.set(node, state);
     const same = state.signature === signature;
-    if (!preferSelection && same && node.style.getPropertyValue("--flora-node-height") === `${FLORA_NODE_WIDTH / state.ratio}px`) return;
     const selectionChanged = state.raw !== raw;
+    // Once a media surface has an established board geometry, a representation
+    // or hover refresh must not recalibrate it from a late decode. A changed
+    // source or an explicit size choice still reopens calibration.
+    if (!preferSelection && state.geometryLocked && state.source === source && !selectionChanged) return;
+    if (!preferSelection && same && node.style.getPropertyValue("--flora-node-height") === `${FLORA_NODE_WIDTH / state.ratio}px`) return;
     const newResult = source !== state.source || state.intrinsic !== (ready ? `${image.naturalWidth}x${image.naturalHeight}` : "pending");
     state.signature = signature;
     state.raw = raw;
@@ -188,7 +251,13 @@
         : selected ? Number(selected[1]) / Number(selected[2]) : null;
     if (!(ratio > 0 && Number.isFinite(ratio))) return;
     state.ratio = ratio;
-    const width = FLORA_NODE_WIDTH, height = width / ratio;
+    const angleResult = node.dataset.floraAngleResult === "true";
+    const width = angleResult ? Number(node.dataset.width) || FLORA_NODE_WIDTH
+      : node.dataset.mediaSizeMode === "manual" && Number(node.dataset.width) > 0 ? Number(node.dataset.width) : FLORA_NODE_WIDTH;
+    // 裁剪切片和整组缩放保存了手动宽高，恢复或异步解码不能按默认比例改写高度。
+    const height = angleResult && Number(node.dataset.height) > 0
+      ? Number(node.dataset.height)
+      : width / ratio;
     node.dataset.floraImagePreview = "true";
     const changed = Number(node.dataset.width) !== width || Math.abs(Number(node.dataset.height) - height) > .001
       || node.style.getPropertyValue("--flora-node-height") !== `${height}px`;
@@ -196,11 +265,12 @@
     node.dataset.width = String(width);
     node.dataset.height = String(height);
     node.dataset.renderedWidth = String(width);
-    node.dataset.renderedHeight = String(height + 48);
+    node.dataset.renderedHeight = String(height + (angleResult ? 0 : 48));
     node.dataset.floraSize = `${width}x${height}`;
     node.dataset.floraBodySize = node.dataset.floraSize;
     node.style.setProperty("--flora-node-width", `${width}px`);
     node.style.setProperty("--flora-node-height", `${height}px`);
+    state.geometryLocked = true;
     root.dispatchEvent(new CustomEvent("flora-image-preview-resized", { detail: { node } }));
   }
 
@@ -236,8 +306,34 @@
   // The legacy renderer owns the real <video>/<audio> element. These adapters
   // keep that element as the source of truth and only add the presentation
   // layer required by the canvas design.
+  function requestVideoPlayback(node) {
+    const media = node?.querySelector?.('.canvas-video-preview, .canvas-video-output-stage video');
+    if (!media || typeof media.play !== 'function') return Promise.resolve(false);
+    node.dataset.videoPlaybackRequested = 'true';
+    let playback;
+    try { playback = media.play(); } catch (error) { playback = Promise.reject(error); }
+    return Promise.resolve(playback).then(() => true).catch(error => {
+      node.dataset.videoPlaybackRequested = 'false';
+      root.setCanvasStatus?.(error?.name === 'NotAllowedError'
+        ? '浏览器阻止了视频自动播放，请再次点击播放。'
+        : '视频无法播放，请检查视频地址或网络连接。');
+      return false;
+    });
+  }
+
+  function requestMediaPlayback(node) {
+    if (node?.querySelector?.('video')) return requestVideoPlayback(node);
+    const media = node?.querySelector?.('audio');
+    if (!media?.play) return Promise.resolve(false);
+    try { return Promise.resolve(media.play()).then(()=>true).catch(error=>{
+      root.setCanvasStatus?.(error?.name === 'NotAllowedError' ? '浏览器阻止了音频播放，请点击播放重试。' : '音频无法播放，请检查文件或网络连接。');
+      return false;
+    }); } catch { root.setCanvasStatus?.('音频无法播放，请检查文件或网络连接。');return Promise.resolve(false); }
+  }
+
   function enhanceVideoPlayer(node) {
     const media = node.querySelector(".canvas-video-preview");
+    if (node.floraVideoCleanup?.media !== media) node.floraVideoCleanup?.();
     const shell = media?.closest(".canvas-media-shell");
     if (!media || !shell) return;
     // History clearing can leave the reusable media element in the result area.
@@ -313,11 +409,16 @@
       expand.innerHTML = `<i data-lucide="${fullscreen ? "minimize-2" : "maximize-2"}"></i>`;
       root.lucide?.createIcons?.({ attrs: { "aria-hidden": "true", "stroke-width": 2 } });
     };
+    const reportMediaError = () => {
+      if (node.dataset.videoPlaybackRequested !== 'true') return;
+      node.dataset.videoPlaybackRequested = 'false';
+      root.setCanvasStatus?.('视频加载失败，请检查视频地址或网络连接。');
+    };
     const toggle = (event) => {
       event?.preventDefault?.();
       event?.stopPropagation?.();
       if (media.paused || media.ended) {
-        media.play?.().catch(() => {});
+        void requestVideoPlayback(node);
       } else {
         media.pause?.();
       }
@@ -391,7 +492,20 @@
       controls.addEventListener("pointerdown", (event) => event.stopPropagation());
       ["play", "pause", "ended", "timeupdate", "durationchange", "loadedmetadata", "seeked"]
         .forEach((type) => media.addEventListener(type, sync));
+      media.addEventListener('error', reportMediaError);
+      media.addEventListener('playing', () => { node.dataset.videoPlaybackRequested = 'false'; }, { once: true });
       root.document?.addEventListener("fullscreenchange", sync);
+      const cleanup = () => {
+        root.document?.removeEventListener('fullscreenchange', sync);
+        ['play', 'pause', 'ended', 'timeupdate', 'durationchange', 'loadedmetadata', 'seeked']
+          .forEach(type => media.removeEventListener(type, sync));
+        media.removeEventListener('error', reportMediaError);
+        controls.remove();
+        center?.remove();
+        if (node.floraVideoCleanup === cleanup) delete node.floraVideoCleanup;
+      };
+      cleanup.media = media;
+      node.floraVideoCleanup = cleanup;
     }
     if (center.dataset.floraVideoBound !== "true") {
       center.dataset.floraVideoBound = "true";
@@ -453,7 +567,7 @@
       const toggle = (event) => {
         event.preventDefault();
         event.stopPropagation();
-        if (media.paused || media.ended) media.play?.().catch(() => {});
+        if (media.paused || media.ended) void requestMediaPlayback(node);
         else media.pause?.();
       };
       const sync = () => {
@@ -471,10 +585,12 @@
         timeline.setAttribute("aria-valuetext", `${formatMediaTime(current)} / ${formatMediaTime(duration)}`);
         time.textContent = `${formatMediaTime(current)} / ${formatMediaTime(duration)}`;
         const playing = !media.paused && !media.ended;
-        play.dataset.playing = String(playing);
-        play.setAttribute("aria-label", playing ? "暂停音频" : "播放音频");
-        play.innerHTML = `<i data-lucide="${playing ? "pause" : "play"}"></i>`;
-        root.lucide?.createIcons?.({ attrs: { "aria-hidden": "true", "stroke-width": 2 } });
+        if (play.dataset.playing !== String(playing)) {
+          play.dataset.playing = String(playing);
+          play.setAttribute("aria-label", playing ? "暂停音频" : "播放音频");
+          play.innerHTML = `<i data-lucide="${playing ? "pause" : "play"}"></i>`;
+          root.lucide?.createIcons?.({ root: play, attrs: { "aria-hidden": "true", "stroke-width": 2 } });
+        }
       };
       play.addEventListener("click", toggle);
       play.addEventListener("pointerdown", (event) => event.stopPropagation());
@@ -529,8 +645,8 @@
   }
 
   function enhanceMediaNode(node, kind = getKind(node)) {
-    if (["asset-video", "video-api", "minimax-h3"].includes(kind)) enhanceVideoPlayer(node);
-    if (["asset-audio", "audio-generator"].includes(kind)) enhanceAudioPlayer(node);
+    if (["video", "asset-video", "video-api", "minimax-h3"].includes(kind)) enhanceVideoPlayer(node);
+    if (["audio", "asset-audio", "audio-generator"].includes(kind)) enhanceAudioPlayer(node);
   }
 
   function refreshIcon(icon) {
@@ -538,7 +654,20 @@
     const glyph = icon.querySelector("[data-lucide]");
     if (!glyph) return;
     const lucide = root.lucide;
-    if (lucide?.createIcons) lucide.createIcons({ attrs: { "aria-hidden": "true", "stroke-width": 1.8 } });
+    // Full nodes are decorated before being attached to the canvas. Lucide's
+    // document scan cannot see them yet, so render this label directly.
+    const name = glyph.getAttribute("data-lucide") || "box";
+    const key = name.replace(/(^|[-_\s]+)(\w)/g, (_, separator, letter) => letter.toUpperCase());
+    const definition = lucide?.icons?.[key] || lucide?.icons?.Box;
+    if (definition && lucide?.createElement) {
+      const [tag, defaults, children] = definition;
+      glyph.replaceWith(lucide.createElement([tag, {
+        ...defaults, "aria-hidden": "true", "stroke-width": 1.8,
+        "data-lucide": name, class: `lucide lucide-${name}`,
+      }, children]));
+    } else if (lucide?.createIcons) {
+      lucide.createIcons({ root: icon, attrs: { "aria-hidden": "true", "stroke-width": 1.8 } });
+    }
   }
 
   // The legacy renderer still owns the controls and data bindings.  The Flora
@@ -581,7 +710,7 @@
 
   function isLegacyChrome(element) {
     return element.matches(
-      ".flora-node-shell, .flora-node-label, .flora-node-tag, .canvas-node-bar, .canvas-node-footer, .canvas-h3-footer, .canvas-gallery-container-footer, .canvas-node-actions, .canvas-port, .canvas-resize-handle",
+      ".flora-node-shell, .flora-node-label, .flora-node-tag, .canvas-media-handoff, .canvas-node-bar, .canvas-node-footer, .canvas-h3-footer, .canvas-gallery-container-footer, .canvas-node-actions, .canvas-port, .canvas-resize-handle",
     );
   }
 
@@ -715,6 +844,7 @@
   }
 
   function getAssetDisplayName(node) {
+    if (node.classList.contains('canvas-node-video') || node.classList.contains('canvas-node-audio')) return String(node.dataset.mediaName || '').trim();
     if (node.classList.contains("canvas-node-asset-single-image")) {
       return String(node.dataset.imageName || "").trim();
     }
@@ -728,11 +858,7 @@
   function syncShellLabel(node, fallback = "节点") {
     const title = node?.querySelector(":scope > .flora-node-label .flora-node-label-title");
     if (!title) return;
-    const legacyTitle = getLegacyTitle(node);
-    const next = node.dataset.nodeTitle || getAssetDisplayName(node)
-      || legacyTitle?.value
-      || legacyTitle?.textContent
-      || fallback;
+    const next = node.dataset.nodeTitle || getAssetDisplayName(node) || fallback;
     if (title.textContent !== next) title.textContent = next;
     title.setAttribute("aria-label", `重命名${next}节点`);
     title.title = `${next}（双击重命名）`;
@@ -779,21 +905,12 @@
   function syncImageInformation(node) {
     const shell = node.querySelector(":scope > .flora-node-shell");
     if (!shell) return;
-    const image = node.querySelector('.flora-node-result-area .canvas-node-result:not([hidden]) img, .flora-node-result-area .canvas-image-upload:not([hidden]) img, .canvas-node-asset-single-image .canvas-asset-image');
-    const info = image ? root.CanvasImageInfo?.getInfo(image) : null;
-    const dimensions = /^\d+ × \d+$/.test(info?.dimensions || "") ? info.dimensions : "";
-    let row = shell.querySelector(":scope > .flora-node-image-dimensions");
-    if (!row && dimensions) {
-      row = document.createElement("div");
-      row.className = "flora-node-image-dimensions";
-      shell.append(row);
-    }
-    if (row) {
-      if (row.textContent !== dimensions) row.textContent = dimensions;
-      if (row.hidden !== !dimensions) row.hidden = !dimensions;
-      row.setAttribute("aria-label", dimensions ? `图片分辨率 ${dimensions}` : "图片尺寸未知");
-    }
-    shell.querySelector(":scope > .flora-node-toolbar")?.classList.toggle("has-image-dimensions", Boolean(dimensions));
+    shell.querySelector(":scope > .flora-node-image-dimensions")?.remove();
+    const toolbar = shell.querySelector(":scope > .flora-node-toolbar");
+    // An unchanged class removal still emits a mutation in Chromium. The
+    // composer observes that class and reorders its reference controls, which
+    // calls this subtree observer again. Keep the cleanup idempotent.
+    if (toolbar?.classList.contains("has-image-dimensions")) toolbar.classList.remove("has-image-dimensions");
   }
 
   function observeImageInformation(node) {
@@ -833,41 +950,11 @@
   // 高度取「内容区上留白 + 单元格区域 + 底部状态行占用」，空图集保持标准机身。
   function syncGallerySurfaceHeight(node, shell = node.querySelector(":scope > .flora-node-shell")) {
     if (!shell || node.dataset.floraKind !== "gallery") return false;
-    // 单元格可能被包在 body surface 里，也可能直接落在内容区；不依赖具体包裹层，
-    // 只按「壳体内从单元格顶部到状态行底部」的实际占用量算高度。
-    const members = node.querySelector(".canvas-gallery-container-members");
-    if (!members) return false;
-    const shellRect = shell.getBoundingClientRect();
-    if (!(shellRect.height > 0)) return false;
-    const restoreStandardBody = () => {
-      if (!node.dataset.floraGalleryHeight) return false;
-      delete node.dataset.floraGalleryHeight;
-      delete node.dataset.floraFitContent;
-      node.dataset.floraSize = `${FLORA_NODE_WIDTH}x${FLORA_NODE_HEIGHT}`;
-      node.dataset.floraBodySize = node.dataset.floraSize;
-      node.style.setProperty("--flora-node-height", `${FLORA_NODE_HEIGHT}px`);
-      return true;
-    };
-    if (!members.children.length) return restoreStandardBody();
-    if (shellRect.height !== FLORA_NODE_HEIGHT && !node.dataset.floraGalleryHeight) return false;
-    const body = members.closest(".flora-node-body-surface");
-    const block = body || members;
-    const blockRect = block.getBoundingClientRect();
-    const membersRect = members.getBoundingClientRect();
-    // 单元格区域可能被拉伸填满整块内容区（这时 offsetHeight / scrollHeight 都是被撑满的
-    // 高度，量不到真实内容），所以按最底部单元格的底边算实际占用高度。
-    const rowsBottom = Math.max(...Array.from(members.children, (child) => child.getBoundingClientRect().bottom));
-    const rowsHeight = Math.max(1, rowsBottom - membersRect.top);
-    const blockTop = Math.max(0, blockRect.top - shellRect.top);
-    const membersOffset = Math.max(0, membersRect.top - blockRect.top);
-    const status = shell.querySelector(".flora-node-live-status");
-    const statusRect = status?.getBoundingClientRect();
-    // 状态行绝对定位在壳体底部，收缩后仍贴着机身边缘，所以按它自身高度加下边距算进来。
-    const statusHeight = statusRect && statusRect.height > 0 && statusRect.bottom <= shellRect.bottom + 0.5
-      ? statusRect.height + (shellRect.bottom - statusRect.bottom)
-      : 0;
-    const next = Math.round(blockTop + membersOffset + rowsHeight + FLORA_GALLERY_STATUS_GAP + statusHeight);
-    if (!(next > 0) || next >= FLORA_NODE_HEIGHT) return restoreStandardBody();
+    let container;
+    try { container = JSON.parse(node.dataset.galleryContainer || '{}'); } catch { return false; }
+    const layout = root.CanvasGalleryRules?.floraLayout(container);
+    if (!layout) return false;
+    const next = layout.height;
     if (node.dataset.floraGalleryHeight === String(next)) return false;
     node.dataset.floraGalleryHeight = String(next);
     node.dataset.floraFitContent = "true";
@@ -998,6 +1085,20 @@
     const shell = node.querySelector(":scope > .flora-node-shell");
     if (!shell) return;
     syncGallerySurfaceHeight(node, shell);
+    const kind = getKind(node);
+    if (kind === "note") {
+      node.querySelectorAll(".canvas-light-status, .canvas-note-status, .canvas-node-status, .canvas-node-footer-status, .canvas-node-bar-status, .canvas-h3-status, .canvas-api-video-status, .canvas-llm-status, .canvas-audio-generator-status, .canvas-comfy-status")
+        .forEach((element) => {
+          element.hidden = true;
+          element.textContent = "";
+        });
+      const noteStatus = shell.querySelector(".flora-node-live-status");
+      if (noteStatus) {
+        noteStatus.hidden = true;
+        noteStatus.textContent = "";
+      }
+      return;
+    }
     const target = node.querySelector(RUN_SELECTOR);
     const run = shell.querySelector('[data-flora-action="run"]');
     if (run && target) {
@@ -1020,7 +1121,6 @@
     if (modelButton && modelButton.textContent !== (modelText || "模型")) modelButton.textContent = modelText || "模型";
     syncShellLabel(node, META[getKind(node)]?.label || "节点");
     syncImageInformation(node);
-    const kind = getKind(node);
     const audioResult = kind === "audio-generator" ? root.CanvasAudioGenerator?.serialize?.(node)?.result : null;
     const resultSource = node.dataset.resultSrc || node.dataset.generationVideoSrc
       || audioResult?.url || audioResult?.src || "";
@@ -1035,13 +1135,14 @@
     });
     // 图片工具跟随「当前有没有图」：生成节点看结果，素材图片节点看素材本身。
     const imageTools = shell.querySelectorAll(
-      '[data-flora-action="upscale"], [data-flora-action="cutout"], [data-flora-action="crop"], [data-flora-action="outpaint"], [data-flora-action="angle"]',
+      '[data-flora-action="upscale"], [data-flora-action="cutout"], [data-flora-action="crop"], [data-flora-action="outpaint"], [data-flora-action="angle"], [data-flora-action="redraw"]',
     );
     if (imageTools.length) {
       const materialImage = kind === "upload";
       const hasImage = Boolean(resultSource) || materialImage;
       imageTools.forEach((button) => { if (button.disabled !== !hasImage) button.disabled = !hasImage; });
     }
+    root.CanvasFeatureRegistry?.syncControls(shell);
   }
 
   function buildTextTools(node, shell, toolbar) {
@@ -1270,6 +1371,7 @@
     ["crop", "裁剪", "裁剪图片", "crop"],
     ["outpaint", "扩图", "扩图", "expand"],
     ["angle", "换角度", "换角度", "rotate-3d"],
+    ["redraw", "重绘", "局部重绘或移除图片区域", "brush"],
   ]);
 
   function buildImageToolActions(node, toolbar, kind) {
@@ -1318,13 +1420,21 @@
     status.className = "flora-node-live-status";
     status.setAttribute("role", "status");
     shell.append(status);
-    if (kind === "note" && getLegacyAction(node, ".canvas-note-palette")) {
-      const palette = createAction("颜色", "color", "调整便签颜色", "palette");
-      toolbar.append(palette);
-      palette.addEventListener("click", (event) => {
-        event.stopPropagation();
-        node.classList.toggle("is-flora-palette-open");
-      });
+    if (kind === "note") {
+      const palette = getLegacyAction(node, ".canvas-note-palette");
+      if (palette) {
+        palette.classList.add("flora-note-inline-palette");
+        // The detached legacy popover has a fixed inline width; inline toolbar
+        // contents should size naturally around the swatches and delete action.
+        palette.style.removeProperty("width");
+        palette.setAttribute("aria-expanded", "true");
+        const paletteRemove = palette.querySelector(".canvas-note-remove");
+        if (paletteRemove) {
+          paletteRemove.dataset.floraAction = "delete";
+          paletteRemove.classList.add("flora-node-action", "flora-node-icon-action");
+        }
+        toolbar.append(palette);
+      }
     }
     // Generative nodes keep their toolbar to result actions only: the model
     // picker and the parameter popover already live in the composer's bottom
@@ -1407,6 +1517,15 @@
   }
 
   function buildShell(node) {
+    // The legacy canvas layer gives every direct child a relative stacking
+    // context. Keep the resize control out of normal flow so its corner glyph
+    // cannot occupy the title row; CSS still controls visibility and painting.
+    const resizeHandle = node.querySelector(":scope > .canvas-resize-handle");
+    if (resizeHandle) {
+      resizeHandle.style.setProperty("position", "absolute", "important");
+      resizeHandle.style.setProperty("right", "-5px", "important");
+      resizeHandle.style.setProperty("bottom", "-5px", "important");
+    }
     const { kind, meta } = resolveMeta(node);
     // Text nodes carry the language-model composer now, so they mount the shared
     // operation area as well. The legacy llm kind stays for existing boards.
@@ -1421,17 +1540,43 @@
     node.dataset.floraComposer = String(composer);
     node.dataset.floraTone = meta.tone;
     const wideVideo = ["video-api", "minimax-h3"].includes(kind);
-    const bodyWidth = wideVideo ? 640 : FLORA_NODE_WIDTH;
+    const compactAudio = ["audio", "asset-audio", "audio-generator"].includes(kind);
+    const angleResult = node.dataset.floraAngleResult === "true";
+    // A Light node already paints the saved world geometry. Hydrating the same
+    // node for a click must keep that geometry; otherwise the Full shell snaps
+    // back to 400px for one frame (or permanently) before the toolbar appears.
+    const savedWidth = Number(node.dataset.width);
+    const savedHeight = Number(node.dataset.height);
+    const bodyWidth = angleResult
+      ? savedWidth || FLORA_NODE_WIDTH
+      : compactAudio
+        ? FLORA_NODE_WIDTH
+        : wideVideo
+          ? savedWidth || 640
+          : savedWidth > 0 ? savedWidth : FLORA_NODE_WIDTH;
     // 图集已经按内容收缩过就沿用上次的高度，避免每次重建壳体先弹回标准机身。
-    const savedGalleryHeight = kind === "gallery" ? Number(node.dataset.floraGalleryHeight || 0) : 0;
-    const bodyHeight = kind === "asset-audio"
-      ? FLORA_AUDIO_HEIGHT
-      : savedGalleryHeight > 0 ? savedGalleryHeight : wideVideo ? 360 : FLORA_NODE_HEIGHT;
+    let savedGalleryHeight = kind === "gallery" ? Number(node.dataset.floraGalleryHeight || 0) : 0;
+    if (kind === "gallery") {
+      try { savedGalleryHeight = root.CanvasGalleryRules?.floraLayout(JSON.parse(node.dataset.galleryContainer || '{}'))?.height || savedGalleryHeight; } catch {}
+    }
+    const bodyHeight = angleResult
+      ? savedHeight || FLORA_NODE_HEIGHT
+      : compactAudio
+        ? FLORA_AUDIO_HEIGHT
+        : savedGalleryHeight > 0
+          ? savedGalleryHeight
+          : wideVideo
+            ? savedHeight || 360
+            : savedHeight > 0 ? savedHeight : FLORA_NODE_HEIGHT;
     node.dataset.floraSize = `${bodyWidth}x${bodyHeight}`;
     node.dataset.floraBodySize = node.dataset.floraSize;
     node.style.setProperty("--flora-node-width", `${bodyWidth}px`);
     node.style.setProperty("--flora-node-height", `${bodyHeight}px`);
-    if (kind === "asset-audio" || wideVideo) {
+    if (angleResult) {
+      node.dataset.renderedWidth = String(bodyWidth);
+      node.dataset.renderedHeight = String(bodyHeight + 48);
+    }
+    if (compactAudio || wideVideo) {
       // Match saved/virtualized geometry to the compact visible player.
       node.dataset.width = String(bodyWidth);
       node.dataset.height = String(bodyHeight);
@@ -1560,6 +1705,7 @@
 
   function mount(node) {
     if (!node?.matches?.(".canvas-node")) return null;
+    installIncrementalIcons();
     const shell = buildShell(node);
     if (!shell) return null;
     observe(node);
@@ -1572,6 +1718,11 @@
   }
 
   function unmount(node) {
+    node?.floraVideoCleanup?.();
+    const gallery = gallerySurfaceWatchers.get(node);
+    gallery?.resize?.disconnect?.();
+    gallery?.mutation?.disconnect?.();
+    gallerySurfaceWatchers.delete(node);
     root.FloraTextTools?.unmount(node);
     const information = imageInformationStates.get(node);
     information?.observer.disconnect();
@@ -1613,6 +1764,8 @@
     syncScale,
     META,
     getKind,
+    playVideo: requestVideoPlayback,
+    playMedia: requestMediaPlayback,
     syncImagePreview: syncImagePreviewDimensions,
     enhanceMedia: (node) => enhanceMediaNode(node, node.dataset.floraKind || getKind(node)),
     mount,
@@ -1624,3 +1777,4 @@
     syncLabel: (node) => syncShellLabel(node, META[getKind(node)]?.label || "节点"),
   });
 })(typeof window !== "undefined" ? window : globalThis);
+

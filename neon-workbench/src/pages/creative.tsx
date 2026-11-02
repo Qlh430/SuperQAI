@@ -1,3 +1,4 @@
+import { createId } from "@/lib/id"
 import { useEffect, useRef, useState } from "react"
 import { Download, ImagePlus, MessageSquare, Plus, Send, Settings2, Square, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -7,11 +8,14 @@ import { NativeSelect } from "@/components/ui/native-select"
 import { Empty, ErrorPanel, Modal } from "@/components/workbench"
 import { request } from "@/lib/api"
 import type { RecordItem } from "@/lib/api"
+import { textFields, textOf } from "@/lib/text"
+import { chatCompletionWarning } from "@/lib/chat-result"
+import type { ChatResult } from "@/lib/chat-result"
 
 type Props = { onSettings: () => void; notify: (s: string) => void; onComplete: () => void }
 type Model = { id: string; displayName?: string }
 type Output = { src: string; savedUrl: string; width?: number; height?: number }
-type Message = { role: string; content: string }
+type Message = { role: string; content: string; warning?: string }
 function useModels(path: string) {
   const [models, setModels] = useState<Model[]>([])
   const [error, setError] = useState("")
@@ -21,7 +25,7 @@ function useModels(path: string) {
     const load = () => {
       abort?.abort(); abort = new AbortController(); const current = abort
       setLoading(true); setError("")
-      request<{ models: (Model | string)[] }>(path, "GET", undefined, current.signal).then(data => { if (!current.signal.aborted) setModels((data.models || []).map(m => typeof m === "string" ? { id: m, displayName: m } : m)) }).catch(e => { if (!current.signal.aborted) setError(e.message) }).finally(() => { if (!current.signal.aborted) setLoading(false) })
+      request<{ models: (Model | string)[] }>(path, "GET", undefined, current.signal).then(data => { if (!current.signal.aborted) setModels((data.models || []).map(m => typeof m === "string" ? { id: m, displayName: m } : textFields<Model>(m, ["id", "displayName"]) || { id: "" })) }).catch(e => { if (!current.signal.aborted) setError(e.message) }).finally(() => { if (!current.signal.aborted) setLoading(false) })
     }
     load(); window.addEventListener("neon:models-changed", load)
     return () => { abort.abort(); window.removeEventListener("neon:models-changed", load) }
@@ -46,7 +50,7 @@ export async function uploadImage(file: File) {
 export function ImageWorkspace({ onSettings, notify, onComplete }: Props) {
   const [reuse] = useState(takeReuse)
   useEffect(() => { sessionStorage.removeItem("neon-reuse") }, [])
-  const [prompt, setPrompt] = useState(reuse?.prompt || "")
+  const [prompt, setPrompt] = useState(() => textOf(reuse?.prompt))
   const [model, setModel] = useState("")
   const [size, setSize] = useState("1024x1024")
   const [count, setCount] = useState("1")
@@ -78,7 +82,7 @@ export function ImageWorkspace({ onSettings, notify, onComplete }: Props) {
       // Keep the result on screen even if history persistence fails.
       try {
         if (outputs.some(image => !image.savedUrl)) throw new Error("图片仅返回临时数据，请先下载。")
-        await request("/api/history/images", "POST", { record: { id: crypto.randomUUID(), prompt: input, model: result.model || model || "自动选择", images: outputs, category: "image", createdAt: Date.now(), parameters: { size, n: Number(count), reference_images: refs } } })
+        await request("/api/history/images", "POST", { record: { id: createId(), prompt: input, model: result.model || model || "自动选择", images: outputs, category: "image", createdAt: Date.now(), parameters: { size, n: Number(count), reference_images: refs } } })
         notify("生成完成，结果已保存到历史记录。"); onComplete()
       } catch (e) { notify(`生成完成，但记录保存未完成：${(e as Error).message}`) }
     } catch (e) { if (!abort.signal.aborted) setError((e as Error).message) }
@@ -108,7 +112,7 @@ export function ImageWorkspace({ onSettings, notify, onComplete }: Props) {
 export function ChatWorkspace({ records, onSettings, notify, onComplete }: Props & { records: RecordItem[] }) {
   const [reuse] = useState(takeReuse)
   const [messages, setMessages] = useState<Message[]>(reuse?.messages || [])
-  const [conversationId, setConversationId] = useState(reuse?.id || crypto.randomUUID())
+  const [conversationId, setConversationId] = useState(() => reuse?.id || createId())
   const [prompt, setPrompt] = useState("")
   const [model, setModel] = useState("")
   const [pending, setPending] = useState(false)
@@ -128,13 +132,13 @@ export function ChatWorkspace({ records, onSettings, notify, onComplete }: Props
     setMessages(next); setPrompt(""); setPending(true); setError("")
     const abort = new AbortController(); controller.current = abort
     try {
-      const result = await request<{ model?: string; choices?: { message?: { content?: string | { text?: string }[] } }[]; output_text?: string }>("/api/chat", "POST", { ...(model ? { model } : {}), messages: next, web_search: false }, abort.signal)
+      const result = await request<ChatResult>("/api/chat", "POST", { ...(model ? { model } : {}), messages: next.map(({role, content}) => ({role, content})), web_search: false }, abort.signal)
       const value = result.choices?.[0]?.message?.content || result.output_text
       const reply = Array.isArray(value) ? value.map(item => item.text || "").join("\n") : value
       if (!reply) throw new Error("模型未返回对话内容，请检查接口配置。")
-      const completed = [...next, { role: "assistant", content: reply }]
+      const completed = [...next, { role: "assistant", content: reply, warning: chatCompletionWarning(result) }]
       setMessages(completed)
-      try { await request("/api/history/chat", "POST", { record: { id: conversationId, title: completed.find(m => m.role === "user")?.content.slice(0, 100) || "新对话", model: result.model || model || "自动选择", messages: completed, updatedAt: Date.now(), createdAt: reuse?.createdAt || Date.now() } }); onComplete() }
+      try { await request("/api/history/chat", "POST", { record: { id: conversationId, title: textOf(completed.find(m => m.role === "user")?.content).slice(0, 100) || "新对话", model: result.model || model || "自动选择", messages: completed, updatedAt: Date.now(), createdAt: reuse?.createdAt || Date.now() } }); onComplete() }
       catch (e) { notify(`回复已收到，但历史保存失败：${(e as Error).message}`) }
     } catch (e) {
       setMessages(previous); setPrompt(draft => draft ? `${content}\n\n${draft}` : content)
@@ -142,9 +146,9 @@ export function ChatWorkspace({ records, onSettings, notify, onComplete }: Props
     } finally { setPending(false); controller.current = null }
   }
   return <div className="flex min-h-0 flex-1 flex-col">
-    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3 sm:px-8"><NativeSelect aria-label="对话模型" className="w-full max-w-72" value={model} disabled={pending || loading} onChange={e => setModel(e.target.value)}><option value="">{loading ? "加载模型…" : "自动选择对话模型"}</option>{modelUnavailable && <option value={model} disabled>原模型不可用，请重新选择</option>}{models.map(m => <option key={m.id} value={m.id}>{m.displayName || m.id}</option>)}</NativeSelect><div className="flex min-w-0 flex-wrap gap-2"><Button variant="outline" disabled={pending} onClick={() => setHistoryOpen(true)}>最近对话</Button><Button variant="outline" disabled={pending} onClick={() => { setMessages([]); setConversationId(crypto.randomUUID()); setPrompt(""); setError("") }}><Plus className="size-4" />新对话</Button><Button variant="ghost" size="icon" title="配置模型服务" aria-label="配置模型服务" onClick={onSettings}><Settings2 className="size-4" /></Button></div></div>
-    <section className="min-h-0 flex-1 overflow-y-auto px-4 py-8 sm:px-8" aria-label="对话内容"><div className="mx-auto max-w-3xl">{messages.length ? messages.map((message, index) => <article key={index} className={`mb-6 rounded-xl border border-border p-5 ${message.role === "user" ? "ml-6 bg-secondary/50 sm:ml-16" : "mr-6 bg-card sm:mr-16"}`}><h2 className="mb-3 text-xs font-medium text-muted-foreground">{message.role === "user" ? "你" : "AI 助手"}</h2><p className="whitespace-pre-wrap break-words text-sm leading-7">{message.content}</p></article>) : <div className="mx-auto max-w-lg py-12 text-center"><MessageSquare className="mx-auto mb-5 size-7 text-primary" /><h1 className="text-[2rem] font-semibold">从一个想法开始</h1><p className="mt-3 text-sm leading-6 text-muted-foreground">讨论方案或完善提示词；发送的消息与回复会保存到历史记录。</p><div className="mt-8 grid gap-3 sm:grid-cols-2">{["帮我梳理一个产品视觉方案", "帮我完善图片生成提示词"].map(text => <Button variant="outline" className="h-auto whitespace-normal py-4 text-sm" key={text} onClick={() => setPrompt(text)}>{text}</Button>)}</div></div>}{pending && <p role="status" className="mb-5 text-sm text-muted-foreground">正在等待回复…</p>}{modelUnavailable && <p role="alert" className="mb-5 text-sm text-destructive">所选模型已移除或不支持对话，请重新选择。</p>}{(error || modelError) && <p role="alert" className="mb-5 text-sm text-destructive">{error || modelError}</p>}<div ref={bottom} /></div></section>
+    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3 sm:px-8"><NativeSelect aria-label="对话模型" className="w-full max-w-72" value={model} disabled={pending || loading} onChange={e => setModel(e.target.value)}><option value="">{loading ? "加载模型…" : "自动选择对话模型"}</option>{modelUnavailable && <option value={model} disabled>原模型不可用，请重新选择</option>}{models.map(m => <option key={m.id} value={m.id}>{m.displayName || m.id}</option>)}</NativeSelect><div className="flex min-w-0 flex-wrap gap-2"><Button variant="outline" disabled={pending} onClick={() => setHistoryOpen(true)}>最近对话</Button><Button variant="outline" disabled={pending} onClick={() => { setMessages([]); setConversationId(createId()); setPrompt(""); setError("") }}><Plus className="size-4" />新对话</Button><Button variant="ghost" size="icon" title="配置模型服务" aria-label="配置模型服务" onClick={onSettings}><Settings2 className="size-4" /></Button></div></div>
+    <section className="min-h-0 flex-1 overflow-y-auto px-4 py-8 sm:px-8" aria-label="对话内容"><div className="mx-auto max-w-3xl">{messages.length ? messages.map((message, index) => <article key={index} className={`mb-6 rounded-xl border border-border p-5 ${message.role === "user" ? "ml-6 bg-secondary/50 sm:ml-16" : "mr-6 bg-card sm:mr-16"}`}><h2 className="mb-3 text-xs font-medium text-muted-foreground">{message.role === "user" ? "你" : "AI 助手"}</h2><p className="whitespace-pre-wrap break-words text-sm leading-7">{textOf(message.content)}</p>{message.warning && <p role="status" className="mt-3 text-sm leading-6 text-warning">{message.warning}</p>}</article>) : <div className="mx-auto max-w-lg py-12 text-center"><MessageSquare className="mx-auto mb-5 size-7 text-primary" /><h1 className="text-[2rem] font-semibold">从一个想法开始</h1><p className="mt-3 text-sm leading-6 text-muted-foreground">讨论方案或完善提示词；发送的消息与回复会保存到历史记录。</p><div className="mt-8 grid gap-3 sm:grid-cols-2">{["帮我梳理一个产品视觉方案", "帮我完善图片生成提示词"].map(text => <Button variant="outline" className="h-auto whitespace-normal py-4 text-sm" key={text} onClick={() => setPrompt(text)}>{text}</Button>)}</div></div>}{pending && <p role="status" className="mb-5 text-sm text-muted-foreground">正在等待回复…</p>}{modelUnavailable && <p role="alert" className="mb-5 text-sm text-destructive">所选模型已移除或不支持对话，请重新选择。</p>}{(error || modelError) && <p role="alert" className="mb-5 text-sm text-destructive">{error || modelError}</p>}<div ref={bottom} /></div></section>
     <form onSubmit={send} className="border-t border-border px-4 py-4 sm:px-8"><div className="mx-auto max-w-3xl"><Textarea aria-label="对话消息" className="min-h-24 text-sm leading-6" placeholder="输入消息，Ctrl + Enter 发送…" value={prompt} onChange={e => setPrompt(e.target.value)} onKeyDown={e => { if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); void send() } }} /><div className="mt-3 flex items-center justify-between gap-4"><p className="text-xs text-muted-foreground">AI 内容请核实后使用{pending ? "；可先输入下一条消息" : ""}</p>{pending ? <Button type="button" variant="outline" onClick={event => { event.preventDefault(); controller.current?.abort(); notify("已停止等待，输入内容已保留。") }}><Square className="size-3" />停止等待</Button> : <Button type="submit" disabled={!prompt.trim()}><Send className="size-4" />发送消息</Button>}</div></div></form>
-    <Modal open={historyOpen} title="最近对话" description="选择一条对话，继续原有上下文。" onClose={() => setHistoryOpen(false)}><div className="max-h-80 space-y-2 overflow-auto">{records.length ? records.map(record => <Button variant="ghost" key={record.id} className="h-auto w-full justify-start whitespace-normal py-3 text-left" onClick={() => { setMessages(record.messages || []); setConversationId(record.id); setHistoryOpen(false); setError("") }}>{record.title || "未命名对话"}</Button>) : <p className="text-sm text-muted-foreground">还没有保存的对话。</p>}</div></Modal>
+    <Modal open={historyOpen} title="最近对话" description="选择一条对话，继续原有上下文。" onClose={() => setHistoryOpen(false)}><div className="max-h-80 space-y-2 overflow-auto">{records.length ? records.map(record => <Button variant="ghost" key={record.id} className="h-auto w-full justify-start whitespace-normal py-3 text-left" onClick={() => { setMessages(record.messages || []); setConversationId(record.id); setHistoryOpen(false); setError("") }}>{textOf(record.title) || "未命名对话"}</Button>) : <p className="text-sm text-muted-foreground">还没有保存的对话。</p>}</div></Modal>
   </div>
 }
