@@ -60,6 +60,9 @@ if(!sourceSync.ok)throw Error('Release source synchronization failed: '+JSON.str
 write(path.join(release,'release-source-sync.json'),sourceSync);
 sourceTools.verifyLock(root,sourceLock);
 sourceTools.verifyEffective(app,sourceLock);
+const previewVerification = require('../neon-workbench/visual-presets-build.cjs')
+  .verifyReleasePreviews(path.join(root, 'neon-workbench'), app);
+write(path.join(release,'visual-preview-verification.json'), previewVerification);
 write(path.join(release,'release-source-lock.json'),sourceLock);
 require('./canvas-representation-contract.cjs').assertCanvasRepresentationCompatible(
  fs.readFileSync(path.join(app,'script.js'),'utf8'),

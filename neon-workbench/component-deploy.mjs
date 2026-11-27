@@ -39,6 +39,10 @@ const modules = Object.create(null)
 stageOnlyComponents.push(canvasReferencePickerPerformance)
 stageOnlyComponents.push("canvas-text-renderer-source")
 const modulePairs = names => names.map(name => [`design-sources/${name}`, name])
+const previewInventory = JSON.parse(fs.readFileSync(new URL("./design-sources/visual-preset-release.json", import.meta.url), "utf8"))
+const previewPairs = previewInventory.files.map(({ path: file }) => [`public/${file}`, file])
+stageOnlyComponents.push("visual-preview-assets")
+modules["visual-preview-assets"] = previewPairs
 modules["canvas-text-renderer-source"] = modulePairs(["canvas-text-node-renderer.js"])
 modules[naturalPhotoBriefStatus] = [["../host-sources/app/canvas-agent-ui.js", "canvas-agent-ui.js"]]
 modules[canvasAgentImageThumbnails] = ["canvas-agent.css", "canvas-agent-ui.js", "canvas-note-node-renderer.js"]
@@ -354,13 +358,14 @@ modules["release-host-sync"] = [
 ].map(name => [`../host-sources/app/${name}`, name]).concat(modulePairs([
   "comfy-workflow-task-service.js", "media-generation-http-api.js",
   "h3-commerce-workflow.js", "minimax-h3-task-service.js",
+  "flora-generator-composer.js",
 ])).concat(
   ["SKILL.md", "agent.skill.json", "interaction.json", "references/photography-methods.md", "references/visual-method-catalog.md", "assets/cover.png"]
     .map(file => [
       `../host-sources/app/skill-packages/natural-aesthetic-product-photography/${file}`,
       `bundled-skills/natural-aesthetic-product-photography/${file}`,
     ]),
-).concat([
+).concat(previewPairs, [
   ["../host-sources/app/server.js", "server.js"],
   ["../host-sources/app/server-components/composition.js", "server-components/composition.js"],
 ])

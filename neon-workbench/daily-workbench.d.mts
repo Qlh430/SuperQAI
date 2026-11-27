@@ -7,6 +7,8 @@ interface DailyPaths {
 }
 
 export function dailyComponents(value?: string): string[]
+export const frontendGroups: string[]
+export const frontendFiles: Set<string>
 export function dailyPaths(source: string): DailyPaths
 export function assertDailyTarget(source: string, target: string, names?: string[]): DailyPaths
 export function runningBackend(source: string): Promise<string>

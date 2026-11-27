@@ -42,6 +42,47 @@ function compileGeneratorComposer(source) {
   return `globalThis.FloraVisualPresetConfig = ${json};\n${read(visualPresetInputs[3])}\n${read(visualPresetInputs[0])}`;
 }
 
+function verifyReleasePreviews(source, app) {
+  const inventory = JSON.parse(fs.readFileSync(path.join(source, "design-sources/visual-preset-release.json"), "utf8"));
+  const manifest = JSON.parse(fs.readFileSync(path.join(source, "design-sources/visual-preset-assets.json"), "utf8"));
+  const scenario = fs.readFileSync(path.join(app, "flora-generator-composer.js"), "utf8");
+  const header = /^globalThis\.FloraVisualPresetConfig = (.+);$/m.exec(scenario);
+  if (!header) throw new Error("发布包缺少预设配置");
+  const actual = Object.fromEntries(JSON.parse(header[1]).presets
+    .filter(preset => preset.thumbnail || preset.previewSource)
+    .map(preset => [preset.id, [preset.thumbnail || "", preset.previewSource || ""]]));
+  if (JSON.stringify(actual) !== JSON.stringify(inventory.presets)) {
+    throw new Error("发布包预设预览地址与清单不一致");
+  }
+  const expected = new Map(inventory.files.map(file => [`/${file.path}`, file]));
+  const urls = new Set(Object.values(actual).flat().filter(url => url.startsWith("/visual-presets/")));
+  if (urls.size !== expected.size || Array.from(urls).some(url => !expected.has(url))) {
+    throw new Error("发布包预设预览文件清单不完整");
+  }
+  for (const [url, entry] of Object.entries(manifest.assets)) {
+    if (entry.status !== "available" || expected.get(url)?.sha256 !== entry.thumbnailSha256) {
+      throw new Error(`预设缩略图与原始清单不一致：${url}`);
+    }
+    if (entry.batch === "camera") {
+      const original = entry.originalPath || url.replace(/\/(cameras|lenses)\//, "/originals/$1/").replace(/\.webp$/i, ".png");
+      if (expected.get(original)?.sha256 !== (entry.originalSha256 || entry.sourceSha256)) {
+        throw new Error(`相机高清预览与原始清单不一致：${original}`);
+      }
+    }
+  }
+  for (const { path: relative, size, sha256 } of expected.values()) {
+    if (!/^visual-presets\/(?:[a-z0-9_-]+\/)*[a-z0-9_.-]+\.(?:png|webp)$/i.test(relative)) {
+      throw new Error(`无效的预设资源路径：${relative}`);
+    }
+    const file = path.join(app, relative);
+    const stat = fs.lstatSync(file);
+    if (!stat.isFile() || stat.size !== size || sha256File(file) !== sha256) {
+      throw new Error(`预设预览内容校验失败：${relative}`);
+    }
+  }
+  return { files: expected.size, presets: Object.keys(actual).length };
+}
+
 function formatRuntimeEffect(categories, group, prompt) {
   const body = prompt.trim();
   if (!body) return "";
@@ -149,8 +190,6 @@ function verifiedLegacyCameraOriginal(preset, assetRoot, previewManifest) {
   const manifestEntry = previewManifest?.images?.[preset.thumbnail];
   if (!manifestEntry?.sha256) return "";
   const assetRelative = preset.thumbnail.slice("asset:".length);
-  const source = path.resolve("Q:/assets", assetRelative);
-  if (!fs.existsSync(source) || sha256File(source) !== manifestEntry.sha256) return "";
   const relative = assetRelative.replace(/^visual-presets\//, "");
   const originalPath = `/visual-presets/originals/${relative}`;
   const packaged = path.join(assetRoot, "originals", relative);
@@ -233,5 +272,5 @@ function extendPresets(existing, entries, assetRoot, assetManifest = null, previ
 
 module.exports = {
   compileGeneratorComposer, extendCategories, extendPresets, visualPresetInputs, mappedAsset,
-  verifiedLegacyCameraOriginal,
+  verifiedLegacyCameraOriginal, verifyReleasePreviews,
 };

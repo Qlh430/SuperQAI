@@ -6,7 +6,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { chromium } = require("playwright");
 
-const baseUrl = "http://127.0.0.1:33200";
+const baseUrl = process.env.BENDO_PREVIEW_TEST_URL || "http://127.0.0.1:33200";
 const output = path.resolve(__dirname, "../.design/image-generation-agent-context-20261116");
 const presetCategoryConfig = JSON.parse(fs.readFileSync(
   path.join(__dirname, "design-sources/visual-preset-categories.json"),
@@ -56,15 +56,15 @@ const previewManifest = JSON.parse(fs.readFileSync(
   "utf8",
 ));
 const focal50 = presetConfig.presets.find(preset => preset.id === "focal-50");
-const focal50Asset = path.resolve("Q:/assets", focal50.thumbnail.slice(6));
+const focal50Asset = path.join(__dirname, "public/visual-presets/originals", focal50.thumbnail.slice("asset:visual-presets/".length));
 const focal50Hash = crypto.createHash("sha256").update(fs.readFileSync(focal50Asset)).digest("hex");
 assert.equal(previewManifest.images[focal50.thumbnail]?.sha256, focal50Hash,
-  "50mm 预览必须映射到 Q:\\assets 中当前的同名资源");
+  "50mm 预览必须映射到 正式包的同名资源");
 assert.equal(presetConfig.presets.some(preset => preset.id === "aperture-f16"), false,
   "没有 f/16 配置项时不得将该素材映射到其他光圈预设");
 const apertureF14 = presetConfig.presets.find(preset => preset.id === "aperture-f1-4");
-assert.ok(fs.existsSync(path.resolve("Q:/assets", apertureF14.thumbnail.slice(6))),
-  "f/1.4 预览资源必须与 Q:\\assets 中的实际文件名一致");
+assert.ok(fs.existsSync(path.join(__dirname, "public/visual-presets/originals", apertureF14.thumbnail.slice("asset:visual-presets/".length))),
+  "f/1.4 预览资源必须与 正式包的实际文件名一致");
 fs.mkdirSync(output, { recursive: true });
 
 function expectedGroups(category, tabId = "") {
@@ -187,6 +187,48 @@ async function run() {
     const entries = page.locator(".flora-visual-presets-entries:visible");
     await entries.waitFor();
     assert.equal(await entries.locator("button").count(), 5);
+    if (process.env.BENDO_PREVIEW_RESOURCES_ONLY === "1") {
+      const inventory = require("./design-sources/visual-preset-release.json");
+      for (const category of presetCategories) {
+        await entries.locator(`[data-preset-entry="${category.id}"]`).click();
+        const panel = page.locator(".flora-visual-presets-picker:popover-open");
+        for (const tab of category.tabs || []) {
+          await panel.locator(`[data-preset-tab="${tab.id}"]`).click();
+          await panel.locator("[data-preset-id] img").first().waitFor({ state: "visible" });
+          assert(await panel.locator("[data-preset-id] img").first().evaluate(async image => {
+            await image.decode();
+            return image.naturalWidth > 0;
+          }));
+        }
+        await panel.locator('[data-preset-action="save"]').click();
+      }
+      const results = await page.evaluate(async files => {
+        const pending = files.slice();
+        const failures = [];
+        await Promise.all(Array.from({ length: 12 }, async () => {
+          while (pending.length) {
+            const file = pending.pop();
+            try {
+              const response = await fetch(`/${file.path}`);
+              if (!response.ok || !response.headers.get("content-type")?.startsWith("image/")) throw Error("HTTP or MIME");
+              const blob = await response.blob();
+              const hash = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", await blob.arrayBuffer())))
+                .map(byte => byte.toString(16).padStart(2, "0")).join("");
+              if (blob.size !== file.size || hash !== file.sha256) throw Error("SHA-256");
+              const image = await createImageBitmap(blob);
+              if (!image.width || !image.height) throw Error("decode");
+              image.close();
+            } catch (error) {
+              failures.push(`${file.path}: ${error.message}`);
+            }
+          }
+        }));
+        return failures;
+      }, inventory.files);
+      assert.deepEqual(results, []);
+      console.log(`Verified five preview modules and ${inventory.files.length} decoded image files on ${baseUrl}`);
+      return;
+    }
     const entryContract = await entries.evaluate(element => {
       const host = element.closest(".flora-visual-presets");
       const settings = element.closest(".flora-generator-settings");
