@@ -339,9 +339,19 @@ html.neon-canvas-asset-overlay #root { background: transparent !important; }
 html.neon-canvas-asset-overlay .neon-workbench-shell { visibility: hidden; }
 html.neon-canvas-asset-overlay [data-slot="dialog-overlay"],
 html.neon-canvas-asset-overlay [data-slot="dialog-content"] { visibility: visible; }
+html.neon-canvas-skill-overlay,
+html.neon-canvas-skill-overlay body,
+html.neon-canvas-skill-overlay #root { background: transparent !important; }
+html.neon-canvas-skill-overlay .neon-workbench-shell { background: transparent; }
+html.neon-canvas-skill-overlay .neon-workbench-shell > :not([role="dialog"]) { visibility: hidden; }
 
 /* Exact production scan boundary; generated from source paths, never class candidates. */
 @source "App.tsx";
+@source "pages/skill-square.tsx";
+@source "components/skill-case-asset-picker.tsx";
+@source "components/skill-case-preview.tsx";
+@source "components/video-thumbnail.tsx";
+@source "components/skill-showcase-editor.tsx";
 @source "assets/react.svg";
 @source "assets/vite.svg";
 @source "components/add-to-asset-dialog.tsx";

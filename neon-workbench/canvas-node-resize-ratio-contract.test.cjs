@@ -15,6 +15,12 @@ assert.match(source, /function beginCanvasNodeResize\([\s\S]*?adaptiveMediaRatio
   '带标题的自适应媒体也必须进入等比缩放分支');
 assert.match(source, /function beginCanvasNodeResize\([\s\S]*?const ratio = adaptiveMediaRatio \|\| start\.width \/ start\.height/,
   '自适应媒体缩放比例必须优先使用原始媒体比例');
+assert.match(source, /function beginCanvasNodeResize\([\s\S]*?else if \(!isGallery\) \{\s*node\.dataset\.height = String\(Math\.round\(height\)\);/,
+  '文字节点缩放时必须保存拖拽后的高度');
+assert.match(source, /function beginCanvasNodeResize\([\s\S]*?node\.dataset\.mediaSizeMode = "manual";[\s\S]*?applyCanvasNodeSize\(node\);[\s\S]*?updateCanvasNodeVirtualGeometry\(node\);/,
+  '文字节点缩放后必须保持手动尺寸并同步画布几何');
+assert.doesNotMatch(source, /function beginCanvasNodeResize\([\s\S]*?if \(isText\) \{\s*delete node\.dataset\.mediaSizeMode;/,
+  '文字节点缩放不能删除手动尺寸标记');
 assert.match(source, /function applyCanvasAdaptiveMediaSize\([\s\S]*?node\.dataset\.floraMediaRatio = `\$\{sourceWidth\}:\$\{sourceHeight\}`/,
   '应用尺寸时必须记录媒体原始比例，供后续缩放使用');
 assert.match(source, /function applyCanvasAdaptiveMediaSize\([\s\S]*?const sourceRatio = sourceWidth \/ sourceHeight[\s\S]*?const nextHeight = manual\s*\n?\s*\?\s*Math\.round\(nextWidth \/ sourceRatio\)/,

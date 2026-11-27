@@ -176,6 +176,17 @@
     }
 
     drawConnection(context, item, transform) {
+      if (item.commands?.length) {
+        const methods = { M: "moveTo", L: "lineTo", Q: "quadraticCurveTo", C: "bezierCurveTo" };
+        for (const [command, ...points] of item.commands) {
+          const coordinates = points.flatMap(point => {
+            const screen = this.toScreen(point.x, point.y, transform);
+            return [screen.x, screen.y];
+          });
+          context[methods[command]](...coordinates);
+        }
+        return;
+      }
       this.drawConnectionSegment(
         context,
         item.fromX ?? item.from?.x,

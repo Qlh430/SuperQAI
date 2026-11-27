@@ -41,7 +41,7 @@ assert.doesNotMatch(groupResize[0], /model\.width \* factor|model\.height \* fac
   '正式组缩放不能按比例改写成员的位置和尺寸');
 assert.match(groupResize[0], /getCanvasGroupResizeGeometry\(group\)/,
   '正式组缩放的起始框必须使用有限几何值');
-assert.match(groupResize[0], /Number\(memberFrame\.x\) \+ Number\(memberFrame\.width\)/,
+assert.match(groupResize[0], /memberFrame\.x \+ memberFrame\.width/,
   '正式组缩放的成员最小边界必须按模型的 x/width 计算');
 assert.doesNotMatch(groupResize[0], /memberFrame\.right|memberFrame\.bottom/,
   '正式组缩放不能读取不存在的成员 right/bottom 字段');
@@ -92,7 +92,7 @@ assert.doesNotMatch(selectionResize[0], /const loaded = await loadCanvasSelected
   '多选缩放不能在拖动开始后异步加载旧模型覆盖实时坐标');
 assert.match(selectionResize[0], /after: toCanvasOperationNode\(model\)/,
   '多选缩放结束时应提交拖动期间生成的模型快照');
-assert.match(bridge, /function updateCanvasSelectionFrame\([\s\S]*?getCanvasGroupSubjectBounds\(model\)[\s\S]*?toClientRect/,
+assert.match(bridge, /function updateCanvasSelectionFrame\([\s\S]*?getCanvasGroupSubjectBounds\(model\)[\s\S]*?canvasState\.x \+ selectionBounds\.left \* canvasState\.scale/,
   '多选选框必须使用与节点模型一致的世界坐标外框，不能读取滞后的 DOM 宽度');
 assert.match(bridge, /function beginCanvasNodeResize\([\s\S]*?node\.dataset\.mediaSizeMode = "manual";/,
   '单节点手动缩放必须切换到 manual 尺寸模式，避免自适应媒体把结果覆盖');

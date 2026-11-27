@@ -92,6 +92,17 @@ async function run(root) {
   try { return await performInstall(root, hooks); }
   finally {
     if (fs.existsSync(lock) && readJson(lock).pid === process.pid) fs.unlinkSync(lock);
+    // Candidate startup can precede transaction completion; retry only after unlock.
+    if (!fs.existsSync(inside(root, ".ai-runtime/updates/install.json"))) {
+      try {
+        require("./updater").pruneOrphanedUpdateArtifacts(root, { completedOnly: true });
+        if (readJson(inside(root, ".ai-runtime/updates/result.json")).status === "updated") {
+          require("./rollback-retention").pruneRollbackSnapshots(root);
+          require("./runtime-retention").pruneRuntimeSnapshots(root);
+        }
+      }
+      catch (error) { atomicWrite(inside(root, ".ai-runtime/updates/helper-error.json"), { error: error.message, at: new Date().toISOString() }); }
+    }
   }
 }
 if (require.main === module) run(process.argv[2]).catch(error => {

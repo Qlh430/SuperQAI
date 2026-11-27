@@ -37,6 +37,12 @@ const BACKEND_FILENAME = 'qa-cutout-source-抠图-抠图_1791792620039_49c42b2f.
         }))
       }
     }
+    if (process.env.CUTOUT_SCRIPT_BASELINE) {
+      await page.route('**/script.js*', route => route.fulfill({
+        contentType: 'application/javascript',
+        body: fs.readFileSync(process.env.CUTOUT_SCRIPT_BASELINE, 'utf8'),
+      }))
+    }
     await page.goto(`${process.env.AI_OS_TEST_URL || 'http://127.0.0.1:3199'}/`, { waitUntil: 'domcontentloaded' })
     await page.evaluate(async ({ resultUrl, backendFilename }) => {
       const modules = await AiOsModuleLoader.ensure(['canvas-runtime', 'canvas-node-generator'])

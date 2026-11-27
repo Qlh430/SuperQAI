@@ -26,10 +26,11 @@ function Verify-Zip([string]$File,[object[]]$Expected,[string]$Prefix='') {
   } finally {$zip.Dispose();$sha.Dispose()}
   $script:results.Add([ordered]@{file=$File;files=$seen.Count;expected=$map.Count;problems=@($problems);sha256=(Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $ReleaseRoot $File)).Hash.ToLowerInvariant()})
 }
-Verify-Zip ('AI-OS-v'+$manifest.version+'-win-x64-Portable.zip') $manifest.files
+$zipBrand = if (Test-Path -LiteralPath (Join-Path $ReleaseRoot ('BenDo-v'+$manifest.version+'-win-x64-Portable.zip'))) { 'BenDo' } else { 'AI-OS' }
+Verify-Zip ($zipBrand+'-v'+$manifest.version+'-win-x64-Portable.zip') $manifest.files
 $runtimePrefix='.ai-runtime/versions/'+$manifest.version+'-win-x64/'
 $runtime=@($manifest.files | Where-Object {$_.path.StartsWith($runtimePrefix)} | ForEach-Object { [pscustomobject]@{path=$_.path.Substring($runtimePrefix.Length);size=$_.size;sha256=$_.sha256} })
-Verify-Zip ('AI-OS-Runtime-'+$manifest.version+'-win-x64.zip') $runtime ($manifest.version+'-win-x64')
+Verify-Zip ($zipBrand+'-Runtime-'+$manifest.version+'-win-x64.zip') $runtime ($manifest.version+'-win-x64')
 foreach($c in $components.components){
   $asset=Join-Path $ReleaseRoot $c.asset.fileName
   if((Get-Item -LiteralPath $asset).Length -ne $c.asset.size -or (Get-FileHash -Algorithm SHA256 -LiteralPath $asset).Hash.ToLowerInvariant() -ne $c.asset.sha256){throw 'Component outer integrity failure'}

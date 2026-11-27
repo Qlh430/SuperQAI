@@ -13,8 +13,19 @@ export async function downloadMedia(source: string, fallback: string) {
     }
   }
   const response = await fetch(url.href, { credentials: url.origin === location.origin ? "same-origin" : "omit" })
-  if (!response.ok) throw new Error("下载失败，请确认素材文件和访问权限。")
+  if (!response.ok) {
+    const message = response.status === 401 ? "登录已过期，请重新登录后下载。"
+      : response.status === 403 ? "当前账户没有读取此素材的权限。"
+        : response.status === 404 ? "素材文件不存在或已被移除。"
+          : `下载失败（${response.status}），请确认素材文件和访问权限。`
+    throw new Error(message)
+  }
+  const contentType = response.headers.get("content-type") || ""
+  if (/^(text\/html|text\/plain|application\/json)\b/i.test(contentType)) {
+    throw new Error("服务返回了错误页面而不是素材文件，请检查素材地址和账户权限。")
+  }
   const blob = await response.blob()
+  if (!blob.size) throw new Error("下载失败：服务返回了空文件。")
   if (!/\.[a-z0-9]{2,5}$/i.test(filename)) {
     const extension = url.pathname.match(/\.[a-z0-9]{2,5}$/i)?.[0]
     if (extension) filename += extension

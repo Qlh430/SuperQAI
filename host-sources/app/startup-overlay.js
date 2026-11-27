@@ -15,6 +15,7 @@
   let criticalReady = false;
   let workbenchReady = false;
   let finished = false;
+  const failures = new Map();
   let slowTimer = 0;
   let surfacePollTimer = 0;
   const isDevelopmentRefresh = (() => {
@@ -42,42 +43,34 @@
   }
 
   function hasWorkbenchSurface() {
-    // The legacy shell and Neon iframe are mounted before every optional
-    // component finishes. If both are already present, keeping the gate up
-    // only traps the user behind a stale readiness event.
-    return Boolean(
-      document.querySelector("#aiOsDesktopHomeApps")?.children.length
-      && document.querySelector("#aiOsNeonFrame, [data-neon-workbench]")
-    );
+    const frame = document.querySelector("#aiOsNeonFrame");
+    // Creating the iframe is not evidence that its React application rendered.
+    // The host and frame are same-origin; a busy/error view also counts as a
+    // rendered, actionable surface, while an empty #root does not.
+    try {
+      return Boolean(frame?.contentDocument?.querySelector("#root")?.childElementCount);
+    } catch {
+      return false;
+    }
   }
 
-  function releaseIfWorkbenchSurfaceReady() {
-    if (!hasWorkbenchSurface()) return false;
-    forceRelease("工作台已加载，正在进入…");
-    return true;
+  function needsWorkbenchSurface() {
+    return Boolean(document.querySelector("#aiOsNeonFrame") || window.AiOsDesktop?.getSession?.()?.user);
   }
 
-  function forceRelease(message = "准备完成") {
-    // A failed module phase can still leave the desktop surface mounted. In
-    // that case the visible recovery button is the explicit user decision to
-    // continue, so it must be allowed to release the error gate.
-    if (finished && !gate.classList.contains("has-error")) return;
-    finished = true;
-    if (slowTimer) window.clearTimeout(slowTimer);
-    if (surfacePollTimer) window.clearInterval(surfacePollTimer);
-    criticalReady = true;
-    workbenchReady = true;
-    gate.classList.remove("has-error");
-    setStatus(message, "");
-    setProgress(100);
-    gate.classList.add("is-complete");
-    window.setTimeout(() => {
-      gate.hidden = true;
-      gate.setAttribute("aria-busy", "false");
-    }, 220);
+  function failureDescription(eventDetail = {}) {
+    const report = eventDetail.error?.report;
+    for (const item of [...(eventDetail.failures || report?.failures || []), ...(eventDetail.skipped || report?.skipped || [])]) {
+      failures.set(item.src || item.componentId, item);
+    }
+    const required = [...failures.values()].filter(item => item.critical || item.required !== false);
+    const names = required.slice(0, 3).map(item => `${item.componentLabel || item.componentId || "组件"}${item.src ? `（${item.src}）` : ""}`);
+    return names.length
+      ? `未能加载：${names.join("、")}。请重新加载后重试。`
+      : "工作台组件未能加载完成，请重新加载后重试。";
   }
 
-  function finish(reason = "ready") {
+  function finish(reason = "ready", description = "") {
     if (finished) return;
     if (reason === "ready" && isDevelopmentRefresh && !developmentRefreshReleased) {
       developmentRefreshReady = true;
@@ -87,10 +80,11 @@
     }
     finished = true;
     if (slowTimer) window.clearTimeout(slowTimer);
+    if (surfacePollTimer) window.clearInterval(surfacePollTimer);
     setProgress(100);
     if (reason === "failed") {
       gate.classList.add("has-error");
-      setStatus("核心组件加载失败", "为避免进入不完整的工作台，请重新加载后再试。");
+      setStatus("工作台组件加载失败", description || failureDescription());
       if (continueButton) {
         continueButton.hidden = false;
         continueButton.textContent = "重新加载";
@@ -118,6 +112,7 @@
   }
 
   function maybeFinish() {
+    if (finished || (needsWorkbenchSurface() && !hasWorkbenchSurface())) return;
     if (criticalReady && workbenchReady) {
       finish("ready");
       return;
@@ -128,6 +123,7 @@
   }
 
   window.addEventListener("ai-os-module-load-progress", (event) => {
+    if (finished) return;
     const completed = Math.max(0, Number(event.detail?.completed) || 0);
     const total = Math.max(completed, Number(event.detail?.total) || 0);
     moduleTotal = total;
@@ -138,8 +134,9 @@
   });
 
   window.addEventListener("ai-os-critical-load-complete", (event) => {
+    if (finished) return;
     if (event.detail?.failed) {
-      finish("failed");
+      finish("failed", failureDescription(event.detail));
       return;
     }
     criticalReady = true;
@@ -149,6 +146,7 @@
   });
 
   window.addEventListener("ai-os-module-load-complete", (event) => {
+    if (finished) return;
     modulesReady = true;
     if (event.detail?.degraded) {
       gate.classList.add("is-degraded");
@@ -161,14 +159,19 @@
   });
 
   window.addEventListener("ai-os-legacy-workbench-ready", () => {
+    if (finished) return;
     workbenchReady = true;
     setProgress(Math.max(92, moduleTotal > 0 ? 12 + (moduleCompleted / moduleTotal) * 82 : 92));
     maybeFinish();
   });
 
-  window.addEventListener("ai-os-module-load-failed", () => {
-    gate.classList.add("has-error");
-    finish("failed");
+  window.addEventListener("ai-os-component-load-failed", (event) => {
+    const item = event.detail;
+    if (item) failures.set(item.src || item.componentId, item);
+  });
+
+  window.addEventListener("ai-os-module-load-failed", (event) => {
+    finish("failed", failureDescription(event.detail));
   });
 
   window.AiOsDevRefreshGate = Object.freeze({
@@ -176,12 +179,14 @@
     isActive: () => isDevelopmentRefresh && !finished,
   });
 
-  // Some older module plans can miss the final readiness event even though
-  // both visible workbench surfaces are already mounted. Poll the concrete
-  // DOM handoff so startup cannot remain behind a stale event gate.
+  // React can mount after the shell's readiness event. Poll its actual root,
+  // without bypassing critical failures or the development restoration gate.
   surfacePollTimer = window.setInterval(() => {
     if (finished) return;
-    if (hasWorkbenchSurface()) forceRelease("正在进入工作台…");
+    if (hasWorkbenchSurface()) {
+      workbenchReady = true;
+      maybeFinish();
+    }
   }, 500);
 
   if (isDevelopmentRefresh) {
@@ -190,17 +195,21 @@
     setProgress(8);
   }
   continueButton?.addEventListener("click", () => {
-    // The button is shown only after the slow-start guard. Reloading here
-    // restarts the same component queue and traps the user in a loop; let the
-    // already mounted desktop surface open instead.
-    forceRelease("正在进入工作台…");
+    window.location.reload();
   });
   if (!isDevelopmentRefresh) {
     slowTimer = window.setTimeout(() => {
       if (finished) return;
-      if (releaseIfWorkbenchSurfaceReady()) return;
+      maybeFinish();
+      if (finished) return;
       gate.classList.add("is-slow");
-      setStatus("启动时间比平时更长", "核心组件仍在加载；完成前不会进入不完整的工作台。");
+      setStatus("启动时间比平时更长", needsWorkbenchSurface() && !hasWorkbenchSurface()
+        ? "工作台页面尚未显示，仍在等待界面加载。可重新加载后重试。"
+        : "组件仍在加载。可等待完成，或重新加载后重试。");
+      if (continueButton) {
+        continueButton.hidden = false;
+        continueButton.textContent = "重新加载";
+      }
     }, 12_000);
   }
 })();

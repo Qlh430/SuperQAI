@@ -82,7 +82,9 @@
     const available = Boolean(select && !select.hidden && !select.disabled);
     section.hidden = !available;
     if (!available) return;
-    const options = Array.from(select.options).map(option => ({ value: option.value, label: labelFor(option), disabled: option.disabled, reason: option.dataset.reason }));
+    const options = Array.from(select.options)
+      .filter(option => select.dataset.standardImageTiers !== "true" || ["1", "2", "4"].includes(option.value))
+      .map(option => ({ value: option.value, label: labelFor(option), disabled: option.disabled, reason: option.dataset.reason }));
     renderChoiceOptions(state, section, kind, options, select.value, value => {
       const option = Array.from(select.options).find(option => option.value === value);
       if (select.disabled || !option || option.disabled) return;
@@ -120,7 +122,12 @@
         button.addEventListener("click", () => {
           if (button.disabled) return;
           // Read the current handler; selection may change without rebuilding.
-          grid.chooseValue(option.value);
+          const anchor = root.CanvasFloraNodeShell?.withImagePreviewBottomAnchor;
+          if (kind === "size" && state.node.classList.contains("canvas-node-api") && anchor) {
+            anchor(state.node, () => grid.chooseValue(option.value));
+          } else {
+            grid.chooseValue(option.value);
+          }
           sync(state.node);
         });
         grid.append(button);
@@ -141,6 +148,9 @@
 
   // 视频参数入口显示参数摘要，模型留在底排自己一项，避免入口看起来像模型列表。
   function h3ParameterSummary(node) {
+    if (node.dataset.minimaxH3Model === "h3-commerce") {
+      return [h3FieldText(node, "commerceAspectRatio").split(/\s+/)[0], h3FieldText(node, "commerceMegapixels").split("（")[0]].filter(Boolean).join(" · ");
+    }
     const aspect = h3FieldText(node, "aspectRatio").split(/\s+/)[0] || "";
     const quality = h3FieldText(node, "megapixels");
     const steps = h3FieldText(node, "steps").match(/\d+/)?.[0] || "";
@@ -188,7 +198,7 @@
       renderChoices(state, size, state.sizeSection, "size");
       renderChoices(state, resolution, state.resolutionSection, "resolution");
     }
-    state.advancedTitle.hidden = !hasExtras || node.dataset.floraKind === "audio-generator";
+    state.advancedTitle.hidden = !hasExtras || node.dataset.floraKind === "audio-generator" || node.dataset.minimaxH3Model === "h3-commerce";
     if (state.settings) {
       const available = !state.settings.container.hidden;
       state.settings.trigger.hidden = !available;
@@ -228,7 +238,7 @@
     popup.id = `flora-generator-parameters-${++nextId}`;
     popup.setAttribute("popover", "auto");
     popup.setAttribute("role", "dialog");
-    const parameterLabel = ({ llm: "文本参数", "audio-generator": "设置", "video-api": "视频参数", "minimax-h3": "视频参数" })[node.dataset.floraKind] || "图片参数";
+    const parameterLabel = ({ text: "文本参数", llm: "文本参数", "audio-generator": "设置", "video-api": "视频参数", "minimax-h3": "视频参数" })[node.dataset.floraKind] || "图片参数";
     popup.setAttribute("aria-label", parameterLabel);
     trigger.setAttribute("aria-controls", popup.id);
     const header = document.createElement("div");

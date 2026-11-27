@@ -1,0 +1,4 @@
+interface:
+  display_name: "H3 双段带货提示词"
+  short_description: "从一句启动引导收集商品资料和四图，按品类需求生成双段带货提示词"
+  default_prompt: "使用 $h3-commerce-video，开始制作带货视频，请引导我提供商品资料和四张参考图。"

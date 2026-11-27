@@ -1,0 +1,67 @@
+{
+  "format": "canvas-agent-skill/v1",
+  "mode": "guided",
+  "exposure": "agent",
+  "allowImplicitInvocation": true,
+  "limits": {
+    "maxRounds": 12,
+    "maxToolCalls": 16
+  },
+  "stages": [
+    {
+      "id": "onboarding",
+      "label": "商品资料与图片核验",
+      "whenAny": [
+        "怎么使用",
+        "如何使用",
+        "需要提供",
+        "准备哪些素材"
+      ],
+      "mustRead": [
+        "references/onboarding.md",
+        "references/assets.md"
+      ],
+      "tools": []
+    },
+    {
+      "id": "copy",
+      "label": "购买理由、文案与分镜",
+      "whenAny": [
+        "只要文案",
+        "只要口播",
+        "只要分镜",
+        "先写文案",
+        "只写文案",
+        "只做分镜"
+      ],
+      "mustRead": [
+        "references/assets.md",
+        "references/selling-copy.md"
+      ],
+      "tools": []
+    },
+    {
+      "id": "production",
+      "label": "双段提示词、正式包与节点填充",
+      "always": true,
+      "whenAny": [
+        "提示词",
+        "双段",
+        "完整素材",
+        "带货视频"
+      ],
+      "mustRead": [
+        "references/onboarding.md",
+        "references/assets.md",
+        "references/selling-copy.md",
+        "references/production.md",
+        "references/prompts.md",
+        "references/workflow-contract.md"
+      ],
+      "tools": [
+        "save_h3_commerce_package",
+        "fill_h3_commerce_node"
+      ]
+    }
+  ]
+}

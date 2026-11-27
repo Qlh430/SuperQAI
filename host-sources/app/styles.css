@@ -3065,7 +3065,7 @@ label {
 }
 
 select,
-input {
+input:not(.flora-visual-presets-search) {
   width: 100%;
   min-height: 44px;
   border: 1px solid var(--line);
@@ -4775,7 +4775,7 @@ label {
 }
 
 select,
-input,
+input:not(.flora-visual-presets-search),
 .upscale-size-select {
   min-height: 40px;
   height: 40px;
@@ -4798,6 +4798,13 @@ input:focus,
 textarea:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+/* The fixed workbench may proxy the legacy desktop focus rule until its whitelist refreshes. */
+#canvasEditorScreen .flora-visual-presets-picker .flora-visual-presets-search:focus-visible {
+  outline: 1px solid color-mix(in srgb, var(--canvas-neon-primary, #00ff41) 48%, var(--canvas-neon-border, #2a2a2a)) !important;
+  outline-offset: -1px !important;
+  box-shadow: none !important;
 }
 
 .size-row {

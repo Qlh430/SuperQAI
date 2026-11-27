@@ -24,7 +24,24 @@
   function syncText(node) {
     const text = node?.querySelector?.(".canvas-note-text");
     if (!text) return "";
-    const value = String(text.innerText ?? text.textContent ?? "").replace(/\r\n/g, "\n");
+    // A sole BR in a browser-created block holds the caret on an empty
+    // line. The block boundary already accounts for that line.
+    const read = parent => {
+      let output = "";
+      let previousBlock = false;
+      for (const child of parent.childNodes) {
+        const block = child.nodeType === 1 && child.matches("p,div");
+        if (previousBlock || (block && output && !output.endsWith("\n"))) output += "\n";
+        if (block) {
+          if (child.childNodes.length !== 1 || child.firstChild.nodeName !== "BR") output += read(child);
+        } else {
+          output += child.nodeName === "BR" ? "\n" : child.textContent;
+        }
+        previousBlock = block;
+      }
+      return output;
+    };
+    const value = read(text).replace(/\r\n?/g, "\n");
     node.dataset.noteText = value;
     text.dataset.empty = value.trim() ? "false" : "true";
     return value;
@@ -144,6 +161,16 @@
     });
     if (stopCanvasTextWheel) text.addEventListener("wheel", stopCanvasTextWheel);
     text.addEventListener("input", () => syncText(node));
+    text.addEventListener("paste", (event) => {
+      if (text.contentEditable !== "true" || !event.clipboardData) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const plain = event.clipboardData.getData("text/plain").replace(/\r\n?/g, "\n");
+      const selection = text.ownerDocument.getSelection();
+      if (!plain || !selection?.rangeCount || !text.contains(selection.getRangeAt(0).commonAncestorContainer)) return;
+      text.ownerDocument.execCommand("insertText", false, plain);
+      syncText(node);
+    });
     text.addEventListener("blur", () => {
       syncText(node);
       text.contentEditable = "false";

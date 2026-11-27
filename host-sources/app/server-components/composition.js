@@ -106,6 +106,7 @@ function createServerComposition({ host = {} } = {}) {
     createBackgroundRemovalHttpApi,
     createBackupService,
     createCanvasAgentHttpApi,
+    createH3CommercePackageService,
     createCanvasAgentProviderBridge,
     createCanvasProjectHttpApi,
     createCanvasProjectService,
@@ -150,6 +151,7 @@ function createServerComposition({ host = {} } = {}) {
     createServerComponentKernel,
     createServerThumbnailService,
     createSkillHttpApi,
+    createSkillImportManager,
     createSkillRegistry,
     createStaticHttpApi,
     createSystemDb,
@@ -193,6 +195,9 @@ function createServerComposition({ host = {} } = {}) {
     normalizeMinimaxH3Request,
     outputMediaRef,
     prepareMinimaxH3Workflow,
+    prepareCommerceWorkflow,
+    assertCommerceWorkflowContract,
+    normalizeCommerceParameters,
     publicUser,
     readBodyBuffer,
     readJson,
@@ -440,6 +445,9 @@ const getMinimaxH3TaskService = createLazyValue(() => createMinimaxH3TaskService
   workflowFile: MINIMAX_H3_WORKFLOW_FILE,
   normalizeRequest: normalizeMinimaxH3Request,
   prepareWorkflow: prepareMinimaxH3Workflow,
+  prepareCommerceWorkflow,
+  assertCommerceWorkflowContract,
+  normalizeCommerceParameters,
   sanitizeReferenceName,
   mediaReferenceToFile,
   comfyClient: getComfyClient(),
@@ -530,6 +538,10 @@ const getSkillRegistry = createLazyValue(() => createSkillRegistry({
   bundledCustomDir: BUNDLED_SKILLS_DIR,
   customDir: CUSTOM_SKILLS_DIR,
 }));
+const getSkillImportManager = createLazyValue(() => createSkillImportManager({
+  registry: getSkillRegistry(),
+  dataDir: DATA_DIR,
+}));
 // 本地 AI 抠图：不依赖 ComfyUI 与显卡，权重跟着应用内置分发（assets/models/background-removal）。
 const createBackgroundRemovalHttpApiComponent = () => {
   const { createBackgroundRemovalService } = require("../background-removal-service");
@@ -557,6 +569,8 @@ const getProviderExecutor = createLazyValue(() => createProviderExecutor({
       success,
       latencyMs,
       httpStatus: error?.statusCode || error?.httpStatus || 0,
+      code: error?.code,
+      stage: error?.stage,
       message: success ? "" : `${error?.code || ""} ${error?.safeMessage || error?.message || ""}`.trim(),
     });
   },
@@ -642,16 +656,61 @@ const createProviderHttpApiComponent = () => createProviderHttpApi({
     throw error;
   },
 });
-const createSkillHttpApiComponent = () => createSkillHttpApi({
+const createSkillHttpApiComponent = () => {
+  const thumbnailSources = new Map();
+  const thumbnails = createServerThumbnailService({
+    store: thumbnailStore,
+    resolveSourcePath: source => thumbnailSources.get(source) || "",
+  });
+  return createSkillHttpApi({
   skillRegistry: getSkillRegistry(),
+  skillImportManager: getSkillImportManager(),
   agentModelSettings: getAgentModelSettings(),
   canvasAgentRuntime: CanvasAgentRuntime,
   capabilityResolver: providerCapabilityResolver,
+  requireAuth,
   requireSuperAdmin,
   readJson,
   sendJson,
+  maxImportRequestBytes: 56 * 1024 * 1024,
   appendAudit: entry => systemDb.appendAudit(entry),
-});
+  authorizePresentationMedia: async (userId, url) => {
+    const access = await assertOutputMediaRead(userId, url);
+    if (access.resource.ownerUserId !== userId) throw Object.assign(new Error("只能将自己拥有的素材设为 Skill 案例。"), { statusCode: 403 });
+    if (!systemDb.listCuratedAssets().some(asset => asset.ownerUserId === userId && asset.resourceId === access.resource.id)) throw new Error("请先将案例保存到素材库，再添加到 Skill。");
+    return canonicalOutputMedia(url).url;
+  },
+  servePresentationMedia: async (req, res, media, thumbnail) => {
+    const local = media.url ? canonicalOutputMedia(media.url) : null;
+    if (media.url && !local) throw new Error("展示素材已移除，请重新配置。");
+    if (local) {
+      const resource = systemDb.getResourceByRef("output_media", local.refId);
+      if (!resource || resource.deletedAt) throw new Error("展示素材已移除，请重新配置。");
+    }
+    let filePath = media.filePath || staticHttpApi.resolveOutputPath(local?.url);
+    if (!filePath) throw new Error("展示素材已移除，请重新配置。");
+    let contentType = media.contentType || ({ ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+      ".webp": "image/webp", ".avif": "image/avif", ".gif": "image/gif" })[path.extname(filePath).toLowerCase()];
+    if (!contentType) throw new Error("展示素材格式不受支持。");
+    if (thumbnail && contentType.startsWith("image/")) {
+      const stat = fs.statSync(filePath);
+      const key = `/output/skill-showcase/${crypto.createHash("sha256").update(`${filePath}:${stat.size}:${stat.mtimeMs}`).digest("hex")}`;
+      // Reuse the existing bounded thumbnail worker/store; original media stays in place.
+      thumbnailSources.set(key, filePath);
+      let result;
+      try { result = await thumbnails.ensure(key); }
+      finally { thumbnailSources.delete(key); }
+      if (!result.lightweight) {
+        filePath = thumbnailStore.resolveUrlPath(result.thumbnailUrl);
+        contentType = "image/webp";
+      }
+    }
+    staticHttpApi.serveFile(req, res, filePath, fs.statSync(filePath), {
+      "Content-Type": contentType, "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff",
+    });
+  },
+  });
+};
 const createResourceHttpApiComponent = () => createResourceHttpApi({
   listMediaResources: () => systemDb.listAllResources({ includeDeleted: true }).filter(resource => resource.refType === 'output_media'),
   resourceAccess,
@@ -728,6 +787,32 @@ const createCanvasAgentHttpApiComponent = () => createCanvasAgentHttpApi({
   skillRegistry: getSkillRegistry(),
   agentModelSettings: getAgentModelSettings(),
   canvasAgentProviderBridge: getCanvasAgentProviderBridge(),
+  saveH3CommercePackage: createH3CommercePackageService({
+    outputDir: DATA_DIR,
+    ensureReferencedResource,
+    resourceAccess,
+    async resolveTarget(userId, boardId, nodeId, imageIds, sourceUrls) {
+      const response = await getCanvasStorage().queryService.getNodes(boardId, [...new Set([nodeId, ...imageIds])]);
+      const nodes = new Map((response?.nodes || []).map(node => [String(node.id), node]));
+      const target = nodes.get(nodeId);
+      if (target?.kind !== "minimax-h3" || target.minimaxH3Model !== "h3-commerce") {
+        throw Object.assign(new Error("当前画布未保存指定的 H3 带货节点。"), { statusCode: 400 });
+      }
+      return Promise.all(imageIds.map(async (id, index) => {
+        const snapshot = require("../h3-commerce-package-service").resolveH3CommerceImageSnapshot(nodes.get(id), sourceUrls?.[index]);
+        if (!snapshot) {
+          throw Object.assign(new Error(`画布中的第 ${index + 1} 张带货参考图无效。`), { statusCode: 400 });
+        }
+        const { url } = snapshot;
+        await assertOutputMediaRead(userId, url);
+        const size = getImageReferenceDimensions(url);
+        if (!size?.width || !size?.height) {
+          throw Object.assign(new Error(`第 ${index + 1} 张带货参考图无法读取。`), { statusCode: 400 });
+        }
+        return { slot: index + 1, node_id: id, ...snapshot };
+      }));
+    },
+  }),
   ensureReferencedResource,
   resourceAccess,
   readJson,
@@ -766,8 +851,6 @@ const createThumbnailHttpApiComponent = () => {
 };
 const getImageSyncService = createLazyValue(() => createImageSyncService({
   outputDir: OUTPUT_DIR,
-  fetchImpl: fetch,
-  validateRemoteUrl: createRemoteImageUrlValidator(),
   maxImageBytes: MAX_SYNC_IMAGE_BYTES,
   inspectBuffer: getImageDimensionsFromBuffer,
 }));
@@ -914,6 +997,17 @@ const createMediaGenerationHttpApiComponent = () => {
       generateVideo: getMediaProviderBridge().generateVideo,
       getDefaultProviderId: () => getComfyService().configuration().config.providerId,
     }),
+    handleH3CommerceCapabilities: (req, res) => getMinimaxH3TaskService().handleCommerceCapabilities(req, res, { sendJson }),
+    handleH3CommerceVideo: (req, res) => getMinimaxH3TaskService().handleCommerceVideoRequest(req, res, {
+      readJson,
+      sendJson,
+      getComfyUrl: () => getComfyService().resolveUrl(),
+      authorizeImage: async (userId, url) => {
+        await assertOutputMediaRead(userId, url);
+        const dimensions = getImageReferenceDimensions(url);
+        if (!dimensions?.width || !dimensions?.height) throw new Error("带货参考图无法识别为 PNG、JPG 或 WebP 图片。");
+      },
+    }),
     handleQwenImage21: getComfyWorkflowTaskService().handleQwenImage21,
     handleQwenImage21Redraw: getComfyWorkflowTaskService().handleQwenImage21Redraw,
     handleUpscale: getComfyWorkflowTaskService().handleUpscale,
@@ -930,6 +1024,7 @@ const createOnlineHttpApiComponent = () => createOnlineHttpApi({
   sendJson,
 });
 const createChatHttpApiComponent = () => createChatHttpApi({
+  agentModelSettings: getAgentModelSettings(),
   getProviderSubsystemError,
   readJson,
   sendJson,

@@ -310,6 +310,12 @@ body.canvas-surface-open #aiOsLaunchpad {
   overflow: hidden !important;
 }
 
+@media (min-width: 901px) {
+  #neonEngineSurface .canvas-workspace.canvas-agent-open .infinite-canvas {
+    width: calc(100% - var(--agent-panel-width, 410px)) !important;
+  }
+}
+
 /* The canvas is the full-screen workspace. Keep navigation as a floating escape hatch,
    never as a layout row that pushes the canvas down. */
 #neonEngineSurface .canvas-editor-navigation {
@@ -435,11 +441,14 @@ body.canvas-surface-open #aiOsLaunchpad {
   color: var(--neon-foreground, #f5f6f0) !important;
   background: color-mix(in srgb, var(--neon-primary, #d5ff40) 14%, transparent) !important;
 }
+#neonEngineSurface #canvasEditorScreen .canvas-actions :is(#canvasAgentToggle, #canvasAssetLibraryButton)[aria-expanded="true"] {
+  color: var(--neon-primary, #d5ff40) !important;
+  background: color-mix(in srgb, var(--neon-primary, #d5ff40) 20%, transparent) !important;
+}
 
 /* Agent panel: dark Neon surface, readable copy, and a stable composer. */
 #neonEngineSurface .canvas-agent-panel {
   --agent-width: 380px !important;
-  --agent-panel-width: 380px !important;
   --agent-surface: #171817 !important;
   --agent-surface-muted: #111210 !important;
   --agent-line: #34382d !important;
@@ -456,6 +465,7 @@ body.canvas-surface-open #aiOsLaunchpad {
 #neonEngineSurface .canvas-workspace .canvas-agent-panel {
   top: 64px !important;
   height: calc(100% - 64px) !important;
+  transition: none;
 }
 #neonEngineSurface .canvas-agent-header,
 #neonEngineSurface .canvas-agent-messages {
@@ -509,13 +519,17 @@ body.canvas-surface-open #aiOsLaunchpad {
 }
 
 @media (max-width: 760px) {
-  #neonEngineSurface .canvas-agent-panel {
-    width: min(100vw, 380px) !important;
+  #neonEngineSurface .canvas-workspace .canvas-agent-panel {
+    position: fixed;
+    bottom: 0;
+    height: auto !important;
+    width: min(var(--agent-panel-width, 410px), calc(100vw - 32px)) !important;
   }
   #neonEngineSurface #canvasEditorScreen .canvas-actions {
     right: 12px !important;
     top: 12px !important;
-    max-width: calc(100vw - 24px) !important;
+    max-width: calc(100vw - 132px) !important;
+    justify-content: flex-start;
     overflow-x: auto !important;
   }
 }
@@ -532,6 +546,7 @@ body.canvas-surface-open #aiOsLaunchpad {
   border-radius: 16px !important;
   box-shadow: 0 24px 70px rgba(0, 0, 0, .46) !important;
   backdrop-filter: blur(18px) saturate(130%) !important;
+  animation: none;
 }
 #neonEngineSurface .canvas-asset-header {
   padding: 16px 16px 12px !important;
@@ -631,6 +646,7 @@ body.canvas-surface-open #aiOsLaunchpad {
 }
 @media (max-width: 760px) {
   #neonEngineSurface .canvas-asset-library {
+    position: fixed;
     top: 60px !important;
     right: 12px !important;
     bottom: 12px !important;

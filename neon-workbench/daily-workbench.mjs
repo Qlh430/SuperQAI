@@ -1,19 +1,21 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { componentTargets } from './component-deploy.mjs'
+import { componentTargets, stageOnlyComponents } from './component-deploy.mjs'
 
 // Reuse existing frontend groups; groups containing Node/backend code stay out.
-const frontendGroups = [
-  'workbench-frontend', 'canvas-light-visual', 'canvas-text-scroll', 'canvas-fullscreen-original-preview', 'generator-empty-placeholder',
-  'audio-node-appearance', 'canvas-media-stability', 'canvas-asset-library', 'canvas-group-visual',
-  'canvas-final-adjustments', 'canvas-redraw-frontend', 'startup-gate', 'brand-display', 'canvas-agent-context',
+export const frontendGroups = [
+  'workbench-frontend', 'canvas-light-visual', 'canvas-text-scroll', 'canvas-fullscreen-original-preview', 'generator-empty-placeholder', 'h3-commerce-frontend', 'h3-commerce-inputs', 'image-visual-presets',
+  'visual-presets-ui', 'canvas-agent-ui', 'h3-commerce-agent-runtime',
+  'audio-node-appearance', 'canvas-media-stability', 'canvas-asset-library', 'canvas-group-visual', 'canvas-image-history',
+  'canvas-final-adjustments', 'canvas-redraw-frontend', 'startup-gate', 'brand-display', 'canvas-agent-context', 'canvas-agent-wizard-frontend', 'canvas-interaction-final', 'skill-management-ui',
   ...['tool-crop', 'tool-outpaint', 'tool-angle', 'tool-upscale', 'node-image',
     'node-video', 'node-audio', 'node-text', 'node-note', 'node-script', 'node-upload'],
 ]
 const entries = ['index.html', 'module-manifest.js', 'neon-workbench.html']
-const frontendFiles = new Set([...entries, ...componentTargets(frontendGroups)])
+export const frontendFiles = new Set([...entries, ...componentTargets(frontendGroups)])
 
 export function dailyComponents(value = 'workbench-frontend') {
+  if (stageOnlyComponents.includes(value)) return [value]
   const names = value.split(',')
   if (!names.length || names.some(name => !frontendGroups.includes(name))) throw new Error('日常开发只允许已有前端白名单组件；后端及桌面改动请单独处理。')
   return [...new Set(names)]
@@ -56,8 +58,14 @@ export async function runningBackend(source) {
   const { portable } = dailyPaths(source)
   const diagnostic = JSON.parse(fs.readFileSync(path.join(portable, 'data/.logs/runtime-diagnostics.json'), 'utf8'))
   const active = fs.readFileSync(path.join(portable, '.ai-runtime/.active-runtime'), 'utf8').trim()
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(active)) throw new Error('活动运行时标识无效。')
   const expectedApp = path.join(portable, '.ai-runtime/versions', active, 'resources/app')
-  if (path.resolve(diagnostic.appRoot) !== expectedApp || path.resolve(diagnostic.dataDirectory) !== path.join(portable, 'data')) throw new Error('正在运行的 AI OS 与当前活动版/原数据目录不一致，停止开发入口。')
+  const samePath = (actual, expected) => {
+    if (typeof actual !== 'string' || path.relative(expected, actual)) return false
+    try { return fs.realpathSync.native(actual) === fs.realpathSync.native(expected) }
+    catch { return false }
+  }
+  if (!samePath(diagnostic.appRoot, expectedApp) || !samePath(diagnostic.dataDirectory, path.join(portable, 'data'))) throw new Error('正在运行的 AI OS 与当前活动版/原数据目录不一致，停止开发入口。')
   const url = new URL(diagnostic.localUrl)
   if (url.protocol !== 'http:' || url.hostname !== '127.0.0.1' || !url.port || url.username || url.password) throw new Error('原 AI OS 服务地址无效。')
   if (url.port === '33200') throw new Error('原服务占用了开发入口端口，请先处理端口冲突。')
@@ -75,7 +83,17 @@ export async function runningBackend(source) {
 
 // Static frontend overlay only. Everything else, including auth/output/ranges/SSE/WS,
 // passes through Vite's existing HTTP proxy to the one desktop-owned backend.
-export function dailyViteConfig({ source, runtime, upstream, port = 33200 }) {
+export function dailyViteConfig({ source, runtime, upstream, port = 33200, previewEntries: suppliedPreviewEntries }) {
+  let previewEntries = suppliedPreviewEntries
+  try {
+    if (!Array.isArray(previewEntries)) {
+      previewEntries = JSON.parse(fs.readFileSync(path.join(source, 'design-sources/visual-preset-library.json'), 'utf8')).entries
+    }
+  } catch { previewEntries = [] }
+  const previewByUrl = new Map((Array.isArray(previewEntries) ? previewEntries : [])
+    .filter(entry => entry?.previewPath && entry?.sourcePath)
+    .map(entry => [String(entry.previewPath).replace(/^\/+/, ''), String(entry.sourcePath)]))
+  const sourceRoots = path.resolve(source, '../../')
   return {
     configFile: false, root: source, publicDir: false, appType: 'custom',
     optimizeDeps: { noDiscovery: true, include: [] },
@@ -86,6 +104,32 @@ export function dailyViteConfig({ source, runtime, upstream, port = 33200 }) {
           let file
           try { file = decodeURIComponent(new URL(req.url, 'http://127.0.0.1').pathname).slice(1) || 'index.html' }
           catch { res.writeHead(400); res.end('开发资源路径无效。'); return }
+          if (file.startsWith('visual-presets/')) {
+            if (!['GET', 'HEAD'].includes(req.method)) { res.writeHead(405); res.end(); return }
+            try {
+              const relative = file.slice('visual-presets/'.length)
+              let asset = safeFile(path.join(source, 'public'), file, false)
+              let root = path.join(source, 'public')
+              if (!fs.existsSync(asset)) {
+                const mapped = previewByUrl.get(file)
+                const match = mapped?.match(/^(AI_OS_(?:STYLE|PRESET|CAMERA|CHARACTER)_PREVIEWS)\/(.+)$/)
+                if (match) {
+                  root = path.join(sourceRoots, match[1])
+                  asset = safeFile(root, match[2].replace(/\//g, path.sep), false)
+                }
+              }
+              if (!fs.existsSync(asset) || !/\.(?:webp|png|jpe?g)$/i.test(relative) || !/\.(?:webp|png|jpe?g)$/i.test(asset)) {
+                res.writeHead(404, { 'Cache-Control': 'no-store' }); res.end(); return
+              }
+              const bytes = fs.readFileSync(asset)
+              const mime = { '.webp': 'image/webp', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg' }[path.extname(asset).toLowerCase()]
+              res.writeHead(200, { 'Content-Type': mime, 'Cache-Control': 'no-store, max-age=0', 'Content-Length': bytes.length, 'X-AI-OS-Frontend': 'fixed-source-assets' })
+              res.end(req.method === 'HEAD' ? undefined : bytes)
+            } catch {
+              res.writeHead(404, { 'Cache-Control': 'no-store' }); res.end()
+            }
+            return
+          }
           if (!frontendFiles.has(file)) return next()
           if (!['GET', 'HEAD'].includes(req.method)) { res.writeHead(405); res.end(); return }
           try {

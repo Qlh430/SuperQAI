@@ -22,15 +22,16 @@ import { Assets } from "@/pages/asset-library"
 import { History } from "@/pages/history"
 import { AddToAssetDialog } from "@/components/add-to-asset-dialog"
 import { MediaCard as ResourceCard } from "@/components/media-card"
+import { SkillSquare } from "@/pages/skill-square"
 
-type Page = "home" | "projects" | "assets" | "history" | "settings" | "account" | "image" | "chat"
-const pages = new Set<Page>(["home", "projects", "assets", "history", "settings", "account", "image", "chat"])
+type Page = "home" | "projects" | "assets" | "history" | "settings" | "account" | "image" | "chat" | "skills"
+const pages = new Set<Page>(["home", "projects", "assets", "history", "settings", "account", "image", "chat", "skills"])
 const navigation = [
   { title: "工作空间", items: [{ id: "home", label: "概览", icon: LayoutDashboard }, { id: "projects", label: "项目", icon: Boxes }, { id: "assets", label: "资产库", icon: Folder }, { id: "history", label: "历史记录", icon: Clock3 }] },
   { title: "创作工具", items: [{ id: "image", label: "在线生图", icon: ImagePlus }, { id: "chat", label: "AI 对话", icon: MessageSquare }] },
   { title: "管理", items: [{ id: "settings", label: "设置", icon: Settings2 }, { id: "account", label: "账户管理", icon: Users }] },
 ] as const
-const labels: Record<Page, string> = { home: "概览", projects: "项目", assets: "资产库", history: "历史记录", settings: "设置", account: "账户管理", image: "在线生图", chat: "AI 对话" }
+const labels: Record<Page, string> = { home: "概览", projects: "项目", assets: "资产库", history: "历史记录", settings: "设置", account: "账户管理", image: "在线生图", chat: "AI 对话", skills: "Skill 广场" }
 function hashPage() { const value = location.hash.slice(1) as Page; return pages.has(value) ? value : "home" }
 
 export default function App() {
@@ -42,6 +43,19 @@ export default function App() {
   const [reloadKey, setReloadKey] = useState(0)
   const [projectsResetVersion, setProjectsResetVersion] = useState(0)
   const [assetRequest, setAssetRequest] = useState<{ items: AssetCandidate[]; requestId?: string; host?: boolean } | null>(null)
+  const [skillRequest, setSkillRequest] = useState<{ requestId: string; boardId: string; error?: string; pending?: boolean } | null>(null)
+  const skillRequestRef = useRef(skillRequest)
+  skillRequestRef.current = skillRequest
+  const closeSkillRequest = useCallback(() => {
+    const current = skillRequestRef.current
+    skillRequestRef.current = null
+    setSkillRequest(null)
+    if (current) hostAction("closeSkillSquare", { requestId: current.requestId })
+  }, [])
+  useEffect(() => {
+    document.documentElement.classList.toggle("neon-canvas-skill-overlay", Boolean(skillRequest))
+    return () => document.documentElement.classList.remove("neon-canvas-skill-overlay")
+  }, [skillRequest])
   const [records, setRecords] = useState<RecordItem[]>([])
   const [loading, setLoading] = useState(true)
   const [ready, setReady] = useState(false)
@@ -51,7 +65,7 @@ export default function App() {
   const [mobileMenu, setMobileMenu] = useState(false)
   const [collapsed, setCollapsed] = useState(() => sessionStorage.getItem("neon-nav-collapsed") === "true")
   const [createOpen, setCreateOpen] = useState(false)
-  const [canvasNaming, setCanvasNaming] = useState<{ board?: Board; projectId?: string } | null>(null)
+  const [canvasNaming, setCanvasNaming] = useState<{ board?: Board; projectId?: string; skillId?: string } | null>(null)
   const [name, setName] = useState("")
   const [saving, setSaving] = useState(false)
   const [dialogError, setDialogError] = useState("")
@@ -130,6 +144,9 @@ export default function App() {
     const onMessage = (event: MessageEvent) => {
       if (event.origin !== location.origin || event.source !== window.parent) return
       if (event.data?.type === "neon:refresh") void refresh()
+      if (event.data?.type === "neon:skill-square" && typeof event.data.requestId === "string" && typeof event.data.boardId === "string") setSkillRequest({ requestId: event.data.requestId, boardId: event.data.boardId })
+      if (event.data?.type === "neon:close-skill-square" && skillRequestRef.current?.requestId === event.data.requestId) { skillRequestRef.current = null; setSkillRequest(null) }
+      if (event.data?.type === "neon:skill-error") setSkillRequest(current => current && current.requestId === event.data.requestId ? { ...current, error: event.data.message || "Skill 载入失败。", pending: false } : current)
       if (event.data?.type === "neon:add-assets" && typeof event.data.requestId === "string" && Array.isArray(event.data.items) && event.data.items.length) {
         const items = event.data.items.map(candidateFromCanvasMedia).filter((item: AssetCandidate | null): item is AssetCandidate => item !== null)
         if (items.length) setAssetRequest({ items, requestId: event.data.requestId, host: true })
@@ -165,11 +182,11 @@ export default function App() {
     setPage(next); location.hash = next; setMobileMenu(false)
   }
   const configure = () => { setSettingsSource(page); go("settings") }
-  const openCanvas = (id?: string) => {
-    if (!id) { setCanvasNaming({}); return }
+  const openCanvas = (id?: string, skillId?: string) => {
+    if (!id) { setCanvasNaming({ skillId }); return }
     originPage.current = page
     sessionStorage.setItem("neon-canvas-source", page)
-    try { hostAction("canvas", id ? { boardId: id } : undefined) } catch (e) { setNotice((e as Error).message) }
+    try { hostAction("canvas", { boardId: id, ...(skillId ? { skillId } : {}) }) } catch (e) { setNotice((e as Error).message) }
   }
   const create = async (event: React.FormEvent) => {
     event.preventDefault(); if (!name.trim() || saving) return
@@ -214,6 +231,7 @@ export default function App() {
                 id === "assets" ? <Assets reloadKey={reloadKey} refresh={refresh} notify={setNotice} /> :
                 id === "history" ? <History resources={resources} userId={user.id} records={records} refresh={refresh} notify={setNotice} go={go} /> :
                 id === "settings" ? <SettingsPage user={user} notify={setNotice} /> :
+                id === "skills" ? <SkillSquare user={user} boards={boards} reloadKey={reloadKey} notify={setNotice} openCanvas={openCanvas} onManage={() => go("settings")} /> :
                 <AccountsPage user={user} notify={setNotice} onUpdate={() => void refresh()} />}
               </PageBoundary>}
           </section>)}
@@ -224,8 +242,19 @@ export default function App() {
     <Modal open={createOpen} title="新建项目" description="项目可以包含多个画布，帮助你整理同一个创作方向。" onClose={() => { if (!saving) setCreateOpen(false) }}>
       <form onSubmit={create} className="space-y-5"><label className="block text-sm">项目名称<Input autoFocus required maxLength={120} value={name} onChange={e => setName(e.target.value)} className="mt-2" placeholder="例如：新品视觉方案" /></label>{dialogError && <p className="text-sm text-destructive" role="alert">{dialogError}</p>}<div className="flex justify-end gap-3"><Button variant="outline" disabled={saving} onClick={() => setCreateOpen(false)}>取消</Button><Button type="submit" disabled={saving || !name.trim()}>{saving ? "正在创建…" : "创建项目"}</Button></div></form>
     </Modal>
-    {canvasNaming && <CanvasNameDialog key={canvasNaming.board?.id || "new-canvas"} board={canvasNaming.board} projectId={canvasNaming.projectId} onClose={() => setCanvasNaming(null)} onComplete={async id => { await refresh(); setCanvasNaming(null); if (canvasNaming.board) setNotice("画布已重命名。"); else openCanvas(id) }} />}
+    {canvasNaming && <CanvasNameDialog key={canvasNaming.board?.id || "new-canvas"} board={canvasNaming.board} projectId={canvasNaming.projectId} onClose={() => setCanvasNaming(null)} onComplete={async id => { await refresh(); setCanvasNaming(null); if (canvasNaming.board) setNotice("画布已重命名。"); else openCanvas(id, canvasNaming.skillId) }} />}
     {assetRequest && <AddToAssetDialog key={assetRequest.requestId || "local-asset-add"} items={assetRequest.items} onClose={closeAssetRequest} onSaved={async message => { await refresh(); setNotice(message) }} />}
+    <Modal open={Boolean(skillRequest)} title="Skill 广场" description="选择专业流程，回到当前画布 Agent 继续创作。" onClose={closeSkillRequest} className="h-[min(52rem,calc(100svh-2rem))] max-w-6xl grid-rows-[auto_minmax(0,1fr)] overflow-hidden sm:max-w-6xl">
+      <div className="min-h-0 overflow-y-auto overscroll-contain pr-1">
+        {skillRequest && <PageBoundary onRetry={() => setReloadKey(key => key + 1)}>
+          {skillRequest.error && <p role="alert" className="mb-5 rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm leading-6">{skillRequest.error}</p>}
+          <SkillSquare key={skillRequest.requestId} user={user} boards={boards} reloadKey={reloadKey} notify={text => setSkillRequest(current => current ? { ...current, error: text } : current)} openCanvas={openCanvas} selectionPending={skillRequest.pending} onSelectSkill={skillId => {
+            setSkillRequest({ ...skillRequest, error: "", pending: true })
+            hostAction("useCanvasSkill", { requestId: skillRequest.requestId, skillId })
+          }} />
+        </PageBoundary>}
+      </div>
+    </Modal>
     <Notice message={notice} onClose={() => setNotice("")} />
       <PasswordDialog open={passwordOpen} forced={passwordGate} onClose={() => setPasswordOpen(false)} notify={setNotice} onDone={() => { setPasswordOpen(false); void refresh() }} />
     </PageBoundary>

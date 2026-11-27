@@ -1,6 +1,7 @@
 (function installCanvasAudioGenerator(root) {
   'use strict';
   const mounted = new WeakMap();
+  const unconfirmedSubmissions = new Set();
   const speechFormats = ['mp3', 'wav', 'opus', 'aac', 'flac'];
   const aceStepKeyscales = ['C major', 'C minor', 'C# major', 'C# minor', 'D major', 'D minor', 'D# major', 'D# minor', 'E major', 'E minor', 'F major', 'F minor', 'F# major', 'F# minor', 'G major', 'G minor', 'G# major', 'G# minor', 'A major', 'A minor', 'A# major', 'A# minor', 'B major', 'B minor'];
   const modes = ['music', 'speech'];
@@ -35,7 +36,7 @@
     if (!replace && JSON.stringify(entry.state.qwenDrafts.clone.referenceAudio) === JSON.stringify(next)) return false;
     if (replace) { entry.uploadToken++; entry.uploading = false; entry.referenceUpload.disabled = false; entry.run.disabled = entry.busy || !selected(entry); }
     entry.state.qwenDrafts.clone.referenceAudio = next;
-    syncInputs(entry); if (saveState) save(entry); return true;
+    syncReference(entry); if (saveState) save(entry); return true;
   }
   function replaceReference(entry, ref) {
     return typeof entry.context.onReferenceReplace === 'function'
@@ -58,7 +59,11 @@
     entry.lyrics.value = design ? qwenDraft(entry).instruct : entry.state.lyrics;
     entry.lyrics.placeholder = design ? '必填，请描述想要的音色、语气和风格' : '必填，在此输入或粘贴歌词…';
     entry.lyrics.setAttribute('aria-label', design ? '设计的音色' : '歌词');
-    entry.reference.hidden = !(qwen && entry.state.qwenMode === 'clone');
+    syncReference(entry);
+    syncPromptArea(entry);
+  }
+  function syncReference(entry) {
+    entry.reference.hidden = !(isQwen(entry) && entry.state.qwenMode === 'clone');
     if (entry.reference.hidden) entry.referencePlayer.pause();
     const ref = entry.state.qwenDrafts.clone.referenceAudio;
     entry.referenceName.textContent = ref?.name || '';
@@ -70,7 +75,6 @@
     entry.referenceRemove.hidden = !ref;
     if (ref?.url && entry.referencePlayer.getAttribute('src') !== ref.url) entry.referencePlayer.src = ref.url;
     if (!ref?.url) { entry.referencePlayer.pause(); entry.referencePlayer.removeAttribute('src'); }
-    syncPromptArea(entry);
   }
   function save(entry) { if (mounted.get(entry.node) === entry) entry.context.onSave?.(entry.node); }
   function status(entry, text, state) {
@@ -273,33 +277,74 @@
     node.addEventListener('flora-generation-history-select', entry.historySelect);
     showResult(entry); refreshModels(node); return node;
   }
-  async function run(node) {
-    const entry = mounted.get(node); if (!entry || entry.busy) return;
+  async function run(node, { guard, signal } = {}) {
+    const entry = mounted.get(node);
+    if (!entry) return { ok: false, code: 'plugin_unavailable', error: '音频生成组件未加载。' };
+    if (entry.busy || entry.validatingReferences) return { ok: false, state: 'running', error: '此节点已有音频操作正在执行。' };
+    const submissionKey = entry.context.getSubmissionKey?.() || node;
+    if (unconfirmedSubmissions.has(submissionKey)) {
+      const error = '上一次音频请求是否受理尚未确认，请先核对服务端结果，勿重复提交。';
+      status(entry, error, 'error');
+      return { ok: false, code: 'submission_unknown', error };
+    }
+    const invalid = (text, code = 'audio_input_required') => {
+      status(entry, text, 'error');
+      return { ok: false, code, state: code === 'audio_input_required' ? 'waiting-input' : 'unavailable', error: text };
+    };
     entry.context.syncReference?.();
     const model = selected(entry);
-    if (!model) { status(entry, '请先在设置中保存音频模型，然后选择模型。', 'error'); return; }
-    if (entry.uploading) { status(entry,'请等待参考音频上传完成。','error'); return; }
-    const prompt = String(currentPrompt(entry)).trim();
-    if (!prompt) { status(entry, '请先输入要生成的音频内容。', 'error'); entry.prompt.focus(); return; }
+    if (!model) return invalid('请先在设置中保存音频模型，然后选择模型。', 'model_unavailable');
+    const initialMode = entry.state.mode;
+    const initialVoiceMode = entry.state.qwenMode;
+    if (entry.uploading) return invalid('请等待参考音频上传完成。');
+    entry.validatingReferences = true;
+    let referenceError;
+    try { referenceError = await entry.context.validatePromptReferences?.(); }
+    finally { entry.validatingReferences = false; }
+    guard?.assertActive();
+    if (mounted.get(node) !== entry || !node.isConnected) return { ok: false, state: 'cancelled', error: '音频节点已关闭。' };
+    if (referenceError) return invalid(referenceError);
+    if (id(selected(entry) || {}) !== id(model) || initialMode !== entry.state.mode || initialVoiceMode !== entry.state.qwenMode) {
+      return invalid('验证参考期间模型或声音模式已改变，请重新核对后生成。');
+    }
+    const prompt = String(entry.context.getMentionPrompt?.() ?? currentPrompt(entry)).trim();
+    if (!prompt) { if (!guard) entry.prompt.focus(); return invalid('请先输入要生成的音频内容。'); }
     const qwen = isQwen(entry), draft = qwenDraft(entry);
-    if (qwen && entry.state.qwenMode === 'clone' && !draft.referenceAudio?.url) { status(entry,'请先上传参考音频。','error'); return; }
-    if (qwen && entry.state.qwenMode === 'design' && !draft.instruct.trim()) { status(entry,'请先填写设计的音色。','error'); entry.lyrics.focus(); return; }
+    if (qwen && entry.state.qwenMode === 'clone' && !draft.referenceAudio?.url) return invalid('请先上传参考音频。');
+    if (qwen && entry.state.qwenMode === 'design' && !draft.instruct.trim()) { if (!guard) entry.lyrics.focus(); return invalid('请先填写设计的音色。'); }
+    signal?.throwIfAborted();
+    if (unconfirmedSubmissions.has(submissionKey)) return invalid('上一次音频请求仍在处理，请勿重复提交。');
     entry.busy = true; entry.run.disabled = true; entry.run.setAttribute('aria-busy', 'true'); entry.run.classList.add('is-generating'); status(entry, '正在生成音频，请勿重复提交。', 'running');
     const controller = new AbortController(); entry.controller = controller;
     const publicModelId = entry.state.modelId;
     const request = { providerId: model.providerId, modelId: model.modelId || model.upstreamModelId || model.id, prompt, mode: entry.state.mode, parameters: { ...entry.state.parameters, ...(entry.state.mode === 'music' ? { lyrics: entry.state.lyrics } : {}) } };
     if (qwen) request.parameters = {voiceMode:entry.state.qwenMode,...(entry.state.qwenMode === 'preset' ? {speaker:entry.state.qwenSpeaker} : entry.state.qwenMode === 'clone' ? {referenceAudio:draft.referenceAudio.url} : {instruct:draft.instruct.trim()})};
+    let confirmedResponse = false;
+    unconfirmedSubmissions.add(submissionKey);
     try {
-      const response = await (entry.context.fetch || root.fetch.bind(root))('/api/providers/generate-audio', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(request), signal: controller.signal });
+      const requestSignal = signal ? AbortSignal.any([signal, controller.signal]) : controller.signal;
+      const response = await (entry.context.fetch || root.fetch.bind(root))('/api/providers/generate-audio', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(request), signal: requestSignal });
       let data; try { data = await response.json(); } catch { throw new Error('音频接口返回了无法识别的内容。'); }
+      confirmedResponse = response.status < 500 && ![408, 409, 425, 429].includes(response.status);
       if (!response.ok) throw new Error(data.error || (response.status === 401 ? '登录已过期，请重新登录。' : response.status === 403 ? '没有使用此音频服务的权限。' : '音频生成失败，请稍后重试。'));
       const url = safeUrl(data.audio?.url);
       if (!url) throw new Error('音频接口没有返回可播放的文件。');
-      if (mounted.get(node) !== entry) return;
+      guard?.assertActive();
+      if (mounted.get(node) !== entry) return { ok: false, state: 'cancelled', error: '音频节点已关闭。' };
       const item = { ...data.audio, url, src: url, kind: 'audio', mediaType: 'audio', prompt, parameters: request.parameters, modelId: publicModelId, createdAt: new Date().toISOString() };
+      unconfirmedSubmissions.delete(submissionKey);
       entry.state.result = item; showResult(entry); entry.context.onResult?.(node, item); save(entry); status(entry, '音频生成完成', 'success');
-    } catch (error) { if (mounted.get(node) === entry) status(entry, error.message || '音频生成失败，请稍后重试。', 'error'); }
+      return { ok: true, item };
+    } catch (error) {
+      const unknown = !confirmedResponse || Boolean(signal?.aborted);
+      if (!unknown) unconfirmedSubmissions.delete(submissionKey);
+      const message = unknown ? '音频请求是否受理尚未确认，请先核对服务端结果，勿重复提交。'
+        : error.message || '音频生成失败，请稍后重试。';
+      if (mounted.get(node) === entry) status(entry, message, 'error');
+      return { ok: false, code: unknown ? 'submission_unknown' : 'audio_generation_failed', error: message };
+    }
     finally {
+      if (confirmedResponse && !signal?.aborted) unconfirmedSubmissions.delete(submissionKey);
       if (mounted.get(node) === entry) {
         entry.busy = false; entry.controller = null;
         entry.run.classList.remove('is-generating'); entry.run.removeAttribute('aria-busy'); entry.run.disabled = !selected(entry);
@@ -328,5 +373,12 @@
     mounted.delete(node); entry.controller?.abort();
     entry.player.pause(); entry.referencePlayer.pause(); entry.referencePlayer.removeAttribute('src'); node.removeEventListener('flora-generation-history-select', entry.historySelect); entry.body.remove();
   }
-  root.CanvasAudioGenerator = Object.freeze({ render, run, serialize, refreshModels, getPrompt, setReference, acceptsAudioReference:node=>{const entry=mounted.get(node);return Boolean(entry && isQwen(entry) && entry.state.qwenMode==='clone');}, syncLayout:node=>{const entry=mounted.get(node);if(entry)syncPromptArea(entry);}, showResult: selectResult, unmount });
+  function getPromptDraftKey(node) {
+    const entry = mounted.get(node);
+    return entry ? (isQwen(entry) ? `qwen-${entry.state.qwenMode}` : entry.state.mode) : "";
+  }
+
+  const listModels = (mode, catalog) => models({ state: { mode }, context: { getModels: () => catalog } })
+    .map(model => ({ id: id(model), modelId: model.modelId, name: model.displayName || model.name }));
+  root.CanvasAudioGenerator = Object.freeze({ render, run, serialize, refreshModels, listModels, getPrompt, getPromptDraftKey, setReference, acceptsAudioReference:node=>{const entry=mounted.get(node);return Boolean(entry && isQwen(entry) && entry.state.qwenMode==='clone');}, syncLayout:node=>{const entry=mounted.get(node);if(entry)syncPromptArea(entry);}, showResult: selectResult, unmount });
 })(window);

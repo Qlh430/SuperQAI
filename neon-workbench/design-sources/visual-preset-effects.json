@@ -1,0 +1,1424 @@
+{
+  "version": 1,
+  "effects": {
+    "age-senior-51-65": {
+      "runtimeEffectPrompt": "已满51岁且未满65岁的熟龄阶段。"
+    },
+    "age-elder-65-plus": {
+      "runtimeEffectPrompt": "65岁及以上。"
+    },
+    "ethnicity-mixed": {
+      "runtimeEffectPrompt": "融合不同族裔的面部特征。"
+    },
+    "profession-musician": {
+      "runtimeEffectPrompt": "音乐人。"
+    },
+    "profession-artist": {
+      "runtimeEffectPrompt": "艺术创作者。"
+    },
+    "profession-business-elite": {
+      "runtimeEffectPrompt": "商务人士。"
+    },
+    "profession-doctor": {
+      "runtimeEffectPrompt": "医生。"
+    },
+    "profession-firefighter": {
+      "runtimeEffectPrompt": "消防员。"
+    },
+    "profession-lawyer": {
+      "runtimeEffectPrompt": "律师。"
+    },
+    "profession-nurse": {
+      "runtimeEffectPrompt": "护士。"
+    },
+    "profession-police": {
+      "runtimeEffectPrompt": "警务人员。"
+    },
+    "profession-service-worker": {
+      "runtimeEffectPrompt": "服务行业从业者。"
+    },
+    "profession-soldier": {
+      "runtimeEffectPrompt": "军人。"
+    },
+    "profession-student": {
+      "runtimeEffectPrompt": "学生。"
+    },
+    "profession-teacher": {
+      "runtimeEffectPrompt": "教师。"
+    },
+    "profession-traveler": {
+      "runtimeEffectPrompt": "旅行者。"
+    },
+    "era-modern": {
+      "runtimeEffectPrompt": "现代。"
+    },
+    "era-1920s": {
+      "runtimeEffectPrompt": "20 世纪 20 年代。"
+    },
+    "era-1950s": {
+      "runtimeEffectPrompt": "20 世纪 50 年代。"
+    },
+    "era-1970s": {
+      "runtimeEffectPrompt": "20 世纪 70 年代。"
+    },
+    "era-1980s": {
+      "runtimeEffectPrompt": "20 世纪 80 年代。"
+    },
+    "era-1990s": {
+      "runtimeEffectPrompt": "20 世纪 90 年代。"
+    },
+    "era-2000s": {
+      "runtimeEffectPrompt": "21 世纪头十年。"
+    },
+    "era-near-future": {
+      "runtimeEffectPrompt": "由当代技术与社会逐步演进的近未来。"
+    },
+    "era-pre-qin": {
+      "runtimeEffectPrompt": "中国先秦时期。"
+    },
+    "era-medieval": {
+      "runtimeEffectPrompt": "欧洲中世纪。"
+    },
+    "era-industrial": {
+      "runtimeEffectPrompt": "近现代工业化时期。"
+    },
+    "era-cyberpunk": {
+      "runtimeEffectPrompt": "高科技深度介入社会生活的近未来赛博时代。"
+    },
+    "era-far-future": {
+      "runtimeEffectPrompt": "科技文明高度演进的远未来。"
+    },
+    "era-wasteland": {
+      "runtimeEffectPrompt": "文明遭遇大规模崩溃后的末日废土时期。"
+    },
+    "era-alternate": {
+      "runtimeEffectPrompt": "有自身历史与社会演进脉络的架空幻想时代。"
+    },
+    "style-natural-lifestyle": {
+      "runtimeEffectPrompt": "自然生活方式商业摄影，带有日常抓拍的松弛感、柔和自然光、克制的中性色调和轻度精修的真实质感。"
+    },
+    "style-documentary-cinematic": {
+      "runtimeEffectPrompt": "纪实电影摄影，自然瞬间般的真实感、克制的冷暖关系、层次清晰的明暗与细微胶片质感。"
+    },
+    "style-minimal-commercial": {
+      "runtimeEffectPrompt": "极简商业广告摄影，以简洁的视觉层次和有意留白突出形体，定向布光清楚且反射精细受控。"
+    },
+    "style-film-grain": {
+      "runtimeEffectPrompt": "复古胶片摄影，细腻可见的胶片颗粒、柔和高光泛晕、低对比色彩与自然暗部层次。"
+    },
+    "style-3d-concept": {
+      "runtimeEffectPrompt": "三维概念美术，清晰的空间结构与立体几何，可信的全局光照、层次细腻的表面材质和受控的阴影。"
+    },
+    "filter-original": {
+      "runtimeEffectPrompt": ""
+    },
+    "filter-soft-film": {
+      "runtimeEffectPrompt": "柔和胶片色调，略低饱和、偏暖中间调与微青暗部，细密颗粒、柔和高光晕染和宽润过渡。"
+    },
+    "filter-cinematic-light": {
+      "runtimeEffectPrompt": "电影光影，定向光、细微轮廓光与合理空气层次，暗部有细节，高光柔和过渡，明暗富有层次。"
+    },
+    "filter-hdr": {
+      "runtimeEffectPrompt": "自然 HDR 色调映射，高光与阴影细节充分且连贯，局部反差适度，颜色、边缘和高光过渡自然。"
+    },
+    "filter-vintage": {
+      "runtimeEffectPrompt": "复古色调，低饱和暖米色、柔缓棕调暗部、微褪的暖高光和细微老照片颗粒。"
+    },
+    "camera-hasselblad": {
+      "runtimeEffectPrompt": "中画幅数码成像观感，色彩自然忠实且略暖，细密微对比和丰润中间调，纯净暗部与高光细节。"
+    },
+    "camera-leica": {
+      "runtimeEffectPrompt": "经典小型胶片纪实成像，暖金高光、微冷青绿阴影与扎实黑位，轻微细密颗粒，反差饱满。"
+    },
+    "camera-arri": {
+      "runtimeEffectPrompt": "有机电影影调，高光温和滚降，暗部柔软而有分层，暖和中间调与细微电影颗粒。"
+    },
+    "lens-hawk-class-x": {
+      "runtimeEffectPrompt": "轻度变形电影镜头观感，克制的横向耀斑与柔辉光，离焦高光略呈椭圆，边缘柔化。"
+    },
+    "lens-zeiss-ultra-prime": {
+      "runtimeEffectPrompt": "清透定焦镜头观感，中心到边缘细节稳定，微对比清晰，色彩中性、眩光轻微，焦外过渡自然。"
+    },
+    "focal-85": {
+      "runtimeEffectPrompt": "中长焦视角，较窄取景；远一些的拍摄距离下主体与背景的尺度关系更紧密。"
+    },
+    "aperture-f1-4": {
+      "runtimeEffectPrompt": "大光圈的浅景深观感，焦平面附近主体细节清楚，前后景虚化柔和。"
+    },
+    "aperture-f4": {
+      "runtimeEffectPrompt": "中等景深，主要主体及其近邻范围细节清楚，远处背景柔和分离。"
+    },
+    "R02": {
+      "runtimeEffectPrompt": "写实电视剧定帧，柔和均匀的影视布光、清楚的中间调与自然偏暖的生活化色彩。"
+    },
+    "R03": {
+      "runtimeEffectPrompt": "现代短剧影像，明快鲜明的色彩、分明的轮廓光和紧张直给的戏剧视觉。"
+    },
+    "R04": {
+      "runtimeEffectPrompt": "复古邵氏武侠电影美术，饱和的舞台式红绿设色、鲜明摄影棚光和实体布景般的质感，带细微老胶片色偏。"
+    },
+    "R05": {
+      "runtimeEffectPrompt": "古装宫廷权谋剧视觉，沉敛的暗红与棕金、考究克制的礼制纹饰，低调戏剧布光营造庄重压抑的气氛。"
+    },
+    "R06": {
+      "runtimeEffectPrompt": "高端时尚杂志摄影，锋利的轮廓光、分明的明暗层次、精致的表面质感和利落醒目的编辑摄影设色。"
+    },
+    "R07": {
+      "runtimeEffectPrompt": "原子时代复古未来主义电影美术，圆弧流线造型、珐琅与抛光金属质感，奶油白与薄荷青搭配轻微胶片色偏。"
+    },
+    "R09": {
+      "runtimeEffectPrompt": "韩剧柔光摄影，奶油色调、干净通透的弥散光、柔和的低对比过渡与细腻含蓄的情绪。"
+    },
+    "R11": {
+      "runtimeEffectPrompt": "东方神话电影美术，空灵云气般的层次、清冷蓝金色调与带穿透感的柔光，呈现恢宏而神异的东方幻想质感。"
+    },
+    "R12": {
+      "runtimeEffectPrompt": "国产现实主义悬疑电影质感，生活化的材质和克制的冷暖杂光，低照度层次营造压抑、不安的气氛。"
+    },
+    "R14": {
+      "runtimeEffectPrompt": "科幻电影美术，可信的未来工业材质、冷色发光细节和富层次的体积光，整体透出鲜明的电影化未来感。"
+    },
+    "R15": {
+      "runtimeEffectPrompt": "写实硬科幻电影美术，以工程逻辑明确的造型、可信的功能材质和克制的冷灰白照明营造严谨的近未来质感。"
+    },
+    "R16": {
+      "runtimeEffectPrompt": "自然写实摄影，自然环境光、准确的白平衡与真实表面细节，明暗和色彩还原平实。"
+    },
+    "R17": {
+      "runtimeEffectPrompt": "唯美古装偶像剧美学，轻盈细腻的材质表现、明亮的柔逆光和低反差浅粉暖白设色，带浪漫朦胧感。"
+    },
+    "R18": {
+      "runtimeEffectPrompt": "冷绿悬疑电影摄影，低饱和灰绿调色、冷湿的高光、深重阴影与贴近日常现实的材质表现。"
+    },
+    "R19": {
+      "runtimeEffectPrompt": "美式恐怖电影摄影，低照度钨丝灯色感、深重阴影、可见胶片颗粒与强烈的空间压迫感。"
+    },
+    "R20": {
+      "runtimeEffectPrompt": "韩式都市心理恐怖影像，克制的灰青色调、冷白荧光质感、生活化的材质与局部沉黑带来的压迫感。"
+    },
+    "M01": {
+      "runtimeEffectPrompt": "暖光抒情影像，柔和琥珀逆光与奶油般渐变高光，带轻柔散射、微妙胶片质感和温暖恍惚的氛围。"
+    },
+    "M02": {
+      "runtimeEffectPrompt": "火光般的高反差现场影像，炽热橙红强光、利落的光束和深色剪影形成热烈、富冲击力的明暗节奏。"
+    },
+    "M03": {
+      "runtimeEffectPrompt": "近乎黑白的灰烬色调，暗哑灰阶与少量发光电蓝点色形成反差，带忧伤、神秘的气氛。"
+    },
+    "M04": {
+      "runtimeEffectPrompt": "绿雾荒原般的疏离影像，低饱和鼠尾草绿与灰白、弥散漫射光、层叠淡雾和空旷的视觉感受。"
+    },
+    "M05": {
+      "runtimeEffectPrompt": "沙丘神殿式史诗美术，暖沙金与赭灰、风蚀石质、古老雕刻般的纹样和穿过浮尘的漫射光。"
+    },
+    "M06": {
+      "runtimeEffectPrompt": "白纱圣堂般的空灵影像，以高调乳白光、纱雾般的半透明渐层和柔淡阴影营造圣洁静谧的气息。"
+    },
+    "M07": {
+      "runtimeEffectPrompt": "诗意东方影像，幽暗青绿为主、暖红细部点色，薄雾、侧逆轮廓光与清浅的影层交叠。"
+    },
+    "M08": {
+      "runtimeEffectPrompt": "蓝灰调极简舞台美术，以疏朗几何形态、冷雾和聚束顶光营造冷静、孤寂的现代艺术感。"
+    },
+    "M09": {
+      "runtimeEffectPrompt": "复古浪漫影像，以砖红暖棕、温柔琥珀光和略粗的砖面肌理营造亲密怀旧的气氛。"
+    },
+    "M10": {
+      "runtimeEffectPrompt": "复古爵士夜景摄影，温润金褐色、高光处柔晕的霓虹、微烟般的层次和松弛优雅的都市夜色。"
+    },
+    "M11": {
+      "runtimeEffectPrompt": "复古流行布景美术，糖果粉蓝和薄荷色平滑搭配，结合造型化色块、柔软织物般的光泽与均匀明亮的布光。"
+    },
+    "M12": {
+      "runtimeEffectPrompt": "清新田园民谣影像，浅蓝与草地般的淡绿、低反差自然光和柔和空气层次，呈现轻风拂过般的舒展感。"
+    },
+    "M13": {
+      "runtimeEffectPrompt": "热带海滨休闲美术，以明快青绿和橙黄、通透日光、复古海报式色块和轻松鲜活的色彩节奏营造海边酒吧气息。"
+    },
+    "M14": {
+      "runtimeEffectPrompt": "合成波都市夜色，蓝紫与粉色霓虹、湿亮反射、细薄雨雾和梦幻的冷暖光晕。"
+    },
+    "M15": {
+      "runtimeEffectPrompt": "暖金色古典童话影像，洛可可式曲线与雕花质感、柔金白散射光和闪烁微粒营造梦境般的华丽感。"
+    },
+    "M16": {
+      "runtimeEffectPrompt": "复古合成波梦境插画，柠檬黄与紫罗兰撞色、几何化的简洁形体和轻微超现实色块关系。"
+    },
+    "M17": {
+      "runtimeEffectPrompt": "经典美式印刷漫画，粗细分明的黑墨勾线、夸张有力的形体与表情、硬边平涂色块、网点印刷纹理和坚实投影。"
+    },
+    "M18": {
+      "runtimeEffectPrompt": "紫夜抒情影像，沉静靛蓝暗部与紫红冷霓虹交融，柔和渐变和克制高光营造安静忧郁的气氛。"
+    },
+    "M19": {
+      "runtimeEffectPrompt": "通幅深钴蓝单色影像，冷亮的月光质感、轮廓分明的剪影与简洁优雅的舞台式明暗。"
+    },
+    "M20": {
+      "runtimeEffectPrompt": "复古朋克现场摄影，以红绿旧霓虹、粗粝胶片颗粒、浓暗部和偏色高光呈现低保真的现场质感。"
+    },
+    "D01": {
+      "runtimeEffectPrompt": "单色手绘线稿，细密而有轻重变化的轮廓线，以疏密排线表达少量明暗，保留大面积纸面留白。"
+    },
+    "D02": {
+      "runtimeEffectPrompt": "明亮的二维卡通插画，略夸张的圆润造型、清晰柔和的轮廓和饱满纯净的平涂色块。"
+    },
+    "D03": {
+      "runtimeEffectPrompt": "Q版二维插画，头大身小的圆润比例、简化肢体与轮廓、柔和描边和明快平涂。"
+    },
+    "D04": {
+      "runtimeEffectPrompt": "二维国漫动画美术，流畅而清楚的线描、富有东方韵律的造型、受控的平面色彩与细致的绘制质感。"
+    },
+    "D05": {
+      "runtimeEffectPrompt": "国风二维水墨，宣纸洇墨质感、干湿有别的笔触、浓淡墨色与清浅晕染，以留白构成虚实层次。"
+    },
+    "D06": {
+      "runtimeEffectPrompt": "国风悬疑二维动画美术，东方线描与暗青灰设色，少量暖红光、沉暗的阴影和含蓄压抑的明暗层次。"
+    },
+    "D07": {
+      "runtimeEffectPrompt": "经典二维赛璐璐动画着色，清晰轮廓线、平涂底色和层次分明的硬边色阶阴影。"
+    },
+    "D08": {
+      "runtimeEffectPrompt": "细腻的二维动画美术，写实光影、通透空气透视、明亮的蓝金冷暖层次与细致的环境刻画。"
+    },
+    "D09": {
+      "runtimeEffectPrompt": "治愈系二维动画，舒缓柔软的轮廓、浅暖低对比色块、弥散光和细微手绘颗粒。"
+    },
+    "D10": {
+      "runtimeEffectPrompt": "热血日漫二维动作动画，利落而富有力度的变粗细轮廓、张扬的形态张力、硬边赛璐璐阴影和高反差冷暖色。"
+    },
+    "D11": {
+      "runtimeEffectPrompt": "碎光油画，以可见的厚涂笔触和错落短笔触拆分光色，暖金亮斑与蓝紫灰暗部交织，透出画布肌理。"
+    },
+    "D12": {
+      "runtimeEffectPrompt": "几何拼贴水粉插画，形体由大小错落的平面色块拼接，采用不透明的水粉叠色、可见纸纹和不规则手绘边缘。"
+    },
+    "D13": {
+      "runtimeEffectPrompt": "光斑童话水粉插画，半干笔触与颗粒纸纹相叠，浅绿与暖奶油色低对比过渡，细碎斑驳高光轻柔散开。"
+    },
+    "D14": {
+      "runtimeEffectPrompt": "东方功夫冒险二维动画，利落干净的描边、富于弹性的夸张形体和线势，明亮暖光与鲜明远近层次营造跃动感。"
+    },
+    "D15": {
+      "runtimeEffectPrompt": "细腻的手绘动画定帧，层层铺开的绘制细节、柔和蓝绿色调和舒展的空气透视，呈现缓缓展开的空间层次。"
+    },
+    "D16": {
+      "runtimeEffectPrompt": "黑白手绘排线漫画，铅笔与墨线交织，交叉排线和笔触疏密塑造灰阶与阴影，保留细微纸纹。"
+    },
+    "D17": {
+      "runtimeEffectPrompt": "油画棒拼绘插画，宽松大胆的手涂色块、粗颗粒蜡质笔痕与鲜亮冷暖叠色，呈现朴拙活泼的绘本质感。"
+    },
+    "D18": {
+      "runtimeEffectPrompt": "马卡龙色二维插画，低对比奶油粉彩、柔雾过渡与气泡般圆润轻盈的形态，局部呈半透明光泽。"
+    },
+    "D19": {
+      "runtimeEffectPrompt": "暗色烧绘插画，以近黑炭灰和深绿组织明暗，粗颗粒干刷、焦灼般的边缘纹理与局部暖亮色形成幽暗气息。"
+    },
+    "D20": {
+      "runtimeEffectPrompt": "荧光迷幻二维插画，以电光青、紫和洋红形成高饱和对比，结合发光边缘和迷幻抽象纹样。"
+    },
+    "T01": {
+      "runtimeEffectPrompt": "暖日浪漫三维游戏CG，明快冷暖对比、暖金日照与柔亮反光，采用清透细腻的材质着色和日系青春美术语言。"
+    },
+    "T02": {
+      "runtimeEffectPrompt": "原子朋克末日三维游戏美术，复古未来主义圆弧造型、磨蚀的核时代工业材质、土黄尘雾与衰败的色层。"
+    },
+    "T03": {
+      "runtimeEffectPrompt": "手绘质感三维动画，清晰的立体形体与手绘笔触贴图相叠，描绘性边缘、低饱和色层与柔暗阴影相衬。"
+    },
+    "T05": {
+      "runtimeEffectPrompt": "国漫科幻三维电影美术，兼具国产动画的造型表现和写实工业材质，以冷蓝灰空间、锐利科技光和清晰体积塑造未来感。"
+    },
+    "T06": {
+      "runtimeEffectPrompt": "科幻机甲三维CG，以装甲式硬表面、层叠金属分件、清楚的结构连接和局部发光形成精密机械感。"
+    },
+    "T07": {
+      "runtimeEffectPrompt": "国漫三维电影美术，细致的风格化形体、温润灵动的材质、带雾化层次的电影体积光与东方玄幻的宏阔气氛。"
+    },
+    "T08": {
+      "runtimeEffectPrompt": "粗粝写实的科幻CG短片质感，硬表面细节、磨损材质与高反差阴冷光营造成熟、疏离而不安的气息。"
+    },
+    "T09": {
+      "runtimeEffectPrompt": "漫画感三维动画，立体体积叠加手绘描边、硬边漫画阴影和潮流感饱和色块，轮廓鲜明有动势。"
+    },
+    "T10": {
+      "runtimeEffectPrompt": "浪漫乙女游戏三维CG，柔滑细腻的表面着色、精雕般的结构细节、轻柔粉金散射光和含蓄的亲密氛围。"
+    },
+    "T11": {
+      "runtimeEffectPrompt": "日式幻想游戏三维CG，秀丽细致的风格化建模、透亮冷色和柔和光泽，呈现静谧唯美的奇幻气质。"
+    },
+    "T12": {
+      "runtimeEffectPrompt": "史诗奇幻三维CG，深蓝与金色的戏剧光比、厚重细致的材质和层层展开的空间尺度感，呈现恢宏电影质感。"
+    },
+    "T13": {
+      "runtimeEffectPrompt": "游戏动画电影式三维渲染，亲和的风格化比例、鲜亮但层次清楚的色彩、细致体积和高完成度电影布光。"
+    },
+    "T14": {
+      "runtimeEffectPrompt": "温情合家欢三维动画，圆润亲和的形体、温润的次表面散射质地、暖色漫射光和柔和明暗。"
+    },
+    "T15": {
+      "runtimeEffectPrompt": "梦幻童话三维动画，轻柔曲线、晶莹的卡通材质、柔紫粉色光晕与明亮的魔法般辉光。"
+    },
+    "T16": {
+      "runtimeEffectPrompt": "立体化美漫CG，富力度的夸张造型、清晰棱线、饱和对比色和近似漫画分色的硬边明暗。"
+    },
+    "T17": {
+      "runtimeEffectPrompt": "唯美古装三维动漫美术，东方古典造型线、精细轻盈的材质、清透的粉蓝色彩与柔亮层次。"
+    },
+    "T18": {
+      "runtimeEffectPrompt": "国产三维动画美术，东方造型语汇、匀整细致的立体比例、精工般的材质细节与庄重柔润的电影布光。"
+    },
+    "T19": {
+      "runtimeEffectPrompt": "潮玩收藏手办风格，造型轮廓简洁明确、比例经过玩具化夸张，呈精细涂装的树脂与PVC质感。"
+    },
+    "T20": {
+      "runtimeEffectPrompt": "暗黑童话三维动画，风格化哥特曲线和精致暗哑材质，墨绿灰、暗酒红与迷雾般的光影营造梦魇气氛。"
+    },
+    "FG02": {
+      "runtimeEffectPrompt": "柯达暖调彩色负片质感，金暖高光、自然的偏暖红色过渡、温和反差和细小颗粒。"
+    },
+    "FG03": {
+      "runtimeEffectPrompt": "富士彩色胶片质感，清凉青绿与深蓝中间调、通透明亮的亮部、克制反差和细颗粒。"
+    },
+    "FG04": {
+      "runtimeEffectPrompt": "伊尔福黑白银盐胶片质感，黑白灰层级丰富，暗部浓郁而有层次，亮部柔顺、颗粒细密。"
+    },
+    "FG06": {
+      "runtimeEffectPrompt": "即时成像胶片色调，奶油暖黄高光、微褪青绿色阴影、柔和对比和轻微边缘软化。"
+    },
+    "FG09": {
+      "runtimeEffectPrompt": "轻度光学柔焦，亮部扩散为薄辉光，高频边缘柔化，主体轮廓保持清晰可辨。"
+    },
+    "FG10": {
+      "runtimeEffectPrompt": "高感光胶片颗粒，细密且随亮度自然变化的纹理，略收饱和度，黑位和中间调均衡。"
+    },
+    "FG11": {
+      "runtimeEffectPrompt": "赛博朋克影调，冷蓝青暗部与亮紫霓虹高光对照，轻微边缘辉光，保持暗部色阶。"
+    },
+    "FP01": {
+      "runtimeEffectPrompt": "轻度清透人像修饰，均衡局部肤色、提亮暗沉与眼周，保留细微肌理和五官轮廓。"
+    },
+    "FP02": {
+      "runtimeEffectPrompt": "中等柔肤，轻柔降低皮肤局部高频粗糙度，保留自然起伏及五官、发丝边缘。"
+    },
+    "FP03": {
+      "runtimeEffectPrompt": "细腻肌理增强，适度提高皮肤细微纹理、毛孔与绒毛的局部对比，维持自然尺度。"
+    },
+    "FP04": {
+      "runtimeEffectPrompt": "柔润奶油肌，平顺的肤部明暗、微暖中性色与轻柔受控的光泽，肌理依然可辨。"
+    },
+    "FP05": {
+      "runtimeEffectPrompt": "人像光学柔化，细小边缘轻柔扩散，面部对比柔缓，亮部薄辉光，五官保持辨识度。"
+    },
+    "FP06": {
+      "runtimeEffectPrompt": "哑光粉雾肌理，收敛面部局部镜面高光，保持自然毛孔、面部层次和非平涂的哑光表面。"
+    },
+    "FN01": {
+      "runtimeEffectPrompt": "广角全景图，铺开更广的水平视域，地平线与空间关系连贯。"
+    },
+    "FN02": {
+      "runtimeEffectPrompt": "多机位九宫格，3×3 面板分别呈现同一事件的不同机位、视角和景别，主体设定与场景连续一致，分格清楚。"
+    },
+    "FN03": {
+      "runtimeEffectPrompt": "电影级光影校正，协调主光、轮廓光与环境填充，恢复高光和暗部层次，过渡细腻，明暗关系连贯。"
+    },
+    "FN04": {
+      "runtimeEffectPrompt": "服装三视图：正面展示服装，头部裁出画面；背面展示同套服装；另一区域单列同角色头部特写。视图比例与服装结构一致。"
+    },
+    "FN05": {
+      "runtimeEffectPrompt": "人物三视图，按正面、侧面、背面排列同一角色的等比例全身正交视图，人物造型、衣着和比例连续一致。"
+    },
+    "FN06": {
+      "runtimeEffectPrompt": "人物四视图：头像特写、正面全身、侧面全身、背面全身。全身视图等比例，头部、衣着和配件在各视图中一致。"
+    },
+    "FN07": {
+      "runtimeEffectPrompt": "人物拆解设计板，分区呈现同一角色正背面、头部角度与表情、服装分层和配饰细节。模块分明，结构对应。"
+    },
+    "FN08": {
+      "runtimeEffectPrompt": "人物设计图，主区呈现全身造型，辅助区呈现侧背面、头部细节、服装材质、配饰与配色，统一角色设定。"
+    },
+    "FN09": {
+      "runtimeEffectPrompt": "场景设计图，中央主图建立完整环境，周边小图补充分镜视角、光照气氛、关键材质和配色，场景结构一致。"
+    },
+    "FN10": {
+      "runtimeEffectPrompt": "道具设计图，分区呈现道具主体、多角度外形、局部构造及材质配色；适用时补充部件分解和装配关系，视图构造一致。"
+    },
+    "FN11": {
+      "runtimeEffectPrompt": "以参考画面或描述时刻为基准，呈现三秒后的单个连续动作帧，体现主体与场景的合理变化。"
+    },
+    "FN12": {
+      "runtimeEffectPrompt": "以参考画面或描述时刻为基准，呈现五秒前的单个连续动作帧，体现走向基准时刻的前置状态。"
+    },
+    "CAM03": {
+      "runtimeEffectPrompt": "中画幅彩色胶片质感，温润密实的色彩渐变、较低反差、奶油高光滚降和细密银盐颗粒。"
+    },
+    "CAM04": {
+      "runtimeEffectPrompt": "便携彩色负片成像感，明亮暖白高光，肤色呈温润的轻粉偏移，色彩清爽鲜明，颗粒轻微。"
+    },
+    "CAM05": {
+      "runtimeEffectPrompt": "全画幅电影成像气质，色彩准确克制、冷暖均衡，亮暗宽容，细腻通透的高光和顺滑渐变。"
+    },
+    "LEN03": {
+      "runtimeEffectPrompt": "柔润通透的电影定焦成像，轮廓自然、高光柔和弥散，立体感细腻，离焦渐变平顺。"
+    },
+    "LEN04": {
+      "runtimeEffectPrompt": "复古定焦镜头质地，暖高光微微漫散，轻微球差式辉光、低反差暗部和柔化边缘，焦点清晰。"
+    },
+    "LEN05": {
+      "runtimeEffectPrompt": "温润电影定焦成像，暖而自然的色彩，中间调饱满，边缘过渡柔和，离焦圆润。"
+    },
+    "LEN06": {
+      "runtimeEffectPrompt": "经典老式定焦成像，反差略低、奶白高光轻微扩散，焦外柔润、边缘适度软化，色温略暖。"
+    },
+    "LOOK-COSTUME-01": {
+      "runtimeEffectPrompt": "日常休闲装，剪裁简洁舒适。"
+    },
+    "LOOK-COSTUME-02": {
+      "runtimeEffectPrompt": "睡衣或居家服，版型舒适宽松。"
+    },
+    "LOOK-COSTUME-03": {
+      "runtimeEffectPrompt": "运动休闲服饰，版型便于活动。"
+    },
+    "LOOK-COSTUME-04": {
+      "runtimeEffectPrompt": "泳装或沙滩度假服饰，具备亲水活动或海滨休闲装束的造型特征。"
+    },
+    "LOOK-COSTUME-05": {
+      "runtimeEffectPrompt": "学院风服饰，剪裁规整，带有经典校服的设计语言。"
+    },
+    "LOOK-COSTUME-06": {
+      "runtimeEffectPrompt": "商务正装，线条利落，具有正式而规整的剪裁。"
+    },
+    "LOOK-COSTUME-07": {
+      "runtimeEffectPrompt": "雅痞风服饰，结合精致的正装剪裁与随性的搭配。"
+    },
+    "LOOK-COSTUME-08": {
+      "runtimeEffectPrompt": "正式盛装，剪裁精致，具礼服的仪式感。"
+    },
+    "LOOK-COSTUME-09": {
+      "runtimeEffectPrompt": "实用工装，突出便于活动的剪裁和功能性的服装结构。"
+    },
+    "LOOK-COSTUME-10": {
+      "runtimeEffectPrompt": "军装风格服饰，保留制服式的利落线条。"
+    },
+    "LOOK-COSTUME-11": {
+      "runtimeEffectPrompt": "街头潮流服饰，讲究个性廓形和富有层次的休闲搭配。"
+    },
+    "LOOK-COSTUME-12": {
+      "runtimeEffectPrompt": "朋克或摇滚风服饰，廓形鲜明，带有反叛感。"
+    },
+    "LOOK-COSTUME-13": {
+      "runtimeEffectPrompt": "哥特暗黑风服饰，轮廓鲜明，带有戏剧性的古典设计语言。"
+    },
+    "LOOK-COSTUME-14": {
+      "runtimeEffectPrompt": "洛丽塔风格服饰，讲究服装轮廓的层次与比例，带有古典服饰的装饰语言。"
+    },
+    "LOOK-COSTUME-15": {
+      "runtimeEffectPrompt": "田园风服饰，轮廓舒展，带有自然质朴的造型语言。"
+    },
+    "LOOK-COSTUME-16": {
+      "runtimeEffectPrompt": "古典汉服，保留汉服的传统结构与比例。"
+    },
+    "LOOK-COSTUME-17": {
+      "runtimeEffectPrompt": "日式和服，保留和服的传统结构与穿着方式。"
+    },
+    "LOOK-COSTUME-18": {
+      "runtimeEffectPrompt": "西部牛仔风格服饰，保留西部骑装与工装的实用剪裁和轮廓。"
+    },
+    "LOOK-COSTUME-19": {
+      "runtimeEffectPrompt": "铠甲风格装束，具有分区护甲结构和清晰的层叠轮廓。"
+    },
+    "LOOK-COSTUME-20": {
+      "runtimeEffectPrompt": "奇幻魔法长袍，具有垂坠的长袍轮廓和幻想风格的装饰设计。"
+    },
+    "LOOK-COSTUME-21": {
+      "runtimeEffectPrompt": "赛博机能风服饰，具有功能性分区和层叠剪裁。"
+    },
+    "LOOK-COSTUME-22": {
+      "runtimeEffectPrompt": "未来科幻风格服饰，采用简洁的流线廓形和有科技感的结构剪裁。"
+    },
+    "LOOK-TOP-01": {
+      "runtimeEffectPrompt": "无肩带的抹胸上衣。"
+    },
+    "LOOK-TOP-02": {
+      "runtimeEffectPrompt": "带有清晰肩带结构的吊带上衣。"
+    },
+    "LOOK-TOP-03": {
+      "runtimeEffectPrompt": "无袖上衣，袖窿清晰。"
+    },
+    "LOOK-TOP-04": {
+      "runtimeEffectPrompt": "背心或马甲，具有清晰的无袖衣身结构。"
+    },
+    "LOOK-TOP-05": {
+      "runtimeEffectPrompt": "基础款上衣，剪裁简洁，便于作为内搭。"
+    },
+    "LOOK-TOP-06": {
+      "runtimeEffectPrompt": "T 恤，采用简洁的套头式衣身结构。"
+    },
+    "LOOK-TOP-07": {
+      "runtimeEffectPrompt": "衬衫，具有清晰的门襟与衬衫式衣身结构。"
+    },
+    "LOOK-TOP-08": {
+      "runtimeEffectPrompt": "休闲卫衣，廓形舒展。"
+    },
+    "LOOK-TOP-09": {
+      "runtimeEffectPrompt": "可见针织纹理的针织衫。"
+    },
+    "LOOK-TOP-10": {
+      "runtimeEffectPrompt": "具有保暖针织结构的毛衣。"
+    },
+    "LOOK-TOP-11": {
+      "runtimeEffectPrompt": "夹克式外套，衣身相对利落，带有外套开合结构。"
+    },
+    "LOOK-TOP-12": {
+      "runtimeEffectPrompt": "皮衣，具有清晰的外套结构。"
+    },
+    "LOOK-TOP-13": {
+      "runtimeEffectPrompt": "西装外套，具有结构化肩线和西装式剪裁。"
+    },
+    "LOOK-TOP-14": {
+      "runtimeEffectPrompt": "风衣式外套，具有风衣的门襟结构和舒展衣摆。"
+    },
+    "LOOK-TOP-15": {
+      "runtimeEffectPrompt": "由肩部自然垂落的斗篷或披肩。"
+    },
+    "LOOK-BOTTOM-01": {
+      "runtimeEffectPrompt": "裤脚在膝上或接近膝部的短裤。"
+    },
+    "LOOK-BOTTOM-02": {
+      "runtimeEffectPrompt": "牛仔裤，具有牛仔裤的典型接缝结构。"
+    },
+    "LOOK-BOTTOM-03": {
+      "runtimeEffectPrompt": "西裤，具有正式的线条和利落的裤腿剪裁。"
+    },
+    "LOOK-BOTTOM-04": {
+      "runtimeEffectPrompt": "工装裤，具有便于活动的剪裁和功能性口袋结构。"
+    },
+    "LOOK-BOTTOM-05": {
+      "runtimeEffectPrompt": "带有肩部背带结构的背带裤。"
+    },
+    "LOOK-BOTTOM-06": {
+      "runtimeEffectPrompt": "裤腿宽松舒展的阔腿裤。"
+    },
+    "LOOK-BOTTOM-07": {
+      "runtimeEffectPrompt": "裆部舒展、裤腿向下收窄的哈伦裤。"
+    },
+    "LOOK-BOTTOM-08": {
+      "runtimeEffectPrompt": "贴合腿部轮廓的弹力打底裤。"
+    },
+    "LOOK-BOTTOM-09": {
+      "runtimeEffectPrompt": "裙摆位于膝盖上方的短裙。"
+    },
+    "LOOK-BOTTOM-10": {
+      "runtimeEffectPrompt": "从腰部向下穿着的半身裙。"
+    },
+    "LOOK-BOTTOM-11": {
+      "runtimeEffectPrompt": "裙摆较长、沿腿部向下延伸的长裙。"
+    },
+    "LOOK-BOTTOM-12": {
+      "runtimeEffectPrompt": "裙摆蓬起且体积明显的蓬蓬裙。"
+    },
+    "LOOK-PALETTE-01": {
+      "runtimeEffectPrompt": "#FFFFFF #F8F8F8 #F1F1F1 #E8E8E8，仅白色层次。"
+    },
+    "LOOK-PALETTE-02": {
+      "runtimeEffectPrompt": "#111111 #444444 #888888 #BDBDBD #F1F1F1。"
+    },
+    "LOOK-PALETTE-03": {
+      "runtimeEffectPrompt": "#050505 #101010 #181818 #222222，黑色层次。"
+    },
+    "LOOK-PALETTE-04": {
+      "runtimeEffectPrompt": "#5A4134 #81634E #B09172 #D4BFA0。"
+    },
+    "LOOK-PALETTE-05": {
+      "runtimeEffectPrompt": "#303D2E #586447 #85866B #B5AE8B。"
+    },
+    "LOOK-PALETTE-06": {
+      "runtimeEffectPrompt": "#B94530 #E1754B #F3AF64 #F8D38A。"
+    },
+    "LOOK-PALETTE-07": {
+      "runtimeEffectPrompt": "#2D5380 #518AAA #8FBFC9 #A5B9DB。"
+    },
+    "LOOK-PALETTE-08": {
+      "runtimeEffectPrompt": "#F5CFD8 #F2DDA6 #BFE5CF #C9DEF8 #DED0F4。"
+    },
+    "LOOK-PALETTE-09": {
+      "runtimeEffectPrompt": "#A99D98 #9EAAA2 #97A5B0 #B7AABC。"
+    },
+    "LOOK-PALETTE-10": {
+      "runtimeEffectPrompt": "#E9303D #F7B32C #3180D9 #943EB6。"
+    },
+    "LOOK-PALETTE-11": {
+      "runtimeEffectPrompt": "#FF28BD #9450FF #30DFF4 #C4FA3C。"
+    },
+    "LOOK-PALETTE-12": {
+      "runtimeEffectPrompt": "#DA4037 #2D71AB #F2BC3C #6544A0。"
+    },
+    "LOOK-ACCESSORY-01": {
+      "runtimeEffectPrompt": ""
+    },
+    "LOOK-ACCESSORY-02": {
+      "runtimeEffectPrompt": "帽子。"
+    },
+    "LOOK-ACCESSORY-03": {
+      "runtimeEffectPrompt": "佩戴于发间的发饰。"
+    },
+    "LOOK-ACCESSORY-04": {
+      "runtimeEffectPrompt": "眼镜。"
+    },
+    "LOOK-ACCESSORY-05": {
+      "runtimeEffectPrompt": "带有遮光镜片的太阳镜。"
+    },
+    "LOOK-ACCESSORY-06": {
+      "runtimeEffectPrompt": "装饰性面具。"
+    },
+    "LOOK-ACCESSORY-07": {
+      "runtimeEffectPrompt": "佩戴于耳部的耳饰。"
+    },
+    "LOOK-ACCESSORY-08": {
+      "runtimeEffectPrompt": "贴合颈部的短颈圈。"
+    },
+    "LOOK-ACCESSORY-09": {
+      "runtimeEffectPrompt": "项链。"
+    },
+    "LOOK-ACCESSORY-10": {
+      "runtimeEffectPrompt": "围巾。"
+    },
+    "LOOK-ACCESSORY-11": {
+      "runtimeEffectPrompt": "佩戴于手部的手套。"
+    },
+    "LOOK-ACCESSORY-12": {
+      "runtimeEffectPrompt": "佩戴于手腕的腕表。"
+    },
+    "LOOK-ACCESSORY-13": {
+      "runtimeEffectPrompt": "环绕手腕的手环或手链。"
+    },
+    "LOOK-ACCESSORY-14": {
+      "runtimeEffectPrompt": "佩戴于手指的戒指。"
+    },
+    "LOOK-ACCESSORY-15": {
+      "runtimeEffectPrompt": "腰带。"
+    },
+    "LOOK-ACCESSORY-16": {
+      "runtimeEffectPrompt": "包袋。"
+    },
+    "LOOK-ACCESSORY-17": {
+      "runtimeEffectPrompt": "武器类造型道具。"
+    },
+    "LOOK-ACCESSORY-18": {
+      "runtimeEffectPrompt": "幻想风格的翅膀或尾巴。"
+    },
+    "LOOK-MAKEUP-01": {
+      "runtimeEffectPrompt": "不施化妆，真实眉毛、唇色与自然肌肤细节。"
+    },
+    "LOOK-MAKEUP-02": {
+      "runtimeEffectPrompt": "极淡底妆、自然眉与裸粉色唇，近似素颜。"
+    },
+    "LOOK-MAKEUP-03": {
+      "runtimeEffectPrompt": "轻透水润底妆，柔和水光高光，淡粉腮红。"
+    },
+    "LOOK-MAKEUP-04": {
+      "runtimeEffectPrompt": "冷调哑光底妆、灰棕眼影、柔雾裸唇。"
+    },
+    "LOOK-MAKEUP-05": {
+      "runtimeEffectPrompt": "桃粉眼影、淡粉腮红、粉润唇，柔和自然。"
+    },
+    "LOOK-MAKEUP-06": {
+      "runtimeEffectPrompt": "利落眼线、鲜明正红唇，优雅明艳。"
+    },
+    "LOOK-MAKEUP-07": {
+      "runtimeEffectPrompt": "精致强修容、深色眼影、明显睫毛与唇妆。"
+    },
+    "LOOK-MAKEUP-08": {
+      "runtimeEffectPrompt": "黑灰色扩散烟熏眼影、眼线与浓睫毛。"
+    },
+    "LOOK-MAKEUP-09": {
+      "runtimeEffectPrompt": "眉间小型花钿装饰、古典红系眼唇妆。"
+    },
+    "LOOK-MAKEUP-10": {
+      "runtimeEffectPrompt": "略苍白底妆、浅红眼周与低饱和唇色，不涉及伤害。"
+    },
+    "LOOK-MAKEUP-11": {
+      "runtimeEffectPrompt": "电影特效式轻微擦伤和烟尘痕迹，不血腥。"
+    },
+    "LOOK-MAKEUP-12": {
+      "runtimeEffectPrompt": "蓝紫色霓虹渐变眼影、彩色利落眼线，未来感。"
+    },
+    "FACE-SHAPE-01": {
+      "runtimeEffectPrompt": "脸颊饱满，下颌柔和，长宽相近。"
+    },
+    "FACE-SHAPE-02": {
+      "runtimeEffectPrompt": "方正下颌兼圆润面颊，转角柔和。"
+    },
+    "FACE-SHAPE-03": {
+      "runtimeEffectPrompt": "宽下颌角、清楚的方形轮廓。"
+    },
+    "FACE-SHAPE-04": {
+      "runtimeEffectPrompt": "额颊圆润，下巴适度收窄，流畅椭圆。"
+    },
+    "FACE-SHAPE-05": {
+      "runtimeEffectPrompt": "面部纵向明显长于横向，比例修长。"
+    },
+    "FACE-SHAPE-06": {
+      "runtimeEffectPrompt": "额头略宽、双颊向小尖下巴明显收拢。"
+    },
+    "FACE-SHAPE-07": {
+      "runtimeEffectPrompt": "额头与上颧较宽，下巴尖小。"
+    },
+    "FACE-SHAPE-08": {
+      "runtimeEffectPrompt": "下颌相对宽、额头窄，底部饱满。"
+    },
+    "FACE-SHAPE-09": {
+      "runtimeEffectPrompt": "菱形轮廓，颧部为最宽处，线条向前额和下颌渐收。"
+    },
+    "FACE-SHAPE-10": {
+      "runtimeEffectPrompt": "锐角钻石轮廓，太阳穴收窄，颧骨转折鲜明，下颌收向尖下巴。"
+    },
+    "FACE-EYE-01": {
+      "runtimeEffectPrompt": "上下眼睑圆弧明显，眼裂圆润开阔。"
+    },
+    "FACE-EYE-02": {
+      "runtimeEffectPrompt": "杏仁形眼裂，眼头眼尾自然收尖。"
+    },
+    "FACE-EYE-03": {
+      "runtimeEffectPrompt": "圆而开阔、睁大、虹膜暴露多。"
+    },
+    "FACE-EYE-04": {
+      "runtimeEffectPrompt": "上眼睑柔和弧线，眼尾轻挑，似含笑。"
+    },
+    "FACE-EYE-05": {
+      "runtimeEffectPrompt": "细长柳叶形，眼尾自然收尖。"
+    },
+    "FACE-EYE-06": {
+      "runtimeEffectPrompt": "水平拉长的窄眼裂，眼睑狭长。"
+    },
+    "FACE-EYE-07": {
+      "runtimeEffectPrompt": "细长眼裂、内眼角轻向下、外眼角上扬。"
+    },
+    "FACE-EYE-08": {
+      "runtimeEffectPrompt": "眼睑半垂、细长而柔和，慵懒眼神。"
+    },
+    "FACE-EYE-09": {
+      "runtimeEffectPrompt": "明显向外上挑的狭长眼尾，锐利轮廓。"
+    },
+    "FACE-EYE-10": {
+      "runtimeEffectPrompt": "眼尾上扬，外角尖锐活泼，猫眼感。"
+    },
+    "FACE-EYE-11": {
+      "runtimeEffectPrompt": "外眼角较内眼角低，柔软下垂走势。"
+    },
+    "FACE-EYE-12": {
+      "runtimeEffectPrompt": "深眼窝与清晰眉骨投影，立体阴影。"
+    },
+    "FACE-BROW-01": {
+      "runtimeEffectPrompt": "自然毛流、低弧度平缓眉形。"
+    },
+    "FACE-BROW-02": {
+      "runtimeEffectPrompt": "眉形整体近似水平直线，平直干净。"
+    },
+    "FACE-BROW-03": {
+      "runtimeEffectPrompt": "细长浅淡、舒缓如远山的轻微弧线。"
+    },
+    "FACE-BROW-04": {
+      "runtimeEffectPrompt": "自然弯曲如月牙，眉峰柔和。"
+    },
+    "FACE-BROW-05": {
+      "runtimeEffectPrompt": "纤细、两端细，中段柔和高弧。"
+    },
+    "FACE-BROW-06": {
+      "runtimeEffectPrompt": "眉尾向鬓角斜上延伸，角度利落。"
+    },
+    "FACE-BROW-07": {
+      "runtimeEffectPrompt": "眉峰明显升高、眉尾收细，清晰拱形。"
+    },
+    "FACE-BROW-08": {
+      "runtimeEffectPrompt": "浓密粗眉，夸张上挑的眉峰。"
+    },
+    "FACE-BROW-09": {
+      "runtimeEffectPrompt": "自然粗细错落的原生毛流感。"
+    },
+    "FACE-BROW-10": {
+      "runtimeEffectPrompt": "眉尾中段一小段明显断开缺口。"
+    },
+    "FACE-NOSE-01": {
+      "runtimeEffectPrompt": "小巧鼻尖轻微上翘，柔和鼻翼。"
+    },
+    "FACE-NOSE-02": {
+      "runtimeEffectPrompt": "鼻尖自然圆润、鼻翼比例柔和。"
+    },
+    "FACE-NOSE-03": {
+      "runtimeEffectPrompt": "鼻头肉感厚实圆大、鼻翼相对宽。"
+    },
+    "FACE-NOSE-04": {
+      "runtimeEffectPrompt": "鼻梁自然平直，鼻尖不过度抬高。"
+    },
+    "FACE-NOSE-05": {
+      "runtimeEffectPrompt": "明确挺直鼻梁与利落鼻尖。"
+    },
+    "FACE-NOSE-06": {
+      "runtimeEffectPrompt": "鼻梁高且窄，鼻翼收敛。"
+    },
+    "FACE-NOSE-07": {
+      "runtimeEffectPrompt": "鼻根高、山根立体，侧面投影清晰。"
+    },
+    "FACE-NOSE-08": {
+      "runtimeEffectPrompt": "鼻梁中段微凸、鼻尖轻向下弯。"
+    },
+    "FACE-LIP-01": {
+      "runtimeEffectPrompt": "上下唇均较薄，唇线精细。"
+    },
+    "FACE-LIP-02": {
+      "runtimeEffectPrompt": "中等唇厚，形状自然平衡。"
+    },
+    "FACE-LIP-03": {
+      "runtimeEffectPrompt": "上下唇丰满圆润，唇峰柔和。"
+    },
+    "FACE-LIP-04": {
+      "runtimeEffectPrompt": "明显较厚的上下唇，立体饱满。"
+    },
+    "FACE-LIP-05": {
+      "runtimeEffectPrompt": "嘴唇中部微向外凸，圆润嘟起。"
+    },
+    "FACE-LIP-06": {
+      "runtimeEffectPrompt": "上唇有清晰的双唇峰和中央凹谷，形成 M 形轮廓。"
+    },
+    "FACE-LIP-07": {
+      "runtimeEffectPrompt": "两侧嘴角自然向上弯。"
+    },
+    "FACE-LIP-08": {
+      "runtimeEffectPrompt": "两侧嘴角自然略向下，克制表情。"
+    },
+    "FACE-SKIN-01": {
+      "runtimeEffectPrompt": "很浅、低血色的人类自然肤色，不发灰。"
+    },
+    "FACE-SKIN-02": {
+      "runtimeEffectPrompt": "浅肤色中带中性偏冷调，真实质感。"
+    },
+    "FACE-SKIN-03": {
+      "runtimeEffectPrompt": "浅肤色带柔和暖桃色调。"
+    },
+    "FACE-SKIN-04": {
+      "runtimeEffectPrompt": "自然的中等肤色。"
+    },
+    "FACE-SKIN-05": {
+      "runtimeEffectPrompt": "温暖金棕的小麦色肤色。"
+    },
+    "FACE-SKIN-06": {
+      "runtimeEffectPrompt": "日晒质感的古铜金棕肤色。"
+    },
+    "FACE-SKIN-07": {
+      "runtimeEffectPrompt": "深棕色自然肤色，保留高光与皮肤细节。"
+    },
+    "FACE-SKIN-08": {
+      "runtimeEffectPrompt": "鼻翼和双颊散布细小的天然雀斑。"
+    },
+    "FACE-AURA-01": {
+      "runtimeEffectPrompt": "天真俏皮，神情明快亲切，带有可爱的幼态感。"
+    },
+    "FACE-AURA-02": {
+      "runtimeEffectPrompt": "清爽明朗，带有轻快而鲜活的少年感。"
+    },
+    "FACE-AURA-03": {
+      "runtimeEffectPrompt": "明亮笑容、面部饱满有活力。"
+    },
+    "FACE-AURA-04": {
+      "runtimeEffectPrompt": "温和放松的表情与柔软面部线条。"
+    },
+    "FACE-AURA-05": {
+      "runtimeEffectPrompt": "沉静目光、温润五官，书卷气与克制表情。"
+    },
+    "FACE-AURA-06": {
+      "runtimeEffectPrompt": "古典眉眼、温婉端庄的神情。"
+    },
+    "FACE-AURA-07": {
+      "runtimeEffectPrompt": "沉着稳重，神态儒雅从容，带有绅士般的风度。"
+    },
+    "FACE-AURA-08": {
+      "runtimeEffectPrompt": "立体颧骨、线条清晰的下颌，骨相突出。"
+    },
+    "FACE-AURA-09": {
+      "runtimeEffectPrompt": "明确的眉眼与脸部立体结构，健康肤质。"
+    },
+    "FACE-AURA-10": {
+      "runtimeEffectPrompt": "神情冷静克制，带有疏离感。"
+    },
+    "FACE-AURA-11": {
+      "runtimeEffectPrompt": "淡漠而慵懒的神情，带有疏离感。"
+    },
+    "FACE-AURA-12": {
+      "runtimeEffectPrompt": "神态轻盈空灵，带有清逸出尘的感觉。"
+    },
+    "FACE-AURA-13": {
+      "runtimeEffectPrompt": "眉眼有力量、下颌利落、坚定目光。"
+    },
+    "FACE-AURA-14": {
+      "runtimeEffectPrompt": "神情干练、自信而飒爽，面部气质偏中性。"
+    },
+    "FACE-AURA-15": {
+      "runtimeEffectPrompt": "粗犷不羁，神情带有直接而强烈的野性。"
+    },
+    "FACE-AURA-16": {
+      "runtimeEffectPrompt": "细长眉眼、神秘目光、成熟克制的魅力。"
+    },
+    "FACE-MARK-01": {
+      "runtimeEffectPrompt": "无附加面部标记。"
+    },
+    "FACE-MARK-02": {
+      "runtimeEffectPrompt": "前额中央明显 V 字形发际线。"
+    },
+    "FACE-MARK-03": {
+      "runtimeEffectPrompt": "双眉之间小巧精致的传统红色花钿。"
+    },
+    "FACE-MARK-04": {
+      "runtimeEffectPrompt": "单侧眼角下方一颗小巧天然黑痣。"
+    },
+    "FACE-MARK-05": {
+      "runtimeEffectPrompt": "鼻梁及两颊分布自然淡褐色雀斑。"
+    },
+    "FACE-MARK-06": {
+      "runtimeEffectPrompt": "双眼下方自然饱满的卧蚕，柔和眼周光。"
+    },
+    "FACE-MARK-07": {
+      "runtimeEffectPrompt": "微笑时双颊自然出现酒窝。"
+    },
+    "FACE-MARK-08": {
+      "runtimeEffectPrompt": "微笑时口角旁小而明显的梨涡。"
+    },
+    "FACE-MARK-09": {
+      "runtimeEffectPrompt": "自然微笑露齿，一颗略尖的虎牙。"
+    },
+    "FACE-MARK-10": {
+      "runtimeEffectPrompt": "有自然胡须。"
+    },
+    "FACE-MARK-11": {
+      "runtimeEffectPrompt": "一处已愈合的面部浅疤。"
+    },
+    "FACE-MARK-12": {
+      "runtimeEffectPrompt": "颧骨或太阳穴处小面积艺术纹样，无文字。"
+    },
+    "BODY-SHAPE-01": {
+      "runtimeEffectPrompt": "整体骨架小、身形娇小，比例协调。"
+    },
+    "BODY-SHAPE-02": {
+      "runtimeEffectPrompt": "窄肩、细骨架、纤细体态。"
+    },
+    "BODY-SHAPE-03": {
+      "runtimeEffectPrompt": "修长纤细、健康轻盈身形。"
+    },
+    "BODY-SHAPE-04": {
+      "runtimeEffectPrompt": "肩腰臀均衡、健康中等身材。"
+    },
+    "BODY-SHAPE-05": {
+      "runtimeEffectPrompt": "高挑长腿、肩背舒展挺拔。"
+    },
+    "BODY-SHAPE-06": {
+      "runtimeEffectPrompt": "身形丰满，腰胯曲线自然。"
+    },
+    "BODY-SHAPE-07": {
+      "runtimeEffectPrompt": "温和丰满的全身轮廓，尊重真实体态。"
+    },
+    "BODY-SHAPE-08": {
+      "runtimeEffectPrompt": "运动型结实肌肉，健康匀称、非夸张。"
+    },
+    "BODY-SHAPE-09": {
+      "runtimeEffectPrompt": "明显发达的臂肩胸背肌肉、力量感。"
+    },
+    "BODY-SHAPE-10": {
+      "runtimeEffectPrompt": "宽肩厚背、整体体量与肌肉都很大。"
+    },
+    "BODY-HEIGHT-01": {
+      "runtimeEffectPrompt": "相对偏矮，呈娇小的身高尺度。"
+    },
+    "BODY-HEIGHT-02": {
+      "runtimeEffectPrompt": "中等身高。"
+    },
+    "BODY-HEIGHT-03": {
+      "runtimeEffectPrompt": "相对偏高，呈明显高挑的身高尺度。"
+    },
+    "BODY-POSE-01": {
+      "runtimeEffectPrompt": "双脚自然落地，双手自然下垂。"
+    },
+    "BODY-POSE-02": {
+      "runtimeEffectPrompt": "两臂向外，双手稳稳扶在腰部。"
+    },
+    "BODY-POSE-03": {
+      "runtimeEffectPrompt": "身体略倾斜、肩背轻靠想象中的竖直平面。"
+    },
+    "BODY-POSE-04": {
+      "runtimeEffectPrompt": "身体侧转、头部回看镜头，颈肩转动准确。"
+    },
+    "BODY-POSE-05": {
+      "runtimeEffectPrompt": "双腿自然收放的端正坐姿，身体重心合理。"
+    },
+    "BODY-POSE-06": {
+      "runtimeEffectPrompt": "一膝弯曲、低重心蹲跪动作，脚掌支撑。"
+    },
+    "BODY-POSE-07": {
+      "runtimeEffectPrompt": "自然平躺或侧卧。"
+    },
+    "BODY-POSE-08": {
+      "runtimeEffectPrompt": "一脚向前跨步、自然摆臂的行走瞬间。"
+    },
+    "BODY-POSE-09": {
+      "runtimeEffectPrompt": "一腿蹬地一腿前跨，摆臂运动感。"
+    },
+    "BODY-POSE-10": {
+      "runtimeEffectPrompt": "两脚离地、双臂张开，腾空瞬间。"
+    },
+    "BODY-POSE-11": {
+      "runtimeEffectPrompt": "重心下沉，呈迎战的防备架势。"
+    },
+    "BODY-POSE-12": {
+      "runtimeEffectPrompt": "呈环抱姿态，或做出带有回应感的互动手势。"
+    },
+    "HAIR-LENGTH-01": {
+      "runtimeEffectPrompt": "完全没有头发，露出自然头皮轮廓。"
+    },
+    "HAIR-LENGTH-02": {
+      "runtimeEffectPrompt": "约 1 厘米左右短发，贴头皮。"
+    },
+    "HAIR-LENGTH-03": {
+      "runtimeEffectPrompt": "耳朵上方或附近的短发造型。"
+    },
+    "HAIR-LENGTH-04": {
+      "runtimeEffectPrompt": "发梢落在耳垂附近。"
+    },
+    "HAIR-LENGTH-05": {
+      "runtimeEffectPrompt": "发梢恰好接近肩线。"
+    },
+    "HAIR-LENGTH-06": {
+      "runtimeEffectPrompt": "发梢超过肩膀，接近胸上缘。"
+    },
+    "HAIR-LENGTH-07": {
+      "runtimeEffectPrompt": "发梢至胸部以下的明显长发。"
+    },
+    "HAIR-LENGTH-08": {
+      "runtimeEffectPrompt": "发梢长及腰部。"
+    },
+    "HAIR-TYPE-01": {
+      "runtimeEffectPrompt": "头顶无发、两侧和脑后保留一圈短发。"
+    },
+    "HAIR-TYPE-02": {
+      "runtimeEffectPrompt": "整体极短均匀寸头，紧贴头皮。"
+    },
+    "HAIR-TYPE-03": {
+      "runtimeEffectPrompt": "顶部蓬松碎发、自然微分、额前有轻薄碎刘海。"
+    },
+    "HAIR-TYPE-04": {
+      "runtimeEffectPrompt": "前短后长，有碎层次、颈后发尾延伸。"
+    },
+    "HAIR-TYPE-05": {
+      "runtimeEffectPrompt": "侧面短、顶部层叠、脑后明显长的鲻鱼发型。"
+    },
+    "HAIR-TYPE-06": {
+      "runtimeEffectPrompt": "莫西干，两侧剃短，头顶中央发束竖立。"
+    },
+    "HAIR-TYPE-07": {
+      "runtimeEffectPrompt": "直发，发束顺直平滑。"
+    },
+    "HAIR-TYPE-08": {
+      "runtimeEffectPrompt": "公主切，靠近脸颊的侧发形成齐整短切面，与后发构成清晰落差。"
+    },
+    "HAIR-TYPE-09": {
+      "runtimeEffectPrompt": "梨花头，发梢自然向内弯出柔和的圆弧。"
+    },
+    "HAIR-TYPE-10": {
+      "runtimeEffectPrompt": "大波浪，发束形成宽松舒展的大幅 S 形波纹。"
+    },
+    "HAIR-TYPE-11": {
+      "runtimeEffectPrompt": "蛋卷头，发束呈平缓而密集、等距排列的小 S 形波纹。"
+    },
+    "HAIR-TYPE-12": {
+      "runtimeEffectPrompt": "小卷发，细密小卷带有自然弹性。"
+    },
+    "HAIR-TYPE-13": {
+      "runtimeEffectPrompt": "泡面卷，发束形成细密均匀的螺旋弯卷，轮廓蓬松。"
+    },
+    "HAIR-TYPE-14": {
+      "runtimeEffectPrompt": "细碎蓬松羊毛状自然卷发。"
+    },
+    "HAIR-TYPE-15": {
+      "runtimeEffectPrompt": "单马尾，头发向后拢成一束。"
+    },
+    "HAIR-TYPE-16": {
+      "runtimeEffectPrompt": "双马尾，头发左右各束成一束。"
+    },
+    "HAIR-TYPE-17": {
+      "runtimeEffectPrompt": "头顶部盘成一个圆形丸子发髻。"
+    },
+    "HAIR-TYPE-18": {
+      "runtimeEffectPrompt": "精致的头顶或脑后盘绕发髻，层次清楚。"
+    },
+    "HAIR-TYPE-19": {
+      "runtimeEffectPrompt": "编发，发束交错编织成纹理清晰的发辫。"
+    },
+    "HAIR-TYPE-20": {
+      "runtimeEffectPrompt": "多束自然垂落的锁发辫/dreadlocks，不缠成单一麻花。"
+    },
+    "HAIR-BANG-01": {
+      "runtimeEffectPrompt": "无刘海，额头露出。"
+    },
+    "HAIR-BANG-02": {
+      "runtimeEffectPrompt": "发际线有少量轻薄短碎绒毛。"
+    },
+    "HAIR-BANG-03": {
+      "runtimeEffectPrompt": "刘海水平剪裁在眉毛上方，露出眉毛。"
+    },
+    "HAIR-BANG-04": {
+      "runtimeEffectPrompt": "稀疏轻透的额前刘海，能看到额头。"
+    },
+    "HAIR-BANG-05": {
+      "runtimeEffectPrompt": "密度适中的直线平刘海，长度到眉附近。"
+    },
+    "HAIR-BANG-06": {
+      "runtimeEffectPrompt": "发量厚、边界齐平的浓密刘海。"
+    },
+    "HAIR-BANG-07": {
+      "runtimeEffectPrompt": "随性松散弯曲、两侧略长、轻盈中间刘海。"
+    },
+    "HAIR-BANG-08": {
+      "runtimeEffectPrompt": "中间分开，左右弧形外翻并修饰脸颊。"
+    },
+    "HAIR-BANG-09": {
+      "runtimeEffectPrompt": "斜分长刘海掠过一侧眉眼。"
+    },
+    "HAIR-BANG-10": {
+      "runtimeEffectPrompt": "面庞两侧留下细长柔软刘海发束。"
+    },
+    "HAIR-COLOR-01": {
+      "runtimeEffectPrompt": "真实乌黑头发，冷中性自然高光。"
+    },
+    "HAIR-COLOR-02": {
+      "runtimeEffectPrompt": "黑棕色发丝，暖棕色细微反光。"
+    },
+    "HAIR-COLOR-03": {
+      "runtimeEffectPrompt": "温暖栗子棕色，层次分明。"
+    },
+    "HAIR-COLOR-04": {
+      "runtimeEffectPrompt": "略灰调的浅亚麻金色。"
+    },
+    "HAIR-COLOR-05": {
+      "runtimeEffectPrompt": "明亮金黄色发丝、自然高光。"
+    },
+    "HAIR-COLOR-06": {
+      "runtimeEffectPrompt": "冷灰蓝调发丝，不透明、有真实反光。"
+    },
+    "HAIR-COLOR-07": {
+      "runtimeEffectPrompt": "明亮银白色发丝，带轻微冷反光。"
+    },
+    "HAIR-COLOR-08": {
+      "runtimeEffectPrompt": "深酒红色发丝、自然亮面。"
+    },
+    "HAIR-COLOR-09": {
+      "runtimeEffectPrompt": "鲜艳铜橙色染发，真实发丝。"
+    },
+    "HAIR-COLOR-10": {
+      "runtimeEffectPrompt": "柔粉色染发，真实光泽。"
+    },
+    "HAIR-COLOR-11": {
+      "runtimeEffectPrompt": "薰衣草紫与深紫发丝纹理。"
+    },
+    "HAIR-COLOR-12": {
+      "runtimeEffectPrompt": "深宝蓝染发，高光明显。"
+    },
+    "HAIR-COLOR-13": {
+      "runtimeEffectPrompt": "绿色发色。"
+    },
+    "HAIR-COLOR-14": {
+      "runtimeEffectPrompt": "发根自然黑棕、发梢浅棕挑染，过渡渐变。"
+    },
+    "HAIR-COLOR-15": {
+      "runtimeEffectPrompt": "明确分区的红橙黄绿蓝紫虹彩染发，真实发丝。"
+    },
+    "STYLE-PERSONALITY-01": {
+      "runtimeEffectPrompt": "开朗热情，神情明快。"
+    },
+    "STYLE-PERSONALITY-02": {
+      "runtimeEffectPrompt": "微微惊讶的眼神、轻松无害的笑意。"
+    },
+    "STYLE-PERSONALITY-03": {
+      "runtimeEffectPrompt": "温柔亲切，神情放松。"
+    },
+    "STYLE-PERSONALITY-04": {
+      "runtimeEffectPrompt": "意志坚定，神情有力量。"
+    },
+    "STYLE-PERSONALITY-05": {
+      "runtimeEffectPrompt": "自信果敢，利落飒爽。"
+    },
+    "STYLE-PERSONALITY-06": {
+      "runtimeEffectPrompt": "沉着克制，平静内敛。"
+    },
+    "STYLE-PERSONALITY-07": {
+      "runtimeEffectPrompt": "冷淡自持，带有不易接近的疏离感。"
+    },
+    "STYLE-PERSONALITY-08": {
+      "runtimeEffectPrompt": "清淡疏朗，带有空灵清冷的仙气。"
+    },
+    "STYLE-PERSONALITY-09": {
+      "runtimeEffectPrompt": "敏感而若有所思，带有内省的文艺忧郁感。"
+    },
+    "STYLE-PERSONALITY-10": {
+      "runtimeEffectPrompt": "倔强而嘴硬，神情故作不在意。"
+    },
+    "STYLE-PERSONALITY-11": {
+      "runtimeEffectPrompt": "强势笃定，带有掌控感和压迫感。"
+    },
+    "STYLE-PERSONALITY-12": {
+      "runtimeEffectPrompt": "外表从容，透出沉着机敏、城府难测的感觉。"
+    },
+    "STYLE-PERSONALITY-13": {
+      "runtimeEffectPrompt": "从容优雅，带有神秘吸引力。"
+    },
+    "STYLE-PERSONALITY-14": {
+      "runtimeEffectPrompt": "松弛慵懒，神情柔和而自信。"
+    },
+    "STYLE-PERSONALITY-15": {
+      "runtimeEffectPrompt": "桀骜自信，带有邪魅与张扬感。"
+    },
+    "STYLE-ATMOSPHERE-01": {
+      "runtimeEffectPrompt": "温暖、自然亲近，有日常相处的松弛感。"
+    },
+    "STYLE-ATMOSPHERE-02": {
+      "runtimeEffectPrompt": "安静舒缓，透出安心与温柔的治愈感。"
+    },
+    "STYLE-ATMOSPHERE-03": {
+      "runtimeEffectPrompt": "清爽明快，洋溢校园时光的青春朝气。"
+    },
+    "STYLE-ATMOSPHERE-04": {
+      "runtimeEffectPrompt": "冷静、专业而高效，呈现职场精英的秩序感。"
+    },
+    "STYLE-ATMOSPHERE-05": {
+      "runtimeEffectPrompt": "端庄华贵，带有皇室般的典礼感与精致层次。"
+    },
+    "STYLE-ATMOSPHERE-06": {
+      "runtimeEffectPrompt": "豪迈洒脱，带有江湖侠义与行旅感。"
+    },
+    "STYLE-ATMOSPHERE-07": {
+      "runtimeEffectPrompt": "雄浑壮阔，带有史诗感与开阔尺度。"
+    },
+    "STYLE-ATMOSPHERE-08": {
+      "runtimeEffectPrompt": "奇妙轻盈，带有童话式的幻梦感和奇想。"
+    },
+    "STYLE-ATMOSPHERE-09": {
+      "runtimeEffectPrompt": "未来科技感叠加边缘地带的粗粝、紧张与疏离。"
+    },
+    "STYLE-ATMOSPHERE-10": {
+      "runtimeEffectPrompt": "冷落荒寂，带有末世余波的萧索与衰败感。"
+    },
+    "STYLE-ATMOSPHERE-11": {
+      "runtimeEffectPrompt": "幽暗深邃，带有隐秘与未知感。"
+    },
+    "STYLE-ATMOSPHERE-12": {
+      "runtimeEffectPrompt": "压抑不安，紧张感逐渐累积，呈现惊悚悬疑气息。"
+    },
+    "STYLE-RENDER-01": {
+      "runtimeEffectPrompt": "写实摄影质感，真实的光学成像、细腻的材质纹理和自然的明暗过渡。"
+    },
+    "STYLE-RENDER-02": {
+      "runtimeEffectPrompt": "动画电影式三维渲染，圆润造型、稍夸张的可爱比例、柔软材质和明亮光影。"
+    },
+    "STYLE-RENDER-03": {
+      "runtimeEffectPrompt": "手塑黏土定格动画质感，造型可见轻微塑形压痕和手工纹理。"
+    },
+    "STYLE-RENDER-04": {
+      "runtimeEffectPrompt": "国风二维动画，线条讲究疏密与轻重，含蓄笔触搭配雅致色彩。"
+    },
+    "STYLE-RENDER-05": {
+      "runtimeEffectPrompt": "日系二维动画，轮廓明快，平涂色块搭配分层的赛璐璐明暗。"
+    },
+    "STYLE-RENDER-06": {
+      "runtimeEffectPrompt": "美式电视卡通，比例与形状活泼夸张，以粗轮廓和鲜艳色块塑造。"
+    },
+    "STYLE-RENDER-07": {
+      "runtimeEffectPrompt": "赛璐璐着色，色块边界清晰，高光与阴影以硬边分区。"
+    },
+    "STYLE-RENDER-08": {
+      "runtimeEffectPrompt": "黑白漫画，以黑色墨线、网点和交叉排线构成明暗。"
+    },
+    "STYLE-RENDER-09": {
+      "runtimeEffectPrompt": "像素绘制，保留清晰像素格和阶梯轮廓，使用精简的复古色板。"
+    },
+    "STYLE-RENDER-10": {
+      "runtimeEffectPrompt": "数码厚涂插画，色块层层叠压，以清晰厚实的画笔笔触表现体积。"
+    },
+    "STYLE-RENDER-11": {
+      "runtimeEffectPrompt": "手绘水彩，透明叠色带有湿画法的晕染边缘和纸纹。"
+    },
+    "STYLE-RENDER-12": {
+      "runtimeEffectPrompt": "油画肌理，厚实油彩保留笔触、颜料起伏及画布纹理。"
+    },
+    "STYLE-RENDER-13": {
+      "runtimeEffectPrompt": "国风水墨，以墨色浓淡与干湿笔触在宣纸上展开，辅以淡彩。"
+    },
+    "STYLE-RENDER-14": {
+      "runtimeEffectPrompt": "浮世绘木版画，黑色刻线勾勒轮廓，平面色块带有传统套印纹理。"
+    },
+    "STYLE-FRAME-01": {
+      "runtimeEffectPrompt": "面部超近距离，额头到下巴占据大部分画面。"
+    },
+    "STYLE-FRAME-02": {
+      "runtimeEffectPrompt": "规范头肩照，面部正中且头顶完整。"
+    },
+    "STYLE-FRAME-03": {
+      "runtimeEffectPrompt": "头部、双肩和胸口区域完整入镜。"
+    },
+    "STYLE-FRAME-04": {
+      "runtimeEffectPrompt": "头顶到腰部，双臂部分可见。"
+    },
+    "STYLE-FRAME-05": {
+      "runtimeEffectPrompt": "头顶到小腿或膝下区域，身体占画面主要比例。"
+    },
+    "STYLE-FRAME-06": {
+      "runtimeEffectPrompt": "头顶到鞋底完整入镜，留少量四周空白。"
+    },
+    "STYLE-FRAME-07": {
+      "runtimeEffectPrompt": "同一人物占画面 15% 左右，空间留白明显。"
+    },
+    "STYLE-ANGLE-01": {
+      "runtimeEffectPrompt": "机位在主体正上方，垂直向下俯拍。"
+    },
+    "STYLE-ANGLE-02": {
+      "runtimeEffectPrompt": "相机略高于眼平线，向下约 15° 俯拍。"
+    },
+    "STYLE-ANGLE-03": {
+      "runtimeEffectPrompt": "正面平视，观察高度与主体眼睛齐平。"
+    },
+    "STYLE-ANGLE-04": {
+      "runtimeEffectPrompt": "相机略低于眼平线，向上约 15°。"
+    },
+    "STYLE-ANGLE-05": {
+      "runtimeEffectPrompt": "很低机位向上拍摄，透视有力量感。"
+    },
+    "STYLE-ANGLE-06": {
+      "runtimeEffectPrompt": "相对主体正面轻转约15°。"
+    },
+    "STYLE-ANGLE-07": {
+      "runtimeEffectPrompt": "完整正侧面 90° profile，鼻尖朝向一侧。"
+    },
+    "STYLE-ANGLE-08": {
+      "runtimeEffectPrompt": "身体背向镜头一部分，头部转向镜头回望。"
+    },
+    "STYLE-LIGHT-01": {
+      "runtimeEffectPrompt": "晴空日光，照明清透，色调接近自然白，阴影浅而清晰。"
+    },
+    "STYLE-LIGHT-02": {
+      "runtimeEffectPrompt": "窗边般的单侧斜射日光，方向鲜明，投下狭长阴影。"
+    },
+    "STYLE-LIGHT-03": {
+      "runtimeEffectPrompt": "阴天式散射柔光，照度均匀、反差低。"
+    },
+    "STYLE-LIGHT-04": {
+      "runtimeEffectPrompt": "低角度的金橙色夕照，暖色高光与修长阴影相伴。"
+    },
+    "STYLE-LIGHT-05": {
+      "runtimeEffectPrompt": "林间透光般的不规则斑驳光斑，伴随轻微的绿色反射光。"
+    },
+    "STYLE-LIGHT-06": {
+      "runtimeEffectPrompt": "低照度的冷蓝月光，阴影柔和绵长。"
+    },
+    "STYLE-LIGHT-07": {
+      "runtimeEffectPrompt": "摄影棚式大面积中性漫射柔光，方向感轻，阴影边缘柔和且反差低。"
+    },
+    "STYLE-LIGHT-08": {
+      "runtimeEffectPrompt": "单束集中的戏剧性顶光，照亮上方受光面，形成显著明暗反差。"
+    }
+  }
+}

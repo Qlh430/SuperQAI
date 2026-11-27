@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "title": "H3 带货视频资料收集",
+  "execution": {
+    "target": "skill",
+    "instructions": "先核对四张实际附图的同款 SKU、颜色、结构和各图用途，区分可见证据与用户提供的商品事实。按六份参考文档确定购买理由、口播与镜头方向；确认后保存正式双段包，并填入当前唯一选中的 H3 带货节点。"
+  },
+  "steps": [
+    {
+      "id": "product",
+      "title": "核对商品资料",
+      "fields": [
+        { "id": "product_name", "type": "text", "label": "商品名称、款式或规格", "required": true, "prefill_prefixes": ["商品名称、款式/规格：", "商品名称：", "商品名：", "商品：", "产品：", "商品:", "产品:"] },
+        { "id": "audience_usage", "type": "text", "label": "目标顾客或适用场景", "required": true, "prefill_prefixes": ["目标受众：", "适用场景：", "使用场景：", "受众：", "场景：", "面向", "适合"] },
+        { "id": "selling_facts", "type": "textarea", "label": "商品介绍或卖点", "description": "可粘贴商品详情，保留规格、适用范围和卖点成立的条件。", "show_description": true, "required": true, "prefill_prefixes": ["商品介绍或卖点：", "商品介绍：", "商品资料：", "卖点：", "卖点:", "商品详情："] },
+        { "id": "highlight", "type": "text", "label": "想突出的一两点（选填）", "prefill_prefixes": ["想突出：", "主推：", "重点："] },
+        { "id": "offer", "type": "text", "label": "价格、优惠或购买引导（选填）", "prefill_prefixes": ["价格、优惠、购买引导：", "价格：", "优惠：", "购买引导："] }
+      ]
+    },
+    {
+      "id": "presentation",
+      "title": "选择视频形式",
+      "fields": [
+        {
+          "id": "presentation_mode", "type": "choice", "label": "画面形式", "show_label": false,
+          "required": true, "default": "presenter", "layout": "vertical",
+          "options": [
+            { "value": "presenter", "label": "人物讲解", "description": "人物对镜讲解，与商品镜头交替。", "match": ["人物讲解", "人物出镜", "真人出镜", "模特讲解"] },
+            { "value": "product_voiceover", "label": "纯商品＋旁白", "description": "商品分镜搭配同一画外旁白。", "match": ["纯商品旁白", "纯商品＋旁白", "纯商品+旁白", "纯商品", "不露脸", "只拍产品", "只拍商品", "商品分镜加旁白", "商品镜头配旁白"] }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "opening_presenter", "image_slot": "opening", "kind": "image", "title": "图 1 · 人物开场场景图",
+      "visible_when": { "field": "presentation_mode", "equals": "presenter" },
+      "description": "选择成年讲解者与本款商品同场的照片。人物的脸、嘴与所需手部动作应清楚可见。", "show_description": true,
+      "required": true, "sources": ["canvas", "library", "selected", "upload"]
+    },
+    {
+      "id": "opening_product", "image_slot": "opening", "kind": "image", "title": "图 1 · 商品开场场景图",
+      "visible_when": { "field": "presentation_mode", "equals": "product_voiceover" },
+      "description": "选择本款商品在对应使用场景或摆放环境中的整体图，主体和摆放关系应清楚。", "show_description": true,
+      "required": true, "sources": ["canvas", "library", "selected", "upload"]
+    },
+    {
+      "id": "main", "image_slot": "main", "kind": "image", "title": "图 2 · 商品主图",
+      "description": "选择本款完整商品的正面或四分之三角度图，确保颜色、款式和关键结构可辨认。", "show_description": true,
+      "required": true, "sources": ["canvas", "library", "selected", "upload"]
+    },
+    {
+      "id": "evidence", "image_slot": "evidence", "kind": "image", "title": "图 3 · 同款补充证据图",
+      "description": "按本款购买理由选择主图没有展示的角度、真实内容物或有依据的使用状态。", "show_description": true,
+      "required": true, "sources": ["canvas", "library", "selected", "upload"]
+    },
+    {
+      "id": "detail", "image_slot": "detail", "kind": "image", "title": "图 4 · 商品关键细节或操作图",
+      "description": "选择与主卖点直接对应的部位、质地、接口或操作状态。", "show_description": true,
+      "required": true, "sources": ["canvas", "library", "selected", "upload"], "submit_label": "提交资料并分析方案"
+    },
+    {
+      "id": "proposal", "kind": "proposal", "title": "确认 H3 带货方案", "summary_title": "已提交的商品资料与四图",
+      "summary_fields": [
+        { "field": "product_name", "label": "商品" },
+        { "field": "audience_usage", "label": "受众或场景" },
+        { "field": "selling_facts", "label": "商品事实与卖点" },
+        { "field": "presentation_mode", "label": "视频形式" }
+      ]
+    }
+  ]
+}

@@ -3,7 +3,7 @@ import { readFileSync, writeFileSync, copyFileSync, existsSync, mkdirSync, readd
 import { dirname, resolve, join, relative as relativePath, isAbsolute, sep } from "node:path"
 import { fileURLToPath } from "node:url"
 import { createRequire } from "node:module"
-import { compileStartupHtml } from "./component-deploy.mjs"
+import { compileStartupHtml, compileGeneratorComposer } from "./component-deploy.mjs"
 const { patchAuthService, patchDesktopShell } = createRequire(import.meta.url)("./design-sources/auth-onboarding-patches.cjs")
 const { patchAssetComposition, patchAssetManifest, patchAssetServer, patchMediaLifecycleComposition } = createRequire(import.meta.url)("./design-sources/asset-history-deploy-patches.cjs")
 
@@ -16,6 +16,97 @@ function copyDirectory(input, target) {
     else if (entry.isFile()) copyFileSync(join(input, entry.name), join(target, entry.name))
     else throw new Error(`部署资源含不支持的文件类型：${entry.name}`)
   }
+}
+
+function replaceUniqueDeploymentSection(text, pattern, replacement, label) {
+  const globalPattern = new RegExp(pattern.source, pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`)
+  const matches = [...text.matchAll(globalPattern)]
+  if (matches.length !== 1) throw new Error(`无法精确同步 H3 带货参数入口：${label}`)
+  return text.replace(globalPattern, () => replacement)
+}
+
+function patchH3CommerceTaskService(active, source) {
+  const eol = active.includes("\r\n") ? "\r\n" : "\n"
+  const functionPattern = name => new RegExp(`^  (?:async )?function ${name}\\([^]*?^  \\}`, "gm")
+  const replaceFunction = (text, name) => {
+    const pattern = functionPattern(name)
+    const replacement = source.match(pattern)?.[0]
+    if (!replacement) throw new Error(`源码缺少 H3 带货函数：${name}`)
+    return replaceUniqueDeploymentSection(text, pattern, replacement.replace(/\r?\n/g, eol), name)
+  }
+  let updated = active
+  const sourceParameters = source.match(/^  prepareCommerceWorkflow,\r?\n  assertCommerceWorkflowContract,\r?\n  normalizeCommerceParameters,\r?\n/m)?.[0]
+  if (!sourceParameters) throw new Error("源码缺少 H3 带货参数校验器入口。")
+  updated = replaceUniqueDeploymentSection(updated,
+    /^  prepareCommerceWorkflow,\r?\n  assertCommerceWorkflowContract,\r?\n/m,
+    sourceParameters.replace(/\r?\n/g, eol),
+    "task service dependencies")
+  updated = replaceFunction(updated, "loadCommerceTemplate")
+  updated = replaceFunction(updated, "handleCommerceCapabilities")
+
+  const executePattern = functionPattern("executeH3Commerce")
+  const execute = [...updated.matchAll(executePattern)][0]?.[0]
+  const sourceExecute = source.match(executePattern)?.[0]
+  const parameterLine = /^    const commerceParameters = normalizeCommerceParameters\(payload\);$/m.exec(sourceExecute || "")?.[0]
+  if (!execute || !parameterLine) throw new Error("源码缺少 H3 带货请求分辨率校验。")
+  const templateLine = /^    const template = loadCommerceTemplate\(\);$/m
+  if ([...execute.matchAll(new RegExp(templateLine.source, "gm"))].length !== 1) {
+    throw new Error("无法定位 H3 带货 workflow 校验位置。")
+  }
+  let commerceRequest = execute.replace(templateLine, match => `${match}${eol}${parameterLine}`)
+  commerceRequest = replaceUniqueDeploymentSection(commerceRequest,
+    /^      commerceTemplate: template, preparedImages, comfyUrl: normalizedComfyUrl,$/m,
+    "      commerceTemplate: template, commerceParameters, preparedImages, comfyUrl: normalizedComfyUrl,",
+    "validated request persistence")
+  updated = replaceUniqueDeploymentSection(updated, executePattern, commerceRequest, "H3 request path")
+
+  const runPattern = functionPattern("runTask")
+  const run = [...updated.matchAll(runPattern)][0]?.[0]
+  const sourceMapping = source.match(/workflow = prepareCommerceWorkflow\(workflowTemplate, \{\r?\n\s*\.\.\.request\.commerceParameters,\r?\n\s*prompt_a: request\.prompt,/m)?.[0]
+  const activeMapping = /workflow = prepareCommerceWorkflow\(workflowTemplate, \{\r?\n\s*prompt_a: request\.prompt,/gm
+  if (!run || !sourceMapping) throw new Error("源码缺少 H3 双段视频分辨率映射。")
+  const mappedRun = replaceUniqueDeploymentSection(run, activeMapping, sourceMapping.replace(/\r?\n/g, eol), "dual segment mapping")
+  return replaceUniqueDeploymentSection(updated, runPattern, mappedRun, "H3 task path")
+}
+
+function patchH3CommerceServer(active, source) {
+  const eol = active.includes("\r\n") ? "\r\n" : "\n"
+  const sourceImport = 'const { assertCommerceWorkflowContract, normalizeCommerceParameters, prepareCommerceWorkflow } = require("./h3-commerce-workflow");'
+  const activeImport = /^const \{ assertCommerceWorkflowContract, prepareCommerceWorkflow \} = require\("\.\/h3-commerce-workflow"\);$/m
+  if (!source.includes(sourceImport)) throw new Error("源码 server 缺少 H3 带货参数校验器导入。")
+  let updated = replaceUniqueDeploymentSection(active, activeImport, sourceImport, "server mapper import")
+  const sourceInjection = source.match(/^  prepareCommerceWorkflow,\r?\n  assertCommerceWorkflowContract,\r?\n  normalizeCommerceParameters,\r?\n(?=  publicUser,)/m)?.[0]
+  if (!sourceInjection) throw new Error("源码 server 缺少 H3 带货参数校验器注入。")
+  updated = replaceUniqueDeploymentSection(updated,
+    /^  prepareCommerceWorkflow,\r?\n  assertCommerceWorkflowContract,\r?\n(?=  publicUser,)/m,
+    sourceInjection.replace(/\r?\n/g, eol),
+    "server composition injection")
+  return updated
+}
+
+function patchH3CommerceComposition(active, source) {
+  const eol = active.includes("\r\n") ? "\r\n" : "\n"
+  const replacements = [
+    {
+      active: /^    prepareCommerceWorkflow,\r?\n    assertCommerceWorkflowContract,\r?\n(?=    publicUser,)/m,
+      source: /^    prepareCommerceWorkflow,\r?\n    assertCommerceWorkflowContract,\r?\n    normalizeCommerceParameters,\r?\n(?=    publicUser,)/m,
+      label: "composition dependency",
+    },
+    {
+      active: /^  prepareCommerceWorkflow,\r?\n  assertCommerceWorkflowContract,\r?\n(?=  sanitizeReferenceName,)/m,
+      source: /^  prepareCommerceWorkflow,\r?\n  assertCommerceWorkflowContract,\r?\n  normalizeCommerceParameters,\r?\n(?=  sanitizeReferenceName,)/m,
+      label: "task service injection",
+    },
+  ]
+  let updated = active
+  for (const item of replacements) {
+    const sourceBlock = source.match(item.source)?.[0]
+    if (!sourceBlock) throw new Error(`源码 composition 缺少 H3 带货接线：${item.label}`)
+    if (!updated.includes(sourceBlock.replace(/\r?\n/g, eol))) {
+      updated = replaceUniqueDeploymentSection(updated, item.active, sourceBlock.replace(/\r?\n/g, eol), item.label)
+    }
+  }
+  return updated
 }
 
 export function patchAudioServerComposition(text) {
@@ -97,12 +188,35 @@ export function patchQwenImage21Composition(text) {
   return patched;
 }
 const source = dirname(fileURLToPath(import.meta.url))
+if (process.argv.includes("--update-natural-photo-private-skill")) {
+  const valid = new Set(["--update-natural-photo-private-skill", "--verify-only"])
+  if (!process.argv.slice(2).every(arg => valid.has(arg))) throw new Error("私人摄影更新不能与其他部署选项合并。")
+  const { updateNaturalPhotoPrivateSkill } = await import("./natural-photo-private-update.mjs")
+  console.log(JSON.stringify(await updateNaturalPhotoPrivateSkill(source, { verifyOnly: process.argv.includes("--verify-only") }), null, 2))
+  process.exit(0)
+}
+const verifyDevelopment = process.argv.find(arg => arg.startsWith('--verify-development='))?.slice('--verify-development='.length)
+let verificationRuntime, verificationComponents
+if (verifyDevelopment) {
+  if (!['frontend', 'runtime'].includes(verifyDevelopment) || process.argv.length !== 3) throw new Error('只读开发核对仅接受 frontend 或 runtime。')
+  const { dailyPaths, frontendGroups } = await import('./daily-workbench.mjs')
+  const { releaseComponents } = await import('./component-deploy.mjs')
+  const paths = dailyPaths(source)
+  const active = createRequire(import.meta.url)('../host-sources/app/desktop/update-files.js').runtimeName(readFileSync(join(paths.portable, '.ai-runtime/.active-runtime'), 'utf8').trim())
+  verificationRuntime = verifyDevelopment === 'frontend' ? paths.runtime : join(paths.portable, '.ai-runtime/versions', active, 'resources/app')
+  verificationComponents = (verifyDevelopment === 'frontend' ? frontendGroups : releaseComponents).join(',')
+}
 const dailyMode = process.argv.includes('--daily-workbench')
 const backendMode = process.argv.includes('--workbench-backend')
+const backendFilesArg = process.argv.find(arg => arg.startsWith('--backend-files='))
+const onlyBackendFiles = backendFilesArg?.slice('--backend-files='.length).split(',').filter(Boolean)
+if (backendFilesArg && (!backendMode || !onlyBackendFiles.length)) throw new Error('必须为开发后端指定有效的白名单文件。')
 let backendRuntime
 if (backendMode) {
   const backendComponents = process.argv.find(arg => arg.startsWith('--components='))?.slice('--components='.length).split(',').filter(Boolean) || []
-  if (process.argv.length !== 4 || !backendComponents.length || backendComponents.some(name => !['qwen-tts-backend', 'canvas-redraw-backend', 'media-naming-backend', 'minimax-h3-quality-backend'].includes(name))) throw new Error('后端独立部署仅允许显式后端组件，禁止叠加前端、候选或任意目标参数。')
+  const backendArgs = process.argv.slice(2).filter(arg => arg !== '--verify-components' && arg !== backendFilesArg)
+  if (backendArgs.length !== 2 || !backendComponents.length || backendComponents.some(name => !['qwen-tts-backend', 'canvas-redraw-backend', 'media-naming-backend', 'minimax-h3-quality-backend', 'canvas-agent-backend', 'skill-management-backend', 'chat-backend', 'release-host-sync', 'skill-wizard-backend', 'h3-commerce-backend', 'h3-commerce-package-backend'].includes(name))) throw new Error('后端/桌面独立部署仅允许显式宿主组件，禁止叠加前端、候选或任意目标参数。')
+  if (backendComponents.includes('h3-commerce-package-backend') && backendComponents.length !== 1) throw new Error('H3 方案后端只能单独定向同步。')
   const { runningBackend, dailyPaths } = await import('./daily-workbench.mjs')
   await runningBackend(source)
   const portable = dailyPaths(source).portable
@@ -133,7 +247,7 @@ if (previewMode && previewMode !== 'build') {
 const previewBuildRuntime = dailyTarget?.stage || process.argv.find(argument => argument.startsWith('--preview-build-runtime='))?.slice('--preview-build-runtime='.length)
 if (previewMode === 'build' && !previewBuildRuntime) throw new Error('开发预览构建必须指定独立运行时目录，已停止部署。')
 if (previewMode !== 'build' && previewBuildRuntime) throw new Error('独立运行时参数仅允许与 --dev-preview=build 一起使用。')
-const runtime = backendRuntime || (previewMode === 'build'
+const runtime = verificationRuntime || backendRuntime || (previewMode === 'build'
   ? resolve(previewBuildRuntime, 'resources/app')
   : resolve(source, "../AI-OS-Portable-1.0.5-win-x64/.ai-runtime/versions/1.0.5-win-x64/resources/app"))
 if (previewMode === 'build') {
@@ -148,12 +262,115 @@ if (previewMode === 'build') {
     if (!existsSync(join(runtime, required))) throw new Error(`开发预览构建目录缺少 ${required}，已停止部署。`)
   }
 }
-const selectedComponents = process.argv.slice(2).find(argument => argument.startsWith('--components=')) || (dailyMode ? '--components=workbench-frontend' : undefined)
+const selectedComponents = (verificationComponents && '--components=' + verificationComponents) || process.argv.slice(2).find(argument => argument.startsWith('--components=')) || (dailyMode ? '--components=workbench-frontend' : undefined)
 if (previewMode === 'build' && !selectedComponents) throw new Error('开发预览仅允许显式白名单组件组装；禁止重跑旧的全量部署。')
 if (selectedComponents) {
-  const { deployComponents } = await import('./component-deploy.mjs')
-  const verifyOnly = process.argv.includes('--verify-components')
-  const result = await deployComponents({ source, runtime, names: selectedComponents.slice('--components='.length).split(','), build: !verifyOnly, verifyOnly, transforms: {
+  const { deployComponents, stageOnlyComponents } = await import('./component-deploy.mjs')
+  const names = selectedComponents.slice('--components='.length).split(',')
+  if (names.some(name => stageOnlyComponents.includes(name)) && (!dailyMode || names.length !== 1)) throw new Error('定向组件只能单独同步到固定开发工作台。')
+  const verifyOnly = Boolean(verifyDevelopment) || process.argv.includes('--verify-components')
+  const result = await deployComponents({ source, runtime, names, build: !verifyOnly, verifyOnly, onlyFiles: onlyBackendFiles, transforms: {
+    ...(dailyMode && names.includes("canvas-agent-cutout") ? {
+      "script.js": () => readFileSync(join(runtime, "script.js"), "utf8"),
+      "canvas-agent-capabilities.js": () => readFileSync(join(runtime, "canvas-agent-capabilities.js"), "utf8"),
+      "module-manifest.js": () => readFileSync(join(runtime, "module-manifest.js"), "utf8"),
+      "index.html": () => readFileSync(join(runtime, "index.html"), "utf8"),
+      "canvas-agent-core.js": text => {
+        const active = readFileSync(join(runtime, "canvas-agent-core.js"), "utf8")
+        const imageObject = /^    const imageObject = [^\r\n]*$/m
+        const replacement = text.match(imageObject)?.[0]
+        if (!replacement?.includes("|图中|") || !imageObject.test(active)) {
+          throw new Error("无法定位画布 Agent 图片编辑意图分类。")
+        }
+        return active.replace(imageObject, () => replacement)
+      },
+      "canvas-agent-ui.js": text => {
+        const active = readFileSync(join(runtime, "canvas-agent-ui.js"), "utf8")
+        const selection = /^  function isCanvasAgentIndependentRequest\([^]*?(?=^  function getCanvasAgentSubmissionAttachments)/m
+        const replacement = text.match(selection)?.[0]
+        const allowance = /^    const selectedImageEditAllowance = [\s\S]*?(?=^    if \(!recovery\) state\.nextPaidAllowances)/m
+        const ensure = /^  function shouldEnsureCanvasAgentImageGeneration\([^]*?(?=^  function ensureCanvasAgentMcpSession)/m
+        const guard = /^(?:        if \(call\.name === "run_canvas_node" && !run\.skillId[\s\S]*?^        \}\r?\n)?        const paidKey = getPaidToolAttemptKey\(call\);$/m
+        const allowanceReplacement = text.match(allowance)?.[0]
+        const ensureReplacement = text.match(ensure)?.[0]
+        const guardReplacement = text.match(guard)?.[0]
+        if (!replacement?.includes("return intent.edit ||") || !selection.test(active)) {
+          throw new Error("无法定位开发画布的 Agent 独立图片编辑请求入口。")
+        }
+        if (!allowanceReplacement?.includes("run_canvas_node: selectedImageEditAllowance") || !allowance.test(active)
+          || !ensureReplacement || !ensure.test(active) || !guardReplacement || !guard.test(active)) {
+          throw new Error("无法定位日常工作台的图片编辑执行入口。")
+        }
+        return active.replace(selection, () => replacement).replace(allowance, () => allowanceReplacement)
+          .replace(ensure, () => ensureReplacement).replace(guard, () => guardReplacement)
+      },
+    } : {}),
+    ...(backendMode && names.includes("release-host-sync") && onlyBackendFiles?.includes("canvas-agent-core.js") ? {
+      "canvas-agent-core.js": text => {
+        const active = readFileSync(join(runtime, "canvas-agent-core.js"), "utf8")
+        const imageObject = /^    const imageObject = [^\r\n]*$/m
+        const replacement = text.match(imageObject)?.[0]
+        if (!replacement?.includes("|图中|") || !imageObject.test(active)) {
+          throw new Error("无法定位开发后端的 Agent 图片编辑意图分类。")
+        }
+        return active.replace(imageObject, () => replacement)
+      },
+    } : {}),
+    ...(backendMode && names.includes("release-host-sync") && onlyBackendFiles?.includes("skills/canvas-agent-core/SKILL.md") ? {
+      "skills/canvas-agent-core/SKILL.md": text => {
+        const active = readFileSync(join(runtime, "skills/canvas-agent-core/SKILL.md"), "utf8")
+        const capabilities = /^  capabilities: \[[^\r\n]*\]$/m
+        const activeLine = active.match(capabilities)?.[0]
+        if (!activeLine) {
+          throw new Error("无法定位开发后端的画布 Agent 基础能力声明。")
+        }
+        const updated = activeLine.replace(/,\s*image\.generate-to-gallery(?=,)/u, "")
+        return active.replace(capabilities, () => updated)
+      },
+    } : {}),
+    ...(backendMode && names.includes("release-host-sync") && onlyBackendFiles?.includes("canvas-agent-runtime.js") ? {
+      "canvas-agent-runtime.js": text => {
+        const active = readFileSync(join(runtime, "canvas-agent-runtime.js"), "utf8")
+        const replacements = [
+          {
+            activeLine: /^      "用户明确要求直接生成[^\r\n]*$/m,
+            sourceLine: /^      "用户明确要求直接生成或编辑图片并交付结果时[^\r\n]*$/m,
+            required: ["图片生成节点能力", "不得替换成其他模型"],
+          },
+          {
+            activeLine: /^      "canvas\.selected_node_ids 中可输出图片的节点[^\r\n]*$/m,
+            sourceLine: /^      "canvas\.selected_node_ids 中可输出图片的节点[^\r\n]*$/m,
+            required: ["本次编辑源图", "真实 @ 素材引用", "run_canvas_node 一次"],
+          },
+          {
+            activeLine: /^      "(?:发现与当前需求明显相关的旧图片生成节点时|只有用户要求运行已有图片生成节点)[^\r\n]*$/m,
+            sourceLine: /^      "只有用户要求运行已有图片生成节点[^\r\n]*$/m,
+            required: ["不询问是否新建或执行"],
+          },
+        ]
+        let updated = active
+        for (const replacement of replacements) {
+          const sourceLine = text.match(replacement.sourceLine)?.[0]
+          if (!sourceLine || !replacement.required.every(value => sourceLine.includes(value))
+            || !replacement.activeLine.test(updated)) {
+            throw new Error("无法定位开发后端的图片编辑工具指引。")
+          }
+          updated = updated.replace(replacement.activeLine, () => sourceLine)
+        }
+        const anchor = /^    sections\.push\(routingSection\);$/m
+        const instruction = /^    sections\.push\("用户明确要求编辑所选图片并交付结果时[^\r\n]*\);$/m
+        const sourceInstruction = text.match(instruction)?.[0]
+        if (!sourceInstruction || !anchor.test(updated)) throw new Error("无法定位普通 Agent 的图片编辑工具指引。")
+        return instruction.test(updated) ? updated.replace(instruction, () => sourceInstruction)
+          : updated.replace(anchor, line => line + (updated.includes("\r\n") ? "\r\n" : "\n") + sourceInstruction)
+      },
+    } : {}),
+    ...(backendMode && names.includes("release-host-sync") && onlyBackendFiles?.includes("minimax-h3-task-service.js") ? {
+      "minimax-h3-task-service.js": text => {
+        const active = readFileSync(join(runtime, "minimax-h3-task-service.js"), "utf8")
+        return patchH3CommerceTaskService(active, text)
+      },
+    } : {}),
     "desktop-shell.js": text => {
       let shell = patchDesktopShell(text.replaceAll("AI OS", "BenDo"))
       if (!shell.includes("openInlineApp: showInlineApp")) {
@@ -162,12 +379,34 @@ if (selectedComponents) {
       }
       return shell
     },
-    "server-components/composition.js": text => backendMode ? patchQwenTtsComposition(text) : patchQwenTtsComposition(patchMediaLifecycleComposition(patchAssetComposition(patchQwenImage21Composition(patchAudioServerComposition(text)))), {
+    "server-components/composition.js": text => {
+      if (backendMode && selectedComponents === '--components=release-host-sync'
+        && onlyBackendFiles?.includes("server-components/composition.js")) {
+        return patchH3CommerceComposition(readFileSync(join(runtime, "server-components/composition.js"), "utf8"), text)
+      }
+      if (backendMode && selectedComponents === '--components=h3-commerce-package-backend') {
+        const active = readFileSync(join(runtime, 'server-components/composition.js'), 'utf8')
+        const block = /  saveH3CommercePackage: createH3CommercePackageService\(\{[\s\S]*?\r?\n  \}\),\r?\n(?=  ensureReferencedResource,)/
+        const replacement = text.match(block)?.[0]
+        if (!replacement || !block.test(active)) throw new Error('无法定位开发运行时与源码的 H3 方案组件。')
+        return active.replace(block, () => replacement)
+      }
+      return patchQwenTtsComposition(patchMediaLifecycleComposition(patchAssetComposition(patchQwenImage21Composition(patchAudioServerComposition(text)))), {
       enabled: selectedComponents.slice('--components='.length).split(',').includes('qwen-tts-backend')
         || ['qwen-tts-task-service.cjs', 'qwen-tts-reference.cjs', 'workflows/qwen-tts-three-in-one.json'].every(file => existsSync(join(runtime, file))),
-    }),
-    "server.js": text => patchAssetServer(text.replaceAll("\r\n", "\n")),
+      })
+    },
+    "server.js": text => backendMode && selectedComponents === '--components=release-host-sync'
+      && onlyBackendFiles?.includes("server.js")
+      ? patchH3CommerceServer(readFileSync(join(runtime, "server.js"), "utf8"), text)
+      : patchAssetServer(text.replaceAll("\r\n", "\n")),
   } })
+  if (verifyDevelopment) {
+    const { frontendFiles } = await import('./daily-workbench.mjs')
+    result.changed = result.changed.filter(file => verifyDevelopment === 'frontend' ? frontendFiles.has(file) : !frontendFiles.has(file))
+    console.log(JSON.stringify({ ...result, runtime, scope: verifyDevelopment }, null, 2))
+    process.exit(0)
+  }
   if (verifyOnly && result.changed.length) throw new Error('发布资源与当前源码不一致：' + result.changed.join(', '))
   const previewVersion = process.argv.find(argument => argument.startsWith('--preview-version='))?.slice('--preview-version='.length)
   if (previewVersion) {
@@ -315,7 +554,7 @@ const floraNodeShellCss = join(source, "design-sources/flora-node-shell.css")
 if (existsSync(floraNodeShellCss)) copyFileSync(floraNodeShellCss, join(runtime, "flora-node-shell.css"))
 const floraNodeShellScript = join(source, "design-sources/flora-node-shell.js")
 if (existsSync(floraNodeShellScript)) copyFileSync(floraNodeShellScript, join(runtime, "flora-node-shell.js"))
-copyFileSync(join(source, "design-sources/flora-generator-composer.js"), join(runtime, "flora-generator-composer.js"))
+writeFileSync(join(runtime, "flora-generator-composer.js"), compileGeneratorComposer(source))
 copyFileSync(join(source, "design-sources/flora-generator-parameters.js"), join(runtime, "flora-generator-parameters.js"))
 copyFileSync(join(source, "design-sources/image-model-picker.js"), join(runtime, "image-model-picker.js"))
 const manifestPath = join(runtime, "module-manifest.js")

@@ -33,7 +33,7 @@ function summarizeProviderCatalogHealth(provider, history = {}, options = {}) {
   const samples = Array.isArray(history?.providers?.[providerId]) ? history.providers[providerId].filter(Boolean) : [];
   const usageKind = ["chat", "agent"].includes(options.kind) ? options.kind : "image";
   const matchingUsage = (Array.isArray(history?.usage?.[providerId]) ? history.usage[providerId] : [])
-    .filter((item) => item?.kind === usageKind);
+    .filter((item) => item?.kind === usageKind && item.errorCategory !== "cancelled");
   const latestSample = latestByTime(samples);
   const latestUsage = latestByTime(matchingUsage);
   let state = provider?.enabled === false ? "disabled" : String(latestSample?.state || "unknown");
@@ -46,7 +46,7 @@ function summarizeProviderCatalogHealth(provider, history = {}, options = {}) {
     else if (latestUsage.errorCategory === "balance") state = "balance-error";
     else if (latestUsage.errorCategory === "auth") state = "account-limited";
     else if (latestUsage.errorCategory === "rate-limit") state = "rate-limited";
-    else if (["network", "server"].includes(latestUsage.errorCategory)) state = "unstable";
+    else if (["network", "timeout", "server"].includes(latestUsage.errorCategory)) state = "unstable";
     else state = "degraded";
   }
 

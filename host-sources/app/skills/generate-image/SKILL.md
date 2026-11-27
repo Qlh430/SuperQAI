@@ -7,7 +7,7 @@ canvas:
   icon: image
   required_context: none
   triggers: [生成图片, 生成图, 生成一张, 文生图, 生图, 出图, 出一张图, 画一张, 画一张图, 做一张图, 插画, 主视觉]
-  capabilities: [image.generate-to-gallery, node.image.create, image.existing-node-choice, node.gallery.create, node.update, canvas.node.focus, node.run]
+  capabilities: [node.image.create, image.existing-node-choice, node.update, canvas.node.focus, node.run]
 ---
 
 # 生成图片

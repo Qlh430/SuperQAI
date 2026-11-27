@@ -104,6 +104,27 @@ test("group visual hotfix assembles the canonical bridge and touches only its wh
   assert.equal(result.restartRequired, false);
 });
 
+test("image visual presets deploy configuration, previews and engine inside the existing composer", async t => {
+  const fixture = setup(t), { deployComponents, componentInputs, componentTargets } = await loaded;
+  const { visualPresetInputs, compileGeneratorComposer } = require("./visual-presets-build.cjs");
+  for (const input of [...visualPresetInputs, "design-sources/flora-node-shell.css"]) {
+    write(path.join(fixture.source, input), fs.readFileSync(path.join(__dirname, input)));
+  }
+  write(path.join(fixture.runtime, "flora-generator-composer.js"), "// previous composer");
+  write(path.join(fixture.runtime, "index.html"), '<script src="./flora-generator-composer.js?v=old"></script>');
+  const before = snapshot(fixture.runtime);
+  const result = await deployComponents({ ...fixture.args, names: ["image-visual-presets"] });
+  assert.deepEqual(componentTargets(["image-visual-presets"]), ["flora-generator-composer.js", "flora-node-shell.css", "script.js"]);
+  for (const input of visualPresetInputs) assert.ok(componentInputs(["image-visual-presets"]).includes(input));
+  assert.equal(fs.readFileSync(path.join(fixture.runtime, "flora-generator-composer.js"), "utf8"), compileGeneratorComposer(fixture.source));
+  const allowed = new Set(["flora-generator-composer.js", "flora-node-shell.css", "script.js", "module-manifest.js", "index.html"]);
+  const after = new Map(snapshot(fixture.runtime));
+  for (const [name, value] of before) if (!allowed.has(name)) assert.equal(after.get(name), value);
+  assert.equal(result.restartRequired, false);
+  const repeated = await deployComponents({ ...fixture.args, names: ["image-visual-presets"] });
+  assert.deepEqual(repeated.changed, []);
+});
+
 test("canvas navigation bridge is preserved whenever the canonical script is replaced", async t => {
   const { ensureCanvasNavigationBridge } = await loaded;
   assert.equal(typeof ensureCanvasNavigationBridge, "function");
@@ -175,6 +196,11 @@ test("a backend-only change does not invalidate unchanged browser modules", asyn
   assert.deepEqual(result.changed, ["background-removal-service.js"]); assert.equal(result.restartRequired, true);
   assert.equal(fs.readFileSync(path.join(fixture.runtime, "index.html"), "utf8"), index); assert.equal(fs.readFileSync(path.join(fixture.runtime, "module-manifest.js"), "utf8"), manifest);
 });
+test("backend mode retains the complete shared server composition patch chain", () => {
+  const deploySource = fs.readFileSync(path.join(__dirname, "deploy.mjs"), "utf8");
+  assert.doesNotMatch(deploySource, /backendMode\s*\?\s*patchQwenTtsComposition\(text\)/);
+  assert.match(deploySource, /patchMediaLifecycleComposition\(patchAssetComposition\(patchQwenImage21Composition\(patchAudioServerComposition\(text\)\)\)\)/);
+});
 test("a failed metadata write restores changed modules and earlier HTML", async t => {
   const fixture = setup(t), { deployComponents } = await loaded; const before = snapshot(fixture.runtime);
   const original = fs.writeFileSync; let writes = 0;
@@ -196,7 +222,9 @@ test("a dangling link in a target path is rejected before any selected file chan
 });
 test("new module manifest source survives cache URL updates and verification is read-only", async t => {
   const fixture = setup(t), { deployComponents } = await loaded;
-  write(path.join(fixture.root, 'host-sources/app/canvas-agent-core.js'), '// current agent core');
+  for (const name of ["canvas-agent-core.js", "canvas-agent-skill-contract.js", "canvas-agent-conversation.js", "canvas-agent-ui.js", "canvas-agent.css", "neon-bridge.css"]) {
+    write(path.join(fixture.root, "host-sources/app", name), `// current ${name}`);
+  }
   write(path.join(fixture.root, 'host-sources/app/module-manifest.js'), 'const scripts = ["./canvas-agent-core.js?v=source"]; // current manifest');
   const args = { ...fixture.args, names: ['canvas-agent-context'] };
   const before = snapshot(fixture.runtime);
@@ -205,4 +233,85 @@ test("new module manifest source survives cache URL updates and verification is 
   await deployComponents(args);
   assert.match(fs.readFileSync(path.join(fixture.runtime, 'module-manifest.js'), 'utf8'), /current manifest/);
   assert.deepEqual((await deployComponents({ ...args, verifyOnly: true })).changed, []);
+});
+test("canvas Agent context includes its stylesheet and updates the matching cache URL", async t => {
+  const fixture = setup(t), { componentTargets, deployComponents } = await loaded;
+  assert.deepEqual(componentTargets(["canvas-agent-wizard-frontend"]), [
+    "canvas-agent-conversation.js",
+    "canvas-agent-capabilities.js",
+    "canvas-agent-ui.js",
+    "canvas-agent.css",
+    "skill-interactions/natural-aesthetic-product-photography.json",
+    "skill-interactions/h3-commerce-video.json",
+    "canvas-agent-picker-cursor.svg",
+    "module-manifest.js",
+  ]);
+  for (const name of [
+    "canvas-agent-conversation.js",
+    "canvas-agent-capabilities.js",
+    "canvas-agent-ui.js",
+    "canvas-agent.css",
+    "canvas-agent-picker-cursor.svg",
+    "module-manifest.js",
+  ]) {
+    write(path.join(fixture.root, "host-sources/app", name), `// canvas Agent ${name}`);
+  }
+  write(path.join(fixture.root, "host-sources/app/skill-packages/natural-aesthetic-product-photography/interaction.json"), "{}");
+  write(path.join(fixture.root, "host-sources/app/skills/h3-commerce-video/interaction.json"), "{}");
+  write(path.join(fixture.root, "host-sources/app/canvas-agent.css"), "/* picker feedback */");
+  write(path.join(fixture.root, "host-sources/app/canvas-agent-picker-cursor.svg"), "<svg/>");
+  write(path.join(fixture.runtime, "canvas-agent.css"), "/* installed Agent stylesheet */");
+  write(path.join(fixture.runtime, "canvas-agent-picker-cursor.svg"), "<svg installed/>");
+  const indexPath = path.join(fixture.runtime, "index.html");
+  fs.appendFileSync(indexPath, '\n<link rel="stylesheet" href="./canvas-agent.css?v=old-agent">');
+
+  const result = await deployComponents({ ...fixture.args, names: ["canvas-agent-wizard-frontend"] });
+
+  assert.equal(fs.readFileSync(path.join(fixture.runtime, "canvas-agent.css"), "utf8"), "/* picker feedback */");
+  assert.ok(fs.readFileSync(indexPath, "utf8").includes("canvas-agent.css?v="));
+  assert.doesNotMatch(fs.readFileSync(indexPath, "utf8"), /canvas-agent\.css\?v=old-agent/);
+  assert.ok(fs.readFileSync(path.join(result.backupDir, "canvas-agent.css"), "utf8").includes("installed Agent stylesheet"));
+  assert.equal(result.restartRequired, true, "shared conversation and capability modules need runtime activation");
+});
+test("Agent Skill contract is deployed with the canvas context and Skill runtime restarts the backend", async t => {
+  const fixture = setup(t), { componentTargets, deployComponents } = await loaded;
+  assert.ok(componentTargets(["canvas-agent-context"]).includes("canvas-agent-skill-contract.js"));
+  assert.ok(componentTargets(["canvas-agent-backend"]).includes("canvas-agent-skill-contract.js"));
+  assert.ok(componentTargets(["canvas-agent-backend"]).includes("skill-registry.js"));
+  assert.ok(componentTargets(["canvas-agent-backend"]).includes("canvas-agent-core.js"), "shared intent policy must also reach the Node runtime");
+  for (const target of ["canvas-agent-runtime.js", "canvas-agent-conversation.js", "skills/canvas-agent-core/SKILL.md"]) {
+    assert.ok(componentTargets(["release-host-sync"]).includes(target), `${target} is available for scoped host synchronization`);
+  }
+  for (const target of ["canvas-agent-conversation-store.js", "canvas-agent-http-api.js"]) {
+    assert.ok(componentTargets(["release-host-sync"]).includes(target), `${target} is available for scoped session-history synchronization`);
+  }
+  const backendTargets = componentTargets(["canvas-agent-backend"]);
+  for (const target of backendTargets) {
+    const installed = `// current ${target}\n`;
+    const updated = ["canvas-agent-runtime.js", "skill-registry.js"].includes(target)
+      ? `// updated ${target}\n`
+      : installed;
+    write(path.join(fixture.root, "host-sources/app", target), updated);
+    write(path.join(fixture.runtime, target), installed);
+  }
+  const result = await deployComponents({ ...fixture.args, names: ["canvas-agent-backend"] });
+  assert.equal(result.restartRequired, true, "Skill catalog/runtime changes require normal backend restart");
+  assert.deepEqual(result.changed, ["canvas-agent-runtime.js", "skill-registry.js"]);
+});
+test("local Skill management components stay on the existing settings and server modules", async () => {
+  const { componentTargets } = await loaded;
+  const uiTargets = componentTargets(["skill-management-ui"]);
+  for (const target of ["system-settings-ui.js", "system-settings.css", "neon-bridge.css", "module-manifest.js"]) {
+    assert.ok(uiTargets.includes(target), `missing settings target ${target}`);
+  }
+  const backendTargets = componentTargets(["skill-management-backend"]);
+  for (const target of [
+    "skill-import-manager.js",
+    "skill-registry.js",
+    "skill-http-api.js",
+    "static-http-api.js",
+    "canvas-agent-http-api.js",
+    "server-components/composition.js",
+    "server.js",
+  ]) assert.ok(backendTargets.includes(target), `missing backend target ${target}`);
 });

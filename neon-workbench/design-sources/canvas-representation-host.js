@@ -177,7 +177,62 @@
         this.store.getMounted(id)?.paintLightVisual?.();
         this.schedule();
       },{capture:true,passive:true});
-      listen(root.document,'wheel',event=>{if(event.target.closest?.('#infiniteCanvas'))this.observeFrames('zoom');},{capture:true,passive:true});
+      listen(root.document,'wheel',event=>{
+        const fullText=event.target.closest?.('.canvas-node-text .canvas-text');
+        if(fullText)return;
+        const light=event.target.closest?.('[data-canvas-light-id]');
+        const viewport=event.target.closest?.('#infiniteCanvas');
+        const rect=viewport?.getBoundingClientRect();
+        const delta=value=>root.toSystemDelta?.(value)??value;
+        const localX=rect?delta(event.clientX-rect.left):0;
+        const localY=rect?delta(event.clientY-rect.top):0;
+        const hit=!light&&rect
+          ? (root.hitTestCanvasScene?.(localX,localY)||root.canvasSceneLayer?.hitTest(localX,localY))
+          : null;
+        const id=String(light?.dataset.canvasLightId||hit?.id||'');
+        const model=id?this.store.get(id):null;
+        if(rect&&model?.kind==='text'){
+          const geometry=this.getGeometry?.(model);
+          const bounds=geometry?.contentBounds;
+          const viewportState=this.getViewport();
+          const scale=Math.max(.01,Number(viewportState.scale)||1);
+          const point=root.getCanvasPointFromClient?.(event.clientX,event.clientY)||{
+            x:(localX-(Number(viewportState.x)||0))/scale,
+            y:(localY-(Number(viewportState.y)||0))/scale,
+          };
+          const inside=bounds&&point.x>=bounds.left&&point.x<=bounds.right&&point.y>=bounds.top&&point.y<=bounds.bottom;
+          if(inside){
+            const canvas=light?.querySelector('.canvas-light-visual');
+            const context=canvas?.getContext('2d')||(this.textContext ||= root.document.createElement('canvas').getContext('2d'));
+            const metrics=root.CanvasNodeVisuals?.layoutRichText?.(
+              context,
+              root.CanvasNodeVisuals.project(model),
+              bounds.right-bounds.left,
+              bounds.bottom-bounds.top,
+            );
+            if(metrics?.maxScroll>0){
+              const displayUnit=viewport?viewport.getBoundingClientRect().width/Math.max(1,viewport.clientWidth):1;
+              const wheelDelta=event.deltaY*(event.deltaMode===1?16:event.deltaMode===2?(viewport?.clientHeight||800):1)/(scale*displayUnit);
+              const current=Math.max(0,Number(this.textScrolls.get(id)||0));
+              const next=Math.max(0,Math.min(metrics.maxScroll,current+wheelDelta));
+              event.preventDefault();
+              event.stopPropagation();
+              if(Math.abs(next-current)>.1){
+                this.rememberTextScroll(id,next);
+                if(light){
+                  light.dataset.textClientHeight=String(metrics.clientHeight);
+                  light.dataset.textScrollHeight=String(metrics.scrollHeight);
+                  light.dataset.textScrollTop=String(next);
+                  light.paintLightVisual?.();
+                }
+                this.schedule();
+              }
+              return;
+            }
+          }
+        }
+        if(viewport)this.observeFrames('zoom');
+      },{capture:true,passive:false});
       listen(root.document,'pointerdown',event=>{if(event.button===1&&event.target.closest?.('#infiniteCanvas')){this.panDown=true;this.observeFrames('pan');}},{capture:true,passive:true});
       listen(root,'pointerup',()=>{this.panDown=false;},{capture:true,passive:true});
       listen(root,'pointercancel',()=>{this.panDown=false;},{capture:true,passive:true});
@@ -435,7 +490,14 @@
           // The raster is local to the Light node; its world origin changes
           // during a drag even though the backing dimensions stay the same.
           const nextBounds=nextGeometry?.outerBounds||bounds;
-          root.CanvasNodeVisuals.paint(ctx,root.CanvasNodeVisuals.project(current),nextGeometry,{x:-nextBounds.left,y:-nextBounds.top,scale:1},{theme,node:current,textScrollTop:current.kind==='text'?(this.textScrolls.get(String(model.id))||0):0,resolveTexture:root.resolveCanvasSceneTexture,cachedOnly:false});
+          const currentVisual=root.CanvasNodeVisuals.project(current);
+          const textLayout=current.kind==='text'?root.CanvasNodeVisuals.layoutRichText(ctx,currentVisual,width,height):null;
+          if(textLayout){
+            node.dataset.textClientHeight=String(textLayout.clientHeight);
+            node.dataset.textScrollHeight=String(textLayout.scrollHeight);
+            node.dataset.textScrollTop=String(this.textScrolls.get(String(model.id))||0);
+          }
+          root.CanvasNodeVisuals.paint(ctx,currentVisual,nextGeometry,{x:-nextBounds.left,y:-nextBounds.top,scale:1},{theme,node:current,textScrollTop:current.kind==='text'?(this.textScrolls.get(String(model.id))||0):0,resolveTexture:root.resolveCanvasSceneTexture,cachedOnly:false});
         };
         node.append(canvas);
       }

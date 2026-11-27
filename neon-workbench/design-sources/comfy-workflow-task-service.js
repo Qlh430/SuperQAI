@@ -437,6 +437,19 @@ function createComfyWorkflowTaskService({
   async function handleUpscale(req, res, workflowType = "ttp") {
     try {
       const workflowFile = getWorkflowFile(workflowType);
+      if (req.method === "GET" && workflowType === "seedvr2") {
+        try {
+          const workflow = JSON.parse(fs.readFileSync(workflowFile, "utf8"));
+          const required = ["26", "40", "41", "42", "80"].map(id => workflow[id]?.class_type);
+          if (required.some(type => !type)) throw new Error("workflow incomplete");
+          const nodes = await comfyClient.fetchObjectInfo(comfyClient.normalizeUrl());
+          if (required.some(type => !Object.hasOwn(nodes || {}, type))) throw new Error("workflow nodes missing");
+          sendJson(res, 200, { available: true, resolutions: [2048, 4096] });
+        } catch {
+          sendJson(res, 503, { available: false, code: "plugin_unavailable", error: "图片超清暂不可用，请检查 ComfyUI 连接和 SeedVR2 工作流。" });
+        }
+        return;
+      }
       // 抠图默认不带工作流文件：运行时会按目标 ComfyUI 实际安装的抠图节点自动组装。
       if (workflowType !== "remove-background" && !fs.existsSync(workflowFile)) {
         sendJson(res, 500, { error: `${workflowType} workflow file is missing.` });

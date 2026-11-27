@@ -90,23 +90,32 @@ function createAgentModelSettingsService({ db, store } = {}) {
     return snapshot();
   }
 
-  function getRoute() {
+  function getRoute(options = {}) {
     const current = snapshot();
-    const available = new Set(current.models.map(selectionKey));
-    const requested = current.configured
-      ? [current.settings.primary, ...current.settings.candidates]
-      : current.models.map(item => ({ providerId: item.providerId, modelId: item.modelId }));
+    const autoFallback = Boolean(store.getAutoFallback?.());
+    const required = options.requiredCapabilities || AGENT_REQUIRED_CAPABILITIES;
+    const available = new Set(store.listInternal().filter(provider => provider.enabled).flatMap(provider => (
+      (provider.models || []).filter(model => required.every(capability => model.capabilities?.includes(capability)))
+        .map(model => selectionKey({ providerId: provider.id, modelId: model.id }))
+    )));
+    const primary = selection(options.primary) || current.settings.primary
+      || selection(current.models[0]);
+    const requested = [primary, ...(autoFallback ? current.settings.candidates : [])];
     const candidateOrder = requested.filter(item => item && available.has(selectionKey(item)));
-    if (current.configured && !candidateOrder.length) {
+    const uniqueOrder = candidateOrder.filter((item, index) => candidateOrder.findIndex(other => selectionKey(item) === selectionKey(other)) === index);
+    if (!uniqueOrder.length) {
       throw codedError(
         "AGENT_MODEL_SETTINGS_UNAVAILABLE",
-        "Agent 主模型和候选模型当前都不可用，请在 Agent 设置中重新选择。",
+        autoFallback
+          ? "主模型与已配置候选均不可用或缺少任务所需能力，请检查模型设置。"
+          : "主模型不可用或缺少任务所需能力；模型服务自动切换已关闭，请检查设置。",
         503,
       );
     }
     return {
       configured: current.configured,
-      candidateOrder,
+      autoFallback,
+      candidateOrder: uniqueOrder,
       unavailable: current.unavailable,
     };
   }

@@ -43,7 +43,7 @@ const path = require('node:path')
     })
     const node = page.locator('#canvasPlane .canvas-node').first()
     const panel = node.locator('.flora-generator-composer')
-    await panel.locator('.canvas-node-prompt').fill('测试提示词')
+    await panel.locator('.flora-prompt-mention-editor').fill('测试提示词')
     // Simulate the busy state the canvas paints while a job runs.
     await page.evaluate(() => {
       const run = qaNode.querySelector('.canvas-node-run')

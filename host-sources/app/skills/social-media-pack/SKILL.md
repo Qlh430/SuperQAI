@@ -7,7 +7,7 @@ canvas:
   icon: panels-top-left
   required_context: image
   triggers: [社媒多尺寸, 小红书封面, 社交轮播, 跨平台适配, 投放素材]
-  capabilities: [node.image.create, node.gallery.create, node.update, node.connect, node.arrange, node.run]
+  capabilities: [node.image.create, node.update, node.connect, node.arrange, node.run]
 ---
 
 # 社媒多尺寸

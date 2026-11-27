@@ -32,6 +32,7 @@
     focus_canvas_nodes: "定位画布节点",
     organize_canvas_nodes: "整理画布节点",
     crop_canvas_image: "裁切图片",
+    upscale_canvas_image: "图片超清",
     remove_canvas_image_background: "AI 抠图",
     open_canvas_mask_editor: "打开遮罩编辑器",
     update_node: "更新节点",
@@ -48,8 +49,11 @@
     update_grid_editor: "更新宫格编辑器",
     extract_grid_to_gallery: "提取宫格到图集",
     run_canvas_node: "执行画布节点",
+    save_h3_commerce_package: "保存 H3 带货方案文件",
+    fill_h3_commerce_node: "填充选中的 H3 带货节点",
     delete_nodes: "删除节点",
     request_design_brief: "确认设计需求",
+    request_creative_batch_confirmation: "确认十种创意方案",
     activate_canvas_skill: "启用专业 Skill",
     read_skill_reference: "读取流程参考文档",
     canvas_director3d_apply_animation: "编排 3D 导演台",
@@ -75,9 +79,11 @@
     }),
     defineCapability("node.image.create", "create_image_node", "创建图片生成或编辑节点，可连接当前画布参考节点。", "safe", {
       prompt: stringSchema("完整图片提示词"),
+      title: nullableStringSchema("最终节点名称；不指定时传 null"),
       model: nullableStringSchema("图片模型；使用画布默认值时传 null"),
       size: nullableStringSchema("尺寸或比例；使用默认值时传 null"),
       resolution: nullableStringSchema(IMAGE_RESOLUTION_DESCRIPTION),
+      node_key: nullableStringSchema("同一工作流重试时保持稳定的节点标识"),
       reference_node_ids: stringArraySchema("参考节点 ID"),
       x: nullableNumberSchema("画布 X 坐标"),
       y: nullableNumberSchema("画布 Y 坐标"),
@@ -95,12 +101,38 @@
       suggested_prompt: stringSchema("根据用户当前需求整理出的新提示词"),
     }),
     defineCapability("design.brief.request", "request_design_brief", "在创建设计节点前展示结构化需求确认卡；只收集必要信息，不创建节点，也不产生费用。", "safe", {
-      workflow: enumSchema("设计流程", ["poster"]),
+      workflow: enumSchema("设计流程", ["poster", "natural-aesthetic-product-photography", "skill"]),
       poster_type: nullableEnumSchema("海报类型；信息不足时传 null", ["product", "brand", "promotion", "festival", "event", "other"]),
+      source_node_ids: stringArraySchema("本轮已读取并对应实际图片附件的素材节点 ID，按视觉附件顺序给出；无参考图时传空数组", 8),
+      image_prompt: stringSchema("当前创作流程最终需要写入图片生成节点的完整提示词；不创建图片节点时传空字符串"),
       known_context: stringSchema("已从用户和当前画布确认的信息，使用简洁中文分点"),
       questions: designBriefQuestionsSchema("只列真正影响结果且尚缺失的问题；信息已经完整时传空数组"),
       summary: stringSchema("面向用户的设计方案摘要；没有额外建议时传空字符串"),
     }),
+    defineCapability("creative.batch.confirm", "request_creative_batch_confirmation",
+      "为商业产品摄影十种创意方案提交严格十项的可编辑预览；只保存方案并展示确认卡，不创建画布节点、不生成图片、不产生费用。仅该 Skill 的明确工作流可用。",
+      "safe", {
+        product_name: stringSchema("从产品原图识别的产品名称；不确定时标注未知，不猜品牌或型号"),
+        product_analysis: stringSchema("基于本轮产品参考图识别商品外观，列出必须保真的结构、颜色、材质、标识及可见配件；未知事实明确标未知"),
+        source_node_ids: stringArraySchema("同一真实产品原图的当前画布来源节点，必须对应本轮视觉附件", 1),
+        items: {
+          type: "array",
+          description: "严格十种、顺序编号的差异化摄影创意；每项单独预览及绑定一个独立生图节点",
+          minItems: 10,
+          maxItems: 10,
+          items: {
+            type: "object",
+            properties: {
+              slot: integerSchema("稳定序号", 1, 10),
+              direction: stringSchema("创意方向名称，不含序号"),
+              summary: stringSchema("该方向的简要设计说明"),
+              prompt: stringSchema("对应完整中文生图提示词，包含摄影参数和产品保真约束；不得截断"),
+            },
+            required: ["slot", "direction", "summary", "prompt"],
+            additionalProperties: false,
+          },
+        },
+      }, 10),
     defineCapability("node.llm.create", "create_llm_node", "创建 LLM 文本处理节点。", "safe", {
       prompt: stringSchema("LLM 任务提示词"),
       model: nullableStringSchema("LLM 模型；使用画布默认值时传 null"),
@@ -108,8 +140,8 @@
       x: nullableNumberSchema("画布 X 坐标"),
       y: nullableNumberSchema("画布 Y 坐标"),
     }),
-    defineCapability("node.comfy.create", "create_comfy_node", "创建 ComfyUI 工作流节点。", "safe", {
-      mode: nullableStringSchema("ComfyUI 模式；使用默认值时传 null"),
+    defineCapability("node.comfy.create", "create_comfy_node", "创建 ComfyUI 工作流节点，不执行。扩图可使用 outpaint 模式，连接原图和配置边距后再按授权执行节点。", "safe", {
+      mode: nullableStringSchema("ComfyUI 模式；扩图传 outpaint，使用默认值时传 null"),
       resolution: nullableStringSchema("ComfyUI 输出尺寸；使用默认值时传 null"),
       padding: nullableComfyPaddingSchema("扩图边距；不设置时传 null"),
       qwen_angle: nullableComfyAngleSchema("Qwen 镜头角度；不设置时传 null"),
@@ -118,13 +150,35 @@
       x: nullableNumberSchema("画布 X 坐标"),
       y: nullableNumberSchema("画布 Y 坐标"),
     }),
-    defineCapability("node.video.create", "create_video_node", "创建 MiniMax H3 视频生成节点。此工具只创建 H3 节点，不代表整个项目必须使用 H3；仅当流程明确采用 H3 时使用。把上游文字或素材节点的 ID 写进 reference_node_ids，画布会自动连好线；节点建好却没有连线属于未完成。", "safe", {
-      prompt: stringSchema("视频动作、镜头和氛围提示词；若提示词放在文字节点里，这里传空字符串，由相连的文字节点提供"),
+    defineCapability("node.video.create", "create_video_node", "创建现有视频生成节点，不执行生成。通用视频工作流使用 engine=api；流程明确采用 H3 时使用 comfyui。完整提示词直接保存在节点中。reference_node_ids 自动建立真实连线，支持连接尚未出图的图片生成节点，此时等待上游真实结果，不能用商品图冒充模特图。", "safe", {
+      engine: nullableEnumSchema("api 为现有 API 视频节点，comfyui 为 MiniMax H3，h3-commerce 为独立带货模式；旧调用未指定时兼容 H3", ["api", "comfyui", "h3-commerce"]),
+      title: nullableStringSchema("最终节点名称；不指定时传 null"),
+      model: nullableStringSchema("API 视频模型 ID；使用现有默认接入时传 null，不得编造模型 ID"),
+      resolution: nullableStringSchema("API 视频清晰度；按所选模型能力设置，使用默认值时传 null"),
+      prompt: stringSchema("完整的视频动作、镜头和一致性提示词，直接保存在该生成节点中"),
       aspect_ratio: enumSchema("视频比例", ["1:1", "2:3", "3:2", "3:4", "4:3", "9:16", "16:9", "21:9"]),
-      duration: numberSchema("MiniMax-H3 单次生成片段时长，不是成片总时长或单个分镜镜头时长；只在流程已明确采用 H3 时使用。不得按此上限机械平均拆分项目总时长，应先确定分镜和各镜时长，再按连续镜头接口组合生成片段", 5, 15),
-      reference_node_ids: stringArraySchema("要连到该节点的输入节点 ID，包括参考图片/视频/音频节点和提供提示词的文字节点；传入后自动连线"),
+      duration: nullableNumberSchema("单次生成片段秒数；API 按实际模型范围设置，null 使用默认值；H3 支持 5-15 秒。不得按 H3 上限拆分其它模型的项目", 1),
+      reference_node_ids: stringArraySchema("输入节点 ID；API 接受一张首帧图片或一个待出图的图片生成节点；H3 支持图片、视频、音频参考。传入后自动连线"),
       x: nullableNumberSchema("画布 X 坐标"),
       y: nullableNumberSchema("画布 Y 坐标"),
+    }),
+    defineCapability("video.h3-commerce.package.save", "save_h3_commerce_package", "将通过事实和素材核对的 H3 带货方案保存为四个 UTF-8 文件，关联选中的带货节点和按槽排列的四个图片节点。", "safe", {
+      node_id: stringSchema("当前唯一选中的 H3 带货视频节点 ID"),
+      image_node_ids: {
+        type: "array",
+        description: "按开场场景、商品主图、补充图、细节图顺序的四个当前画布图片节点 ID",
+        minItems: 4,
+        maxItems: 4,
+        items: { type: "string" },
+      },
+      prompt_a: stringSchema("完整 prompt-a.txt 内容"),
+      prompt_b: stringSchema("完整 prompt-b.txt 内容"),
+      package_md: stringSchema("完整 package.md 内容"),
+      result_json: stringSchema("正式 result.json 的 JSON 对象字符串，包含 Skill 规定的结构化字段。prompt_a、prompt_b 由服务直接填入，避免重复输出。"),
+    }),
+    defineCapability("video.h3-commerce.node.fill", "fill_h3_commerce_node", "把已保存带货方案的两段原文和四张有序参考图填入当前唯一选中的目标节点；仅填充并保存画布。", "safe", {
+      node_id: stringSchema("当前唯一选中的 H3 带货视频节点 ID"),
+      package_id: stringSchema("save_h3_commerce_package 成功返回、且绑定此节点的方案编号"),
     }),
     defineCapability("node.media.create", "create_media_node", "使用当前画布已有素材创建图片、视频或音频节点。", "safe", {
       media_type: enumSchema("媒体类型", ["image", "video", "audio"]),
@@ -161,12 +215,16 @@
       position: enumSchema("裁切构图位置", ["center", "top", "bottom", "left", "right"]),
       create_copy: booleanSchema("是否保留原图并创建裁切副本"),
     }),
+    defineCapability("image.upscale", "upscale_canvas_image", "调用画布超清插件放大一张已有图片，保留原图和来源连线，不重绘。使用已选或引用的图片节点 ID。未给出目标长边时传 null，由插件返回当前规格并收集选择；用户明确给出 2K 或 4K 时分别传 2048 或 4096，进入执行确认。", args => args?.node_id && [2048, 4096].includes(args.resolution) ? "paid" : "safe", {
+      node_id: nullableStringSchema("当前画布中有真实图片输出的目标节点 ID；没有明确目标时传 null"),
+      resolution: { type: ["integer", "null"], enum: [2048, 4096, null], description: "目标长边像素；未指定传 null" },
+    }, 1, { baseline: true, openWorld: true }),
     defineCapability("image.mask.edit", "open_canvas_mask_editor", "定位当前画布图片并打开遮罩编辑器，供用户手绘需要编辑的区域。", "safe", {
       node_id: stringSchema("目标图片节点 ID"),
     }),
-    defineCapability("image.remove-background", "remove_canvas_image_background", "给当前画布图片去掉背景并生成带透明通道的新图片，默认保留原图；需要用户手动调参时用交互模式。", "safe", {
-      node_id: stringSchema("目标图片节点 ID"),
-      mode: enumSchema("抠图方式", ["subject", "effect", "interactive"]),
+    defineCapability("image.remove-background", "remove_canvas_image_background", "执行抠图、去背景、提取主体或导出透明 PNG。优先使用用户明确引用或唯一选中的图片节点。要求抠出画面中的主要产品时使用 subject，它按原尺寸保留自动识别的主要前景，并将透明 PNG 保存到与原图相连的新节点。自动模式不接受主体名称或区域作为分割提示。指定主体与主要前景不一致、画面有多个主体且无法可靠区分，或用户要求手动细修时用 interactive。", "safe", {
+      node_id: stringSchema("用户明确引用或唯一选中的图片节点 ID；目标不明确时先询问"),
+      mode: enumSchema("subject 自动主体抠图；effect 特效颜色键控；interactive 打开工作台细修", ["subject", "effect", "interactive"]),
     }),
     defineCapability("node.update", "update_node", "更新当前画布中的一个节点。", getUpdateRisk, {
       node_id: stringSchema("目标节点 ID"),
@@ -259,12 +317,13 @@
   const CAPABILITY_BY_ID = new Map(enabledCapabilities.map((item) => [item.id, item]));
   const CAPABILITY_BY_TOOL = new Map(enabledCapabilities.map((item) => [item.tool.name, item]));
 
-  function defineCapability(id, toolName, description, risk, properties, maxTargets = 1) {
-    const destructive = typeof risk === "function" || risk === "destructive" || risk === "bulk-overwrite";
+  function defineCapability(id, toolName, description, risk, properties, maxTargets = 1, options = {}) {
+    const destructive = !options.openWorld && (typeof risk === "function" || risk === "destructive" || risk === "bulk-overwrite");
     return Object.freeze({
       id,
       risk,
       maxTargets,
+      ...(options.baseline ? { baseline: true } : {}),
       tool: Object.freeze({
         name: toolName,
         title: TOOL_TITLES[toolName] || description.replace(/[。.!！]+$/, ""),
@@ -280,7 +339,7 @@
           readOnlyHint: false,
           destructiveHint: destructive,
           idempotentHint: false,
-          openWorldHint: risk === "paid",
+          openWorldHint: options.openWorld === true || risk === "paid",
         }),
       }),
     });

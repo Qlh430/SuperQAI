@@ -165,6 +165,21 @@
       "origin": "current-runtime-source-promoted"
     },
     {
+      "path": "assets/branding/bendo-logo.svg",
+      "owner": "brand-assets",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "host-sources/app/assets/branding/bendo-logo.svg",
+          "size": 1291,
+          "sha256": "2a944d773d6497ae796bffa86e479c27fdacc2f18e43af797df802cfad695a48"
+        }
+      ],
+      "size": 1291,
+      "sha256": "2a944d773d6497ae796bffa86e479c27fdacc2f18e43af797df802cfad695a48",
+      "origin": "user-confirmed-20261019"
+    },
+    {
       "path": "assets/examples/shoe-heel-thumb.webp",
       "owner": "content-assets",
       "recipe": "copy",
@@ -225,21 +240,6 @@
       "origin": "pinned-external-artifact"
     },
     {
-      "path": "assets/models/background-removal/README.md",
-      "owner": "content-assets",
-      "recipe": "copy",
-      "inputs": [
-        {
-          "path": "release-tools/.cache/sha256/9fd87e58cffdbc399e571cbc386144b45aab90bd6ce428ff6fa8e99fd6294449",
-          "size": 1817,
-          "sha256": "9fd87e58cffdbc399e571cbc386144b45aab90bd6ce428ff6fa8e99fd6294449"
-        }
-      ],
-      "size": 1817,
-      "sha256": "9fd87e58cffdbc399e571cbc386144b45aab90bd6ce428ff6fa8e99fd6294449",
-      "origin": "pinned-external-artifact"
-    },
-    {
       "path": "assets/models/background-removal/ben2-base-1.0.0.onnx",
       "owner": "content-assets",
       "recipe": "copy",
@@ -252,6 +252,21 @@
       ],
       "size": 222932053,
       "sha256": "22cea62108ff53b7ccc20f7a008bf30494228d84b1687f29ecbe76936a998101",
+      "origin": "pinned-external-artifact"
+    },
+    {
+      "path": "assets/models/background-removal/README.md",
+      "owner": "content-assets",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "release-tools/.cache/sha256/9fd87e58cffdbc399e571cbc386144b45aab90bd6ce428ff6fa8e99fd6294449",
+          "size": 1817,
+          "sha256": "9fd87e58cffdbc399e571cbc386144b45aab90bd6ce428ff6fa8e99fd6294449"
+        }
+      ],
+      "size": 1817,
+      "sha256": "9fd87e58cffdbc399e571cbc386144b45aab90bd6ce428ff6fa8e99fd6294449",
       "origin": "pinned-external-artifact"
     },
     {
@@ -390,21 +405,6 @@
       "origin": "pinned-external-artifact"
     },
     {
-      "path": "assets/vendor/three/LICENSE",
-      "owner": "content-assets",
-      "recipe": "copy",
-      "inputs": [
-        {
-          "path": "release-tools/.cache/sha256/bfe119ea4fd413f5f7ca3fcd63adb0c4a073ed39daa2fe7d3e6b769e21272601",
-          "size": 1081,
-          "sha256": "bfe119ea4fd413f5f7ca3fcd63adb0c4a073ed39daa2fe7d3e6b769e21272601"
-        }
-      ],
-      "size": 1081,
-      "sha256": "bfe119ea4fd413f5f7ca3fcd63adb0c4a073ed39daa2fe7d3e6b769e21272601",
-      "origin": "pinned-external-artifact"
-    },
-    {
       "path": "assets/vendor/three/addons/controls/OrbitControls.js",
       "owner": "content-assets",
       "recipe": "copy",
@@ -477,6 +477,21 @@
       ],
       "size": 11062,
       "sha256": "0761b1e003917b215d25dd81439d854b36034b5a57ce84c2cfe3b02428d7b253",
+      "origin": "pinned-external-artifact"
+    },
+    {
+      "path": "assets/vendor/three/LICENSE",
+      "owner": "content-assets",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "release-tools/.cache/sha256/bfe119ea4fd413f5f7ca3fcd63adb0c4a073ed39daa2fe7d3e6b769e21272601",
+          "size": 1081,
+          "sha256": "bfe119ea4fd413f5f7ca3fcd63adb0c4a073ed39daa2fe7d3e6b769e21272601"
+        }
+      ],
+      "size": 1081,
+      "sha256": "bfe119ea4fd413f5f7ca3fcd63adb0c4a073ed39daa2fe7d3e6b769e21272601",
       "origin": "pinned-external-artifact"
     },
     {
@@ -630,21 +645,6 @@
       "origin": "current-runtime-source-promoted"
     },
     {
-      "path": "bundled-skills/ai-video-director/SKILL.md",
-      "owner": "platform-core",
-      "recipe": "copy",
-      "inputs": [
-        {
-          "path": "host-sources/app/bundled-skills/ai-video-director/SKILL.md",
-          "size": 13897,
-          "sha256": "c885aca302b6a0a7745da2d3d6284708d214ccd1ca25d2d2f70dbc0b31f82280"
-        }
-      ],
-      "size": 13897,
-      "sha256": "c885aca302b6a0a7745da2d3d6284708d214ccd1ca25d2d2f70dbc0b31f82280",
-      "origin": "current-runtime-source-promoted"
-    },
-    {
       "path": "bundled-skills/ai-video-director/agent.skill.json",
       "owner": "platform-core",
       "recipe": "copy",
@@ -793,6 +793,246 @@
       "size": 12703,
       "sha256": "d5a662bd58baa3c1797814775b66163af002325573cec82ce64ce10faad17f3e",
       "origin": "current-runtime-source-promoted"
+    },
+    {
+      "path": "bundled-skills/ai-video-director/SKILL.md",
+      "owner": "platform-core",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "host-sources/app/bundled-skills/ai-video-director/SKILL.md",
+          "size": 13897,
+          "sha256": "c885aca302b6a0a7745da2d3d6284708d214ccd1ca25d2d2f70dbc0b31f82280"
+        }
+      ],
+      "size": 13897,
+      "sha256": "c885aca302b6a0a7745da2d3d6284708d214ccd1ca25d2d2f70dbc0b31f82280",
+      "origin": "current-runtime-source-promoted"
+    },
+    {
+      "path": "bundled-skills/commercial-product-photography-10/SKILL.md",
+      "owner": "platform-core",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "host-sources/app/bundled-skills/commercial-product-photography-10/SKILL.md",
+          "size": 11644,
+          "sha256": "629891297522cd656cd1fc8d0721ec4ee60051e02cdb0070cb8c3e594b69c8dc"
+        }
+      ],
+      "size": 11644,
+      "sha256": "629891297522cd656cd1fc8d0721ec4ee60051e02cdb0070cb8c3e594b69c8dc",
+      "origin": "reviewed-bundled-skill-source"
+    },
+    {
+      "path": "bundled-skills/fashion-ecommerce-ai-model-video/SKILL.md",
+      "owner": "platform-core",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "host-sources/app/bundled-skills/fashion-ecommerce-ai-model-video/SKILL.md",
+          "size": 9572,
+          "sha256": "1c58e2963dd484883f01a7b7b2a86346ba644405a6fe6c976aa267675f214b4a"
+        }
+      ],
+      "size": 9572,
+      "sha256": "1c58e2963dd484883f01a7b7b2a86346ba644405a6fe6c976aa267675f214b4a",
+      "origin": "reviewed-bundled-skill-source"
+    },
+    {
+      "path": "bundled-skills/fashion-ecommerce-ai-model-video/README.md",
+      "owner": "platform-core",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "host-sources/app/bundled-skills/fashion-ecommerce-ai-model-video/README.md",
+          "size": 2394,
+          "sha256": "41562195ddc6324e2b1366b37d74cf2130e96af44d3eb2f632754f84f67db584"
+        }
+      ],
+      "size": 2394,
+      "sha256": "41562195ddc6324e2b1366b37d74cf2130e96af44d3eb2f632754f84f67db584",
+      "origin": "reviewed-bundled-skill-source"
+    },
+    {
+      "path": "bundled-skills/fashion-ecommerce-ai-model-video/references/01-product-front-back.md",
+      "owner": "platform-core",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "host-sources/app/bundled-skills/fashion-ecommerce-ai-model-video/references/01-product-front-back.md",
+          "size": 4088,
+          "sha256": "a41b2957a696140fb1f02a58fdbed7f0130ecf7a026f585c6aaf14f1d53427af"
+        }
+      ],
+      "size": 4088,
+      "sha256": "a41b2957a696140fb1f02a58fdbed7f0130ecf7a026f585c6aaf14f1d53427af",
+      "origin": "reviewed-bundled-skill-source"
+    },
+    {
+      "path": "bundled-skills/fashion-ecommerce-ai-model-video/references/02-fashion-model-front.md",
+      "owner": "platform-core",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "host-sources/app/bundled-skills/fashion-ecommerce-ai-model-video/references/02-fashion-model-front.md",
+          "size": 5416,
+          "sha256": "800fb85d1354f2df1e8a4435c5229b91e904f1f88ae67d11b221df1138306764"
+        }
+      ],
+      "size": 5416,
+      "sha256": "800fb85d1354f2df1e8a4435c5229b91e904f1f88ae67d11b221df1138306764",
+      "origin": "reviewed-bundled-skill-source"
+    },
+    {
+      "path": "bundled-skills/fashion-ecommerce-ai-model-video/references/03-natural-turn-video.md",
+      "owner": "platform-core",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "host-sources/app/bundled-skills/fashion-ecommerce-ai-model-video/references/03-natural-turn-video.md",
+          "size": 6057,
+          "sha256": "dc08bfe6d2da8073324c995f1873e5f4995772d6d51b6682f2e6654596890530"
+        }
+      ],
+      "size": 6057,
+      "sha256": "dc08bfe6d2da8073324c995f1873e5f4995772d6d51b6682f2e6654596890530",
+      "origin": "reviewed-bundled-skill-source"
+    },
+    {
+      "path": "bundled-skills/fashion-ecommerce-ai-model-video/references/04-canvas-execution.md",
+      "owner": "platform-core",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "host-sources/app/bundled-skills/fashion-ecommerce-ai-model-video/references/04-canvas-execution.md",
+          "size": 4069,
+          "sha256": "14a098889eb219d70514a9df94ccfed8340a95a0fbeb19b49ea0f27780e5d894"
+        }
+      ],
+      "size": 4069,
+      "sha256": "14a098889eb219d70514a9df94ccfed8340a95a0fbeb19b49ea0f27780e5d894",
+      "origin": "reviewed-bundled-skill-source"
+    },
+    {
+      "path": "bundled-skills/natural-aesthetic-product-photography/SKILL.md",
+      "owner": "platform-core",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "host-sources/app/skill-packages/natural-aesthetic-product-photography/SKILL.md",
+          "size": 7106,
+          "sha256": "c5d8bd9237596a5dc4488adb41fe5a9e19df85ba825a29c5a5b2231df9edb4c1"
+        }
+      ],
+      "size": 7106,
+      "sha256": "c5d8bd9237596a5dc4488adb41fe5a9e19df85ba825a29c5a5b2231df9edb4c1",
+      "origin": "reviewed-bundled-skill-source"
+    },
+    {
+      "path": "bundled-skills/natural-aesthetic-product-photography/agent.skill.json",
+      "owner": "platform-core",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "host-sources/app/skill-packages/natural-aesthetic-product-photography/agent.skill.json",
+          "size": 1092,
+          "sha256": "3f2fbc587f9eedc6302407a65d83e09709b957f44bccb4778c95a767f29b2434"
+        }
+      ],
+      "size": 1092,
+      "sha256": "3f2fbc587f9eedc6302407a65d83e09709b957f44bccb4778c95a767f29b2434",
+      "origin": "reviewed-bundled-skill-source"
+    },
+    {
+      "path": "bundled-skills/natural-aesthetic-product-photography/interaction.json",
+      "owner": "platform-core",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "host-sources/app/skill-packages/natural-aesthetic-product-photography/interaction.json",
+          "size": 5649,
+          "sha256": "7ee766afc40a4931c1981a8157ca40ba7d9de9b08dd73e8d7973896360de2b31"
+        }
+      ],
+      "size": 5649,
+      "sha256": "7ee766afc40a4931c1981a8157ca40ba7d9de9b08dd73e8d7973896360de2b31",
+      "origin": "reviewed-bundled-skill-source"
+    },
+    {
+      "path": "bundled-skills/natural-aesthetic-product-photography/references/photography-methods.md",
+      "owner": "platform-core",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "host-sources/app/skill-packages/natural-aesthetic-product-photography/references/photography-methods.md",
+          "size": 21664,
+          "sha256": "cc44fd7988ee1932dfcbc2595806790b27b9dbd3e6b225b7dae0c20f1ec0bb9a"
+        }
+      ],
+      "size": 21664,
+      "sha256": "cc44fd7988ee1932dfcbc2595806790b27b9dbd3e6b225b7dae0c20f1ec0bb9a",
+      "origin": "reviewed-bundled-skill-source"
+    },
+    {
+      "path": "bundled-skills/natural-aesthetic-product-photography/references/visual-method-catalog.md",
+      "owner": "platform-core",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "host-sources/app/skill-packages/natural-aesthetic-product-photography/references/visual-method-catalog.md",
+          "size": 5490,
+          "sha256": "e9c50d3729cf7d22fec22cee4945ac43ced25637b746dd1a5cf23a6df84a83ae"
+        }
+      ],
+      "size": 5490,
+      "sha256": "e9c50d3729cf7d22fec22cee4945ac43ced25637b746dd1a5cf23a6df84a83ae",
+      "origin": "reviewed-bundled-skill-source"
+    },
+    {
+      "path": "bundled-skills/commercial-product-photography-10/assets/cover.png",
+      "owner": "platform-core",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "host-sources/app/bundled-skills/commercial-product-photography-10/assets/cover.png",
+          "size": 2610536,
+          "sha256": "130a87d49eebb6d3643bb7de535d8dc7641d81e6ee1caaf740db4f74e67de594"
+        }
+      ],
+      "size": 2610536,
+      "sha256": "130a87d49eebb6d3643bb7de535d8dc7641d81e6ee1caaf740db4f74e67de594",
+      "origin": "approved-bundled-showcase"
+    },
+    {
+      "path": "bundled-skills/fashion-ecommerce-ai-model-video/assets/cover.mp4",
+      "owner": "platform-core",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "host-sources/app/bundled-skills/fashion-ecommerce-ai-model-video/assets/cover.mp4",
+          "size": 2620106,
+          "sha256": "ec42966e279b00a8659e023af34afa36cb64e73ae1435a829826c8ee393da0c2"
+        }
+      ],
+      "size": 2620106,
+      "sha256": "ec42966e279b00a8659e023af34afa36cb64e73ae1435a829826c8ee393da0c2",
+      "origin": "approved-bundled-showcase"
+    },
+    {
+      "path": "bundled-skills/natural-aesthetic-product-photography/assets/cover.png",
+      "owner": "platform-core",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "host-sources/app/skill-packages/natural-aesthetic-product-photography/assets/cover.png",
+          "size": 2073881,
+          "sha256": "845220c725c9e253327ba44b44a46f543c46ddef782f4ae0bd11b328fa5f99b8"
+        }
+      ],
+      "size": 2073881,
+      "sha256": "845220c725c9e253327ba44b44a46f543c46ddef782f4ae0bd11b328fa5f99b8",
+      "origin": "approved-bundled-showcase"
     },
     {
       "path": "canvas-agent-broker.js",
@@ -972,6 +1212,21 @@
       ],
       "size": 549,
       "sha256": "4e4b2c032fa3aa6157b07cf12a429fa54984b60706ec8039f0f96496eab6fef3",
+      "origin": "current-runtime-source-promoted"
+    },
+    {
+      "path": "canvas-agent-picker-cursor.svg",
+      "owner": "canvas-agent-ui",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "host-sources/app/canvas-agent-picker-cursor.svg",
+          "size": 284,
+          "sha256": "b061a45fd4d92d0004be525a30b7a5c46c98dd446032bd35ece8dffc6a12c0c2"
+        }
+      ],
+      "size": 284,
+      "sha256": "b061a45fd4d92d0004be525a30b7a5c46c98dd446032bd35ece8dffc6a12c0c2",
       "origin": "current-runtime-source-promoted"
     },
     {
@@ -3255,36 +3510,6 @@
       "origin": "pinned-external-artifact"
     },
     {
-      "path": "canvas-pdf-cmaps/ETHK-B5-H.bcmap",
-      "owner": "content-assets",
-      "recipe": "copy",
-      "inputs": [
-        {
-          "path": "release-tools/.cache/sha256/d2f10fa519336bc4efcc7b6deb9604b75429946b40d82e311cb3a97a1994c89a",
-          "size": 4426,
-          "sha256": "d2f10fa519336bc4efcc7b6deb9604b75429946b40d82e311cb3a97a1994c89a"
-        }
-      ],
-      "size": 4426,
-      "sha256": "d2f10fa519336bc4efcc7b6deb9604b75429946b40d82e311cb3a97a1994c89a",
-      "origin": "pinned-external-artifact"
-    },
-    {
-      "path": "canvas-pdf-cmaps/ETHK-B5-V.bcmap",
-      "owner": "content-assets",
-      "recipe": "copy",
-      "inputs": [
-        {
-          "path": "release-tools/.cache/sha256/1fea3fd0d9f0f679f80505800851ef2e4131d81127e18c006938ffa2f4c8b247",
-          "size": 158,
-          "sha256": "1fea3fd0d9f0f679f80505800851ef2e4131d81127e18c006938ffa2f4c8b247"
-        }
-      ],
-      "size": 158,
-      "sha256": "1fea3fd0d9f0f679f80505800851ef2e4131d81127e18c006938ffa2f4c8b247",
-      "origin": "pinned-external-artifact"
-    },
-    {
       "path": "canvas-pdf-cmaps/ETen-B5-H.bcmap",
       "owner": "content-assets",
       "recipe": "copy",
@@ -3342,6 +3567,36 @@
       ],
       "size": 172,
       "sha256": "18252fca90f472f479af1bddd60d6ab51c8e1b55dcf6845951426504934543e0",
+      "origin": "pinned-external-artifact"
+    },
+    {
+      "path": "canvas-pdf-cmaps/ETHK-B5-H.bcmap",
+      "owner": "content-assets",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "release-tools/.cache/sha256/d2f10fa519336bc4efcc7b6deb9604b75429946b40d82e311cb3a97a1994c89a",
+          "size": 4426,
+          "sha256": "d2f10fa519336bc4efcc7b6deb9604b75429946b40d82e311cb3a97a1994c89a"
+        }
+      ],
+      "size": 4426,
+      "sha256": "d2f10fa519336bc4efcc7b6deb9604b75429946b40d82e311cb3a97a1994c89a",
+      "origin": "pinned-external-artifact"
+    },
+    {
+      "path": "canvas-pdf-cmaps/ETHK-B5-V.bcmap",
+      "owner": "content-assets",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "release-tools/.cache/sha256/1fea3fd0d9f0f679f80505800851ef2e4131d81127e18c006938ffa2f4c8b247",
+          "size": 158,
+          "sha256": "1fea3fd0d9f0f679f80505800851ef2e4131d81127e18c006938ffa2f4c8b247"
+        }
+      ],
+      "size": 158,
+      "sha256": "1fea3fd0d9f0f679f80505800851ef2e4131d81127e18c006938ffa2f4c8b247",
       "origin": "pinned-external-artifact"
     },
     {
@@ -3585,6 +3840,36 @@
       "origin": "pinned-external-artifact"
     },
     {
+      "path": "canvas-pdf-cmaps/GBpc-EUC-H.bcmap",
+      "owner": "content-assets",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "release-tools/.cache/sha256/3c4a4eb82f05abe51f6650985c630e180438bfdd491318f5d20d2ec29236e1c3",
+          "size": 557,
+          "sha256": "3c4a4eb82f05abe51f6650985c630e180438bfdd491318f5d20d2ec29236e1c3"
+        }
+      ],
+      "size": 557,
+      "sha256": "3c4a4eb82f05abe51f6650985c630e180438bfdd491318f5d20d2ec29236e1c3",
+      "origin": "pinned-external-artifact"
+    },
+    {
+      "path": "canvas-pdf-cmaps/GBpc-EUC-V.bcmap",
+      "owner": "content-assets",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "release-tools/.cache/sha256/215bdfa2842705624b4cf4cd29b8e3c720f1e192365e0305c11030a424c84d7c",
+          "size": 181,
+          "sha256": "215bdfa2842705624b4cf4cd29b8e3c720f1e192365e0305c11030a424c84d7c"
+        }
+      ],
+      "size": 181,
+      "sha256": "215bdfa2842705624b4cf4cd29b8e3c720f1e192365e0305c11030a424c84d7c",
+      "origin": "pinned-external-artifact"
+    },
+    {
       "path": "canvas-pdf-cmaps/GBT-EUC-H.bcmap",
       "owner": "content-assets",
       "recipe": "copy",
@@ -3675,36 +3960,6 @@
       "origin": "pinned-external-artifact"
     },
     {
-      "path": "canvas-pdf-cmaps/GBpc-EUC-H.bcmap",
-      "owner": "content-assets",
-      "recipe": "copy",
-      "inputs": [
-        {
-          "path": "release-tools/.cache/sha256/3c4a4eb82f05abe51f6650985c630e180438bfdd491318f5d20d2ec29236e1c3",
-          "size": 557,
-          "sha256": "3c4a4eb82f05abe51f6650985c630e180438bfdd491318f5d20d2ec29236e1c3"
-        }
-      ],
-      "size": 557,
-      "sha256": "3c4a4eb82f05abe51f6650985c630e180438bfdd491318f5d20d2ec29236e1c3",
-      "origin": "pinned-external-artifact"
-    },
-    {
-      "path": "canvas-pdf-cmaps/GBpc-EUC-V.bcmap",
-      "owner": "content-assets",
-      "recipe": "copy",
-      "inputs": [
-        {
-          "path": "release-tools/.cache/sha256/215bdfa2842705624b4cf4cd29b8e3c720f1e192365e0305c11030a424c84d7c",
-          "size": 181,
-          "sha256": "215bdfa2842705624b4cf4cd29b8e3c720f1e192365e0305c11030a424c84d7c"
-        }
-      ],
-      "size": 181,
-      "sha256": "215bdfa2842705624b4cf4cd29b8e3c720f1e192365e0305c11030a424c84d7c",
-      "origin": "pinned-external-artifact"
-    },
-    {
       "path": "canvas-pdf-cmaps/H.bcmap",
       "owner": "content-assets",
       "recipe": "copy",
@@ -3717,6 +3972,36 @@
       ],
       "size": 553,
       "sha256": "a0233e21047ec00b852125b243cbcf30abee511155b6d8159c24f944384bc9ee",
+      "origin": "pinned-external-artifact"
+    },
+    {
+      "path": "canvas-pdf-cmaps/Hankaku.bcmap",
+      "owner": "content-assets",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "release-tools/.cache/sha256/b454701f7aecd7856769016dfd04ca64280a060f2c67a2466d50b4395d24974e",
+          "size": 132,
+          "sha256": "b454701f7aecd7856769016dfd04ca64280a060f2c67a2466d50b4395d24974e"
+        }
+      ],
+      "size": 132,
+      "sha256": "b454701f7aecd7856769016dfd04ca64280a060f2c67a2466d50b4395d24974e",
+      "origin": "pinned-external-artifact"
+    },
+    {
+      "path": "canvas-pdf-cmaps/Hiragana.bcmap",
+      "owner": "content-assets",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "release-tools/.cache/sha256/2ed669394756dd9458651cd9995ab29ab691ecb7686659003306cdf22767a414",
+          "size": 124,
+          "sha256": "2ed669394756dd9458651cd9995ab29ab691ecb7686659003306cdf22767a414"
+        }
+      ],
+      "size": 124,
+      "sha256": "2ed669394756dd9458651cd9995ab29ab691ecb7686659003306cdf22767a414",
       "origin": "pinned-external-artifact"
     },
     {
@@ -3900,33 +4185,18 @@
       "origin": "pinned-external-artifact"
     },
     {
-      "path": "canvas-pdf-cmaps/Hankaku.bcmap",
+      "path": "canvas-pdf-cmaps/Katakana.bcmap",
       "owner": "content-assets",
       "recipe": "copy",
       "inputs": [
         {
-          "path": "release-tools/.cache/sha256/b454701f7aecd7856769016dfd04ca64280a060f2c67a2466d50b4395d24974e",
-          "size": 132,
-          "sha256": "b454701f7aecd7856769016dfd04ca64280a060f2c67a2466d50b4395d24974e"
+          "path": "release-tools/.cache/sha256/3b6ca6642fbf8822da00d5e58a8aa275216d5c32dbf2bd73e934197fc9fc5c53",
+          "size": 100,
+          "sha256": "3b6ca6642fbf8822da00d5e58a8aa275216d5c32dbf2bd73e934197fc9fc5c53"
         }
       ],
-      "size": 132,
-      "sha256": "b454701f7aecd7856769016dfd04ca64280a060f2c67a2466d50b4395d24974e",
-      "origin": "pinned-external-artifact"
-    },
-    {
-      "path": "canvas-pdf-cmaps/Hiragana.bcmap",
-      "owner": "content-assets",
-      "recipe": "copy",
-      "inputs": [
-        {
-          "path": "release-tools/.cache/sha256/2ed669394756dd9458651cd9995ab29ab691ecb7686659003306cdf22767a414",
-          "size": 124,
-          "sha256": "2ed669394756dd9458651cd9995ab29ab691ecb7686659003306cdf22767a414"
-        }
-      ],
-      "size": 124,
-      "sha256": "2ed669394756dd9458651cd9995ab29ab691ecb7686659003306cdf22767a414",
+      "size": 100,
+      "sha256": "3b6ca6642fbf8822da00d5e58a8aa275216d5c32dbf2bd73e934197fc9fc5c53",
       "origin": "pinned-external-artifact"
     },
     {
@@ -4107,21 +4377,6 @@
       ],
       "size": 166,
       "sha256": "031707887d6fc2378a36cdb6775334fd7a236c3f95048d8436abf43fe26fc49d",
-      "origin": "pinned-external-artifact"
-    },
-    {
-      "path": "canvas-pdf-cmaps/Katakana.bcmap",
-      "owner": "content-assets",
-      "recipe": "copy",
-      "inputs": [
-        {
-          "path": "release-tools/.cache/sha256/3b6ca6642fbf8822da00d5e58a8aa275216d5c32dbf2bd73e934197fc9fc5c53",
-          "size": 100,
-          "sha256": "3b6ca6642fbf8822da00d5e58a8aa275216d5c32dbf2bd73e934197fc9fc5c53"
-        }
-      ],
-      "size": 100,
-      "sha256": "3b6ca6642fbf8822da00d5e58a8aa275216d5c32dbf2bd73e934197fc9fc5c53",
       "origin": "pinned-external-artifact"
     },
     {
@@ -5100,36 +5355,6 @@
       "origin": "pinned-external-artifact"
     },
     {
-      "path": "canvas-pdf-fonts/LICENSE_FOXIT",
-      "owner": "content-assets",
-      "recipe": "copy",
-      "inputs": [
-        {
-          "path": "release-tools/.cache/sha256/b578cdd2345840ada550bd12519533812320d5f1d21cf4c1c7e1b1b0a31c98b7",
-          "size": 1553,
-          "sha256": "b578cdd2345840ada550bd12519533812320d5f1d21cf4c1c7e1b1b0a31c98b7"
-        }
-      ],
-      "size": 1553,
-      "sha256": "b578cdd2345840ada550bd12519533812320d5f1d21cf4c1c7e1b1b0a31c98b7",
-      "origin": "pinned-external-artifact"
-    },
-    {
-      "path": "canvas-pdf-fonts/LICENSE_LIBERATION",
-      "owner": "content-assets",
-      "recipe": "copy",
-      "inputs": [
-        {
-          "path": "release-tools/.cache/sha256/d2c4d5b3e115a519cb58eb691aa64538397e2611f9ebe801392cf9667997e7dc",
-          "size": 22154,
-          "sha256": "d2c4d5b3e115a519cb58eb691aa64538397e2611f9ebe801392cf9667997e7dc"
-        }
-      ],
-      "size": 22154,
-      "sha256": "d2c4d5b3e115a519cb58eb691aa64538397e2611f9ebe801392cf9667997e7dc",
-      "origin": "pinned-external-artifact"
-    },
-    {
       "path": "canvas-pdf-fonts/LiberationSans-Bold.ttf",
       "owner": "content-assets",
       "recipe": "copy",
@@ -5187,6 +5412,36 @@
       ],
       "size": 139512,
       "sha256": "f8ace1f892b2bd9dc1792ba7f097fa7588f84fed48321480e04de5390828221f",
+      "origin": "pinned-external-artifact"
+    },
+    {
+      "path": "canvas-pdf-fonts/LICENSE_FOXIT",
+      "owner": "content-assets",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "release-tools/.cache/sha256/b578cdd2345840ada550bd12519533812320d5f1d21cf4c1c7e1b1b0a31c98b7",
+          "size": 1553,
+          "sha256": "b578cdd2345840ada550bd12519533812320d5f1d21cf4c1c7e1b1b0a31c98b7"
+        }
+      ],
+      "size": 1553,
+      "sha256": "b578cdd2345840ada550bd12519533812320d5f1d21cf4c1c7e1b1b0a31c98b7",
+      "origin": "pinned-external-artifact"
+    },
+    {
+      "path": "canvas-pdf-fonts/LICENSE_LIBERATION",
+      "owner": "content-assets",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "release-tools/.cache/sha256/d2c4d5b3e115a519cb58eb691aa64538397e2611f9ebe801392cf9667997e7dc",
+          "size": 22154,
+          "sha256": "d2c4d5b3e115a519cb58eb691aa64538397e2611f9ebe801392cf9667997e7dc"
+        }
+      ],
+      "size": 22154,
+      "sha256": "d2c4d5b3e115a519cb58eb691aa64538397e2611f9ebe801392cf9667997e7dc",
       "origin": "pinned-external-artifact"
     },
     {
@@ -5975,14 +6230,14 @@
       "recipe": "copy",
       "inputs": [
         {
-          "path": "release-tools/.cache/sha256/95fb245510e59fab688c53005c9bce6b1b5b017f0bb086f207295085e33b11c6",
-          "size": 25538,
-          "sha256": "95fb245510e59fab688c53005c9bce6b1b5b017f0bb086f207295085e33b11c6"
+          "path": "host-sources/app/desktop/icon.ico",
+          "size": 15044,
+          "sha256": "0cac7041bc6aeb89ef4e342cc230af126ad3f47b800bbcf9a99c0d0280124d85"
         }
       ],
-      "size": 25538,
-      "sha256": "95fb245510e59fab688c53005c9bce6b1b5b017f0bb086f207295085e33b11c6",
-      "origin": "pinned-external-artifact"
+      "size": 15044,
+      "sha256": "0cac7041bc6aeb89ef4e342cc230af126ad3f47b800bbcf9a99c0d0280124d85",
+      "origin": "current-runtime-source-promoted"
     },
     {
       "path": "desktop/main.js",
@@ -6240,6 +6495,36 @@
       "origin": "current-runtime-source-promoted"
     },
     {
+      "path": "desktop/update-trust.json",
+      "owner": "desktop-updater",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "host-sources/app/desktop/update-trust.json",
+          "size": 32,
+          "sha256": "72e79b79f1f3d1c84f2208fc776091bc5f73a19060b41718df0006112e33e327"
+        }
+      ],
+      "size": 32,
+      "sha256": "72e79b79f1f3d1c84f2208fc776091bc5f73a19060b41718df0006112e33e327",
+      "origin": "release-required-source"
+    },
+    {
+      "path": "desktop/update-validation.js",
+      "owner": "desktop-updater",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "host-sources/app/desktop/update-validation.js",
+          "size": 8238,
+          "sha256": "2ce785eacc8f7153dbe9ea50ecac6a9146f267f21269296393895244528f3108"
+        }
+      ],
+      "size": 8238,
+      "sha256": "2ce785eacc8f7153dbe9ea50ecac6a9146f267f21269296393895244528f3108",
+      "origin": "release-required-source"
+    },
+    {
       "path": "desktop/updater.js",
       "owner": "os-shell",
       "recipe": "copy",
@@ -6302,16 +6587,41 @@
     {
       "path": "flora-generator-composer.js",
       "owner": "host-app",
-      "recipe": "copy",
+      "recipe": "visual-presets-composer",
       "inputs": [
         {
           "path": "neon-workbench/design-sources/flora-generator-composer.js",
-          "size": 53857,
-          "sha256": "e3ab79a45b5958e7bdd8907e6d1f6e6f53e6663a6e16416905f14b5315e34d41"
+          "size": 74022,
+          "sha256": "91fdef2ea8dfc590b360d6f05c8ca576113648f0d4be460613b55edf10b0154f"
+        },
+        {
+          "path": "neon-workbench/design-sources/visual-preset-categories.json",
+          "size": 1213,
+          "sha256": "32100b5af2e77fc396e1fac69f5581d2e734d9daa9820548d58bde786dda4022"
+        },
+        {
+          "path": "neon-workbench/design-sources/visual-presets.json",
+          "size": 39538,
+          "sha256": "f9acf4b90f9fb615199c0b5cf390936bdfefe20fa8d51f9d6fecc84e98e157b2"
+        },
+        {
+          "path": "neon-workbench/design-sources/visual-presets-runtime.js",
+          "size": 22305,
+          "sha256": "a6e3d116fc075eeeb47a094372be5037ae5a75aeb803155c8d26261ed5b1cd06"
+        },
+        {
+          "path": "neon-workbench/design-sources/visual-preset-previews.json",
+          "size": 707694,
+          "sha256": "4bbb7fa54577a99404e48d5b814ba4fb921bed7d777bea663fc804a27fe27178"
+        },
+        {
+          "path": "neon-workbench/visual-presets-build.cjs",
+          "size": 1117,
+          "sha256": "e5682ea3c1d3f033f396426234adac3a4fb23b15761e133536ff550fb190c1f4"
         }
       ],
-      "size": 53857,
-      "sha256": "e3ab79a45b5958e7bdd8907e6d1f6e6f53e6663a6e16416905f14b5315e34d41",
+      "size": 830681,
+      "sha256": "c53dd44297496aa8f4d9de3b1acf61262c471c3ad577fa04ac6ab8f1abaff6db",
       "origin": "existing-authoritative-source"
     },
     {
@@ -6433,6 +6743,36 @@
       "size": 12200,
       "sha256": "3d2104196d7cc632a0bdbbe793bce8726de181e5ca4351cf006cc049e253d3ed",
       "origin": "current-runtime-source-promoted"
+    },
+    {
+      "path": "h3-commerce-package-service.js",
+      "owner": "h3-commerce-video",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "host-sources/app/h3-commerce-package-service.js",
+          "size": 3651,
+          "sha256": "d809ac96e0a4daf3d2c43a721b911a836374e3574e3d080fc039fcba6e9eaaf2"
+        }
+      ],
+      "size": 3651,
+      "sha256": "d809ac96e0a4daf3d2c43a721b911a836374e3574e3d080fc039fcba6e9eaaf2",
+      "origin": "current-source-added"
+    },
+    {
+      "path": "h3-commerce-workflow.js",
+      "owner": "h3-commerce-video",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "neon-workbench/design-sources/h3-commerce-workflow.js",
+          "size": 4289,
+          "sha256": "ffd85c8be4f07825e9907deb2d19b002e0f62321612a3e2edf0675a2d8b31598"
+        }
+      ],
+      "size": 4289,
+      "sha256": "ffd85c8be4f07825e9907deb2d19b002e0f62321612a3e2edf0675a2d8b31598",
+      "origin": "current-source-added"
     },
     {
       "path": "history-http-api.js",
@@ -7290,51 +7630,6 @@
       "origin": "golden-generated-checkpoint"
     },
     {
-      "path": "node-action-bar.js",
-      "owner": "host-app",
-      "recipe": "copy",
-      "inputs": [
-        {
-          "path": "neon-workbench/design-sources/node-action-bar.js",
-          "size": 3032,
-          "sha256": "d3073fbf3a4be266ddb91edbbb2ddf901f5561ae97f9a39d26e590db1b552748"
-        }
-      ],
-      "size": 3032,
-      "sha256": "d3073fbf3a4be266ddb91edbbb2ddf901f5561ae97f9a39d26e590db1b552748",
-      "origin": "existing-authoritative-source"
-    },
-    {
-      "path": "node_modules/@img/colour/LICENSE.md",
-      "owner": "runtime-dependencies",
-      "recipe": "copy",
-      "inputs": [
-        {
-          "path": "release-tools/.cache/sha256/e2eaa4603c14cb26f301e88648c12a853fa3f0f5da6d4b0972958c666e7f2ab8",
-          "size": 4433,
-          "sha256": "e2eaa4603c14cb26f301e88648c12a853fa3f0f5da6d4b0972958c666e7f2ab8"
-        }
-      ],
-      "size": 4433,
-      "sha256": "e2eaa4603c14cb26f301e88648c12a853fa3f0f5da6d4b0972958c666e7f2ab8",
-      "origin": "pinned-external-artifact"
-    },
-    {
-      "path": "node_modules/@img/colour/README.md",
-      "owner": "runtime-dependencies",
-      "recipe": "copy",
-      "inputs": [
-        {
-          "path": "release-tools/.cache/sha256/be7edf3bc6467f761168cef3bb2b9b3def2532c98a86249848376ea00338ad1d",
-          "size": 562,
-          "sha256": "be7edf3bc6467f761168cef3bb2b9b3def2532c98a86249848376ea00338ad1d"
-        }
-      ],
-      "size": 562,
-      "sha256": "be7edf3bc6467f761168cef3bb2b9b3def2532c98a86249848376ea00338ad1d",
-      "origin": "pinned-external-artifact"
-    },
-    {
       "path": "node_modules/@img/colour/color.cjs",
       "owner": "runtime-dependencies",
       "recipe": "copy",
@@ -7380,6 +7675,21 @@
       "origin": "pinned-external-artifact"
     },
     {
+      "path": "node_modules/@img/colour/LICENSE.md",
+      "owner": "runtime-dependencies",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "release-tools/.cache/sha256/e2eaa4603c14cb26f301e88648c12a853fa3f0f5da6d4b0972958c666e7f2ab8",
+          "size": 4433,
+          "sha256": "e2eaa4603c14cb26f301e88648c12a853fa3f0f5da6d4b0972958c666e7f2ab8"
+        }
+      ],
+      "size": 4433,
+      "sha256": "e2eaa4603c14cb26f301e88648c12a853fa3f0f5da6d4b0972958c666e7f2ab8",
+      "origin": "pinned-external-artifact"
+    },
+    {
       "path": "node_modules/@img/colour/package.json",
       "owner": "runtime-dependencies",
       "recipe": "copy",
@@ -7395,33 +7705,18 @@
       "origin": "pinned-external-artifact"
     },
     {
-      "path": "node_modules/@img/sharp-win32-x64/LICENSE",
+      "path": "node_modules/@img/colour/README.md",
       "owner": "runtime-dependencies",
       "recipe": "copy",
       "inputs": [
         {
-          "path": "release-tools/.cache/sha256/dc1f5d2d43c5531dfe0acaf4e950ea5dbe3e61e1850cf0e983bda7efc10d6693",
-          "size": 10464,
-          "sha256": "dc1f5d2d43c5531dfe0acaf4e950ea5dbe3e61e1850cf0e983bda7efc10d6693"
+          "path": "release-tools/.cache/sha256/be7edf3bc6467f761168cef3bb2b9b3def2532c98a86249848376ea00338ad1d",
+          "size": 562,
+          "sha256": "be7edf3bc6467f761168cef3bb2b9b3def2532c98a86249848376ea00338ad1d"
         }
       ],
-      "size": 10464,
-      "sha256": "dc1f5d2d43c5531dfe0acaf4e950ea5dbe3e61e1850cf0e983bda7efc10d6693",
-      "origin": "pinned-external-artifact"
-    },
-    {
-      "path": "node_modules/@img/sharp-win32-x64/README.md",
-      "owner": "runtime-dependencies",
-      "recipe": "copy",
-      "inputs": [
-        {
-          "path": "release-tools/.cache/sha256/280e7d164420cfc1a1b192a582bf53e3dba97b86a5c3575f878b674ad1d41e13",
-          "size": 4913,
-          "sha256": "280e7d164420cfc1a1b192a582bf53e3dba97b86a5c3575f878b674ad1d41e13"
-        }
-      ],
-      "size": 4913,
-      "sha256": "280e7d164420cfc1a1b192a582bf53e3dba97b86a5c3575f878b674ad1d41e13",
+      "size": 562,
+      "sha256": "be7edf3bc6467f761168cef3bb2b9b3def2532c98a86249848376ea00338ad1d",
       "origin": "pinned-external-artifact"
     },
     {
@@ -7485,6 +7780,21 @@
       "origin": "pinned-external-artifact"
     },
     {
+      "path": "node_modules/@img/sharp-win32-x64/LICENSE",
+      "owner": "runtime-dependencies",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "release-tools/.cache/sha256/dc1f5d2d43c5531dfe0acaf4e950ea5dbe3e61e1850cf0e983bda7efc10d6693",
+          "size": 10464,
+          "sha256": "dc1f5d2d43c5531dfe0acaf4e950ea5dbe3e61e1850cf0e983bda7efc10d6693"
+        }
+      ],
+      "size": 10464,
+      "sha256": "dc1f5d2d43c5531dfe0acaf4e950ea5dbe3e61e1850cf0e983bda7efc10d6693",
+      "origin": "pinned-external-artifact"
+    },
+    {
       "path": "node_modules/@img/sharp-win32-x64/package.json",
       "owner": "runtime-dependencies",
       "recipe": "copy",
@@ -7500,6 +7810,21 @@
       "origin": "pinned-external-artifact"
     },
     {
+      "path": "node_modules/@img/sharp-win32-x64/README.md",
+      "owner": "runtime-dependencies",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "release-tools/.cache/sha256/280e7d164420cfc1a1b192a582bf53e3dba97b86a5c3575f878b674ad1d41e13",
+          "size": 4913,
+          "sha256": "280e7d164420cfc1a1b192a582bf53e3dba97b86a5c3575f878b674ad1d41e13"
+        }
+      ],
+      "size": 4913,
+      "sha256": "280e7d164420cfc1a1b192a582bf53e3dba97b86a5c3575f878b674ad1d41e13",
+      "origin": "pinned-external-artifact"
+    },
+    {
       "path": "node_modules/@img/sharp-win32-x64/versions.json",
       "owner": "runtime-dependencies",
       "recipe": "copy",
@@ -7512,36 +7837,6 @@
       ],
       "size": 597,
       "sha256": "d551c859958f06b8088957f679c29be1ff53760191f7401e8183460fc5f58cf4",
-      "origin": "pinned-external-artifact"
-    },
-    {
-      "path": "node_modules/@isaacs/fs-minipass/LICENSE",
-      "owner": "runtime-dependencies",
-      "recipe": "copy",
-      "inputs": [
-        {
-          "path": "release-tools/.cache/sha256/4ec3d4c66cd87f5c8d8ad911b10f99bf27cb00cdfcff82621956e379186b016b",
-          "size": 765,
-          "sha256": "4ec3d4c66cd87f5c8d8ad911b10f99bf27cb00cdfcff82621956e379186b016b"
-        }
-      ],
-      "size": 765,
-      "sha256": "4ec3d4c66cd87f5c8d8ad911b10f99bf27cb00cdfcff82621956e379186b016b",
-      "origin": "pinned-external-artifact"
-    },
-    {
-      "path": "node_modules/@isaacs/fs-minipass/README.md",
-      "owner": "runtime-dependencies",
-      "recipe": "copy",
-      "inputs": [
-        {
-          "path": "release-tools/.cache/sha256/139490258a68fea80cbb38be69261bcbbc9ad48f2ed5233865e56bb281678f47",
-          "size": 2546,
-          "sha256": "139490258a68fea80cbb38be69261bcbbc9ad48f2ed5233865e56bb281678f47"
-        }
-      ],
-      "size": 2546,
-      "sha256": "139490258a68fea80cbb38be69261bcbbc9ad48f2ed5233865e56bb281678f47",
       "origin": "pinned-external-artifact"
     },
     {
@@ -7635,6 +7930,21 @@
       "origin": "pinned-external-artifact"
     },
     {
+      "path": "node_modules/@isaacs/fs-minipass/LICENSE",
+      "owner": "runtime-dependencies",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "release-tools/.cache/sha256/4ec3d4c66cd87f5c8d8ad911b10f99bf27cb00cdfcff82621956e379186b016b",
+          "size": 765,
+          "sha256": "4ec3d4c66cd87f5c8d8ad911b10f99bf27cb00cdfcff82621956e379186b016b"
+        }
+      ],
+      "size": 765,
+      "sha256": "4ec3d4c66cd87f5c8d8ad911b10f99bf27cb00cdfcff82621956e379186b016b",
+      "origin": "pinned-external-artifact"
+    },
+    {
       "path": "node_modules/@isaacs/fs-minipass/package.json",
       "owner": "runtime-dependencies",
       "recipe": "copy",
@@ -7650,33 +7960,18 @@
       "origin": "pinned-external-artifact"
     },
     {
-      "path": "node_modules/chownr/LICENSE.md",
+      "path": "node_modules/@isaacs/fs-minipass/README.md",
       "owner": "runtime-dependencies",
       "recipe": "copy",
       "inputs": [
         {
-          "path": "release-tools/.cache/sha256/a49c9ba464796f65b59fca3f1e6ca40912df1e859f575383223f7ec6c5baae09",
-          "size": 1764,
-          "sha256": "a49c9ba464796f65b59fca3f1e6ca40912df1e859f575383223f7ec6c5baae09"
+          "path": "release-tools/.cache/sha256/139490258a68fea80cbb38be69261bcbbc9ad48f2ed5233865e56bb281678f47",
+          "size": 2546,
+          "sha256": "139490258a68fea80cbb38be69261bcbbc9ad48f2ed5233865e56bb281678f47"
         }
       ],
-      "size": 1764,
-      "sha256": "a49c9ba464796f65b59fca3f1e6ca40912df1e859f575383223f7ec6c5baae09",
-      "origin": "pinned-external-artifact"
-    },
-    {
-      "path": "node_modules/chownr/README.md",
-      "owner": "runtime-dependencies",
-      "recipe": "copy",
-      "inputs": [
-        {
-          "path": "release-tools/.cache/sha256/cafe18aeaf5d10a590bc8ffdcfb2f4e6120438a2364964aba4d8968693124984",
-          "size": 59,
-          "sha256": "cafe18aeaf5d10a590bc8ffdcfb2f4e6120438a2364964aba4d8968693124984"
-        }
-      ],
-      "size": 59,
-      "sha256": "cafe18aeaf5d10a590bc8ffdcfb2f4e6120438a2364964aba4d8968693124984",
+      "size": 2546,
+      "sha256": "139490258a68fea80cbb38be69261bcbbc9ad48f2ed5233865e56bb281678f47",
       "origin": "pinned-external-artifact"
     },
     {
@@ -7770,6 +8065,21 @@
       "origin": "pinned-external-artifact"
     },
     {
+      "path": "node_modules/chownr/LICENSE.md",
+      "owner": "runtime-dependencies",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "release-tools/.cache/sha256/a49c9ba464796f65b59fca3f1e6ca40912df1e859f575383223f7ec6c5baae09",
+          "size": 1764,
+          "sha256": "a49c9ba464796f65b59fca3f1e6ca40912df1e859f575383223f7ec6c5baae09"
+        }
+      ],
+      "size": 1764,
+      "sha256": "a49c9ba464796f65b59fca3f1e6ca40912df1e859f575383223f7ec6c5baae09",
+      "origin": "pinned-external-artifact"
+    },
+    {
       "path": "node_modules/chownr/package.json",
       "owner": "runtime-dependencies",
       "recipe": "copy",
@@ -7785,33 +8095,18 @@
       "origin": "pinned-external-artifact"
     },
     {
-      "path": "node_modules/detect-libc/LICENSE",
+      "path": "node_modules/chownr/README.md",
       "owner": "runtime-dependencies",
       "recipe": "copy",
       "inputs": [
         {
-          "path": "release-tools/.cache/sha256/b40930bbcf80744c86c46a12bc9da056641d722716c378f5659b9e555ef833e1",
-          "size": 11357,
-          "sha256": "b40930bbcf80744c86c46a12bc9da056641d722716c378f5659b9e555ef833e1"
+          "path": "release-tools/.cache/sha256/cafe18aeaf5d10a590bc8ffdcfb2f4e6120438a2364964aba4d8968693124984",
+          "size": 59,
+          "sha256": "cafe18aeaf5d10a590bc8ffdcfb2f4e6120438a2364964aba4d8968693124984"
         }
       ],
-      "size": 11357,
-      "sha256": "b40930bbcf80744c86c46a12bc9da056641d722716c378f5659b9e555ef833e1",
-      "origin": "pinned-external-artifact"
-    },
-    {
-      "path": "node_modules/detect-libc/README.md",
-      "owner": "runtime-dependencies",
-      "recipe": "copy",
-      "inputs": [
-        {
-          "path": "release-tools/.cache/sha256/51a97449c443889155bc872522e6de5a91a5fa73edeffa03d749e186bf0eebca",
-          "size": 3215,
-          "sha256": "51a97449c443889155bc872522e6de5a91a5fa73edeffa03d749e186bf0eebca"
-        }
-      ],
-      "size": 3215,
-      "sha256": "51a97449c443889155bc872522e6de5a91a5fa73edeffa03d749e186bf0eebca",
+      "size": 59,
+      "sha256": "cafe18aeaf5d10a590bc8ffdcfb2f4e6120438a2364964aba4d8968693124984",
       "origin": "pinned-external-artifact"
     },
     {
@@ -7890,6 +8185,21 @@
       "origin": "pinned-external-artifact"
     },
     {
+      "path": "node_modules/detect-libc/LICENSE",
+      "owner": "runtime-dependencies",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "release-tools/.cache/sha256/b40930bbcf80744c86c46a12bc9da056641d722716c378f5659b9e555ef833e1",
+          "size": 11357,
+          "sha256": "b40930bbcf80744c86c46a12bc9da056641d722716c378f5659b9e555ef833e1"
+        }
+      ],
+      "size": 11357,
+      "sha256": "b40930bbcf80744c86c46a12bc9da056641d722716c378f5659b9e555ef833e1",
+      "origin": "pinned-external-artifact"
+    },
+    {
       "path": "node_modules/detect-libc/package.json",
       "owner": "runtime-dependencies",
       "recipe": "copy",
@@ -7905,33 +8215,18 @@
       "origin": "pinned-external-artifact"
     },
     {
-      "path": "node_modules/minipass/LICENSE.md",
+      "path": "node_modules/detect-libc/README.md",
       "owner": "runtime-dependencies",
       "recipe": "copy",
       "inputs": [
         {
-          "path": "release-tools/.cache/sha256/8a1af140fdfbf5afd3df27f7e662f989c5b963a300020dfafce42033cae9e004",
-          "size": 1552,
-          "sha256": "8a1af140fdfbf5afd3df27f7e662f989c5b963a300020dfafce42033cae9e004"
+          "path": "release-tools/.cache/sha256/51a97449c443889155bc872522e6de5a91a5fa73edeffa03d749e186bf0eebca",
+          "size": 3215,
+          "sha256": "51a97449c443889155bc872522e6de5a91a5fa73edeffa03d749e186bf0eebca"
         }
       ],
-      "size": 1552,
-      "sha256": "8a1af140fdfbf5afd3df27f7e662f989c5b963a300020dfafce42033cae9e004",
-      "origin": "pinned-external-artifact"
-    },
-    {
-      "path": "node_modules/minipass/README.md",
-      "owner": "runtime-dependencies",
-      "recipe": "copy",
-      "inputs": [
-        {
-          "path": "release-tools/.cache/sha256/69b9d3a872f51d6337f26b6840d0634e6396b025a7abe9803814f13b04ba46f5",
-          "size": 27159,
-          "sha256": "69b9d3a872f51d6337f26b6840d0634e6396b025a7abe9803814f13b04ba46f5"
-        }
-      ],
-      "size": 27159,
-      "sha256": "69b9d3a872f51d6337f26b6840d0634e6396b025a7abe9803814f13b04ba46f5",
+      "size": 3215,
+      "sha256": "51a97449c443889155bc872522e6de5a91a5fa73edeffa03d749e186bf0eebca",
       "origin": "pinned-external-artifact"
     },
     {
@@ -8025,6 +8320,21 @@
       "origin": "pinned-external-artifact"
     },
     {
+      "path": "node_modules/minipass/LICENSE.md",
+      "owner": "runtime-dependencies",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "release-tools/.cache/sha256/8a1af140fdfbf5afd3df27f7e662f989c5b963a300020dfafce42033cae9e004",
+          "size": 1552,
+          "sha256": "8a1af140fdfbf5afd3df27f7e662f989c5b963a300020dfafce42033cae9e004"
+        }
+      ],
+      "size": 1552,
+      "sha256": "8a1af140fdfbf5afd3df27f7e662f989c5b963a300020dfafce42033cae9e004",
+      "origin": "pinned-external-artifact"
+    },
+    {
       "path": "node_modules/minipass/package.json",
       "owner": "runtime-dependencies",
       "recipe": "copy",
@@ -8040,33 +8350,18 @@
       "origin": "pinned-external-artifact"
     },
     {
-      "path": "node_modules/minizlib/LICENSE",
+      "path": "node_modules/minipass/README.md",
       "owner": "runtime-dependencies",
       "recipe": "copy",
       "inputs": [
         {
-          "path": "release-tools/.cache/sha256/df05697a04b8997c79d423930534e59cc18828f6e22d0c8c2d62fcbea1c4f50b",
-          "size": 1339,
-          "sha256": "df05697a04b8997c79d423930534e59cc18828f6e22d0c8c2d62fcbea1c4f50b"
+          "path": "release-tools/.cache/sha256/69b9d3a872f51d6337f26b6840d0634e6396b025a7abe9803814f13b04ba46f5",
+          "size": 27159,
+          "sha256": "69b9d3a872f51d6337f26b6840d0634e6396b025a7abe9803814f13b04ba46f5"
         }
       ],
-      "size": 1339,
-      "sha256": "df05697a04b8997c79d423930534e59cc18828f6e22d0c8c2d62fcbea1c4f50b",
-      "origin": "pinned-external-artifact"
-    },
-    {
-      "path": "node_modules/minizlib/README.md",
-      "owner": "runtime-dependencies",
-      "recipe": "copy",
-      "inputs": [
-        {
-          "path": "release-tools/.cache/sha256/5b14868770662043794272987ce818b7f7a83937c6631bf421646311ee8d5ead",
-          "size": 2058,
-          "sha256": "5b14868770662043794272987ce818b7f7a83937c6631bf421646311ee8d5ead"
-        }
-      ],
-      "size": 2058,
-      "sha256": "5b14868770662043794272987ce818b7f7a83937c6631bf421646311ee8d5ead",
+      "size": 27159,
+      "sha256": "69b9d3a872f51d6337f26b6840d0634e6396b025a7abe9803814f13b04ba46f5",
       "origin": "pinned-external-artifact"
     },
     {
@@ -8220,6 +8515,21 @@
       "origin": "pinned-external-artifact"
     },
     {
+      "path": "node_modules/minizlib/LICENSE",
+      "owner": "runtime-dependencies",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "release-tools/.cache/sha256/df05697a04b8997c79d423930534e59cc18828f6e22d0c8c2d62fcbea1c4f50b",
+          "size": 1339,
+          "sha256": "df05697a04b8997c79d423930534e59cc18828f6e22d0c8c2d62fcbea1c4f50b"
+        }
+      ],
+      "size": 1339,
+      "sha256": "df05697a04b8997c79d423930534e59cc18828f6e22d0c8c2d62fcbea1c4f50b",
+      "origin": "pinned-external-artifact"
+    },
+    {
       "path": "node_modules/minizlib/package.json",
       "owner": "runtime-dependencies",
       "recipe": "copy",
@@ -8235,18 +8545,18 @@
       "origin": "pinned-external-artifact"
     },
     {
-      "path": "node_modules/onnxruntime-common/README.md",
+      "path": "node_modules/minizlib/README.md",
       "owner": "runtime-dependencies",
       "recipe": "copy",
       "inputs": [
         {
-          "path": "release-tools/.cache/sha256/3081e0b29169cf9b34f94bae12302d659fca817d7eae3bdcac4261d7301853ff",
-          "size": 497,
-          "sha256": "3081e0b29169cf9b34f94bae12302d659fca817d7eae3bdcac4261d7301853ff"
+          "path": "release-tools/.cache/sha256/5b14868770662043794272987ce818b7f7a83937c6631bf421646311ee8d5ead",
+          "size": 2058,
+          "sha256": "5b14868770662043794272987ce818b7f7a83937c6631bf421646311ee8d5ead"
         }
       ],
-      "size": 497,
-      "sha256": "3081e0b29169cf9b34f94bae12302d659fca817d7eae3bdcac4261d7301853ff",
+      "size": 2058,
+      "sha256": "5b14868770662043794272987ce818b7f7a83937c6631bf421646311ee8d5ead",
       "origin": "pinned-external-artifact"
     },
     {
@@ -9945,18 +10255,18 @@
       "origin": "pinned-external-artifact"
     },
     {
-      "path": "node_modules/onnxruntime-node/README.md",
+      "path": "node_modules/onnxruntime-common/README.md",
       "owner": "runtime-dependencies",
       "recipe": "copy",
       "inputs": [
         {
-          "path": "release-tools/.cache/sha256/1c1f936be64977f74f27057cb1854eb14bd0477e962beef8264b93a9e24155e0",
-          "size": 2264,
-          "sha256": "1c1f936be64977f74f27057cb1854eb14bd0477e962beef8264b93a9e24155e0"
+          "path": "release-tools/.cache/sha256/3081e0b29169cf9b34f94bae12302d659fca817d7eae3bdcac4261d7301853ff",
+          "size": 497,
+          "sha256": "3081e0b29169cf9b34f94bae12302d659fca817d7eae3bdcac4261d7301853ff"
         }
       ],
-      "size": 2264,
-      "sha256": "1c1f936be64977f74f27057cb1854eb14bd0477e962beef8264b93a9e24155e0",
+      "size": 497,
+      "sha256": "3081e0b29169cf9b34f94bae12302d659fca817d7eae3bdcac4261d7301853ff",
       "origin": "pinned-external-artifact"
     },
     {
@@ -10065,6 +10375,21 @@
       "origin": "pinned-external-artifact"
     },
     {
+      "path": "node_modules/onnxruntime-node/bin/napi-v3/linux/x64/libonnxruntime_providers_shared.so",
+      "owner": "runtime-dependencies",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "release-tools/.cache/sha256/33dc7e53ec5120d0ff6ef8a4f4c41ac4497f11995c980eab6853d71ea50c697f",
+          "size": 14632,
+          "sha256": "33dc7e53ec5120d0ff6ef8a4f4c41ac4497f11995c980eab6853d71ea50c697f"
+        }
+      ],
+      "size": 14632,
+      "sha256": "33dc7e53ec5120d0ff6ef8a4f4c41ac4497f11995c980eab6853d71ea50c697f",
+      "origin": "pinned-external-artifact"
+    },
+    {
       "path": "node_modules/onnxruntime-node/bin/napi-v3/linux/x64/libonnxruntime.so.1",
       "owner": "runtime-dependencies",
       "recipe": "copy",
@@ -10092,21 +10417,6 @@
       ],
       "size": 19612448,
       "sha256": "b7ccdd4204a273d0f2812958c7b074f3632d1de3ab91252a8791fe6da7046d19",
-      "origin": "pinned-external-artifact"
-    },
-    {
-      "path": "node_modules/onnxruntime-node/bin/napi-v3/linux/x64/libonnxruntime_providers_shared.so",
-      "owner": "runtime-dependencies",
-      "recipe": "copy",
-      "inputs": [
-        {
-          "path": "release-tools/.cache/sha256/33dc7e53ec5120d0ff6ef8a4f4c41ac4497f11995c980eab6853d71ea50c697f",
-          "size": 14632,
-          "sha256": "33dc7e53ec5120d0ff6ef8a4f4c41ac4497f11995c980eab6853d71ea50c697f"
-        }
-      ],
-      "size": 14632,
-      "sha256": "33dc7e53ec5120d0ff6ef8a4f4c41ac4497f11995c980eab6853d71ea50c697f",
       "origin": "pinned-external-artifact"
     },
     {
@@ -10140,21 +10450,6 @@
       "origin": "pinned-external-artifact"
     },
     {
-      "path": "node_modules/onnxruntime-node/bin/napi-v3/win32/arm64/onnxruntime.dll",
-      "owner": "runtime-dependencies",
-      "recipe": "copy",
-      "inputs": [
-        {
-          "path": "release-tools/.cache/sha256/1b17ca015f11b3fd46e233923f48c77fc4baae525f927bb0344965ac93612d47",
-          "size": 15151616,
-          "sha256": "1b17ca015f11b3fd46e233923f48c77fc4baae525f927bb0344965ac93612d47"
-        }
-      ],
-      "size": 15151616,
-      "sha256": "1b17ca015f11b3fd46e233923f48c77fc4baae525f927bb0344965ac93612d47",
-      "origin": "pinned-external-artifact"
-    },
-    {
       "path": "node_modules/onnxruntime-node/bin/napi-v3/win32/arm64/onnxruntime_binding.node",
       "owner": "runtime-dependencies",
       "recipe": "copy",
@@ -10167,6 +10462,21 @@
       ],
       "size": 299576,
       "sha256": "b3a0e1d177ab217f253b1c651d8551cf21ebd9d46c32e41571064517e7bf8903",
+      "origin": "pinned-external-artifact"
+    },
+    {
+      "path": "node_modules/onnxruntime-node/bin/napi-v3/win32/arm64/onnxruntime.dll",
+      "owner": "runtime-dependencies",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "release-tools/.cache/sha256/1b17ca015f11b3fd46e233923f48c77fc4baae525f927bb0344965ac93612d47",
+          "size": 15151616,
+          "sha256": "1b17ca015f11b3fd46e233923f48c77fc4baae525f927bb0344965ac93612d47"
+        }
+      ],
+      "size": 15151616,
+      "sha256": "1b17ca015f11b3fd46e233923f48c77fc4baae525f927bb0344965ac93612d47",
       "origin": "pinned-external-artifact"
     },
     {
@@ -10185,21 +10495,6 @@
       "origin": "pinned-external-artifact"
     },
     {
-      "path": "node_modules/onnxruntime-node/bin/napi-v3/win32/x64/onnxruntime.dll",
-      "owner": "runtime-dependencies",
-      "recipe": "copy",
-      "inputs": [
-        {
-          "path": "release-tools/.cache/sha256/d6df558b8501e2de6e4aa1532df0dbe2250b5e0b19c7fbeaea328ffd6df883fe",
-          "size": 14671872,
-          "sha256": "d6df558b8501e2de6e4aa1532df0dbe2250b5e0b19c7fbeaea328ffd6df883fe"
-        }
-      ],
-      "size": 14671872,
-      "sha256": "d6df558b8501e2de6e4aa1532df0dbe2250b5e0b19c7fbeaea328ffd6df883fe",
-      "origin": "pinned-external-artifact"
-    },
-    {
       "path": "node_modules/onnxruntime-node/bin/napi-v3/win32/x64/onnxruntime_binding.node",
       "owner": "runtime-dependencies",
       "recipe": "copy",
@@ -10212,6 +10507,21 @@
       ],
       "size": 232504,
       "sha256": "258f566365f1ccf035ddfe802cd66d7bf54ea59853095849d781e6cfaea34348",
+      "origin": "pinned-external-artifact"
+    },
+    {
+      "path": "node_modules/onnxruntime-node/bin/napi-v3/win32/x64/onnxruntime.dll",
+      "owner": "runtime-dependencies",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "release-tools/.cache/sha256/d6df558b8501e2de6e4aa1532df0dbe2250b5e0b19c7fbeaea328ffd6df883fe",
+          "size": 14671872,
+          "sha256": "d6df558b8501e2de6e4aa1532df0dbe2250b5e0b19c7fbeaea328ffd6df883fe"
+        }
+      ],
+      "size": 14671872,
+      "sha256": "d6df558b8501e2de6e4aa1532df0dbe2250b5e0b19c7fbeaea328ffd6df883fe",
       "origin": "pinned-external-artifact"
     },
     {
@@ -10350,6 +10660,21 @@
       "origin": "pinned-external-artifact"
     },
     {
+      "path": "node_modules/onnxruntime-node/README.md",
+      "owner": "runtime-dependencies",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "release-tools/.cache/sha256/1c1f936be64977f74f27057cb1854eb14bd0477e962beef8264b93a9e24155e0",
+          "size": 2264,
+          "sha256": "1c1f936be64977f74f27057cb1854eb14bd0477e962beef8264b93a9e24155e0"
+        }
+      ],
+      "size": 2264,
+      "sha256": "1c1f936be64977f74f27057cb1854eb14bd0477e962beef8264b93a9e24155e0",
+      "origin": "pinned-external-artifact"
+    },
+    {
       "path": "node_modules/onnxruntime-node/script/build.js",
       "owner": "runtime-dependencies",
       "recipe": "copy",
@@ -10422,36 +10747,6 @@
       ],
       "size": 877,
       "sha256": "ff251557aaffa1fac06b63172178c260aaff0c358905a4117a4d05a36f5b20d4",
-      "origin": "pinned-external-artifact"
-    },
-    {
-      "path": "node_modules/semver/LICENSE",
-      "owner": "runtime-dependencies",
-      "recipe": "copy",
-      "inputs": [
-        {
-          "path": "release-tools/.cache/sha256/4ec3d4c66cd87f5c8d8ad911b10f99bf27cb00cdfcff82621956e379186b016b",
-          "size": 765,
-          "sha256": "4ec3d4c66cd87f5c8d8ad911b10f99bf27cb00cdfcff82621956e379186b016b"
-        }
-      ],
-      "size": 765,
-      "sha256": "4ec3d4c66cd87f5c8d8ad911b10f99bf27cb00cdfcff82621956e379186b016b",
-      "origin": "pinned-external-artifact"
-    },
-    {
-      "path": "node_modules/semver/README.md",
-      "owner": "runtime-dependencies",
-      "recipe": "copy",
-      "inputs": [
-        {
-          "path": "release-tools/.cache/sha256/f1a789dcec285150be24db2ea04dd3175031554fa9834ec92fab83fb5e025a57",
-          "size": 25669,
-          "sha256": "f1a789dcec285150be24db2ea04dd3175031554fa9834ec92fab83fb5e025a57"
-        }
-      ],
-      "size": 25669,
-      "sha256": "f1a789dcec285150be24db2ea04dd3175031554fa9834ec92fab83fb5e025a57",
       "origin": "pinned-external-artifact"
     },
     {
@@ -11010,6 +11305,21 @@
       "origin": "pinned-external-artifact"
     },
     {
+      "path": "node_modules/semver/LICENSE",
+      "owner": "runtime-dependencies",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "release-tools/.cache/sha256/4ec3d4c66cd87f5c8d8ad911b10f99bf27cb00cdfcff82621956e379186b016b",
+          "size": 765,
+          "sha256": "4ec3d4c66cd87f5c8d8ad911b10f99bf27cb00cdfcff82621956e379186b016b"
+        }
+      ],
+      "size": 765,
+      "sha256": "4ec3d4c66cd87f5c8d8ad911b10f99bf27cb00cdfcff82621956e379186b016b",
+      "origin": "pinned-external-artifact"
+    },
+    {
       "path": "node_modules/semver/package.json",
       "owner": "runtime-dependencies",
       "recipe": "copy",
@@ -11220,33 +11530,18 @@
       "origin": "pinned-external-artifact"
     },
     {
-      "path": "node_modules/sharp/LICENSE",
+      "path": "node_modules/semver/README.md",
       "owner": "runtime-dependencies",
       "recipe": "copy",
       "inputs": [
         {
-          "path": "release-tools/.cache/sha256/73ba74dfaa520b49a401b5d21459a8523a146f3b7518a833eea5efa85130bf68",
-          "size": 10273,
-          "sha256": "73ba74dfaa520b49a401b5d21459a8523a146f3b7518a833eea5efa85130bf68"
+          "path": "release-tools/.cache/sha256/f1a789dcec285150be24db2ea04dd3175031554fa9834ec92fab83fb5e025a57",
+          "size": 25669,
+          "sha256": "f1a789dcec285150be24db2ea04dd3175031554fa9834ec92fab83fb5e025a57"
         }
       ],
-      "size": 10273,
-      "sha256": "73ba74dfaa520b49a401b5d21459a8523a146f3b7518a833eea5efa85130bf68",
-      "origin": "pinned-external-artifact"
-    },
-    {
-      "path": "node_modules/sharp/README.md",
-      "owner": "runtime-dependencies",
-      "recipe": "copy",
-      "inputs": [
-        {
-          "path": "release-tools/.cache/sha256/89772961fcf195b976573874555f2902bfe04a3e57be61af261ac65ce9348735",
-          "size": 3162,
-          "sha256": "89772961fcf195b976573874555f2902bfe04a3e57be61af261ac65ce9348735"
-        }
-      ],
-      "size": 3162,
-      "sha256": "89772961fcf195b976573874555f2902bfe04a3e57be61af261ac65ce9348735",
+      "size": 25669,
+      "sha256": "f1a789dcec285150be24db2ea04dd3175031554fa9834ec92fab83fb5e025a57",
       "origin": "pinned-external-artifact"
     },
     {
@@ -11700,6 +11995,21 @@
       "origin": "pinned-external-artifact"
     },
     {
+      "path": "node_modules/sharp/LICENSE",
+      "owner": "runtime-dependencies",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "release-tools/.cache/sha256/73ba74dfaa520b49a401b5d21459a8523a146f3b7518a833eea5efa85130bf68",
+          "size": 10273,
+          "sha256": "73ba74dfaa520b49a401b5d21459a8523a146f3b7518a833eea5efa85130bf68"
+        }
+      ],
+      "size": 10273,
+      "sha256": "73ba74dfaa520b49a401b5d21459a8523a146f3b7518a833eea5efa85130bf68",
+      "origin": "pinned-external-artifact"
+    },
+    {
       "path": "node_modules/sharp/package.json",
       "owner": "runtime-dependencies",
       "recipe": "copy",
@@ -11712,6 +12022,21 @@
       ],
       "size": 8115,
       "sha256": "27b5a6c6e1e1f27c527b09a963c932979403837d0f5f013ab5bdfb4a0ef2269a",
+      "origin": "pinned-external-artifact"
+    },
+    {
+      "path": "node_modules/sharp/README.md",
+      "owner": "runtime-dependencies",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "release-tools/.cache/sha256/89772961fcf195b976573874555f2902bfe04a3e57be61af261ac65ce9348735",
+          "size": 3162,
+          "sha256": "89772961fcf195b976573874555f2902bfe04a3e57be61af261ac65ce9348735"
+        }
+      ],
+      "size": 3162,
+      "sha256": "89772961fcf195b976573874555f2902bfe04a3e57be61af261ac65ce9348735",
       "origin": "pinned-external-artifact"
     },
     {
@@ -11922,36 +12247,6 @@
       ],
       "size": 741,
       "sha256": "0b126ab63cf1aedf8e71e6cb8179899d3ef02c46419100e847b2ca4284b8901b",
-      "origin": "pinned-external-artifact"
-    },
-    {
-      "path": "node_modules/tar/LICENSE.md",
-      "owner": "runtime-dependencies",
-      "recipe": "copy",
-      "inputs": [
-        {
-          "path": "release-tools/.cache/sha256/8a1af140fdfbf5afd3df27f7e662f989c5b963a300020dfafce42033cae9e004",
-          "size": 1552,
-          "sha256": "8a1af140fdfbf5afd3df27f7e662f989c5b963a300020dfafce42033cae9e004"
-        }
-      ],
-      "size": 1552,
-      "sha256": "8a1af140fdfbf5afd3df27f7e662f989c5b963a300020dfafce42033cae9e004",
-      "origin": "pinned-external-artifact"
-    },
-    {
-      "path": "node_modules/tar/README.md",
-      "owner": "runtime-dependencies",
-      "recipe": "copy",
-      "inputs": [
-        {
-          "path": "release-tools/.cache/sha256/74be64d36b24666b94a0261bd1b03b789a2c67d189cc02b722b6af161c547365",
-          "size": 52349,
-          "sha256": "74be64d36b24666b94a0261bd1b03b789a2c67d189cc02b722b6af161c547365"
-        }
-      ],
-      "size": 52349,
-      "sha256": "74be64d36b24666b94a0261bd1b03b789a2c67d189cc02b722b6af161c547365",
       "origin": "pinned-external-artifact"
     },
     {
@@ -13815,6 +14110,21 @@
       "origin": "pinned-external-artifact"
     },
     {
+      "path": "node_modules/tar/LICENSE.md",
+      "owner": "runtime-dependencies",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "release-tools/.cache/sha256/8a1af140fdfbf5afd3df27f7e662f989c5b963a300020dfafce42033cae9e004",
+          "size": 1552,
+          "sha256": "8a1af140fdfbf5afd3df27f7e662f989c5b963a300020dfafce42033cae9e004"
+        }
+      ],
+      "size": 1552,
+      "sha256": "8a1af140fdfbf5afd3df27f7e662f989c5b963a300020dfafce42033cae9e004",
+      "origin": "pinned-external-artifact"
+    },
+    {
       "path": "node_modules/tar/package.json",
       "owner": "runtime-dependencies",
       "recipe": "copy",
@@ -13830,33 +14140,18 @@
       "origin": "pinned-external-artifact"
     },
     {
-      "path": "node_modules/undici/LICENSE",
+      "path": "node_modules/tar/README.md",
       "owner": "runtime-dependencies",
       "recipe": "copy",
       "inputs": [
         {
-          "path": "release-tools/.cache/sha256/a6db8096b2707bc0102d256917d4d33f298ba36d8c3f25de067a2b5bb379db27",
-          "size": 1090,
-          "sha256": "a6db8096b2707bc0102d256917d4d33f298ba36d8c3f25de067a2b5bb379db27"
+          "path": "release-tools/.cache/sha256/74be64d36b24666b94a0261bd1b03b789a2c67d189cc02b722b6af161c547365",
+          "size": 52349,
+          "sha256": "74be64d36b24666b94a0261bd1b03b789a2c67d189cc02b722b6af161c547365"
         }
       ],
-      "size": 1090,
-      "sha256": "a6db8096b2707bc0102d256917d4d33f298ba36d8c3f25de067a2b5bb379db27",
-      "origin": "pinned-external-artifact"
-    },
-    {
-      "path": "node_modules/undici/README.md",
-      "owner": "runtime-dependencies",
-      "recipe": "copy",
-      "inputs": [
-        {
-          "path": "release-tools/.cache/sha256/f8c36e725c48849e82eebad6f6167d1a9d9cc2c1426418af29a13b23769f3e1f",
-          "size": 19538,
-          "sha256": "f8c36e725c48849e82eebad6f6167d1a9d9cc2c1426418af29a13b23769f3e1f"
-        }
-      ],
-      "size": 19538,
-      "sha256": "f8c36e725c48849e82eebad6f6167d1a9d9cc2c1426418af29a13b23769f3e1f",
+      "size": 52349,
+      "sha256": "74be64d36b24666b94a0261bd1b03b789a2c67d189cc02b722b6af161c547365",
       "origin": "pinned-external-artifact"
     },
     {
@@ -13872,6 +14167,21 @@
       ],
       "size": 2797,
       "sha256": "6cf9a18ddc0f07ccb0819db288dced8f710e58f1ae7d6d76bfb989ffce498201",
+      "origin": "pinned-external-artifact"
+    },
+    {
+      "path": "node_modules/undici/docs/docs/api/api-lifecycle.md",
+      "owner": "runtime-dependencies",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "release-tools/.cache/sha256/b2492da7af8ece58cac58a84883d09fd8e5f92569344b8efcd57f8a68e404f02",
+          "size": 7751,
+          "sha256": "b2492da7af8ece58cac58a84883d09fd8e5f92569344b8efcd57f8a68e404f02"
+        }
+      ],
+      "size": 7751,
+      "sha256": "b2492da7af8ece58cac58a84883d09fd8e5f92569344b8efcd57f8a68e404f02",
       "origin": "pinned-external-artifact"
     },
     {
@@ -13995,21 +14305,6 @@
       "origin": "pinned-external-artifact"
     },
     {
-      "path": "node_modules/undici/docs/docs/api/DispatchInterceptor.md",
-      "owner": "runtime-dependencies",
-      "recipe": "copy",
-      "inputs": [
-        {
-          "path": "release-tools/.cache/sha256/3b5b39f333b1c3c405d1515bf1305478891f399ffb723aa759efe68a5cfb40be",
-          "size": 1524,
-          "sha256": "3b5b39f333b1c3c405d1515bf1305478891f399ffb723aa759efe68a5cfb40be"
-        }
-      ],
-      "size": 1524,
-      "sha256": "3b5b39f333b1c3c405d1515bf1305478891f399ffb723aa759efe68a5cfb40be",
-      "origin": "pinned-external-artifact"
-    },
-    {
       "path": "node_modules/undici/docs/docs/api/Dispatcher.md",
       "owner": "runtime-dependencies",
       "recipe": "copy",
@@ -14022,6 +14317,21 @@
       ],
       "size": 42084,
       "sha256": "cb32a577e2e2364b0ec4bfc80ed71094a9089911864e0202ebe72f705ef2fd47",
+      "origin": "pinned-external-artifact"
+    },
+    {
+      "path": "node_modules/undici/docs/docs/api/DispatchInterceptor.md",
+      "owner": "runtime-dependencies",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "release-tools/.cache/sha256/3b5b39f333b1c3c405d1515bf1305478891f399ffb723aa759efe68a5cfb40be",
+          "size": 1524,
+          "sha256": "3b5b39f333b1c3c405d1515bf1305478891f399ffb723aa759efe68a5cfb40be"
+        }
+      ],
+      "size": 1524,
+      "sha256": "3b5b39f333b1c3c405d1515bf1305478891f399ffb723aa759efe68a5cfb40be",
       "origin": "pinned-external-artifact"
     },
     {
@@ -14262,21 +14572,6 @@
       ],
       "size": 1923,
       "sha256": "aef4ee1140c0326962907d719279e3728ec9777e24428f2fd20a545758d28392",
-      "origin": "pinned-external-artifact"
-    },
-    {
-      "path": "node_modules/undici/docs/docs/api/api-lifecycle.md",
-      "owner": "runtime-dependencies",
-      "recipe": "copy",
-      "inputs": [
-        {
-          "path": "release-tools/.cache/sha256/b2492da7af8ece58cac58a84883d09fd8e5f92569344b8efcd57f8a68e404f02",
-          "size": 7751,
-          "sha256": "b2492da7af8ece58cac58a84883d09fd8e5f92569344b8efcd57f8a68e404f02"
-        }
-      ],
-      "size": 7751,
-      "sha256": "b2492da7af8ece58cac58a84883d09fd8e5f92569344b8efcd57f8a68e404f02",
       "origin": "pinned-external-artifact"
     },
     {
@@ -15030,21 +15325,6 @@
       "origin": "pinned-external-artifact"
     },
     {
-      "path": "node_modules/undici/lib/llhttp/llhttp-wasm.js",
-      "owner": "runtime-dependencies",
-      "recipe": "copy",
-      "inputs": [
-        {
-          "path": "release-tools/.cache/sha256/f6e22d23d57d86c1e613ce26ef1eb4e997e81663987a8127eef758ce5f20a655",
-          "size": 64920,
-          "sha256": "f6e22d23d57d86c1e613ce26ef1eb4e997e81663987a8127eef758ce5f20a655"
-        }
-      ],
-      "size": 64920,
-      "sha256": "f6e22d23d57d86c1e613ce26ef1eb4e997e81663987a8127eef758ce5f20a655",
-      "origin": "pinned-external-artifact"
-    },
-    {
       "path": "node_modules/undici/lib/llhttp/llhttp_simd-wasm.js",
       "owner": "runtime-dependencies",
       "recipe": "copy",
@@ -15057,6 +15337,21 @@
       ],
       "size": 64960,
       "sha256": "1b8fa2e4e50e4f5774dde59855f0d34d112ef9900caf97aea4b2e6ec4ca9e3f1",
+      "origin": "pinned-external-artifact"
+    },
+    {
+      "path": "node_modules/undici/lib/llhttp/llhttp-wasm.js",
+      "owner": "runtime-dependencies",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "release-tools/.cache/sha256/f6e22d23d57d86c1e613ce26ef1eb4e997e81663987a8127eef758ce5f20a655",
+          "size": 64920,
+          "sha256": "f6e22d23d57d86c1e613ce26ef1eb4e997e81663987a8127eef758ce5f20a655"
+        }
+      ],
+      "size": 64920,
+      "sha256": "f6e22d23d57d86c1e613ce26ef1eb4e997e81663987a8127eef758ce5f20a655",
       "origin": "pinned-external-artifact"
     },
     {
@@ -15390,21 +15685,6 @@
       "origin": "pinned-external-artifact"
     },
     {
-      "path": "node_modules/undici/lib/web/fetch/LICENSE",
-      "owner": "runtime-dependencies",
-      "recipe": "copy",
-      "inputs": [
-        {
-          "path": "release-tools/.cache/sha256/a21d6c8d3fc631198b97e57584697f7f9c37805c71c6cf9a12e4442b40394b88",
-          "size": 1071,
-          "sha256": "a21d6c8d3fc631198b97e57584697f7f9c37805c71c6cf9a12e4442b40394b88"
-        }
-      ],
-      "size": 1071,
-      "sha256": "a21d6c8d3fc631198b97e57584697f7f9c37805c71c6cf9a12e4442b40394b88",
-      "origin": "pinned-external-artifact"
-    },
-    {
       "path": "node_modules/undici/lib/web/fetch/body.js",
       "owner": "runtime-dependencies",
       "recipe": "copy",
@@ -15552,6 +15832,21 @@
       ],
       "size": 82477,
       "sha256": "ec5fa587004c3d852f4e29ca4726eff00bede5cc4793dc6431b0c13ca0576c9f",
+      "origin": "pinned-external-artifact"
+    },
+    {
+      "path": "node_modules/undici/lib/web/fetch/LICENSE",
+      "owner": "runtime-dependencies",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "release-tools/.cache/sha256/a21d6c8d3fc631198b97e57584697f7f9c37805c71c6cf9a12e4442b40394b88",
+          "size": 1071,
+          "sha256": "a21d6c8d3fc631198b97e57584697f7f9c37805c71c6cf9a12e4442b40394b88"
+        }
+      ],
+      "size": 1071,
+      "sha256": "a21d6c8d3fc631198b97e57584697f7f9c37805c71c6cf9a12e4442b40394b88",
       "origin": "pinned-external-artifact"
     },
     {
@@ -15855,6 +16150,21 @@
       "origin": "pinned-external-artifact"
     },
     {
+      "path": "node_modules/undici/LICENSE",
+      "owner": "runtime-dependencies",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "release-tools/.cache/sha256/a6db8096b2707bc0102d256917d4d33f298ba36d8c3f25de067a2b5bb379db27",
+          "size": 1090,
+          "sha256": "a6db8096b2707bc0102d256917d4d33f298ba36d8c3f25de067a2b5bb379db27"
+        }
+      ],
+      "size": 1090,
+      "sha256": "a6db8096b2707bc0102d256917d4d33f298ba36d8c3f25de067a2b5bb379db27",
+      "origin": "pinned-external-artifact"
+    },
+    {
       "path": "node_modules/undici/package.json",
       "owner": "runtime-dependencies",
       "recipe": "copy",
@@ -15870,6 +16180,21 @@
       "origin": "pinned-external-artifact"
     },
     {
+      "path": "node_modules/undici/README.md",
+      "owner": "runtime-dependencies",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "release-tools/.cache/sha256/f8c36e725c48849e82eebad6f6167d1a9d9cc2c1426418af29a13b23769f3e1f",
+          "size": 19538,
+          "sha256": "f8c36e725c48849e82eebad6f6167d1a9d9cc2c1426418af29a13b23769f3e1f"
+        }
+      ],
+      "size": 19538,
+      "sha256": "f8c36e725c48849e82eebad6f6167d1a9d9cc2c1426418af29a13b23769f3e1f",
+      "origin": "pinned-external-artifact"
+    },
+    {
       "path": "node_modules/undici/scripts/strip-comments.js",
       "owner": "runtime-dependencies",
       "recipe": "copy",
@@ -15882,21 +16207,6 @@
       ],
       "size": 260,
       "sha256": "dda77b813446eda232f84105181302ab39e3e58c8d92d3350ac1ce3eace5f4c4",
-      "origin": "pinned-external-artifact"
-    },
-    {
-      "path": "node_modules/undici/types/README.md",
-      "owner": "runtime-dependencies",
-      "recipe": "copy",
-      "inputs": [
-        {
-          "path": "release-tools/.cache/sha256/c8cced6ec588c55b07e35733258cb7d6b63e3426ee7490aa9267aab4bda0fb20",
-          "size": 455,
-          "sha256": "c8cced6ec588c55b07e35733258cb7d6b63e3426ee7490aa9267aab4bda0fb20"
-        }
-      ],
-      "size": 455,
-      "sha256": "c8cced6ec588c55b07e35733258cb7d6b63e3426ee7490aa9267aab4bda0fb20",
       "origin": "pinned-external-artifact"
     },
     {
@@ -16395,6 +16705,21 @@
       "origin": "pinned-external-artifact"
     },
     {
+      "path": "node_modules/undici/types/README.md",
+      "owner": "runtime-dependencies",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "release-tools/.cache/sha256/c8cced6ec588c55b07e35733258cb7d6b63e3426ee7490aa9267aab4bda0fb20",
+          "size": 455,
+          "sha256": "c8cced6ec588c55b07e35733258cb7d6b63e3426ee7490aa9267aab4bda0fb20"
+        }
+      ],
+      "size": 455,
+      "sha256": "c8cced6ec588c55b07e35733258cb7d6b63e3426ee7490aa9267aab4bda0fb20",
+      "origin": "pinned-external-artifact"
+    },
+    {
       "path": "node_modules/undici/types/retry-agent.d.ts",
       "owner": "runtime-dependencies",
       "recipe": "copy",
@@ -16467,36 +16792,6 @@
       ],
       "size": 3840,
       "sha256": "a4d551dbf8746780194d550c88f26cf937caf8d56f102969a110cfaed4b06656",
-      "origin": "pinned-external-artifact"
-    },
-    {
-      "path": "node_modules/yallist/LICENSE.md",
-      "owner": "runtime-dependencies",
-      "recipe": "copy",
-      "inputs": [
-        {
-          "path": "release-tools/.cache/sha256/a49c9ba464796f65b59fca3f1e6ca40912df1e859f575383223f7ec6c5baae09",
-          "size": 1764,
-          "sha256": "a49c9ba464796f65b59fca3f1e6ca40912df1e859f575383223f7ec6c5baae09"
-        }
-      ],
-      "size": 1764,
-      "sha256": "a49c9ba464796f65b59fca3f1e6ca40912df1e859f575383223f7ec6c5baae09",
-      "origin": "pinned-external-artifact"
-    },
-    {
-      "path": "node_modules/yallist/README.md",
-      "owner": "runtime-dependencies",
-      "recipe": "copy",
-      "inputs": [
-        {
-          "path": "release-tools/.cache/sha256/6c65b8751f634565491381192cf5a4f05cf4b26fb955b79eb5988fa8bbe3cb13",
-          "size": 4528,
-          "sha256": "6c65b8751f634565491381192cf5a4f05cf4b26fb955b79eb5988fa8bbe3cb13"
-        }
-      ],
-      "size": 4528,
-      "sha256": "6c65b8751f634565491381192cf5a4f05cf4b26fb955b79eb5988fa8bbe3cb13",
       "origin": "pinned-external-artifact"
     },
     {
@@ -16590,6 +16885,21 @@
       "origin": "pinned-external-artifact"
     },
     {
+      "path": "node_modules/yallist/LICENSE.md",
+      "owner": "runtime-dependencies",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "release-tools/.cache/sha256/a49c9ba464796f65b59fca3f1e6ca40912df1e859f575383223f7ec6c5baae09",
+          "size": 1764,
+          "sha256": "a49c9ba464796f65b59fca3f1e6ca40912df1e859f575383223f7ec6c5baae09"
+        }
+      ],
+      "size": 1764,
+      "sha256": "a49c9ba464796f65b59fca3f1e6ca40912df1e859f575383223f7ec6c5baae09",
+      "origin": "pinned-external-artifact"
+    },
+    {
       "path": "node_modules/yallist/package.json",
       "owner": "runtime-dependencies",
       "recipe": "copy",
@@ -16603,6 +16913,36 @@
       "size": 1618,
       "sha256": "1b9d47057ce39814531ff93f668823b4fa03e7d23945449c274a1ff6d4cc297f",
       "origin": "pinned-external-artifact"
+    },
+    {
+      "path": "node_modules/yallist/README.md",
+      "owner": "runtime-dependencies",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "release-tools/.cache/sha256/6c65b8751f634565491381192cf5a4f05cf4b26fb955b79eb5988fa8bbe3cb13",
+          "size": 4528,
+          "sha256": "6c65b8751f634565491381192cf5a4f05cf4b26fb955b79eb5988fa8bbe3cb13"
+        }
+      ],
+      "size": 4528,
+      "sha256": "6c65b8751f634565491381192cf5a4f05cf4b26fb955b79eb5988fa8bbe3cb13",
+      "origin": "pinned-external-artifact"
+    },
+    {
+      "path": "node-action-bar.js",
+      "owner": "host-app",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "neon-workbench/design-sources/node-action-bar.js",
+          "size": 3032,
+          "sha256": "d3073fbf3a4be266ddb91edbbb2ddf901f5561ae97f9a39d26e590db1b552748"
+        }
+      ],
+      "size": 3032,
+      "sha256": "d3073fbf3a4be266ddb91edbbb2ddf901f5561ae97f9a39d26e590db1b552748",
+      "origin": "existing-authoritative-source"
     },
     {
       "path": "online-http-api.js",
@@ -17230,6 +17570,21 @@
       "origin": "current-runtime-source-promoted"
     },
     {
+      "path": "skill-import-manager.js",
+      "owner": "system-services",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "host-sources/app/skill-import-manager.js",
+          "size": 23295,
+          "sha256": "4fbbc8871476bbe3ea920fc6f66b0d4fa937d1d920d2aee82a0d2f9997cbea73"
+        }
+      ],
+      "size": 23295,
+      "sha256": "4fbbc8871476bbe3ea920fc6f66b0d4fa937d1d920d2aee82a0d2f9997cbea73",
+      "origin": "local-skill-management"
+    },
+    {
       "path": "skill-registry.js",
       "owner": "system-services",
       "recipe": "copy",
@@ -17260,21 +17615,6 @@
       "origin": "current-runtime-source-promoted"
     },
     {
-      "path": "skills/asset-setting/SKILL.md",
-      "owner": "host-app",
-      "recipe": "copy",
-      "inputs": [
-        {
-          "path": "neon-workbench/design-sources/script-production-skills/asset-setting/SKILL.md",
-          "size": 1067,
-          "sha256": "65862becf69e6f248f0cbc3889d7b878e3cb531a51cbd76868cb0741f6f5d183"
-        }
-      ],
-      "size": 1067,
-      "sha256": "65862becf69e6f248f0cbc3889d7b878e3cb531a51cbd76868cb0741f6f5d183",
-      "origin": "existing-authoritative-source"
-    },
-    {
       "path": "skills/asset-setting/references/preparation.md",
       "owner": "host-app",
       "recipe": "copy",
@@ -17287,6 +17627,21 @@
       ],
       "size": 1030,
       "sha256": "d8a8c697004716ae2584bda877978ccd4be1da935f502c3b51d6f225ff88c7bc",
+      "origin": "existing-authoritative-source"
+    },
+    {
+      "path": "skills/asset-setting/SKILL.md",
+      "owner": "host-app",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "neon-workbench/design-sources/script-production-skills/asset-setting/SKILL.md",
+          "size": 1067,
+          "sha256": "65862becf69e6f248f0cbc3889d7b878e3cb531a51cbd76868cb0741f6f5d183"
+        }
+      ],
+      "size": 1067,
+      "sha256": "65862becf69e6f248f0cbc3889d7b878e3cb531a51cbd76868cb0741f6f5d183",
       "origin": "existing-authoritative-source"
     },
     {
@@ -17380,6 +17735,216 @@
       "origin": "current-runtime-source-promoted"
     },
     {
+      "path": "skills/h3-commerce-video/agent.skill.json",
+      "owner": "h3-commerce-video",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "host-sources/app/skills/h3-commerce-video/agent.skill.json",
+          "size": 1390,
+          "sha256": "79b38f5757dc1524a82c2738579c14e3b47fc25c9e7de6b622807c6789bc5f42"
+        }
+      ],
+      "size": 1390,
+      "sha256": "79b38f5757dc1524a82c2738579c14e3b47fc25c9e7de6b622807c6789bc5f42",
+      "origin": "current-source-added"
+    },
+    {
+      "path": "skills/h3-commerce-video/agents/openai.yaml",
+      "owner": "h3-commerce-video",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "host-sources/app/skills/h3-commerce-video/agents/openai.yaml",
+          "size": 302,
+          "sha256": "45a70cd35fee6db0afa3c682f8f67f17795be6659813d559015f460dddd30ed4"
+        }
+      ],
+      "size": 302,
+      "sha256": "45a70cd35fee6db0afa3c682f8f67f17795be6659813d559015f460dddd30ed4",
+      "origin": "current-source-added"
+    },
+    {
+      "path": "skills/h3-commerce-video/assets/workflows/h3-commerce-prefix5-2images.json",
+      "owner": "h3-commerce-video",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "host-sources/app/skills/h3-commerce-video/assets/workflows/h3-commerce-prefix5-2images.json",
+          "size": 84309,
+          "sha256": "ece395ddc38f09e4c88d90b83c3df107e2df94cd610f4963b2b924e447bbdd4d"
+        }
+      ],
+      "size": 84309,
+      "sha256": "ece395ddc38f09e4c88d90b83c3df107e2df94cd610f4963b2b924e447bbdd4d",
+      "origin": "current-source-added"
+    },
+    {
+      "path": "skills/h3-commerce-video/assets/workflows/h3-commerce-prefix5-4images-UNTESTED.json",
+      "owner": "h3-commerce-video",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "host-sources/app/skills/h3-commerce-video/assets/workflows/h3-commerce-prefix5-4images-UNTESTED.json",
+          "size": 82446,
+          "sha256": "7ad734600f738ac24f5dbe07ec20c1fa94535139ef8c448558e909ef464aed59"
+        }
+      ],
+      "size": 82446,
+      "sha256": "7ad734600f738ac24f5dbe07ec20c1fa94535139ef8c448558e909ef464aed59",
+      "origin": "current-source-added"
+    },
+    {
+      "path": "skills/h3-commerce-video/assets/workflows/h3-commerce-prefix5-4images.json",
+      "owner": "h3-commerce-video",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "host-sources/app/skills/h3-commerce-video/assets/workflows/h3-commerce-prefix5-4images.json",
+          "size": 82715,
+          "sha256": "5e66af86f20a1b5aa8732c22e804051ad54113720a54ba863aa04e481c292a9e"
+        }
+      ],
+      "size": 82715,
+      "sha256": "5e66af86f20a1b5aa8732c22e804051ad54113720a54ba863aa04e481c292a9e",
+      "origin": "current-source-added"
+    },
+    {
+      "path": "skills/h3-commerce-video/references/assets.md",
+      "owner": "h3-commerce-video",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "host-sources/app/skills/h3-commerce-video/references/assets.md",
+          "size": 10051,
+          "sha256": "c1c529341eab0634a816617a6010259686ed9d321ddfe21b70aa371cd027bfa7"
+        }
+      ],
+      "size": 10051,
+      "sha256": "c1c529341eab0634a816617a6010259686ed9d321ddfe21b70aa371cd027bfa7",
+      "origin": "current-source-added"
+    },
+    {
+      "path": "skills/h3-commerce-video/references/onboarding.md",
+      "owner": "h3-commerce-video",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "host-sources/app/skills/h3-commerce-video/references/onboarding.md",
+          "size": 7600,
+          "sha256": "525cb8aa738e35b831de8589160b174e54156834602acd632386d1cb9257c860"
+        }
+      ],
+      "size": 7600,
+      "sha256": "525cb8aa738e35b831de8589160b174e54156834602acd632386d1cb9257c860",
+      "origin": "current-source-added"
+    },
+    {
+      "path": "skills/h3-commerce-video/references/production.md",
+      "owner": "h3-commerce-video",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "host-sources/app/skills/h3-commerce-video/references/production.md",
+          "size": 6588,
+          "sha256": "b7bd14bb6004ccec5201c9db84df61f8ffdc5029a0c4f16ef3c3b5c0d6fc619b"
+        }
+      ],
+      "size": 6588,
+      "sha256": "b7bd14bb6004ccec5201c9db84df61f8ffdc5029a0c4f16ef3c3b5c0d6fc619b",
+      "origin": "current-source-added"
+    },
+    {
+      "path": "skills/h3-commerce-video/references/prompts.md",
+      "owner": "h3-commerce-video",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "host-sources/app/skills/h3-commerce-video/references/prompts.md",
+          "size": 14632,
+          "sha256": "73972aa95fd1529aaec714f130e6ec23a22e310743c221dc9235f80c2311b98a"
+        }
+      ],
+      "size": 14632,
+      "sha256": "73972aa95fd1529aaec714f130e6ec23a22e310743c221dc9235f80c2311b98a",
+      "origin": "current-source-added"
+    },
+    {
+      "path": "skills/h3-commerce-video/references/selling-copy.md",
+      "owner": "h3-commerce-video",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "host-sources/app/skills/h3-commerce-video/references/selling-copy.md",
+          "size": 11590,
+          "sha256": "7184dcb579e25676ffc409091efb00fecccc1bbf8b0fa91b15cced6983e74a1c"
+        }
+      ],
+      "size": 11590,
+      "sha256": "7184dcb579e25676ffc409091efb00fecccc1bbf8b0fa91b15cced6983e74a1c",
+      "origin": "current-source-added"
+    },
+    {
+      "path": "skills/h3-commerce-video/references/workflow-contract.md",
+      "owner": "h3-commerce-video",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "host-sources/app/skills/h3-commerce-video/references/workflow-contract.md",
+          "size": 8510,
+          "sha256": "8b194c92976824428e2558f0095a6b26d104f39304d18b251e72c09a5cff5160"
+        }
+      ],
+      "size": 8510,
+      "sha256": "8b194c92976824428e2558f0095a6b26d104f39304d18b251e72c09a5cff5160",
+      "origin": "current-source-added"
+    },
+    {
+      "path": "skills/h3-commerce-video/scripts/validate_package.py",
+      "owner": "h3-commerce-video",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "host-sources/app/skills/h3-commerce-video/scripts/validate_package.py",
+          "size": 15726,
+          "sha256": "36a6180a56a28a812e47ae08a3c5cd81fed27ed2579b7dc998e7b8237a4a4a7f"
+        }
+      ],
+      "size": 15726,
+      "sha256": "36a6180a56a28a812e47ae08a3c5cd81fed27ed2579b7dc998e7b8237a4a4a7f",
+      "origin": "current-source-added"
+    },
+    {
+      "path": "skills/h3-commerce-video/interaction.json",
+      "owner": "h3-commerce-video",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "host-sources/app/skills/h3-commerce-video/interaction.json",
+          "size": 4997,
+          "sha256": "fa7078397b80e059235dcca47dcc6374dcf5b118ba68f9a49b5919f66e42378f"
+        }
+      ],
+      "size": 4997,
+      "sha256": "fa7078397b80e059235dcca47dcc6374dcf5b118ba68f9a49b5919f66e42378f",
+      "origin": "current-source-added"
+    },
+    {
+      "path": "skills/h3-commerce-video/SKILL.md",
+      "owner": "h3-commerce-video",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "host-sources/app/skills/h3-commerce-video/SKILL.md",
+          "size": 3882,
+          "sha256": "d1897e9fe0b7a6cf3002e67d5f22162c1dc7871383ad2d53c76297b15aad0abd"
+        }
+      ],
+      "size": 3882,
+      "sha256": "d1897e9fe0b7a6cf3002e67d5f22162c1dc7871383ad2d53c76297b15aad0abd",
+      "origin": "current-source-added"
+    },
+    {
       "path": "skills/image-to-video/SKILL.md",
       "owner": "content-assets",
       "recipe": "copy",
@@ -17392,21 +17957,6 @@
       ],
       "size": 1509,
       "sha256": "415a8528abb64c126470e4ef984b8c2f8a90a58b087ba61b2772759fd5658e9d",
-      "origin": "current-runtime-source-promoted"
-    },
-    {
-      "path": "skills/poster-design/SKILL.md",
-      "owner": "content-assets",
-      "recipe": "copy",
-      "inputs": [
-        {
-          "path": "host-sources/app/skills/poster-design/SKILL.md",
-          "size": 3717,
-          "sha256": "76d4d48bd65c59f2e05e6ac68e77a45b619e4be5bb3103112931f6c210df88b5"
-        }
-      ],
-      "size": 3717,
-      "sha256": "76d4d48bd65c59f2e05e6ac68e77a45b619e4be5bb3103112931f6c210df88b5",
       "origin": "current-runtime-source-promoted"
     },
     {
@@ -17455,6 +18005,21 @@
       "origin": "current-runtime-source-promoted"
     },
     {
+      "path": "skills/poster-design/SKILL.md",
+      "owner": "content-assets",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "host-sources/app/skills/poster-design/SKILL.md",
+          "size": 3717,
+          "sha256": "76d4d48bd65c59f2e05e6ac68e77a45b619e4be5bb3103112931f6c210df88b5"
+        }
+      ],
+      "size": 3717,
+      "sha256": "76d4d48bd65c59f2e05e6ac68e77a45b619e4be5bb3103112931f6c210df88b5",
+      "origin": "current-runtime-source-promoted"
+    },
+    {
       "path": "skills/product-refinement/SKILL.md",
       "owner": "content-assets",
       "recipe": "copy",
@@ -17500,21 +18065,6 @@
       "origin": "current-runtime-source-promoted"
     },
     {
-      "path": "skills/script-breakdown/SKILL.md",
-      "owner": "host-app",
-      "recipe": "copy",
-      "inputs": [
-        {
-          "path": "neon-workbench/design-sources/script-production-skills/script-breakdown/SKILL.md",
-          "size": 1089,
-          "sha256": "8ee7f771452c71e65efb2d3b42cd4e51cd33ff658b06c874e33ce5e0e6962787"
-        }
-      ],
-      "size": 1089,
-      "sha256": "8ee7f771452c71e65efb2d3b42cd4e51cd33ff658b06c874e33ce5e0e6962787",
-      "origin": "existing-authoritative-source"
-    },
-    {
       "path": "skills/script-breakdown/references/preparation.md",
       "owner": "host-app",
       "recipe": "copy",
@@ -17527,6 +18077,21 @@
       ],
       "size": 1072,
       "sha256": "137308f988d9aac8ac662f88bf66c03dcc6c0a2c282e9dec8539ea047cc1e9ce",
+      "origin": "existing-authoritative-source"
+    },
+    {
+      "path": "skills/script-breakdown/SKILL.md",
+      "owner": "host-app",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "neon-workbench/design-sources/script-production-skills/script-breakdown/SKILL.md",
+          "size": 1089,
+          "sha256": "8ee7f771452c71e65efb2d3b42cd4e51cd33ff658b06c874e33ce5e0e6962787"
+        }
+      ],
+      "size": 1089,
+      "sha256": "8ee7f771452c71e65efb2d3b42cd4e51cd33ff658b06c874e33ce5e0e6962787",
       "origin": "existing-authoritative-source"
     },
     {
@@ -17545,21 +18110,6 @@
       "origin": "current-runtime-source-promoted"
     },
     {
-      "path": "skills/storyboard-preparation/SKILL.md",
-      "owner": "host-app",
-      "recipe": "copy",
-      "inputs": [
-        {
-          "path": "neon-workbench/design-sources/script-production-skills/storyboard-preparation/SKILL.md",
-          "size": 1041,
-          "sha256": "1079d8cc11d7a1276ef9ff8c0cb3d5113277d865e4cd59881f05bae9a5c03663"
-        }
-      ],
-      "size": 1041,
-      "sha256": "1079d8cc11d7a1276ef9ff8c0cb3d5113277d865e4cd59881f05bae9a5c03663",
-      "origin": "existing-authoritative-source"
-    },
-    {
       "path": "skills/storyboard-preparation/references/preparation.md",
       "owner": "host-app",
       "recipe": "copy",
@@ -17572,6 +18122,21 @@
       ],
       "size": 1063,
       "sha256": "8e7d596f0bf78b9881e78d37b519c01cc83e2743d5b4c666cfe16f6e12dd554c",
+      "origin": "existing-authoritative-source"
+    },
+    {
+      "path": "skills/storyboard-preparation/SKILL.md",
+      "owner": "host-app",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "neon-workbench/design-sources/script-production-skills/storyboard-preparation/SKILL.md",
+          "size": 1041,
+          "sha256": "1079d8cc11d7a1276ef9ff8c0cb3d5113277d865e4cd59881f05bae9a5c03663"
+        }
+      ],
+      "size": 1041,
+      "sha256": "1079d8cc11d7a1276ef9ff8c0cb3d5113277d865e4cd59881f05bae9a5c03663",
       "origin": "existing-authoritative-source"
     },
     {
@@ -17590,21 +18155,6 @@
       "origin": "current-runtime-source-promoted"
     },
     {
-      "path": "skills/video-preparation/SKILL.md",
-      "owner": "host-app",
-      "recipe": "copy",
-      "inputs": [
-        {
-          "path": "neon-workbench/design-sources/script-production-skills/video-preparation/SKILL.md",
-          "size": 1161,
-          "sha256": "b32f38d569eb7f923b636041b05fd7f5f1daa6e6f271a524da166ff860df0b77"
-        }
-      ],
-      "size": 1161,
-      "sha256": "b32f38d569eb7f923b636041b05fd7f5f1daa6e6f271a524da166ff860df0b77",
-      "origin": "existing-authoritative-source"
-    },
-    {
       "path": "skills/video-preparation/references/preparation.md",
       "owner": "host-app",
       "recipe": "copy",
@@ -17617,6 +18167,21 @@
       ],
       "size": 1100,
       "sha256": "08c99236387314ec8552f86cc553b21e003bb29898da3d007e0e38ead6a67fb3",
+      "origin": "existing-authoritative-source"
+    },
+    {
+      "path": "skills/video-preparation/SKILL.md",
+      "owner": "host-app",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "neon-workbench/design-sources/script-production-skills/video-preparation/SKILL.md",
+          "size": 1161,
+          "sha256": "b32f38d569eb7f923b636041b05fd7f5f1daa6e6f271a524da166ff860df0b77"
+        }
+      ],
+      "size": 1161,
+      "sha256": "b32f38d569eb7f923b636041b05fd7f5f1daa6e6f271a524da166ff860df0b77",
       "origin": "existing-authoritative-source"
     },
     {
@@ -17785,66 +18350,6 @@
       "origin": "current-runtime-source-promoted"
     },
     {
-      "path": "workflows/SeedVR2-upscale2.json",
-      "owner": "content-assets",
-      "recipe": "copy",
-      "inputs": [
-        {
-          "path": "host-sources/app/workflows/SeedVR2-upscale2.json",
-          "size": 2877,
-          "sha256": "d28532adff78ea3d4cc8f1393953bb3d41a13507e7706091bca87980ffab6027"
-        }
-      ],
-      "size": 2877,
-      "sha256": "d28532adff78ea3d4cc8f1393953bb3d41a13507e7706091bca87980ffab6027",
-      "origin": "current-runtime-source-promoted"
-    },
-    {
-      "path": "workflows/SeedVR2高清放大工作流_api.json",
-      "owner": "content-assets",
-      "recipe": "copy",
-      "inputs": [
-        {
-          "path": "host-sources/app/workflows/SeedVR2高清放大工作流_api.json",
-          "size": 2826,
-          "sha256": "1d1c436925ec6ff382ccae3d45beabbc2167cbbb1f31574935c02a86612ae9ee"
-        }
-      ],
-      "size": 2826,
-      "sha256": "1d1c436925ec6ff382ccae3d45beabbc2167cbbb1f31574935c02a86612ae9ee",
-      "origin": "current-runtime-source-promoted"
-    },
-    {
-      "path": "workflows/TTP-upscale-flux2-klein-9b-8K.json",
-      "owner": "content-assets",
-      "recipe": "copy",
-      "inputs": [
-        {
-          "path": "host-sources/app/workflows/TTP-upscale-flux2-klein-9b-8K.json",
-          "size": 7742,
-          "sha256": "ed919314ac9e2bc35d5dd2f23dbb48f41db28ba3d3832a07d8b262e4798e206a"
-        }
-      ],
-      "size": 7742,
-      "sha256": "ed919314ac9e2bc35d5dd2f23dbb48f41db28ba3d3832a07d8b262e4798e206a",
-      "origin": "current-runtime-source-promoted"
-    },
-    {
-      "path": "workflows/TTP-upscale.json",
-      "owner": "content-assets",
-      "recipe": "copy",
-      "inputs": [
-        {
-          "path": "host-sources/app/workflows/TTP-upscale.json",
-          "size": 10453,
-          "sha256": "cbabc848ff42a24118f3b4c04879d0bd8c2b7d217fdd08e01643c47d1e3fed0c"
-        }
-      ],
-      "size": 10453,
-      "sha256": "cbabc848ff42a24118f3b4c04879d0bd8c2b7d217fdd08e01643c47d1e3fed0c",
-      "origin": "current-runtime-source-promoted"
-    },
-    {
       "path": "workflows/flux2-klein-edit-9b.json",
       "owner": "content-assets",
       "recipe": "copy",
@@ -17858,6 +18363,21 @@
       "size": 5228,
       "sha256": "2f4ceac9046173dec2df7c2f4838fe4bbd163ea325b0319a11b063660558f1ba",
       "origin": "current-runtime-source-promoted"
+    },
+    {
+      "path": "workflows/h3-commerce-video.json",
+      "owner": "h3-commerce-video",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "neon-workbench/design-sources/workflows/h3-commerce-video.json",
+          "size": 21485,
+          "sha256": "1325882ca8419c93536d17c213bab83b3d7f6e7009241a66490613ef3fdfa424"
+        }
+      ],
+      "size": 21485,
+      "sha256": "1325882ca8419c93536d17c213bab83b3d7f6e7009241a66490613ef3fdfa424",
+      "origin": "current-source-added"
     },
     {
       "path": "workflows/minimax-h3-video-frames.json",
@@ -17950,6 +18470,36 @@
       "origin": "current-runtime-source-promoted"
     },
     {
+      "path": "workflows/SeedVR2-upscale2.json",
+      "owner": "content-assets",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "host-sources/app/workflows/SeedVR2-upscale2.json",
+          "size": 2877,
+          "sha256": "d28532adff78ea3d4cc8f1393953bb3d41a13507e7706091bca87980ffab6027"
+        }
+      ],
+      "size": 2877,
+      "sha256": "d28532adff78ea3d4cc8f1393953bb3d41a13507e7706091bca87980ffab6027",
+      "origin": "current-runtime-source-promoted"
+    },
+    {
+      "path": "workflows/SeedVR2高清放大工作流_api.json",
+      "owner": "content-assets",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "host-sources/app/workflows/SeedVR2高清放大工作流_api.json",
+          "size": 2826,
+          "sha256": "1d1c436925ec6ff382ccae3d45beabbc2167cbbb1f31574935c02a86612ae9ee"
+        }
+      ],
+      "size": 2826,
+      "sha256": "1d1c436925ec6ff382ccae3d45beabbc2167cbbb1f31574935c02a86612ae9ee",
+      "origin": "current-runtime-source-promoted"
+    },
+    {
       "path": "workflows/shoe-swap.json",
       "owner": "content-assets",
       "recipe": "copy",
@@ -17962,6 +18512,36 @@
       ],
       "size": 9809,
       "sha256": "a433076ad8e573861f03d39b805764da7a255a927737bc745238a4ad3e46012e",
+      "origin": "current-runtime-source-promoted"
+    },
+    {
+      "path": "workflows/TTP-upscale-flux2-klein-9b-8K.json",
+      "owner": "content-assets",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "host-sources/app/workflows/TTP-upscale-flux2-klein-9b-8K.json",
+          "size": 7742,
+          "sha256": "ed919314ac9e2bc35d5dd2f23dbb48f41db28ba3d3832a07d8b262e4798e206a"
+        }
+      ],
+      "size": 7742,
+      "sha256": "ed919314ac9e2bc35d5dd2f23dbb48f41db28ba3d3832a07d8b262e4798e206a",
+      "origin": "current-runtime-source-promoted"
+    },
+    {
+      "path": "workflows/TTP-upscale.json",
+      "owner": "content-assets",
+      "recipe": "copy",
+      "inputs": [
+        {
+          "path": "host-sources/app/workflows/TTP-upscale.json",
+          "size": 10453,
+          "sha256": "cbabc848ff42a24118f3b4c04879d0bd8c2b7d217fdd08e01643c47d1e3fed0c"
+        }
+      ],
+      "size": 10453,
+      "sha256": "cbabc848ff42a24118f3b4c04879d0bd8c2b7d217fdd08e01643c47d1e3fed0c",
       "origin": "current-runtime-source-promoted"
     },
     {
@@ -17978,51 +18558,6 @@
       "size": 8837,
       "sha256": "f98bfaae86d7f8bd1d5621e235087fb71183e5826de14814171333cb464e205e",
       "origin": "current-runtime-source-promoted"
-    },
-    {
-      "path": "assets/branding/bendo-logo.svg",
-      "owner": "brand-assets",
-      "recipe": "copy",
-      "inputs": [
-        {
-          "path": "host-sources/app/assets/branding/bendo-logo.svg",
-          "size": 1276,
-          "sha256": "bd711e1baea1aeff2932a1b4c47aba5e0a8063486b20e9faaddf87cd5b42a32e"
-        }
-      ],
-      "size": 1276,
-      "sha256": "bd711e1baea1aeff2932a1b4c47aba5e0a8063486b20e9faaddf87cd5b42a32e",
-      "origin": "user-confirmed-20261019"
-    },
-    {
-      "path": "desktop/update-validation.js",
-      "owner": "desktop-updater",
-      "recipe": "copy",
-      "inputs": [
-        {
-          "path": "host-sources/app/desktop/update-validation.js",
-          "size": 8238,
-          "sha256": "2ce785eacc8f7153dbe9ea50ecac6a9146f267f21269296393895244528f3108"
-        }
-      ],
-      "size": 8238,
-      "sha256": "2ce785eacc8f7153dbe9ea50ecac6a9146f267f21269296393895244528f3108",
-      "origin": "release-required-source"
-    },
-    {
-      "path": "desktop/update-trust.json",
-      "owner": "desktop-updater",
-      "recipe": "copy",
-      "inputs": [
-        {
-          "path": "host-sources/app/desktop/update-trust.json",
-          "size": 32,
-          "sha256": "72e79b79f1f3d1c84f2208fc776091bc5f73a19060b41718df0006112e33e327"
-        }
-      ],
-      "size": 32,
-      "sha256": "72e79b79f1f3d1c84f2208fc776091bc5f73a19060b41718df0006112e33e327",
-      "origin": "release-required-source"
     }
   ]
 }

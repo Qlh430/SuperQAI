@@ -18,7 +18,7 @@
 
   const mounted = new Map();
   const enginePickers = new WeakMap();
-  const COMPOSER_KINDS = new Set(["generator", "video-api", "minimax-h3", "llm", "audio-generator", "text"]);
+  const COMPOSER_KINDS = new Set(["generator", "video-api", "minimax-h3", "midjourney", "llm", "audio-generator", "text"]);
   // 底排要在一行里放下生成方式/模型/参数入口与生成方式分段控件：
   // 带分段控件的 MiniMax H3 放宽到 960，其余节点保持 760。
   const COMPOSER_MAX_WIDTH = 760;
@@ -139,6 +139,727 @@
     });
   }
 
+  function referencePickerKindLabel(kind) {
+    return ({ image: "图片", video: "视频", text: "文本", audio: "音频" })[kind] || "素材";
+  }
+
+  function referencePickerAssetEntry(entry) {
+    const asset = entry?.asset;
+    const resource = entry?.resource;
+    const preview = entry?.preview;
+    const kind = String(preview?.kind || resource?.type || "");
+    const metadata = resource?.metadata;
+    const original = metadata?.url || metadata?.localUrl;
+    const url = String(original || preview?.url || "").trim();
+    if (!asset?.id || !url || !["image", "video", "audio"].includes(kind)) return null;
+    return {
+      id: `asset:${asset.id}`,
+      source: "asset",
+      assetId: String(asset.id),
+      type: kind,
+      url,
+      previewUrl: metadata?.thumbnailUrl || metadata?.posterUrl || metadata?.poster
+        || preview?.thumbnailUrl || preview?.posterUrl || (kind === "image" && preview?.url !== url ? preview?.url : "") || "",
+      name: String(asset.name || resource?.title || "资产").trim() || "资产",
+      mimeType: String(resource?.metadata?.mimeType || ""),
+    };
+  }
+
+  const REFERENCE_PICKER_GAP = 8;
+
+  function referencePickerBounds(viewport) {
+    const canvas = viewport.getBoundingClientRect();
+    const visual = root.visualViewport;
+    const left = visual?.offsetLeft ?? 0;
+    const top = visual?.offsetTop ?? 0;
+    return {
+      left: Math.max(canvas.left, left) + REFERENCE_PICKER_GAP,
+      top: Math.max(canvas.top, top) + REFERENCE_PICKER_GAP,
+      right: Math.min(canvas.right, left + (visual?.width ?? document.documentElement.clientWidth)) - REFERENCE_PICKER_GAP,
+      bottom: Math.min(canvas.bottom, top + (visual?.height ?? document.documentElement.clientHeight)) - REFERENCE_PICKER_GAP,
+    };
+  }
+
+  function placeReferencePicker(picker, anchor, bounds, avoid = []) {
+    const width = bounds.right - bounds.left;
+    const height = bounds.bottom - bounds.top;
+    const gap = REFERENCE_PICKER_GAP;
+    if (width <= 0 || height <= 0 || !anchor.width || !anchor.height ||
+      anchor.right <= bounds.left - gap || anchor.left >= bounds.right + gap ||
+      anchor.bottom <= bounds.top - gap || anchor.top >= bounds.bottom + gap) return false;
+    const size = (name, limit) => {
+      const value = `${limit}px`;
+      if (picker.style.getPropertyValue(name) !== value) picker.style.setProperty(name, value);
+    };
+    size("--flora-reference-max-width", width);
+    size("--flora-reference-max-height", height);
+    let box = picker.getBoundingClientRect();
+    const horizontal = [
+      { side: "right", available: bounds.right - anchor.right - gap },
+      { side: "left", available: anchor.left - bounds.left - gap },
+    ];
+    const vertical = [
+      { side: "down", available: bounds.bottom - anchor.bottom - gap },
+      { side: "up", available: anchor.top - bounds.top - gap },
+    ].sort((a, b) => b.available - a.available);
+    const clamp = (value, min, max) => Math.max(min, Math.min(value, max));
+    const coordinates = ({ side, edge } = {}) => {
+      let left = anchor.left, top = anchor.top;
+      if (side === "right") left = anchor.right + gap;
+      if (side === "left") left = anchor.left - gap - box.width;
+      if (side === "down") top = (edge ?? anchor.bottom) + gap;
+      if (side === "up") top = (edge ?? anchor.top) - gap - box.height;
+      return { left: clamp(left, bounds.left, bounds.right - box.width), top: clamp(top, bounds.top, bounds.bottom - box.height) };
+    };
+    const fits = [...horizontal.filter(option => option.available >= box.width),
+      ...vertical.filter(option => option.available >= box.height)];
+    let direction = fits.find(option => {
+      const { left, top } = coordinates(option);
+      return avoid.every(rect => left + box.width <= rect.left || left >= rect.right
+        || top + box.height <= rect.top || top >= rect.bottom);
+    });
+    if (!direction && avoid.length) {
+      const top = Math.min(anchor.top, ...avoid.map(rect => rect.top));
+      const bottom = Math.max(anchor.bottom, ...avoid.map(rect => rect.bottom));
+      const outside = [
+        { side: "up", edge: top, available: top - bounds.top - gap },
+        { side: "down", edge: bottom, available: bounds.bottom - bottom - gap },
+      ].sort((a, b) => b.available - a.available);
+      direction = outside.find(option => option.available >= Math.min(box.height, 240));
+      if (direction && direction.available < box.height) {
+        size("--flora-reference-max-height", direction.available);
+        box = picker.getBoundingClientRect();
+      }
+    }
+    direction ||= fits[0];
+    if (!direction) {
+      // Keep the greatest fraction of the measured panel when every side
+      // needs to shrink. The list scrolls before the outer panel does.
+      const options = [
+        ...vertical.map(option => ({ ...option, dimension: "height", fraction: option.available / box.height })),
+        ...horizontal.map(option => ({ ...option, dimension: "width", fraction: option.available / box.width })),
+      ].sort((a, b) => b.fraction - a.fraction);
+      const style = root.getComputedStyle(picker);
+      const chrome = edges => edges.reduce((total, edge) =>
+        total + parseFloat(style[`padding${edge}`]) + parseFloat(style[`border${edge}Width`]), 0);
+      const minimum = { width: chrome(["Left", "Right"]), height: chrome(["Top", "Bottom"]) };
+      direction = options.find(option => option.available > minimum[option.dimension]);
+      if (direction) {
+        size(`--flora-reference-max-${direction.dimension}`, direction.available);
+        box = picker.getBoundingClientRect();
+      }
+    }
+    const { left, top } = coordinates(direction);
+    picker.style.left = `${left}px`;
+    picker.style.top = `${top}px`;
+    return true;
+  }
+
+  function ensureReferencePicker(state) {
+    if (state.referencePicker) return state.referencePicker;
+    const picker = document.createElement("aside");
+    picker.id = `floraReferencePicker_${state.node.dataset.id}`;
+    picker.className = "flora-reference-picker";
+    picker.hidden = true;
+    picker.setAttribute("aria-label", "选择参考素材");
+    picker.innerHTML = `
+      <header class="flora-reference-picker-header">
+        <strong>添加参考素材</strong>
+        <button type="button" class="flora-reference-picker-close" aria-label="关闭素材面板" title="关闭"><i data-lucide="x"></i></button>
+      </header>
+      <nav class="flora-reference-picker-tabs" role="tablist" aria-label="素材来源">
+        <button type="button" role="tab" data-reference-tab="canvas" aria-selected="true">画布</button>
+        <button type="button" role="tab" data-reference-tab="asset" aria-selected="false">资产</button>
+      </nav>
+      <div class="flora-reference-picker-kinds" data-commerce-pick-actions hidden>
+        <button type="button" data-commerce-pick-canvas>从画布选择</button>
+        <button type="button" data-commerce-pick-selected>使用当前选中素材</button>
+      </div>
+      <div class="flora-reference-picker-toolbar">
+        <div class="flora-reference-picker-kinds" role="group" aria-label="素材类型">
+          <button type="button" data-reference-type="all" class="is-active">全部</button>
+          <button type="button" data-reference-type="image">图片</button>
+          <button type="button" data-reference-type="video">视频</button>
+          <button type="button" data-reference-type="audio" hidden>音频</button>
+          <button type="button" data-reference-type="text">文本</button>
+        </div>
+        <label class="flora-reference-picker-search"><i data-lucide="search"></i><input type="search" placeholder="搜索素材" aria-label="搜索素材"></label>
+      </div>
+      <div class="flora-reference-picker-grid"></div>
+      <div class="flora-reference-picker-empty" hidden></div>
+      <button type="button" class="flora-reference-picker-upload"><i data-lucide="upload"></i><span>本地上传</span></button>
+    `;
+    document.body.append(picker);
+    const elements = {
+      picker,
+      title: picker.querySelector(".flora-reference-picker-header strong"),
+      close: picker.querySelector(".flora-reference-picker-close"),
+      tabs: [...picker.querySelectorAll("[data-reference-tab]")],
+      kinds: [...picker.querySelectorAll("[data-reference-type]")],
+      search: picker.querySelector("input[type=search]"),
+      grid: picker.querySelector(".flora-reference-picker-grid"),
+      empty: picker.querySelector(".flora-reference-picker-empty"),
+      upload: picker.querySelector(".flora-reference-picker-upload"),
+      commerceActions: picker.querySelector("[data-commerce-pick-actions]"),
+    };
+    state.referencePicker = {
+      ...elements,
+      tab: "canvas",
+      kind: "all",
+      query: "",
+      items: [],
+      loading: false,
+      isPaged() { return !this.mention && !Number.isInteger(this.commerceSlot); },
+      scheduleLoad() {
+        if (!this.isPaged()) { void this.load(); return; }
+        if (this.loadFrame != null) root.cancelAnimationFrame(this.loadFrame);
+        this.loadFrame = root.requestAnimationFrame(() => {
+          this.loadFrame = root.requestAnimationFrame(() => {
+            this.loadFrame = null;
+            if (!this.picker.hidden) void this.load();
+          });
+        });
+      },
+      anchor() { return this.mention?.anchor || this.commerceAnchor || state.addReference; },
+      isAdded(item) {
+        if (this.mention) return this.mention.editor.has(item);
+        if (Number.isInteger(this.commerceSlot)) return false;
+        return root.CanvasReferenceBridge.isAdded({
+          targetNodeId: state.node.dataset.id,
+          sourceNodeId: item.sourceNodeId,
+          sourcePort: item.sourcePort || "output",
+          assetId: item.assetId,
+        });
+      },
+      open() {
+        if (this.picker.hidden) {
+          const anchor = this.anchor();
+          const viewport = document.getElementById("infiniteCanvas");
+          if (!anchor?.isConnected || !viewport) return;
+          this.picker.style.visibility = "hidden";
+          this.picker.hidden = false;
+          if (this.mention && state.dialog?.open) {
+            state.dialog.append(this.picker);
+            this.picker.setAttribute("popover", "manual");
+            this.picker.showPopover();
+          }
+          this.placementEvents = new AbortController();
+          const options = { signal: this.placementEvents.signal };
+          const reposition = () => this.schedulePosition();
+          document.addEventListener("pointerdown", outside, { ...options, capture: true });
+          root.addEventListener("flora-reference-picker-refresh", refresh, options);
+          root.addEventListener("canvas:board-changed", () => this.close(), options);
+          root.addEventListener("flora-generation-history-select", refreshCanvas, options);
+          root.addEventListener("resize", reposition, options);
+          root.visualViewport?.addEventListener("resize", reposition, options);
+          root.visualViewport?.addEventListener("scroll", reposition, options);
+          document.addEventListener("keydown", navigate, { ...options, capture: true });
+          if (root.ResizeObserver) {
+            this.placementObserver = new root.ResizeObserver(reposition);
+            for (const target of [anchor, viewport, state.panel, this.picker]) this.placementObserver.observe(target);
+          }
+        }
+        if (this.isPaged()) {
+          root.lucide?.createIcons?.({ root: this.picker, attrs: { "aria-hidden": "true", "stroke-width": 1.8 } });
+          this.position();
+          this.scheduleLoad();
+        } else {
+          void this.load();
+          this.position();
+        }
+      },
+      close() {
+        const previous = this.mention?.previous;
+        if (this.picker.hasAttribute("popover")) {
+          this.picker.hidePopover();
+          this.picker.removeAttribute("popover");
+          document.body.append(this.picker);
+        }
+        elements.picker.hidden = true;
+        elements.picker.classList.remove("is-loading");
+        this.placementEvents?.abort();
+        this.placementEvents = null;
+        this.placementObserver?.disconnect();
+        this.placementObserver = null;
+        if (this.loadFrame != null) root.cancelAnimationFrame(this.loadFrame);
+        this.loadFrame = null;
+        if (this.scrollFrame != null) root.cancelAnimationFrame(this.scrollFrame);
+        this.scrollFrame = null;
+        this.loading = false;
+        if (this.placementFrame != null) root.cancelAnimationFrame(this.placementFrame);
+        this.placementFrame = null;
+        this.commerceSlot = null;
+        this.commerceAnchor = null;
+        this.mention = null;
+        if (previous) {
+          Object.assign(this, previous);
+          this.title.textContent = "添加参考素材";
+          this.kinds.forEach(button => {
+            button.hidden = button.dataset.referenceType === "audio";
+            button.classList.toggle("is-active", button.dataset.referenceType === this.kind);
+          });
+          this.tabs[1].textContent = "资产";
+          this.tabs.forEach(tab => tab.setAttribute("aria-selected", String(tab.dataset.referenceTab === this.tab)));
+          this.search.value = this.query;
+          state.referenceInput.accept = "image/*,video/*,audio/*,.txt,.md,.docx,.pdf";
+          state.referenceInput.multiple = true;
+        }
+        this.activeCard = -1;
+        if (previous || !elements.grid.classList.contains("is-windowed")) {
+          this.items = [];
+          this.visibleItems = [];
+          this.renderedTab = "";
+          elements.grid.replaceChildren();
+        }
+        elements.picker.classList.remove("is-prompt-mention");
+        elements.picker.removeAttribute("role");
+        elements.commerceActions.hidden = true;
+      },
+      schedulePosition() {
+        if (this.picker.hidden || this.placementFrame != null) return;
+        this.placementFrame = root.requestAnimationFrame(() => {
+          this.placementFrame = null;
+          this.position();
+        });
+      },
+      position() {
+        if (this.picker.hidden) return;
+        if (this.placementFrame != null) root.cancelAnimationFrame(this.placementFrame);
+        this.placementFrame = null;
+        const anchor = this.anchor();
+        const viewport = document.getElementById("infiniteCanvas");
+        if (!anchor?.isConnected || !viewport) { this.close(); return; }
+        const box = this.mention?.caret?.getBoundingClientRect();
+        const rect = box?.height
+          ? { left: box.right, right: box.right + 1, top: box.top, bottom: box.bottom, width: 1, height: box.height }
+          : anchor.getBoundingClientRect();
+        const avoid = this.mention
+          ? [state.promptArea, state.sources.run].filter(Boolean).map(element => element.getBoundingClientRect()) : [];
+        const visible = placeReferencePicker(this.picker, rect, referencePickerBounds(viewport), avoid);
+        this.picker.style.visibility = visible ? "" : "hidden";
+        if (visible && this.isPaged() && this.visibleItems?.length) this.renderWindow();
+      },
+      async load() {
+        const bridge = root.CanvasReferenceBridge;
+        if (!bridge) return;
+        const session = this.placementEvents;
+        const tab = this.tab;
+        const mention = this.mention;
+        const request = {};
+        this.loadRequest = request;
+        const current = () => this.loadRequest === request && session === this.placementEvents && tab === this.tab;
+        const paged = this.isPaged();
+        this.loading = true;
+        elements.picker.classList.add("is-loading");
+        if (paged && this.renderedTab !== tab) {
+          this.items = [];
+          this.visibleItems = [];
+          elements.grid.replaceChildren();
+          elements.empty.hidden = false;
+          elements.empty.textContent = "正在读取素材…";
+        }
+        try {
+          const canvasItems = (catalog = []) => bridge.list({ targetNodeId: state.node.dataset.id,
+            commerceImages: Number.isInteger(this.commerceSlot), promptMentions: Boolean(mention), catalog }).map(item => ({
+              ...item,
+              source: "canvas",
+            }));
+          if (tab === "canvas") {
+            this.items = canvasItems();
+            if (mention && bridge.promptCatalog) {
+              this.render();
+              const catalog = await (mention.catalog ||= bridge.promptCatalog(session?.signal));
+              if (!current()) return;
+              this.items = canvasItems(catalog);
+            } else if (paged && bridge.referenceCatalog) {
+              this.render({ reset: this.renderedTab !== tab });
+              const catalog = await bridge.referenceCatalog(session.signal);
+              if (!current()) return;
+              if (catalog.length) this.items = canvasItems(catalog);
+            }
+          } else {
+            const scopes = ["mine", "public", "shared"];
+            const queryAssets = () => Promise.all(scopes.map(async scope => {
+              const response = await fetch(`/api/asset-library?scope=${scope}`, { credentials: "same-origin", cache: "no-store", signal: session?.signal });
+              const data = await response.json().catch(() => ({}));
+              if (!response.ok) throw new Error(data.error || "资产库读取失败。");
+              return Array.isArray(data.entries) ? data.entries : [];
+            }));
+            if (paged && this.assetCacheSession !== session) {
+              this.assetCacheSession = session;
+              this.assetRequest = null;
+            }
+            const pending = paged && this.assetCache?.expires > Date.now() ? this.assetCache.items
+              : paged ? (this.assetRequest ||= queryAssets()) : queryAssets();
+            let results;
+            try { results = await pending; }
+            finally { if (this.assetRequest === pending) this.assetRequest = null; }
+            if (!current()) return;
+            if (paged && this.assetCache?.items !== results) this.assetCache = { items: results, expires: Date.now() + 15000 };
+            const seen = new Set();
+            this.items = results.flat().map(referencePickerAssetEntry).filter(item => {
+              if (!item || seen.has(item.id)) return false;
+              seen.add(item.id);
+              return true;
+            }).map(item => {
+              const compatibility = mention ? bridge.promptCompatibility({ targetNodeId: state.node.dataset.id, type: item.type }) : bridge.canAddAsset?.({
+                targetNodeId: state.node.dataset.id,
+                asset: item,
+              }) || { ok: true };
+              return {
+                ...item,
+                compatible: Boolean(compatibility.ok),
+                reason: compatibility.ok ? "" : String(compatibility.message || "当前节点不支持此素材。"),
+              };
+            });
+            if (mention) this.items.unshift(...canvasItems().filter(item => item.added));
+          }
+          this.loading = false;
+          this.render({ reset: this.renderedTab !== tab });
+          this.renderedTab = tab;
+        } catch (error) {
+          if (!current()) return;
+          this.items = [];
+          this.visibleItems = [];
+          elements.grid.replaceChildren();
+          elements.empty.hidden = false;
+          elements.empty.textContent = /[\u4e00-\u9fff]/u.test(error.message) ? error.message : "素材读取失败，请稍后重试。";
+          console.warn("Canvas reference picker could not load materials.", error);
+        } finally {
+          if (current()) {
+            this.loading = false;
+            elements.picker.classList.remove("is-loading");
+          }
+        }
+      },
+      render({ reset = false } = {}) {
+        const query = this.query.trim().toLocaleLowerCase("zh-CN");
+        const mention = this.mention;
+        const type = this.kind;
+        const visible = this.items.filter(item => {
+          if (type !== "all" && (item.type === "llm" ? "text" : item.type) !== type) return false;
+          if (query && !`${item.name} ${item.text || ""}`.toLocaleLowerCase("zh-CN").includes(query)) return false;
+          if (mention) return ["image", "video", "audio", "text"].includes(item.type);
+          return Number.isInteger(this.commerceSlot) ? item.type === "image" : item.compatible !== false;
+        });
+        if (reset) elements.grid.scrollTop = 0;
+        this.visibleItems = visible;
+        this.activeCard = -1;
+        const addCard = item => {
+          const card = document.createElement("button");
+          card.type = "button";
+          card.className = "flora-reference-picker-item";
+          card.dataset.referenceId = item.id;
+          card.dataset.referenceType = item.type === "llm" ? "text" : item.type;
+          card.disabled = false;
+          if (mention && (!item.compatible || !(item.url || item.text))) {
+            card.setAttribute("aria-disabled", "true");
+            card.title = item.reason || "该素材没有可读取的内容。";
+          }
+          const preview = document.createElement("span");
+          preview.className = `flora-reference-picker-thumb is-${card.dataset.referenceType}`;
+          if (this.isPaged()) {
+            const icon = document.createElement("i");
+            icon.dataset.lucide = ({ image: "image", text: "text", llm: "text", audio: "audio-lines", video: "video" })[item.type] || "file";
+            icon.style.gridArea = "1 / 1";
+            preview.append(icon);
+            if (item.previewUrl || (item.type === "image" && item.url)) {
+              const image = document.createElement("img");
+              image.alt = "";
+              image.decoding = "async";
+              image.loading = "lazy";
+              image.style.gridArea = "1 / 1";
+              image.style.visibility = "hidden";
+              image.addEventListener("load", () => {
+                image.style.visibility = "";
+                preview.firstElementChild.style.visibility = "hidden";
+              });
+              image.addEventListener("error", () => {
+                image.style.visibility = "hidden";
+                preview.firstElementChild.style.visibility = "";
+              });
+              preview.append(image);
+              if (item.previewUrl && (item.previewUrl !== item.url || item.type === "video")) image.src = item.previewUrl;
+              else {
+                const source = item.url;
+                const resources = root.imageResources;
+                const cached = resources?.thumbnailCache?.get(source);
+                const pending = cached || (source.startsWith("/output/") ? resources?.requestThumbnail(source) : null);
+                void Promise.resolve(pending).then(result => {
+                  const url = result?.thumbnailUrl;
+                  if (this.grid.contains(image) && url
+                    && (url !== source || (result.lightweight && result.width > 0 && result.height > 0
+                      && Math.max(result.width, result.height) <= 512))) image.src = url;
+                });
+              }
+            }
+          } else if (item.type === "image" && item.url) {
+            const image = document.createElement("img");
+            image.src = item.url;
+            image.alt = "";
+            image.loading = "lazy";
+            preview.append(image);
+          } else if (item.type === "video" && item.url && !mention) {
+            const video = document.createElement("video");
+            video.src = item.url;
+            video.preload = "metadata";
+            video.muted = true;
+            video.playsInline = true;
+            preview.append(video);
+          } else {
+            const icon = document.createElement("i");
+            icon.dataset.lucide = ({ text: "text", llm: "text", audio: "audio-lines", video: "video" })[item.type] || "file";
+            preview.append(icon);
+          }
+          const copy = document.createElement("span");
+          copy.className = "flora-reference-picker-copy";
+          const name = document.createElement("strong");
+          name.textContent = item.name || referencePickerKindLabel(card.dataset.referenceType);
+          const meta = document.createElement("small");
+          meta.textContent = mention
+            ? [referencePickerKindLabel(item.type), this.isAdded(item) ? "已引用" : "", card.title].filter(Boolean).join(" · ")
+            : this.isAdded(item) ? "已添加" : referencePickerKindLabel(card.dataset.referenceType);
+          if (meta.textContent === "已添加") meta.className = "flora-reference-added";
+          copy.append(name, meta);
+          card.append(preview, copy);
+          if (mention) card.addEventListener("pointerdown", event => event.preventDefault());
+          card.addEventListener("click", () => this.add(item));
+          return card;
+        };
+        this.createCard = addCard;
+        elements.grid.classList.toggle("is-windowed", this.isPaged());
+        if (mention) {
+          elements.grid.replaceChildren();
+          const heading = label => {
+            const title = document.createElement("div");
+            title.className = "flora-reference-picker-section";
+            title.textContent = label;
+            elements.grid.append(title);
+          };
+          const connected = visible.filter(item => item.added);
+          heading("已连接素材");
+          if (!connected.length) heading("暂无匹配的已连接素材");
+          connected.forEach(item => elements.grid.append(addCard(item)));
+          heading(this.tab === "canvas" ? "本画布素材" : "资产库");
+          const other = visible.filter(item => !item.added);
+          if (!other.length) heading("暂无匹配的素材");
+          other.forEach(item => elements.grid.append(addCard(item)));
+        } else if (this.isPaged()) {
+          this.renderWindow();
+        } else elements.grid.replaceChildren(...visible.map(addCard));
+        elements.empty.hidden = Boolean(mention || visible.length);
+        if (!mention && !visible.length) {
+          const unsupported = this.items.some(item => this.kind !== "all"
+            && item.type === this.kind
+            && item.compatible === false);
+          elements.empty.textContent = this.loading && !this.items.length ? "正在读取素材…"
+            : unsupported ? `当前生成节点不支持${referencePickerKindLabel(this.kind)}参考。` : "暂无可引用素材。";
+        }
+        root.lucide?.createIcons?.({ root: elements.picker, attrs: { "aria-hidden": "true", "stroke-width": 1.8 } });
+      },
+      renderWindow() {
+        const grid = elements.grid;
+        const items = this.visibleItems || [];
+        if (!items.length) { grid.replaceChildren(); return; }
+        const width = grid.clientWidth || this.picker.clientWidth - 24;
+        const columns = root.matchMedia("(max-width: 600px)").matches ? 1 : Math.max(1, Math.floor((width + 8) / 158));
+        // 48px thumbnail + 12px padding + 2px border, plus the existing 8px gap.
+        const rowStep = 70;
+        const rows = Math.ceil(items.length / columns);
+        const first = Math.min(Math.max(0, rows - 1), Math.max(0, Math.floor(grid.scrollTop / rowStep) - 1));
+        const last = Math.min(rows, first + Math.ceil((grid.clientHeight || 330) / rowStep) + 3);
+        const cards = new Map([...grid.querySelectorAll(".flora-reference-picker-item")].map(card => [card.dataset.referenceId, card]));
+        const children = [];
+        const spacer = (side, count) => {
+          const element = grid.querySelector(`[data-reference-spacer="${side}"]`) || document.createElement("div");
+          element.dataset.referenceSpacer = side;
+          element.setAttribute("aria-hidden", "true");
+          element.style.gridColumn = "1/-1";
+          element.style.height = `${count * rowStep - 8}px`;
+          return element;
+        };
+        if (first) children.push(spacer("start", first));
+        for (const item of items.slice(first * columns, last * columns)) {
+          const previous = cards.get(item.id);
+          const signature = JSON.stringify([item.type, item.name, item.url, item.previewUrl, item.needsHydration, this.isAdded(item)]);
+          const card = previous?.referenceSignature === signature ? previous : this.createCard(item);
+          card.referenceSignature = signature;
+          children.push(card);
+        }
+        if (last < rows) children.push(spacer("end", rows - last));
+        const next = new Set(children);
+        const changed = grid.children.length !== children.length || children.some((child, index) => child !== grid.children[index]);
+        if (changed) {
+          const scrollTop = grid.scrollTop;
+          for (const child of [...grid.children]) if (!next.has(child)) child.remove();
+          children.forEach((child, index) => {
+            if (grid.children[index] !== child) grid.insertBefore(child, grid.children[index] || null);
+          });
+          grid.scrollTop = scrollTop;
+          root.lucide?.createIcons?.({ root: grid, attrs: { "aria-hidden": "true", "stroke-width": 1.8 } });
+        }
+      },
+      async add(item) {
+        if (this.mention) {
+          void this.insertMention(item);
+          return;
+        }
+        if (this.isAdded(item)) return;
+        if (Number.isInteger(this.commerceSlot)) {
+          if (item.type !== "image") {
+            state.status.textContent = "H3 带货素材槽只接受图片。";
+            state.status.hidden = false;
+            return;
+          }
+          const slot = this.commerceSlot;
+          this.commerceSlot = null;
+          root.dispatchEvent(new CustomEvent("flora-h3-commerce-slot-assign", {
+            detail: { node: state.node, slot, image: item },
+          }));
+          this.close();
+          return;
+        }
+        try {
+          if (item.source === "canvas") {
+            const session = this.placementEvents;
+            if (item.needsHydration) {
+              await root.CanvasReferenceBridge.hydratePromptSource(state.node.dataset.id, item.sourceNodeId);
+              if (session !== this.placementEvents || this.tab !== item.source) return;
+            }
+            root.CanvasReferenceBridge.add({
+              targetNodeId: state.node.dataset.id,
+              sourceNodeId: item.sourceNodeId,
+              sourcePort: item.sourcePort || "output",
+            });
+          } else {
+            root.CanvasReferenceBridge.addAsset({
+              targetNodeId: state.node.dataset.id,
+              asset: item,
+            });
+          }
+          if (!this.isAdded(item)) throw new Error("未能建立素材连接，请检查当前生成模式后重试。");
+          this.render();
+        } catch (error) {
+          state.status.textContent = error.message || "素材连接失败。";
+          state.status.hidden = false;
+        }
+      },
+      async insertMention(item) {
+        const mention = this.mention;
+        if (!mention || mention.inserting) return;
+        mention.inserting = true;
+        try {
+          if (!item.compatible || !(item.url || item.text)) throw new Error(item.reason || "该素材没有可读取的内容。");
+          const targetNodeId = state.node.dataset.id;
+          const bridge = root.CanvasReferenceBridge;
+          await bridge.hydratePromptSource(targetNodeId, item.sourceNodeId);
+          if (this.mention !== mention) return;
+          const reference = bridge.pinPromptMaterial({ targetNodeId, item });
+          mention.editor.insert(mention.range, reference);
+          this.close();
+        } catch (error) {
+          if (this.mention !== mention) return;
+          elements.empty.hidden = false;
+          elements.empty.textContent = error.message || "无法引用此素材。";
+        } finally { mention.inserting = false; }
+      },
+    };
+    const close = () => state.referencePicker.close();
+    const navigate = event => {
+      const picker = state.referencePicker;
+      if (!picker.mention || event.isComposing) return;
+      if (event.key === "Escape") {
+        event.preventDefault(); event.stopPropagation();
+        picker.mention.editor.element.focus({ preventScroll: true });
+        picker.close();
+      } else if (event.key === "ArrowDown" || event.key === "ArrowUp" || (event.key === "Enter" && picker.activeCard >= 0)) {
+        const buttons = [...elements.grid.querySelectorAll(".flora-reference-picker-item:not([aria-disabled])")];
+        if (!buttons.length) return;
+        event.preventDefault(); event.stopPropagation();
+        if (event.key === "Enter") { buttons[picker.activeCard]?.click(); return; }
+        const delta = event.key === "ArrowDown" ? 1 : -1;
+        picker.activeCard = picker.activeCard < 0 ? (delta > 0 ? 0 : buttons.length - 1)
+          : (picker.activeCard + delta + buttons.length) % buttons.length;
+        buttons.forEach((button, index) => button.classList.toggle("is-keyboard-active", index === picker.activeCard));
+        buttons[picker.activeCard].scrollIntoView({ block: "nearest", inline: "nearest" });
+      }
+    };
+    elements.close.addEventListener("click", close);
+    elements.commerceActions.addEventListener("click", event => {
+      const slot = state.referencePicker.commerceSlot;
+      if (!Number.isInteger(slot)) return;
+      if (event.target.closest("[data-commerce-pick-canvas]")) root.CanvasReferenceBridge.pickCommerceImage(state.node, slot);
+      else if (event.target.closest("[data-commerce-pick-selected]")) root.CanvasReferenceBridge.useSelectedCommerceImage(state.node, slot);
+      else return;
+      close();
+    });
+    elements.upload.addEventListener("click", () => {
+      const slot = state.referencePicker.commerceSlot;
+      if (Number.isInteger(slot)) {
+        state.node.querySelector(`.canvas-h3-commerce-slot[data-slot="${slot}"] input[type=file]`)?.click();
+        state.referencePicker.close();
+        return;
+      }
+      state.referenceInput?.click();
+    });
+    elements.tabs.forEach(tab => tab.addEventListener("click", () => {
+      if (state.referencePicker.tab === tab.dataset.referenceTab) return;
+      state.referencePicker.tab = tab.dataset.referenceTab;
+      elements.tabs.forEach(item => item.setAttribute("aria-selected", String(item === tab)));
+      void state.referencePicker.load();
+    }));
+    elements.kinds.forEach(kind => kind.addEventListener("click", () => {
+      state.referencePicker.kind = kind.dataset.referenceType;
+      elements.kinds.forEach(item => item.classList.toggle("is-active", item === kind));
+      state.referencePicker.render({ reset: true });
+    }));
+    elements.search.addEventListener("input", () => {
+      state.referencePicker.query = elements.search.value;
+      state.referencePicker.render({ reset: true });
+    });
+    elements.grid.addEventListener("scroll", () => {
+      const picker = state.referencePicker;
+      if (!picker.isPaged() || picker.picker.hidden || picker.scrollFrame != null) return;
+      picker.scrollFrame = root.requestAnimationFrame(() => {
+        picker.scrollFrame = null;
+        picker.renderWindow();
+      });
+    }, { passive: true });
+    const outside = event => {
+      if (
+        elements.picker.hidden
+        || elements.picker.contains(event.target)
+        || state.addReference?.contains?.(event.target)
+        || state.referencePicker.mention?.anchor?.closest?.(".flora-prompt-mention-trigger")?.contains(event.target)
+        || state.referencePicker.commerceAnchor?.contains(event.target)
+        || (event.button === 1 && event.target.closest?.("#infiniteCanvas"))
+      ) return;
+      close();
+    };
+    const refresh = event => {
+      if (event.detail?.nodeId === state.node.dataset.id && !elements.picker.hidden) state.referencePicker.load();
+    };
+    const refreshCanvas = () => {
+      const picker = state.referencePicker;
+      if (picker.isPaged() && picker.tab === "canvas") picker.scheduleLoad();
+    };
+    const assetsChanged = () => {
+      const picker = state.referencePicker;
+      picker.assetCache = null;
+      picker.assetRequest = null;
+      if (!picker.picker.hidden && picker.tab === "asset") picker.scheduleLoad();
+    };
+    root.addEventListener("ai-os-assets-changed", assetsChanged);
+    root.addEventListener("ai-os-session", assetsChanged);
+    state.cleanups.push(() => {
+      root.removeEventListener("ai-os-assets-changed", assetsChanged);
+      root.removeEventListener("ai-os-session", assetsChanged);
+      close();
+      elements.picker.remove();
+    });
+    return state.referencePicker;
+  }
+
   function addReferenceControl(state) {
     const button = document.createElement("button");
     button.type = "button";
@@ -161,14 +882,24 @@
     state.addReference = button; state.referenceInput = input;
     const openPicker = (event) => {
       event.stopPropagation();
-      input.click();
+      const picker = ensureReferencePicker(state);
+      if (picker.mention) {
+        picker.close();
+      }
+      picker.open();
     };
     const upload = (event) => {
       event.stopPropagation();
       const files = Array.from(input.files || []);
       input.value = "";
+      const picker = state.referencePicker;
+      const mention = picker?.mention;
       if (files.length) root.dispatchEvent(new CustomEvent("flora-generator-reference-upload", {
-        detail: { node: state.node, files },
+        detail: { node: state.node, files, ...(mention ? { promptMention: image => {
+          if (picker.mention !== mention || !state.node.isConnected) return;
+          mention.editor.insert(mention.range, image);
+          picker.close();
+        } } : {}) },
       }));
     };
     button.addEventListener("click", openPicker);
@@ -177,11 +908,347 @@
     state.cleanups.push(() => input.removeEventListener("change", upload));
   }
 
+  function createPromptMentionEditor(state, source, part = "") {
+    const editor = document.createElement("div");
+    editor.className = "flora-prompt-mention-editor";
+    editor.contentEditable = "true";
+    editor.setAttribute("role", "textbox");
+    editor.setAttribute("aria-label", part ? `H3 带货提示词 ${part.toUpperCase()}` : "提示词");
+    editor.setAttribute("aria-multiline", "true");
+    editor.dataset.placeholder = source.placeholder || "输入本次生成要求";
+    const button = document.createElement("button");
+    button.className = "flora-prompt-mention-trigger";
+    button.type = "button";
+    button.textContent = "@";
+    button.title = "@ 引用素材";
+    button.setAttribute("aria-label", "@ 引用素材");
+    button.setAttribute("aria-haspopup", "dialog");
+    if (!part) state.mentionButton = button;
+    source.classList.add("is-native-for-mentions");
+    source.after(editor);
+    if (part) {
+      button.setAttribute("aria-label", `引用素材 ${part.toUpperCase()}`);
+      source.parentElement.append(button);
+    } else state.settings.insertBefore(button, state.visualPresetHost);
+    const warning = document.createElement("small");
+    warning.className = "flora-prompt-mention-warning";
+    warning.setAttribute("role", "status");
+    warning.hidden = true;
+    editor.after(warning);
+    const listeners = new AbortController();
+    const options = { signal: listeners.signal };
+    const tokens = () => [...editor.querySelectorAll(".flora-prompt-mention-chip")];
+    let lastText, lastMentions, lastDraft, lastPreviews, savedRange, composing = false;
+    const reference = chip => JSON.parse(chip.dataset.image);
+    const followsImageOutput = item => item.type === "image" && item.pendingOutput === true
+      && item.requiresConnection === true && !item.url;
+    const syncOutputPreview = (chip, item) => {
+      const image = chip?.querySelector(".flora-prompt-mention-icon img");
+      if (!image) return;
+      const resolved = root.resolveCanvasPromptImage?.(state.node, item);
+      const url = resolved?.previewUrl || resolved?.url || "";
+      if (/^(?:\/[^/]|https?:\/\/|data:image\/|blob:)/i.test(url)) {
+        if (image.getAttribute("src") !== url) image.src = url;
+      } else if (image.hasAttribute("src")) {
+        image.removeAttribute("src");
+      }
+    };
+    const showUnbound = (text, mentions, referenceMessage) => {
+      const unbound = root.findUnboundCanvasPromptMentions?.(text, mentions) || [];
+      const message = referenceMessage || (unbound.length ? `${[...new Set(unbound.map(match => match[0]))].join("、")} 未绑定素材` : "");
+      warning.hidden = !message;
+      warning.textContent = message;
+    };
+    const createChip = (image, label, preview = image) => {
+      const chip = document.createElement("span");
+      chip.className = "flora-prompt-mention-chip";
+      chip.contentEditable = "false";
+      chip.dataset.image = JSON.stringify(image);
+      chip.dataset.mentionLabel = label;
+      chip.title = preview?.name || (preview ? referencePickerKindLabel(image.type) : `${label} 未绑定素材`);
+      const thumbnail = document.createElement("span");
+      thumbnail.className = "flora-prompt-mention-icon";
+      if (image.type === "image") {
+        if (preview) {
+          const img = document.createElement("img");
+          if (/^(?:\/[^/]|https?:\/\/|data:image\/|blob:)/i.test(preview.url)) img.src = preview.url;
+          img.alt = "";
+          img.draggable = false;
+          thumbnail.append(img);
+        }
+      } else {
+        thumbnail.textContent = ({ audio: "♪", video: "▶", text: "T" })[image.type] || "";
+        thumbnail.setAttribute("aria-hidden", "true");
+      }
+      const text = document.createElement("span");
+      text.className = "flora-prompt-mention-label";
+      text.textContent = label;
+      chip.append(thumbnail, text);
+      return chip;
+    };
+    const selectionRange = () => {
+      const selection = root.getSelection();
+      const range = selection.rangeCount ? selection.getRangeAt(0) : null;
+      return range && editor.contains(range.commonAncestorContainer) ? range.cloneRange() : null;
+    };
+    const atEnd = () => {
+      const range = document.createRange();
+      range.selectNodeContents(editor);
+      range.collapse(false);
+      return range;
+    };
+    const clean = text => text.replace(/\u200b/g, "").replace(/\u00a0/g, " ");
+    const syncFromSource = () => {
+      const mentions = root.readCanvasPromptMentions(state.node, source.value, part);
+      const mentionsValue = mentions.length ? JSON.stringify(mentions) : "";
+      const draft = root.getCanvasPromptMentionDraftKey(state.node, part);
+      const photoState = !part && root.getCanvasPhotoPromptReferenceState?.(state.node, mentions);
+      const previews = photoState ? JSON.stringify([photoState.message, photoState.mentions]) : "";
+      if (source.value === lastText && mentionsValue === lastMentions && draft === lastDraft && previews === lastPreviews) {
+        if (!part && !photoState && mentions.some(followsImageOutput)) {
+          const chips = tokens();
+          mentions.forEach((item, index) => {
+            if (followsImageOutput(item)) syncOutputPreview(chips[index], item);
+          });
+        }
+        return;
+      }
+      lastText = source.value;
+      lastMentions = mentionsValue;
+      lastDraft = draft;
+      lastPreviews = previews;
+      const fragment = document.createDocumentFragment();
+      let offset = 0;
+      for (const [index, entry] of mentions.entries()) {
+        const { offset: start, label, ...image } = entry;
+        const preview = photoState?.mentions?.[index] || photoState?.previews?.get(label);
+        const chip = createChip(image, label, preview);
+        if (!part && !photoState && followsImageOutput(image)) syncOutputPreview(chip, image);
+        fragment.append(lastText.slice(offset, start), chip);
+        offset = start + label.length;
+      }
+      fragment.append(lastText.slice(offset));
+      editor.replaceChildren(fragment);
+      savedRange = null;
+      showUnbound(lastText, mentions, photoState?.message);
+    };
+    const save = () => {
+      let value = "";
+      const indices = new Map();
+      const mentions = [];
+      const previous = JSON.parse(lastMentions || "[]");
+      const locked = Boolean(state.node.dataset.photoFidelity);
+      const numbered = [...previous].sort((left, right) => Number(left.label.match(/\d+$/)[0]) - Number(right.label.match(/\d+$/)[0]));
+      const identity = item => item.url || `${item.sourceNodeId}:${item.sourcePort}`;
+      const visible = new Set(tokens().map(chip => reference(chip)).map(item => `${item.type}:${identity(item)}`));
+      const numberFor = item => {
+        if (part && Number.isInteger(item.commerceSlot)) return item.commerceSlot + 1;
+        if (!indices.has(item.type)) indices.set(item.type, new Map());
+        const group = indices.get(item.type);
+        const id = identity(item);
+        if (!group.has(id)) group.set(id, group.size + 1);
+        return group.get(id);
+      };
+      for (const item of numbered) {
+        if (visible.has(`${item.type}:${identity(item)}`)) numberFor(item);
+      }
+      const walk = node => {
+        if (node.nodeType === Node.TEXT_NODE) { value += clean(node.data); return; }
+        if (node.nodeName === "BR") {
+          // Chromium inserts a placeholder BR for the final empty text line.
+          if (node.nextSibling || node.parentNode === editor && node.previousSibling?.nodeName !== "BR") value += "\n";
+          return;
+        }
+        if (node.classList?.contains("flora-prompt-mention-chip")) {
+          const image = reference(node);
+          const previousLabel = chipLabel(node);
+          const prefix = image.type === "image" && !previousLabel.startsWith("@图片") ? "图" : referencePickerKindLabel(image.type);
+          const label = locked ? previousLabel : `@${prefix}${part ? image.commerceSlot + 1 : numberFor(image)}`;
+          mentions.push({ ...image, label, offset: value.length });
+          const caption = node.querySelector(".flora-prompt-mention-label");
+          if (caption.textContent !== label) caption.firstChild.nodeValue = label;
+          value += label;
+          return;
+        }
+        if ((node.nodeName === "DIV" || node.nodeName === "P") && node !== editor && node.previousSibling) value += "\n";
+        node.childNodes.forEach(walk);
+      };
+      walk(editor);
+      lastText = value;
+      lastMentions = mentions.length ? JSON.stringify(mentions) : "";
+      root.setCanvasPromptMentions(state.node, mentions, part);
+      source.value = value;
+      showUnbound(value, mentions, !part && root.getCanvasPhotoPromptReferenceState?.(state.node, mentions)?.message);
+      // The native draft must be current before connection updates refresh the composer.
+      source.dispatchEvent(new Event("input", { bubbles: true }));
+      if (!locked) {
+        try { root.syncCanvasPromptMentionConnections(state.node, previous, mentions, part); }
+        catch (error) {
+          warning.hidden = false;
+          warning.textContent = error.message || "素材连线未能更新，请重新引用。";
+        }
+      }
+    };
+    const chipLabel = chip => chip.dataset.mentionLabel || chip.textContent;
+    const controller = {
+      element: editor,
+      has: item => tokens().some(chip => {
+        const image = reference(chip);
+        return item.source === "asset" ? image.assetId === item.assetId
+          : image.sourceNodeId === item.sourceNodeId && (image.sourcePort || "output") === (item.sourcePort || "output")
+            && image.url === item.url;
+      }),
+      insert(range, image) {
+        if (!range || !editor.contains(range.commonAncestorContainer)) throw new Error("光标位置已变更，请重新打开素材面板。");
+        editor.focus({ preventScroll: true });
+        const selection = root.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+        const connected = root.CanvasReferenceBridge.isAdded({
+          targetNodeId: state.node.dataset.id, sourceNodeId: image.sourceNodeId, sourcePort: image.sourcePort,
+        });
+        const existing = [...tokens().map(reference), ...root.getCanvasOtherAudioMentions(state.node)];
+        const ownsConnection = part ? image.ownsConnection : existing.some(bound => {
+          return bound.ownsConnection && bound.sourceNodeId === image.sourceNodeId && bound.sourcePort === image.sourcePort;
+        }) || !connected;
+        const chip = createChip({ ...image, ...(!part ? { requiresConnection: true } : {}), ...(ownsConnection ? { ownsConnection: true } : {}) },
+          state.node.dataset.photoFidelity && image.type === "image" ? "@图1" : `@${referencePickerKindLabel(image.type)}1`);
+        chip.dataset.insertion = root.crypto.randomUUID();
+        // One native edit transaction preserves the editor's undo/redo history.
+        if (!document.execCommand("insertHTML", false, chip.outerHTML + "&#8203;")) {
+          throw new Error("无法在当前光标位置插入素材。");
+        }
+        const inserted = editor.querySelector(`[data-insertion="${chip.dataset.insertion}"]`);
+        if (inserted) {
+          const after = document.createRange();
+          if (inserted.nextSibling?.nodeType === Node.TEXT_NODE && inserted.nextSibling.data.startsWith("\u200b")) {
+            after.setStart(inserted.nextSibling, 1);
+          } else {
+            after.setStartAfter(inserted);
+          }
+          after.collapse(true);
+          selection.removeAllRanges();
+          selection.addRange(after);
+          savedRange = after.cloneRange();
+        }
+      },
+      sync: syncFromSource,
+      dispose() {
+        listeners.abort();
+        source.classList.remove("is-native-for-mentions");
+        editor.remove();
+        warning.remove();
+        button.remove();
+        if (!part) state.mentionButton = null;
+      },
+    };
+    const open = (anchor, range, caret = null) => {
+      const picker = ensureReferencePicker(state);
+      picker.close();
+      picker.mention = { anchor, range, caret, editor: controller, previous: { tab: picker.tab, kind: picker.kind, query: picker.query } };
+      picker.picker.classList.add("is-prompt-mention");
+      picker.picker.setAttribute("role", "dialog");
+      picker.title.textContent = "引用素材";
+      picker.tabs[1].textContent = "资产库";
+      picker.tab = "canvas"; picker.kind = "all"; picker.query = ""; picker.search.value = "";
+      picker.tabs.forEach(tab => tab.setAttribute("aria-selected", String(tab.dataset.referenceTab === "canvas")));
+      picker.kinds.forEach(kind => {
+        kind.hidden = kind.dataset.referenceType === "text"
+          && !root.CanvasReferenceBridge.promptCompatibility({ targetNodeId: state.node.dataset.id, type: "text" }).ok;
+        kind.classList.toggle("is-active", kind.dataset.referenceType === "all");
+      });
+      state.referenceInput.accept = ["image", "video", "audio", "text"].filter(type =>
+        root.CanvasReferenceBridge.promptCompatibility({ targetNodeId: state.node.dataset.id, type }).ok)
+        .map(type => type === "text" ? ".txt,.md,.docx,.pdf" : `${type}/*`).join(",");
+      state.referenceInput.multiple = false;
+      picker.open();
+    };
+    const openAtCaret = () => {
+      const range = selectionRange();
+      if (range?.collapsed && range.startContainer.nodeType === Node.TEXT_NODE
+        && range.startOffset > 0 && range.startContainer.data[range.startOffset - 1] === "@") {
+        const caret = range.cloneRange();
+        range.setStart(range.startContainer, range.startOffset - 1);
+        open(editor, range, caret);
+        return true;
+      }
+      return false;
+    };
+    editor.addEventListener("input", event => {
+      savedRange = selectionRange();
+      save();
+      if (composing || event.isComposing) return;
+      if (event.data === "@" && openAtCaret()) return;
+      if (state.referencePicker?.mention && event.inputType !== "insertHTML") {
+        state.referencePicker.close();
+      }
+    }, options);
+    editor.addEventListener("compositionstart", () => { composing = true; }, options);
+    editor.addEventListener("compositionend", event => {
+      composing = false;
+      save();
+      if (event.data === "@") openAtCaret();
+    }, options);
+    editor.addEventListener("focusout", () => { savedRange = selectionRange() || savedRange; }, options);
+    editor.addEventListener("paste", event => {
+      event.preventDefault();
+      document.execCommand("insertText", false, event.clipboardData.getData("text/plain"));
+    }, options);
+    editor.addEventListener("drop", event => event.preventDefault(), options);
+    source.addEventListener("input", syncFromSource, options);
+    editor.addEventListener("scroll", () => {
+      if (state.referencePicker?.mention?.caret) state.referencePicker.schedulePosition();
+    }, options);
+    button.addEventListener("pointerdown", event => { event.preventDefault(); }, options);
+    button.addEventListener("click", event => {
+      event.stopPropagation();
+      if (state.referencePicker?.mention?.anchor === button) { state.referencePicker.close(); return; }
+      open(button, selectionRange() || savedRange || atEnd());
+    }, options);
+    syncFromSource();
+    return controller;
+  }
+
+  function syncPromptMentionEditor(state) {
+    const source = state.sources?.prompt;
+    const supported = source instanceof HTMLTextAreaElement && !source.hidden
+      && state.node.dataset.uploadOnly !== "true" && !state.node.dataset.productionWorkflow
+      && state.node.dataset.minimaxH3Model !== "h3-commerce"
+      && state.node.querySelector(".canvas-port-input");
+    if (state.mentionSource !== (supported ? source : null)) {
+      if (state.referencePicker?.mention) state.referencePicker.close();
+      state.mentionEditor?.dispose();
+      state.mentionSource = supported ? source : null;
+      state.mentionEditor = supported ? createPromptMentionEditor(state, source) : null;
+    }
+    if (state.mentionButton && !state.visualPresetHost?.hidden && state.visualPresetHost.previousElementSibling !== state.mentionButton) {
+      state.visualPresetHost.before(state.mentionButton);
+    }
+    state.mentionEditor?.sync();
+    const commerce = state.node.dataset.minimaxH3Model === "h3-commerce";
+    state.commerceMentionEditors ||= new Map();
+    const fields = commerce ? [...state.node.querySelectorAll(".canvas-h3-commerce-prompt")] : [];
+    for (const [field, editor] of state.commerceMentionEditors) {
+      if (!fields.includes(field)) {
+        if (state.referencePicker?.mention?.editor === editor) state.referencePicker.close();
+        editor.dispose();
+        state.commerceMentionEditors.delete(field);
+      }
+    }
+    for (const field of fields) {
+      if (!state.commerceMentionEditors.has(field)) {
+        state.commerceMentionEditors.set(field, createPromptMentionEditor(state, field, field.dataset.promptPart));
+      }
+      state.commerceMentionEditors.get(field).sync();
+    }
+  }
+
   function ensureResult(state) {
-    if (state.node.dataset.floraKind !== "generator") {
+    if (!["generator", "midjourney"].includes(state.node.dataset.floraKind)) {
       const media = state.resultArea?.querySelector("video[src], audio[src], .canvas-llm-output");
       const ready = media && (media.matches(".canvas-llm-output") ? Boolean(media.textContent) : Boolean(media.getAttribute("src")) && !media.closest(".canvas-media-shell")?.hidden);
-      if (state.placeholder && state.placeholder.hidden !== Boolean(ready)) state.placeholder.hidden = Boolean(ready);
+      const ownTextSurface = media?.matches(".canvas-llm-output");
+      if (state.placeholder && state.placeholder.hidden !== Boolean(ready || ownTextSurface)) state.placeholder.hidden = Boolean(ready || ownTextSurface);
       return;
     }
     const { node, resultArea } = state;
@@ -218,8 +1285,12 @@
     // down. Guidance and failures keep their words so nothing is lost.
     const showText = tone === "failed" || tone === "error" || tone === "warning"
       || /^(?:请输入|请选择|请先|请连接|请上传|请检查|请重试|请重新)/.test(nativeText)
+      || (state.node.classList.contains("canvas-node-image")
+        && /请(?:先|连接|移除|在画布|重新|返回|勿重复)|^等待上游图片/.test(nativeText))
       || /不支持|不可用|不符合|已移除|无法|不能/.test(nativeText);
-    const text = showText && nativeText !== "待完成" ? nativeText : "";
+    const mentionWarning = state.node.dataset.photoFidelity
+      && state.panel.querySelector(".flora-prompt-mention-warning:not([hidden])");
+    const text = showText && nativeText !== "待完成" && nativeText !== mentionWarning?.textContent ? nativeText : "";
     if (state.status.textContent !== text) state.status.textContent = text;
     if (state.status.hidden !== !text) state.status.hidden = !text;
     if (state.status.dataset.state !== tone) state.status.dataset.state = tone;
@@ -256,6 +1327,7 @@
     if (state.expanded) {
       root.FloraGeneratorParameters?.reposition?.(state.node);
       state.modelPicker?.reposition?.();
+      state.referencePicker?.position();
       return;
     }
     bindPlaneObserver(state);
@@ -293,6 +1365,7 @@
     state.composerProperties = properties;
     root.FloraGeneratorParameters?.reposition?.(state.node);
     state.modelPicker?.reposition?.();
+    state.referencePicker?.position();
   }
 
   function schedulePlace(state) {
@@ -322,8 +1395,16 @@
     placeH3ModeSwitch(state);
     syncH3ModeNote(state);
     syncComfyPrompt(state);
+    syncPromptMentionEditor(state);
     ensureResult(state);
     syncStatus(state);
+    if (state.node.dataset.floraKind === "generator" && state.visualPresetHost) {
+      if (!state.visualPresetCleanup) {
+        state.visualPresetCleanup = root.FloraVisualPresets?.mount?.(state.node, state.visualPresetHost) || null;
+      } else {
+        root.FloraVisualPresets?.sync?.(state.node, state.visualPresetHost);
+      }
+    }
     const open = isSelected(state);
     if (!open && state.expanded) collapsePanel(state, false);
     if (state.panel.hidden === open) state.panel.hidden = !open;
@@ -332,6 +1413,8 @@
     }
     if (!open) state.revealRequested = false;
     if (!open) {
+      state.referencePicker?.close();
+      root.FloraVisualPresets?.close?.(state.node);
       root.FloraGeneratorParameters?.close?.(state.node);
       state.modelPicker?.close?.();
     }
@@ -376,11 +1459,14 @@
   }
 
   function createReferenceCard(state, item, type, index) {
-    const label = `${REFERENCE_TYPES.find(entry => entry.key === type)?.label || "参考"}${index + 1}`;
+    const label = item.workflowOnly ? "仅关联"
+      : item.inputRole === "first-frame" ? "首帧"
+        : `${REFERENCE_TYPES.find(entry => entry.key === type)?.label || "参考"}${index + 1}`;
     const card = document.createElement("div");
     card.className = `flora-reference-card is-${type}`;
     card.dataset.referenceType = type;
     card.dataset.referenceKey = item.key || "";
+    card.dataset.workflowOnly = String(Boolean(item.workflowOnly));
     const thumb = document.createElement("button");
     thumb.type = "button";
     thumb.className = "canvas-ref-thumb flora-reference-thumb";
@@ -388,10 +1474,20 @@
     thumb.title = type === "text"
       ? `${item.name || label}\n${String(item.text || "").slice(0, 400) || "暂无正文"}`
       : item.name || label;
+    if (item.workflowOnly) thumb.title += "\n仅保留工作流关联，当前视频通道不向模型传入此图。";
+    if (item.pending) thumb.title += "\n等待上游图片生成。";
     thumb.setAttribute("aria-label", `${label}：${item.name || label}`);
     thumb.draggable = false;
     thumb.setAttribute('aria-keyshortcuts', 'Alt+ArrowLeft Alt+ArrowRight');
     thumb.title += String.fromCharCode(10) + '拖动调整顺序，或按 Alt+方向键移动';
+    if (type === "text" && item.sourceNodeId && state.node.dataset.floraKind === "minimax-h3"
+      && state.node.dataset.minimaxH3Model !== "h3-commerce") {
+      thumb.title += "\n点击定位到文字来源";
+      thumb.addEventListener("click", event => {
+        event.stopPropagation();
+        root.CanvasReferenceBridge?.focusSource?.(item.sourceNodeId);
+      });
+    }
     thumb.append(createReferencePreview(item, type, label));
     const badge = document.createElement("span");
     badge.className = "flora-reference-index";
@@ -506,7 +1602,7 @@
       .filter(item => state.node.dataset.floraKind !== 'audio-generator' || item.type !== 'audio');
     const items = incoming.map(item => ({ ...item, referenceType: referenceType(item) }))
       .filter(item => REFERENCE_TYPES.some(entry => entry.key === item.referenceType));
-    const signature = JSON.stringify(items.map(item => [item.key, item.referenceType, item.sourceNodeId, item.sourcePort, item.name, item.url, String(item.text || "").slice(0, 400)]));
+    const signature = JSON.stringify(items.map(item => [item.key, item.referenceType, item.sourceNodeId, item.sourcePort, item.name, item.url, item.workflowOnly, item.inputRole, item.pending, String(item.text || "").slice(0, 400)]));
     if (!state.referencesView) {
       state.referencesView = document.createElement("div");
       state.referencesView.className = "flora-reference-materials";
@@ -594,8 +1690,12 @@
   }
 
   function syncH3ModeNote(state) {
-    if (state.node.dataset.floraKind !== "minimax-h3") return;
-    const text = h3ModeNoteText(state.node);
+    const kind = state.node.dataset.floraKind;
+    if (!["minimax-h3", "video-api"].includes(kind)) return;
+    const extra = kind === "video-api" && (root.getCanvasApiVideoReferencePlan?.(state.node) || []).some(ref => ref.workflowOnly);
+    const text = kind === "video-api"
+      ? extra ? "当前 API 视频通道仅提交第一张图片作为首帧；标记「仅关联」的图片未传入模型。" : ""
+      : h3ModeNoteText(state.node);
     if (!state.modeNote) {
       const note = document.createElement("p");
       note.className = "flora-generator-mode-note";
@@ -698,6 +1798,7 @@
       if (newSource) composeSources(state);
       const nativeChange = records.some(({ target, attributeName }) => {
         if (target === state.node && attributeName === "style") {
+          state.referencePicker?.schedulePosition();
           // Placement writes these five variables on the node for the existing
           // CSS contract. They are not native content changes, so do not feed
           // them back into a full composer sync on every viewport frame.
@@ -715,7 +1816,7 @@
     });
     observer.observe(state.node, {
       attributes: true,
-      attributeFilter: ["class", "style", "hidden", "disabled", "aria-busy", "data-result-src", "data-state", "data-canvas-generation-prompt", "data-comfy-prompt", "data-minimax-h3-mode"],
+      attributeFilter: ["class", "style", "hidden", "disabled", "aria-busy", "data-result-src", "data-state", "data-canvas-generation-prompt", "data-prompt-mentions", "data-comfy-prompt", "data-minimax-h3-mode"],
       childList: true,
       characterData: true,
       subtree: true,
@@ -799,6 +1900,7 @@
 
   function collapsePanel(state, restoreFocus = true) {
     if (!state.expanded) return;
+    if (state.referencePicker?.mention) state.referencePicker.close();
     root.FloraGeneratorParameters?.close?.(state.node);
     state.modelPicker?.close?.();
     state.expanded = false;
@@ -832,7 +1934,7 @@
       for (const type of ["pointerdown", "click", "dblclick", "wheel", "keydown"]) dialog.addEventListener(type, event => {
         event.stopPropagation();
         if (type === "keydown" && event.key === "Tab") {
-          const focusable = Array.from(dialog.querySelectorAll('button:not(:disabled), textarea:not(:disabled), input:not(:disabled), select:not(:disabled), a[href], [tabindex]:not([tabindex="-1"])'))
+          const focusable = Array.from(dialog.querySelectorAll('button:not(:disabled), textarea:not(:disabled), input:not(:disabled), select:not(:disabled), a[href], [contenteditable="true"], [tabindex]:not([tabindex="-1"])'))
             .filter(element => element.getClientRects().length && element.tabIndex >= 0);
           const first = focusable[0], last = focusable.at(-1);
           if (first && (!focusable.includes(document.activeElement) || event.shiftKey && document.activeElement === first || !event.shiftKey && document.activeElement === last)) {
@@ -853,7 +1955,7 @@
     syncExpandButton(state);
     try { state.dialog.showModal(); }
     catch (error) { collapsePanel(state); throw error; }
-    (state.panel.querySelector('textarea:not(:disabled):not([readonly])') || state.expandButton).focus({ preventScroll: true });
+    (state.mentionEditor?.element || state.panel.querySelector('textarea:not(:disabled):not([readonly])') || state.expandButton).focus({ preventScroll: true });
     schedulePlace(state);
   }
 
@@ -873,6 +1975,10 @@
     actions.append(price);
     const footer = document.createElement("div");
     footer.className = "flora-generator-footer";
+    const visualPresets = document.createElement("div");
+    visualPresets.className = "flora-visual-presets";
+    visualPresets.hidden = state.node.dataset.floraKind !== "generator";
+    settings.append(visualPresets);
     footer.append(settings, actions);
     const status = document.createElement("div");
     status.className = "flora-generator-status";
@@ -881,7 +1987,17 @@
     status.hidden = true;
     panel.append(referenceArea, promptArea, footer, status);
     state.shell.append(panel);
-    Object.assign(state, { panel, referenceArea, promptArea, settings, actions, status, price });
+    Object.assign(state, {
+      panel,
+      referenceArea,
+      promptArea,
+      settings,
+      actions,
+      status,
+      price,
+      visualPresetHost: visualPresets,
+      visualPresetCleanup: null,
+    });
     const expandButton = document.createElement("button");
     expandButton.type = "button";
     expandButton.className = "flora-generator-expand";
@@ -898,13 +2014,36 @@
       panel.addEventListener(type, stopPointer);
       state.cleanups.push(() => panel.removeEventListener(type, stopPointer));
     }
-    if (state.node.dataset.floraKind !== "audio-generator") addReferenceControl(state);
+    addReferenceControl(state);
+    if (state.node.dataset.floraKind === "audio-generator") state.addReference.hidden = true;
+    state.cleanups.push(() => {
+      state.mentionEditor?.dispose();
+      state.commerceMentionEditors?.forEach(editor => editor.dispose());
+    });
     const parametersOpen = () => state.modelPicker?.close?.();
     state.node.addEventListener("flora-generator-parameters-open", parametersOpen);
     state.cleanups.push(() => state.node.removeEventListener("flora-generator-parameters-open", parametersOpen));
-    const workflowChange = () => queueMicrotask(() => syncComfyPrompt(state));
+    const workflowChange = () => queueMicrotask(() => {
+      syncComfyPrompt(state);
+      syncPromptMentionEditor(state);
+    });
     state.node.addEventListener("change", workflowChange);
     state.cleanups.push(() => state.node.removeEventListener("change", workflowChange));
+    const openCommerceSlotPicker = event => {
+      const slot = Number(event.detail?.slot);
+      if (!Number.isInteger(slot) || slot < 0 || slot > 3) return;
+      const picker = ensureReferencePicker(state);
+      picker.close();
+      picker.commerceSlot = slot;
+      picker.commerceAnchor = event.detail?.anchor;
+      picker.kind = "image";
+      picker.tab = "canvas";
+      picker.tabs.forEach(tab => tab.setAttribute("aria-selected", String(tab.dataset.referenceTab === "canvas")));
+      picker.commerceActions.hidden = false;
+      picker.open();
+    };
+    state.node.addEventListener("flora-h3-commerce-slot-picker", openCommerceSlotPicker);
+    state.cleanups.push(() => state.node.removeEventListener("flora-h3-commerce-slot-picker", openCommerceSlotPicker));
   }
 
   function syncComfyPrompt(state) {
@@ -936,7 +2075,9 @@
       refs.className = "canvas-node-refs";
       refs.hidden = true;
     }
-    let prompt = sourceOutsidePanel(node, ".canvas-node-prompt, .canvas-api-video-prompt-input, .canvas-h3-prompt, .canvas-audio-generator-prompt", panel);
+    let prompt = sourceOutsidePanel(node, ".canvas-node-prompt, .canvas-api-video-prompt-input, .canvas-h3-prompt, .canvas-audio-generator-prompt, .canvas-midjourney-prompt-input", panel);
+    const commercePrompts = sourceOutsidePanel(node, ".canvas-h3-commerce-prompts", panel);
+    const commerceImages = sourceOutsidePanel(node, ".canvas-h3-commerce-images", panel);
     if (prompt) prompt.classList.add("canvas-node-prompt");
     const lyrics = node.dataset.floraKind === "audio-generator"
       ? sourceOutsidePanel(node, ".canvas-audio-generator-lyrics", panel)
@@ -959,9 +2100,9 @@
     }
     const engineSwitch = sourceOutsidePanel(node, ".canvas-engine-switch", panel);
     mountEnginePicker(node);
-    const controls = sourceOutsidePanel(node, ".canvas-node-controls, .canvas-llm-controls, .canvas-api-video-controls, .canvas-h3-controls, .canvas-audio-generator-controls", panel);
+    const controls = sourceOutsidePanel(node, ".canvas-node-controls, .canvas-llm-controls, .canvas-api-video-controls, .canvas-h3-controls, .canvas-audio-generator-controls, .canvas-midjourney-controls", panel);
     if (controls) controls.classList.add("canvas-node-controls");
-    const run = sourceOutsidePanel(node, ".canvas-node-run, .canvas-h3-run, .canvas-audio-generator-run", panel);
+    const run = sourceOutsidePanel(node, ".canvas-node-run, .canvas-h3-run, .canvas-audio-generator-run, .canvas-midjourney-run", panel);
     if (run) run.classList.add("canvas-node-run");
     const previous = state.sources || {};
     for (const [name, replacement] of Object.entries({ refs, prompt, lyrics, audioReference, engineSwitch, controls, run })) {
@@ -977,10 +2118,12 @@
       parent: run.parentElement,
       next: run.nextSibling,
     };
-    state.sources = { refs, prompt, lyrics, audioReference, engineSwitch, controls, run };
+    state.sources = { refs, prompt, commercePrompts, commerceImages, lyrics, audioReference, engineSwitch, controls, run };
     put(refs, state.referenceArea);
+    put(commerceImages, state.referenceArea);
     placeReferenceAddButton(state);
     put(prompt, state.promptArea);
+    put(commercePrompts, state.promptArea);
     put(lyrics, state.promptArea);
     if (audioReference && audioReference.previousElementSibling !== state.referenceArea) state.referenceArea.after(audioReference);
     if (node.dataset.floraKind === "audio-generator" && state.promptArea) {
@@ -989,6 +2132,13 @@
     }
     if (engineSwitch && engineSwitch !== state.settings.firstElementChild) state.settings.prepend(engineSwitch);
     put(controls, state.settings);
+    if (node.dataset.floraKind === "midjourney" && controls) {
+      const operation = node.querySelector(".canvas-midjourney-operation-field");
+      if (operation && operation.parentElement !== controls) controls.prepend(operation);
+    }
+    if (state.visualPresetHost && node.dataset.floraKind === "generator") {
+      state.settings.append(state.visualPresetHost);
+    }
     put(run, state.actions);
     placeH3ModeSwitch(state);
     if (node.classList.contains("canvas-node-comfy")) {
@@ -1013,7 +2163,7 @@
       if (extras.children.length) controls.append(extras);
       state.mediaParameters = extras;
     }
-    if (node.dataset.floraKind === "llm" && controls) {
+    if (["text", "llm"].includes(node.dataset.floraKind) && controls) {
       const presets = node.querySelector(".canvas-llm-presets");
       if (presets && !presets.closest(".flora-generator-parameter-popover")) put(presets, controls);
     }
@@ -1047,7 +2197,7 @@
       placeholder = document.createElement("div");
       placeholder.className = "flora-generator-placeholder";
       const videoPlaceholder = ["video-api", "minimax-h3"].includes(node.dataset.floraKind);
-      const imagePlaceholder = node.dataset.floraKind === "generator";
+      const imagePlaceholder = ["generator", "midjourney"].includes(node.dataset.floraKind);
       const audioPlaceholder = node.dataset.floraKind === "audio-generator";
       let icon;
       if (videoPlaceholder) {
@@ -1078,7 +2228,7 @@
       const label = document.createElement("span");
       label.textContent = "生成结果";
       placeholder.append(icon);
-      if (!videoPlaceholder && !imagePlaceholder && !audioPlaceholder) placeholder.append(label);
+      if (!videoPlaceholder && !imagePlaceholder && !audioPlaceholder && node.dataset.floraKind !== "llm") placeholder.append(label);
       resultArea.append(placeholder);
       root.lucide?.createIcons?.({ attrs: { "aria-hidden": "true", "stroke-width": 1.8 } });
     }
@@ -1090,12 +2240,14 @@
     collapsePanel(state, false);
     if (state.placementFrame != null) root.cancelAnimationFrame(state.placementFrame);
     state.cleanups.forEach((cleanup) => cleanup());
+    state.visualPresetCleanup?.();
+    state.visualPresetCleanup = null;
     root.FloraGeneratorParameters?.unmount?.(state.node);
     state.modelPicker?.close?.();
     if (restore) state.modelPicker?.setPresentation?.("canvas");
     else root.releaseCanvasImageModelPicker?.(state.modelSelect);
     if (restore) {
-      const { refs, prompt, lyrics, audioReference, engineSwitch, controls, run } = state.sources || {};
+      const { refs, prompt, commercePrompts, commerceImages, lyrics, audioReference, engineSwitch, controls, run } = state.sources || {};
       const { inputArea, parameterTray, content } = state.origins || {};
       run?.querySelector(".flora-generator-run-icon")?.remove();
       run?.removeAttribute("aria-label");
@@ -1110,12 +2262,14 @@
       }
       if (refs) refs.hidden = false;
       put(refs, inputArea || content);
+      put(commerceImages, inputArea || content);
       put(lyrics, inputArea || content);
       put(audioReference, inputArea || content);
     // H3 uses a transparent textarea over a colored mirror. Move the editor
     // wrapper as one unit so the mirror stays aligned in the shared composer.
     const promptSurface = prompt.closest?.(".canvas-h3-prompt-editor") || prompt;
     put(promptSurface, inputArea || content);
+      put(commercePrompts, inputArea || content);
       if (engineSwitch) {
         const parent = state.engineOrigin?.parent;
         if (parent?.isConnected && parent !== state.settings) {
@@ -1184,8 +2338,9 @@
 
   function syncViewport() {
     for (const state of mounted.values()) {
-      if (state.panel.hidden || state.expanded || !state.node.isConnected) continue;
-      schedulePlace(state);
+      if (state.panel.hidden || !state.node.isConnected) continue;
+      if (state.expanded) state.referencePicker?.schedulePosition();
+      else schedulePlace(state);
     }
   }
 

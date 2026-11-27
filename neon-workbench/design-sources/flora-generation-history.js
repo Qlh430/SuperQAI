@@ -47,6 +47,10 @@
     for (const key of ["text", "prompt", "model", "assetId", "name"]) {
       if (value[key] != null) item[key] = String(value[key]);
     }
+    if (value.kind === "image" && typeof value.generationTaskId === "string"
+        && /^(?:imgjob_|comfy:)[\w:-]{1,160}$/.test(value.generationTaskId)) {
+      item.generationTaskId = value.generationTaskId;
+    }
     if (value.kind === "text") {
       if (["completed", "incomplete"].includes(value.completionStatus)) item.completionStatus = value.completionStatus;
       for (const key of ["finishReason", "incompleteReason", "warning"]) {
@@ -72,7 +76,7 @@
     return item;
   }
 
-  function normalize(items, currentId) {
+  function normalize(items, currentId, snapshots) {
     const history = [];
     const ids = new Map();
     for (const value of Array.isArray(items) ? items : []) {
@@ -81,34 +85,43 @@
       if (ids.has(item.id)) Object.assign(history[ids.get(item.id)], item);
       else { ids.set(item.id, history.length); history.push(item); }
     }
+    const entries = [...new Set(history.map(item => item.generationTaskId).filter(Boolean))]
+      .filter(id => Object.hasOwn(snapshots || {}, id) && snapshots[id]?.version === 1
+        && ["api", "comfyui", "midjourney"].includes(snapshots[id].engine))
+      .map(id => [id, snapshots[id]]);
     return {
       generationHistory: history,
       currentGenerationId: history.some(item => item.id === String(currentId)) ? String(currentId) : history.at(-1)?.id || "",
+      ...(entries.length ? { imageGenerationSnapshots: Object.fromEntries(entries) } : {}),
     };
   }
 
   function serialize(node) {
     let items = [];
     try { items = JSON.parse(node?.dataset?.generationHistory || "[]"); } catch { /* A malformed history never prevents opening the canvas. */ }
-    return normalize(items, node?.dataset?.currentGenerationId);
+    let snapshots = {};
+    try { snapshots = JSON.parse(node?.dataset?.imageGenerationSnapshots || "{}"); } catch { /* Snapshots are optional for legacy results. */ }
+    return normalize(items, node?.dataset?.currentGenerationId, snapshots);
   }
 
   function write(node, value) {
     node.dataset.generationHistory = JSON.stringify(value.generationHistory);
     node.dataset.currentGenerationId = value.currentGenerationId;
+    if (value.imageGenerationSnapshots) node.dataset.imageGenerationSnapshots = JSON.stringify(value.imageGenerationSnapshots);
+    else delete node.dataset.imageGenerationSnapshots;
   }
 
-  function emit(type, node, item) {
-    root.dispatchEvent(new CustomEvent(type, { detail: type === "flora-generation-history-select" ? { node, item } : { node } }));
+  function emit(type, node, item, options) {
+    root.dispatchEvent(new CustomEvent(type, { detail: type === "flora-generation-history-select" ? { node, item, ...options } : { node } }));
   }
 
-  function hydrate(node, items, currentId) {
+  function hydrate(node, items, currentId, snapshots) {
     if (!node?.dataset) return;
-    write(node, normalize(items, currentId));
+    write(node, normalize(items, currentId, snapshots));
     sync(node);
   }
 
-  function add(node, value) {
+  function add(node, value, snapshot) {
     const item = cleanItem(value);
     if (!node?.dataset || !item) return null;
     const data = serialize(node);
@@ -118,6 +131,10 @@
       item.createdAt ??= Date.now();
       data.generationHistory.push(item);
       data.currentGenerationId = item.id;
+    }
+    if (item.generationTaskId && snapshot?.version === 1) {
+      data.imageGenerationSnapshots ||= {};
+      data.imageGenerationSnapshots[item.generationTaskId] ??= snapshot;
     }
     write(node, data);
     if (data.currentGenerationId === item.id) emit("flora-generation-history-select", node, previous || item);
@@ -140,13 +157,17 @@
     return previous || item;
   }
 
-  function select(node, id) {
+  function select(node, id, report) {
     const data = serialize(node);
     const item = data.generationHistory.find(entry => entry.id === id);
     if (!item) return;
     data.currentGenerationId = id;
     write(node, data);
-    emit("flora-generation-history-select", node, item);
+    emit("flora-generation-history-select", node, item, {
+      restoreConfiguration: true,
+      snapshot: data.imageGenerationSnapshots?.[item.generationTaskId],
+      report,
+    });
     sync(node);
     emit("flora-generation-history-change", node);
   }
@@ -158,7 +179,7 @@
     data.generationHistory.splice(index, 1);
     const changedCurrent = data.currentGenerationId === id;
     if (changedCurrent) data.currentGenerationId = data.generationHistory[Math.min(index, data.generationHistory.length - 1)]?.id || "";
-    write(node, data);
+    write(node, normalize(data.generationHistory, data.currentGenerationId, data.imageGenerationSnapshots));
     if (changedCurrent) emit("flora-generation-history-select", node, data.generationHistory.find(item => item.id === data.currentGenerationId) || null);
     sync(node);
     emit("flora-generation-history-change", node);
@@ -493,7 +514,9 @@
       const caption = textElement("flora-generation-history-caption", `第${index + 1}条 · ${kindLabels[item.kind]}`);
       const current = textElement("flora-generation-history-current", "当前结果"); current.hidden = item.id !== data.currentGenerationId;
       choose.append(media(item, true), caption, current);
-      choose.addEventListener("click", () => select(state.node, item.id));
+      choose.addEventListener("click", () => select(state.node, item.id, text => {
+        if (state.node.dataset.currentGenerationId === item.id && state.panel.open) state.status.textContent = text;
+      }));
       const actions = document.createElement("div"); actions.className = "flora-generation-history-actions";
       const expand = button(`全屏查看第${index + 1}条生成结果`, "maximize-2");
       const save = button(`下载第${index + 1}条生成结果`, "download");
@@ -551,7 +574,10 @@
     header.append(textElement("flora-generation-history-title", "生成历史"), count, dismiss);
     const grid = document.createElement("div"); grid.className = "flora-generation-history-grid";
     const status = textElement("flora-generation-history-status", ""); status.setAttribute("role", "status");
-    const note = textElement("flora-generation-history-note", "选择结果只更新预览。删除仅移除此节点的历史记录。");
+    const imageHistory = node.matches(".canvas-node-generator, .canvas-node-comfy, .canvas-node-midjourney");
+    const note = textElement("flora-generation-history-note", imageHistory
+      ? "选择图片结果可恢复已记录的生成配置。删除仅移除此节点的历史记录。"
+      : "选择结果只更新预览。删除仅移除此节点的历史记录。");
     panel.append(header, grid, status, note);
     const host = document.fullscreenElement || node.closest("#neonEngineSurface") || document.body;
     host.append(panel); shell.append(badge);

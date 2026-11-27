@@ -1,0 +1,182 @@
+{
+  "version": 1,
+  "title": "产品视觉大片信息收集",
+  "show_cancel": false,
+  "execution": {
+    "target": "image",
+    "instructions": "仅创建一个可编辑图片生成节点，连接已确认原始素材并写入提示词及参数，不执行生成。"
+  },
+  "steps": [
+    {
+      "id": "product",
+      "title": "产品主体与材质",
+      "required": true,
+      "fields": [
+        {
+          "id": "product_positioning",
+          "type": "textarea",
+          "label": "产品主体与材质",
+          "show_label": false,
+          "placeholder": "例如：一瓶透明玻璃香水，琥珀色液体、银色金属盖；或一只哑光黑色无线耳机充电盒。",
+          "example": "一瓶透明玻璃香水，琥珀色液体、银色金属盖；或一只哑光黑色无线耳机充电盒。",
+          "prefill": "prompt",
+          "required": true,
+          "min_length": 2,
+          "max_length": 1200
+        }
+      ]
+    },
+    {
+      "id": "image",
+      "kind": "image",
+      "title": "产品参考图",
+      "required": true,
+      "sources": ["canvas", "upload"]
+    },
+    {
+      "id": "audience",
+      "title": "目标受众与用途",
+      "required": true,
+      "fields": [
+        {
+          "id": "audience_usage",
+          "type": "text",
+          "label": "目标受众与用途",
+          "show_label": false,
+          "placeholder": "例如：面向商务通勤人群，用作品牌主视觉的摄影底图。",
+          "example": "面向商务通勤人群，用作品牌主视觉的摄影底图。",
+          "required": true,
+          "max_length": 500
+        }
+      ]
+    },
+    {
+      "id": "creative",
+      "title": "摄影视觉方向",
+      "required": true,
+      "fields": [
+        {
+          "id": "creative_direction",
+          "type": "choice",
+          "label": "摄影视觉方向",
+          "show_label": false,
+          "layout": "vertical",
+          "required": true,
+          "default": "recommend",
+          "options": [
+            {
+              "value": "recommend",
+              "label": "由 Agent 专业决定"
+            },
+            {
+              "value": "custom",
+              "label": "自定义方向"
+            }
+          ]
+        },
+        {
+          "id": "custom_photo_direction",
+          "type": "textarea",
+          "label": "自定义方向",
+          "visible_when": { "field": "creative_direction", "equals": "custom" },
+          "required": true,
+          "max_length": 500,
+          "placeholder": "例如：建筑空间、斜向日光、透明壳缘清晰"
+        }
+      ]
+    },
+    {
+      "id": "output",
+      "title": "画幅比例",
+      "required": true,
+      "fields": [
+        {
+          "id": "size",
+          "type": "choice",
+          "label": "画幅比例",
+          "show_label": false,
+          "layout": "vertical",
+          "capability": "image_output_size",
+          "required": true,
+          "default": "3:4",
+          "options": [
+            { "value": "3:4", "label": "竖版 3:4" },
+            { "value": "9:16", "label": "竖版 9:16（手机屏/社媒）" },
+            { "value": "16:9", "label": "横版 16:9（官网首屏）" },
+            { "value": "custom", "label": "自定义" }
+          ]
+        },
+        {
+          "id": "width",
+          "type": "number",
+          "label": "宽度（px）",
+          "placeholder": "宽度",
+          "min": 64,
+          "max": 3840,
+          "step": 16,
+          "required": true,
+          "visible_when": { "field": "size", "equals": "custom" }
+        },
+        {
+          "id": "height",
+          "type": "number",
+          "label": "高度（px）",
+          "placeholder": "高度",
+          "min": 64,
+          "max": 3840,
+          "step": 16,
+          "required": true,
+          "visible_when": { "field": "size", "equals": "custom" }
+        },
+        {
+          "id": "resolution",
+          "type": "choice",
+          "label": "分辨率",
+          "capability": "image_resolution",
+          "required": true,
+          "default": "1",
+          "options": [
+            { "value": "auto", "label": "自动" },
+            { "value": "1", "label": "标准" },
+            { "value": "2", "label": "高" },
+            { "value": "4", "label": "超高" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "brand",
+      "title": "实物标识与保真要求",
+      "required": false,
+      "skip_label": "跳过，交给 AI",
+      "submit_label": "提交创作信息",
+      "fields": [
+        {
+          "id": "brand_limits",
+          "type": "text",
+          "label": "实物标识与保真要求",
+          "show_label": false,
+          "show_description": true,
+          "description": "照片仅保留原图实物上的标识。",
+          "placeholder": "例如：保留镜头区域和壳边上的原有标识",
+          "example": "保留镜头区域和壳边上的原有标识",
+          "max_length": 500
+        }
+      ]
+    },
+    {
+      "id": "proposal",
+      "kind": "proposal",
+      "title": "确认生成方案",
+      "summary_title": "需求摘要",
+      "summary_fields": [
+        { "field": "product_positioning", "label": "产品主体与材质" },
+        { "field": "audience_usage", "label": "目标受众与用途" },
+        { "field": "creative_direction", "label": "摄影视觉方向" },
+        { "field": "custom_photo_direction", "label": "自定义方向" },
+        { "field": "size", "label": "画面规格" },
+        { "field": "brand_limits", "label": "实物标识与保真要求" }
+      ]
+    }
+  ]
+}

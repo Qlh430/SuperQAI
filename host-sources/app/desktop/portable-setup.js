@@ -19,15 +19,15 @@ const ACTION_TYPES = new Set([
 ]);
 
 const ERROR_MESSAGES = Object.freeze({
-  invalid_arguments: "启动参数不完整。请重新打开 AI OS，或按说明重新填写迁移命令。",
-  invalid_source: "选中的目录不是有效的旧 AI OS 项目。请选择包含 data 文件夹的项目根目录，不要选择 data 本身。",
-  source_changed: "旧项目在迁移过程中发生了变化。请完全退出旧版 AI OS，确认文件不再写入后重试。",
+  invalid_arguments: "启动参数不完整。请重新打开 BenDo，或按说明重新填写迁移命令。",
+  invalid_source: "选中的目录不是有效的旧 BenDo 项目。请选择包含 data 文件夹的项目根目录，不要选择 data 本身。",
+  source_changed: "旧项目在迁移过程中发生了变化。请完全退出旧版 BenDo，确认文件不再写入后重试。",
   unsupported_source_layout: "旧项目的 .env 使用了非标准存储路径，暂时无法自动迁移。请先把旧数据整理到默认目录。",
   invalid_database: "旧项目的数据库损坏或 WAL 文件不完整。请先修复或恢复完整数据库，再重试迁移。",
   missing_provider_key: "旧项目缺少 data/security/provider-master.key，无法解密接口密钥。请从同一旧项目恢复该文件。",
   invalid_provider_key: "旧项目的 provider-master.key 与加密数据库不匹配。请恢复同一份数据库和主密钥后重试。",
   target_not_empty: "当前便携目录已经包含业务数据。请使用新解压的便携目录，或选择“直接全新开始”。",
-  migration_busy: "另一个迁移任务仍在运行，或上次中断留下了锁。请完全退出 AI OS 后重试。",
+  migration_busy: "另一个迁移任务仍在运行，或上次中断留下了锁。请完全退出 BenDo 后重试。",
   migration_rollback_failed: "迁移已经停止，但部分临时文件未能清理。请保留旧项目，并改用新解压的便携目录。",
   verification_failed: "迁移副本没有通过文件校验。请检查目标磁盘空间和文件系统，然后重试。",
   source_collision: "旧项目中存在会互相覆盖的文件。请先整理重复的 data、output、workflows 或 .env 文件。",
@@ -56,7 +56,7 @@ function toSafeInspectionSummary(inspection = {}) {
   const sourceKind = inspection.sourceKind === "portable" ? "portable" : "project";
   return Object.freeze({
     sourceKind,
-    sourceKindLabel: sourceKind === "portable" ? "AI OS 便携版" : "旧版 AI OS 项目",
+    sourceKindLabel: sourceKind === "portable" ? "BenDo 便携版" : "旧版 BenDo 项目",
     fileCount: Math.max(0, Number(inspection.fileCount) || 0),
     totalBytes: Math.max(0, Number(inspection.totalBytes) || 0),
     totalSizeLabel: formatBytes(inspection.totalBytes),
@@ -377,7 +377,7 @@ async function createElectronSetupUi({ BrowserWindow, ipcMain, dialog, hidden, o
   return {
     async pickSource() {
       const selected = await dialog.showOpenDialog(setupWindow, {
-        title: "选择旧 AI OS 项目根目录（里面包含 data）",
+        title: "选择旧 BenDo 项目根目录（里面包含 data）",
         buttonLabel: "选择此项目",
         properties: ["openDirectory"],
       });

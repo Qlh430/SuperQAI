@@ -20,18 +20,20 @@ function normalizeHistory(value) {
   };
 }
 
-function classifyProviderUsageError(message, httpStatus = 0) {
-  const value = String(message || "").toLowerCase();
+function classifyProviderUsageError(message, httpStatus = 0, code = "") {
+  const value = `${code} ${message || ""}`.toLowerCase();
+  if (httpStatus === 499 || /request_aborted|abort_err|cancelled|canceled|用户.*取消|用户.*停止/.test(value)) return "cancelled";
+  if (/timeout|timed out|\u8d85\u65f6/.test(value)) return "timeout";
   if (/insufficient|balance|quota|credit|billing|\u4f59\u989d|\u989d\u5ea6|\u6b20\u8d39/.test(value)) return "balance";
   if (httpStatus === 401 || httpStatus === 403 || /upstream_auth|authentication|authorization|unauthorized|forbidden|invalid.*key|\u9274\u6743/.test(value)) return "auth";
   if (httpStatus === 429 || /rate.?limit|too many requests/.test(value)) return "rate-limit";
   if (httpStatus >= 500) return "server";
-  if (!httpStatus || /timeout|network|fetch failed|connect/.test(value)) return "network";
+  if (!httpStatus || /network|fetch failed|connect/.test(value)) return "network";
   return "request";
 }
 
 function summarizeProviderUsageCapability(events) {
-  const items = Array.isArray(events) ? events.filter(Boolean) : [];
+  const items = Array.isArray(events) ? events.filter((item) => item && item.errorCategory !== "cancelled") : [];
   const latest = items.at(-1);
   if (!latest) return { state: "untested", kind: "", checkedAt: "", message: "" };
   if (latest.success) {
@@ -47,6 +49,7 @@ function summarizeProviderUsageCapability(events) {
     auth: "auth-error",
     "rate-limit": "rate-limited",
     network: "unstable",
+    timeout: "unstable",
     server: "unstable",
     request: "rejected",
   };
@@ -138,7 +141,9 @@ function createProviderTelemetryService({
       success: Boolean(event.success),
       latencyMs: Math.max(0, Number(event.latencyMs || 0)),
       httpStatus: Math.max(0, Number(event.httpStatus || 0)),
-      errorCategory: event.success ? "" : classifyProviderUsageError(event.message, event.httpStatus),
+      code: event.success ? "" : String(event.code || "").slice(0, 80),
+      stage: event.success ? "" : String(event.stage || "").slice(0, 80),
+      errorCategory: event.success ? "" : classifyProviderUsageError(event.message, event.httpStatus, event.code),
       message: event.success ? "" : String(event.message || "").slice(0, 240),
       checkedAt,
     };

@@ -22,6 +22,9 @@ function readLatestResult(root) {
 function hasFailedData(directory) {
   for (const failed of [
     path.join(directory, "failed-data"),
+    path.join(directory, "data"),
+    path.join(directory, "restore-data"),
+    path.join(directory, "RECOVERY.txt"),
     path.join(directory, "database", "failed-system.sqlite"),
     path.join(directory, "database", "failed-canvas.db"),
   ]) {
@@ -30,6 +33,11 @@ function hasFailedData(directory) {
     catch (error) { if (error.code === "ENOENT") continue; throw error; }
     if (stat.isSymbolicLink()) throw Error("回滚快照不能包含符号链接或目录联接");
     return true;
+  }
+  const database = path.join(directory, "database");
+  if (fs.existsSync(database)) {
+    if (fs.lstatSync(database).isSymbolicLink()) throw Error("回滚快照不能包含符号链接或目录联接");
+    if (fs.readdirSync(database).some(name => /^(?:retry-\d+-)?failed-(?:system\.sqlite|canvas\.db)(?:-wal|-shm)?$/.test(name))) return true;
   }
   return false;
 }
@@ -58,6 +66,16 @@ function listTransactions(root) {
   }
   return transactions;
 }
+function knownSnapshot(directory) {
+  const allowed = new Set(["database/manifest.json", "database/system.sqlite", "database/canvas.db", "components/meta.json", "components/state.json"]);
+  const visit = (dir, prefix = "") => fs.readdirSync(dir, { withFileTypes: true }).every(entry => {
+    if (entry.isSymbolicLink()) return false;
+    const relative = prefix + entry.name;
+    if (entry.isDirectory()) return ["database", "components"].includes(relative) && visit(path.join(dir, entry.name), relative + "/");
+    return entry.isFile() && allowed.has(relative);
+  });
+  return visit(directory);
+}
 
 function retentionCount(value, fallback, maximum) {
   const number = Number(value);
@@ -67,7 +85,8 @@ function retentionCount(value, fallback, maximum) {
 
 function pruneRollbackSnapshots(root, options = {}) {
   const portableRoot = path.resolve(root);
-  if (fs.existsSync(inside(portableRoot, ".ai-runtime/updates/install.json"))) {
+  if (fs.existsSync(inside(portableRoot, ".ai-runtime/updates/install.json")) ||
+      fs.existsSync(inside(portableRoot, ".ai-runtime/updates/helper.json"))) {
     return { skipped: "update-in-progress", protected: [], kept: [], removed: [], errors: [] };
   }
 
@@ -88,15 +107,17 @@ function pruneRollbackSnapshots(root, options = {}) {
   const keepIds = new Set(protectedIds);
   // These snapshots can contain projects created after the pre-update snapshot.
   // A count/age policy must never silently delete unrecovered user writes.
-  for (const transaction of transactions) if (hasFailedData(inside(portableRoot, `.ai-runtime/rollback/${transaction.id}`))) {
+  for (const transaction of transactions) if (hasFailedData(inside(portableRoot, `.ai-runtime/rollback/${transaction.id}`)) ||
+      !knownSnapshot(inside(portableRoot, `.ai-runtime/rollback/${transaction.id}`))) {
     protectedIds.add(transaction.id); keepIds.add(transaction.id);
   }
 
   for (const [kind, count] of [["successful", keepSuccessful], ["failed", keepFailed]]) {
+    const protectedCount = transactions.filter(transaction => transaction.kind === kind && keepIds.has(transaction.id)).length;
     transactions
       .filter((transaction) => transaction.kind === kind && !keepIds.has(transaction.id))
       .sort((left, right) => right.mtimeMs - left.mtimeMs)
-      .slice(0, count)
+      .slice(0, Math.max(0, count - protectedCount))
       .forEach((transaction) => keepIds.add(transaction.id));
   }
   for (const transaction of transactions) {

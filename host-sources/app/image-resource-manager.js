@@ -349,6 +349,12 @@
       if (this.options.get(img)?.allowOriginalFallback === false) allowOriginalFallback = false;
       const source = img.getAttribute("data-original-src") || "";
       if (!source) return Promise.resolve(null);
+      const pendingOriginal = this.originalPromises.get(img);
+      if (pendingOriginal?.source === source && img.dataset.requestedQuality === "original") {
+        return pendingOriginal.promise.then((ready) => ready
+          ? { source, thumbnailUrl: source, lightweight: false }
+          : null);
+      }
       if (img.dataset.imageQuality === "original" && img.getAttribute("src") === source) {
         img.dataset.requestedQuality = "original";
         return Promise.resolve({ source, thumbnailUrl: source, lightweight: false });

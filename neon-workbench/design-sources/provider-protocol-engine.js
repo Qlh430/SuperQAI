@@ -92,7 +92,7 @@ function errorForStatus(status, detail, provider, model, request) {
   }
   const safeDetail = redact(detail, [provider?.apiKey, provider?.api_key, provider?.walletKey, provider?.wallet_api_key]);
   const diagnosis = quotaRejected ? quotaRequestDiagnostic(safeDetail, request) : "";
-  return new ProtocolEngineError({
+  return Object.assign(new ProtocolEngineError({
     code: quotaRejected ? "UPSTREAM_QUOTA_EXHAUSTED" : code,
     providerId: String(provider?.id || ""),
     modelId: modelIdOf(model),
@@ -103,6 +103,10 @@ function errorForStatus(status, detail, provider, model, request) {
     // failures keep their own unknown-submission handling.
     fallbackAllowed: quotaRejected || (!contentRejected && numericStatus >= 400 && numericStatus < 500),
     safeMessage: `${diagnosis}${diagnosis ? "\n" : ""}上游服务返回 HTTP ${numericStatus}${safeDetail ? `：${safeDetail}` : ""}`,
+  }), {
+    upstreamStatus: numericStatus,
+    requestReasoningEffort: request?.body?.reasoning_effort,
+    requestUsesChatCompletions: Boolean(Array.isArray(request?.body?.messages)),
   });
 }
 
@@ -160,6 +164,7 @@ function modelIdOf(model) {
 // pins `reasoning_effort: "none"` (APIMart's gpt-5.6-terra does exactly that).
 // Remembering the pair lets later turns send the accepted shape immediately.
 const toolReasoningNoneKeys = new Set();
+const toolResponsesKeys = new Set();
 
 function toolReasoningKey(provider, model) {
   return `${String(provider?.id || "")}\n${modelIdOf(model)}`;
@@ -167,7 +172,16 @@ function toolReasoningKey(provider, model) {
 
 function requiresToolReasoningNone(detail) {
   const text = String(detail || "");
-  return /reasoning[_ ]effort/i.test(text) && /\bnone\b/i.test(text);
+  return /reasoning[_ ]effort.{0,80}(?:must|only|require|supported when|should|has to).{0,60}\bnone\b/i.test(text)
+    || /(?:must|only|require|supported when).{0,80}reasoning[_ ]effort.{0,60}\bnone\b/i.test(text)
+    || /\b(?:set|specify|pass)\s+reasoning[_ ]effort\s+(?:to|as)\s+['"]?none\b/i.test(text);
+}
+
+function rejectsToolReasoningNone(detail) {
+  const text = String(detail || "");
+  return /reasoning[_ ]effort/i.test(text)
+    && /(?:does not support|unsupported|invalid|not supported).{0,100}\bnone\b/i.test(text)
+    && /supported values.{0,100}\blow\b/i.test(text);
 }
 
 function needsToolReasoningNone(provider, model, input) {
@@ -880,10 +894,10 @@ function createProtocolEngine({ registry = createProtocolRegistry(), fetchImpl, 
   function assertCustomIntent(provider, model, intent) {
     const custom = registry.getCustom?.(model?.protocol || model?.modelProtocol);
     const capability = intent === "llm.chat.stream" ? "llm.chat" : intent;
-    if (custom && !custom.capabilities.includes(capability)) throw new ProtocolEngineError({ code:"UPSTREAM_PROTOCOL", providerId:provider?.id, modelId:modelIdOf(model), retryable:false, safeMessage:"自定义模型协议不支持请求的能力。" });
+    if (custom && !custom.capabilities.includes(capability)) throw new ProtocolEngineError({ code:"UPSTREAM_PROTOCOL", providerId:provider?.id, modelId:modelIdOf(model), retryable:false, fallbackAllowed:true, safeMessage:"自定义模型协议不支持请求的能力。" });
   }
 
-  function buildRequest(provider, model, intent, input = {}, params = {}) {
+  function buildRequest(provider, model, intent, input = {}, params = {}, reasoningOverride) {
     assertCustomIntent(provider, model, intent);
     const { protocolId, modelProtocol, definition, platformDefinition, adapter } = resolve(provider, model);
     const effectiveParams = effectiveModelParams(model, params, provider);
@@ -906,6 +920,7 @@ function createProtocolEngine({ registry = createProtocolRegistry(), fetchImpl, 
     if (!operation) {
       throw new ProtocolEngineError({
         code: "UPSTREAM_PROTOCOL",
+        fallbackAllowed: true,
         providerId: String(provider?.id || ""),
         modelId: modelIdOf(model),
         safeMessage: `协议 ${protocolId} 不支持能力 ${redact(intent)}。`,
@@ -926,9 +941,10 @@ function createProtocolEngine({ registry = createProtocolRegistry(), fetchImpl, 
       && typeof body === "object"
       && !Array.isArray(body)
       && !(body instanceof FormData)
-      && needsToolReasoningNone(provider, model, input)
+      && (reasoningOverride || needsToolReasoningNone(provider, model, input))
     ) {
-      body.reasoning_effort = "none";
+      if (operation.body === "openai-responses") body.reasoning = { ...(body.reasoning || {}), effort: reasoningOverride || "none" };
+      else body.reasoning_effort = reasoningOverride || "none";
     }
     const apimartGemini = definition.id === "gemini"
       && (providerHasHost(provider, "apimart.ai") || providerHasHost(provider, "apib.ai"));
@@ -1006,26 +1022,54 @@ function createProtocolEngine({ registry = createProtocolRegistry(), fetchImpl, 
     throw errorForStatus(response?.status, detail, provider, model, request);
   }
 
-  // An upstream that rejects function tools together with a reasoning budget is
-  // telling us the exact shape it accepts. Adapt once, remember it for this
-  // provider+model, and only then let the candidate chain move on.
-  async function withToolReasoningRetry(provider, model, input, run) {
+  // Adapt only an explicit rejection of a tool-bearing chat request.
+  async function withToolReasoningRetry(provider, model, intent, input, run) {
+    const key = toolReasoningKey(provider, model);
+    const responsesKey = `${key}\n${providerBaseUrl(provider)}`;
+    const responsesModel = () => ({
+      ...(typeof model === "object" ? model : { id: modelIdOf(model) }),
+      protocol: "openai-responses", modelProtocol: "openai-responses",
+    });
+    const hasTools = Array.isArray(input?.tools) && input.tools.length;
+    if (hasTools && ["llm.chat", "llm.tools"].includes(intent) && toolResponsesKeys.has(responsesKey)) {
+      return run("low", responsesModel());
+    }
     try {
       return await run();
     } catch (error) {
       const detail = String(error?.safeMessage || error?.message || "");
       if (
         error?.code !== "UPSTREAM_PROTOCOL"
+        || error?.upstreamStatus !== 400
+        || !error?.requestUsesChatCompletions
+        || !["llm.chat", "llm.tools"].includes(intent)
         || !Array.isArray(input?.tools)
         || !input.tools.length
-        || !requiresToolReasoningNone(detail)
       ) {
         throw error;
       }
-      const key = toolReasoningKey(provider, model);
+      if (rejectsToolReasoningNone(detail)
+        && (error.requestReasoningEffort === undefined || error.requestReasoningEffort === "none")) {
+        toolReasoningNoneKeys.delete(key);
+        return run("low");
+      }
+      if (!requiresToolReasoningNone(detail)) throw error;
       if (toolReasoningNoneKeys.has(key)) throw error;
-      toolReasoningNoneKeys.add(key);
-      return run();
+      try {
+        const result = await run("none");
+        toolReasoningNoneKeys.add(key);
+        return result;
+      } catch (retryError) {
+        // A relay can require `none` for Chat Completions while its upstream
+        // rejects `none`. Use the existing Responses profile only when that
+        // very rejection explicitly recommended it; never oscillate parameters.
+        if (!/\buse\b.{0,60}\/(?:v1\/)?responses\b/i.test(detail)
+          || retryError?.upstreamStatus !== 400
+          || !rejectsToolReasoningNone(retryError?.safeMessage || retryError?.message)) throw retryError;
+        const result = await run("low", responsesModel());
+        toolResponsesKeys.add(responsesKey);
+        return result;
+      }
     }
   }
 
@@ -1056,7 +1100,7 @@ function createProtocolEngine({ registry = createProtocolRegistry(), fetchImpl, 
     if (protocolId === "gemini" && prepareImages && preparedInput.inputImages.some(image => !/^data:[^;]+;base64,.+$/i.test(image))) {
       throw new ProtocolEngineError({ code: "UPSTREAM_PROTOCOL", providerId: provider?.id, modelId: modelIdOf(model), safeMessage: "Gemini reference images must be prepared as a Blob or base64 data URL." });
     }
-    const request = buildRequest(provider, model, intent, preparedInput, params);
+    const request = buildRequest(provider, model, intent, preparedInput, params, options.toolReasoningOverride);
     const { response, scope } = await openResponse(request, provider, model, options);
     try {
       await ensureSuccess(response, scope, provider, model, request);
@@ -1214,8 +1258,11 @@ function createProtocolEngine({ registry = createProtocolRegistry(), fetchImpl, 
     return withToolReasoningRetry(
       provider,
       model,
+      intent,
       input,
-      () => executeOnce(provider, model, intent, input, params, options),
+      (reasoningOverride, modelOverride) => executeOnce(provider, modelOverride || model, intent, input, params, {
+        ...options, toolReasoningOverride: reasoningOverride || options.toolReasoningOverride,
+      }),
     );
   }
 
@@ -1223,8 +1270,11 @@ function createProtocolEngine({ registry = createProtocolRegistry(), fetchImpl, 
     return withToolReasoningRetry(
       provider,
       model,
+      intent,
       input,
-      () => streamOnce(provider, model, intent, input, params, onDelta, options),
+      (reasoningOverride, modelOverride) => streamOnce(provider, modelOverride || model, intent, input, params, onDelta, {
+        ...options, toolReasoningOverride: reasoningOverride || options.toolReasoningOverride,
+      }),
     );
   }
 
@@ -1243,7 +1293,7 @@ function createProtocolEngine({ registry = createProtocolRegistry(), fetchImpl, 
           throw normalizeError(error, provider, model, { intent });
         }
       }
-      const result = await execute(provider, model, intent, input, effectiveParams, options);
+      const result = await executeOnce(provider, model, intent, input, effectiveParams, options);
       if (result?.text) onDelta?.({ type: "text-delta", text: result.text });
       return {
         text: result?.text || "",
@@ -1259,9 +1309,9 @@ function createProtocolEngine({ registry = createProtocolRegistry(), fetchImpl, 
       };
     }
     const requestedIntent = modelOperationsFor(definition)[`${intent}.stream`] ? `${intent}.stream` : intent;
-    const request = buildRequest(provider, model, requestedIntent, input, effectiveParams);
+    const request = buildRequest(provider, model, requestedIntent, input, effectiveParams, options.toolReasoningOverride);
     if (!request.stream) {
-      const result = await execute(provider, model, intent, input, effectiveParams, options);
+      const result = await executeOnce(provider, model, intent, input, effectiveParams, options);
       if (result?.text) onDelta?.({ type: "text-delta", text: result.text });
       return {
         text: result?.text || "",

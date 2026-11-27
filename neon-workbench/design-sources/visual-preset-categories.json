@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "categories": [
+    {
+      "id": "characterDesign",
+      "label": "角色设计",
+      "icon": "user-round",
+      "selectionMode": "multi-group",
+      "groups": [
+        { "id": "gender", "label": "性别表达", "selectionMode": "single" },
+        { "id": "age", "label": "年龄段", "selectionMode": "single" },
+        { "id": "ethnicity", "label": "种族 / 族裔", "selectionMode": "single" },
+        { "id": "era", "label": "时代背景", "selectionMode": "single" },
+        { "id": "profession", "label": "职业身份", "selectionMode": "single" }
+      ]
+    },
+    {
+      "id": "stylePreset",
+      "label": "风格库",
+      "icon": "sparkles",
+      "selectionMode": "single"
+    },
+    {
+      "id": "filterPreset",
+      "label": "预设库",
+      "icon": "wand-sparkles",
+      "selectionMode": "single"
+    },
+    {
+      "id": "cameraControl",
+      "label": "摄像机控制",
+      "icon": "camera",
+      "selectionMode": "tabs",
+      "tabs": [
+        { "id": "camera", "label": "相机" },
+        { "id": "lens", "label": "镜头" },
+        { "id": "focalLength", "label": "焦距" },
+        { "id": "aperture", "label": "光圈" }
+      ]
+    }
+  ]
+}

@@ -48,6 +48,7 @@ const { createCapabilityResolver } = require("./provider-capability-resolver");
 const { createProviderExecutor } = require("./provider-executor");
 const { createAgentModelSettingsService } = require("./agent-model-settings");
 const { createSkillRegistry } = require("./skill-registry");
+const { createSkillImportManager } = require("./skill-import-manager");
 const { createCanvasAgentProviderBridge } = require("./canvas-agent-provider-bridge");
 const { createMediaProviderBridge } = require("./media-provider-bridge");
 const { createImageGenerationService } = require("./image-generation-service");
@@ -60,6 +61,7 @@ const { createAssetLibraryHttpApi } = require("./asset-library-http-api");
 const { createCanvasProjectHttpApi } = require("./canvas-project-http-api");
 const { createCanvasStorageHttpApi } = require("./canvas-storage-http-api");
 const { createCanvasAgentHttpApi } = require("./canvas-agent-http-api");
+const { createH3CommercePackageService } = require("./h3-commerce-package-service");
 const { createThumbnailHttpApi } = require("./thumbnail-http-api");
 const { createMediaHttpApi } = require("./media-http-api");
 const { createImageSyncHttpApi } = require("./image-sync-http-api");
@@ -95,6 +97,7 @@ const {
   inspectComfyHistory,
   sanitizeReferenceName,
 } = require("./minimax-h3-workflow");
+const { assertCommerceWorkflowContract, normalizeCommerceParameters, prepareCommerceWorkflow } = require("./h3-commerce-workflow");
 const {
   createServerConfig,
   normalizeApiUrl,
@@ -438,6 +441,7 @@ const SERVER_COMPOSITION_HOST = {
   createBackgroundRemovalHttpApi,
   createBackupService,
   createCanvasAgentHttpApi,
+  createH3CommercePackageService,
   createCanvasAgentProviderBridge,
   createCanvasProjectHttpApi,
   createCanvasProjectService,
@@ -482,6 +486,7 @@ const SERVER_COMPOSITION_HOST = {
   createServerComponentKernel,
   createServerThumbnailService,
   createSkillHttpApi,
+  createSkillImportManager,
   createSkillRegistry,
   createStaticHttpApi,
   createSystemDb,
@@ -525,6 +530,9 @@ const SERVER_COMPOSITION_HOST = {
   normalizeMinimaxH3Request,
   outputMediaRef,
   prepareMinimaxH3Workflow,
+  prepareCommerceWorkflow,
+  assertCommerceWorkflowContract,
+  normalizeCommerceParameters,
   publicUser,
   readBodyBuffer,
   readJson,
@@ -1430,7 +1438,8 @@ function getLanUrls(port) {
     .map((info) => `http://${info.address}:${port}`);
 }
 
-function readJson(req) {
+function readJson(req, maxBytes = MAX_REQUEST_BYTES) {
+  const requestLimit = Math.min(MAX_REQUEST_BYTES, Math.max(1, Number(maxBytes) || MAX_REQUEST_BYTES));
   return new Promise((resolve, reject) => {
     const chunks = [];
     let size = 0;
@@ -1438,9 +1447,9 @@ function readJson(req) {
     req.on("data", (chunk) => {
       const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
       size += buffer.length;
-      if (size > MAX_REQUEST_BYTES) {
+      if (size > requestLimit) {
         req.destroy();
-        reject(new Error(`Request body too large. Current limit is ${Math.round(MAX_REQUEST_BYTES / 1024 / 1024)}MB.`));
+        reject(new Error(`Request body too large. Current limit is ${Math.round(requestLimit / 1024 / 1024)}MB.`));
         return;
       }
       chunks.push(buffer);

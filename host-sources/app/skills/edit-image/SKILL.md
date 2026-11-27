@@ -7,7 +7,7 @@ canvas:
   icon: brush
   required_context: image
   triggers: [编辑图片, 修改图片, 修改这张, 改图, 修图, 换背景, 改文案, 调风格, 局部替换, 多图合成]
-  capabilities: [node.image.create, image.generate-to-gallery, image.existing-node-choice, image.mask.edit, image.crop, node.update, node.connect, node.run, canvas.node.focus]
+  capabilities: [node.image.create, image.existing-node-choice, image.mask.edit, image.crop, node.update, node.connect, node.run, canvas.node.focus]
 ---
 
 # 编辑图片

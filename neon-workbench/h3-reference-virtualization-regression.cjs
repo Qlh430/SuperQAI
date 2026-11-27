@@ -77,7 +77,7 @@ const SOURCE_FILES = [
       const cards = [...(band?.querySelectorAll('.flora-reference-card') || [])].map(card => ({
         type: card.dataset.referenceType,
         label: card.querySelector('.flora-reference-index')?.textContent?.trim() || '',
-        title: card.querySelector('.flora-reference-thumb')?.getAttribute('title') || '',
+        title: card.querySelector('.flora-reference-thumb')?.getAttribute('title')?.split('\n', 1)[0] || '',
       }))
       const incoming = getCanvasIncomingReferenceMaterials(h3.dataset.id).map(item => ({
         type: item.type, name: item.name, url: item.url, key: item.key,

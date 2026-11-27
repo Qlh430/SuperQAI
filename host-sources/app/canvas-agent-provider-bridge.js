@@ -41,7 +41,8 @@ function createCanvasAgentProviderBridge({ executor } = {}) {
       preferredProviderId: String(input.providerId || "").trim(),
       preferredModelId: String(input.modelId || "").trim(),
       candidateOrder: Array.isArray(input.candidateOrder) ? input.candidateOrder : [],
-      forceFallback: input.forceFallback === true,
+      // Nothing is delivered or executed until a complete turn is returned.
+      bufferedToolTurn: true,
       input: (() => {
         const tools = Array.isArray(input.tools) ? input.tools.filter(Boolean) : [];
         return {
@@ -64,7 +65,7 @@ function createCanvasAgentProviderBridge({ executor } = {}) {
       onAttemptFailure: input.onAttemptFailure,
     };
 
-    const result = await executor.stream(request, input.onDelta);
+    const result = await executor.stream(request);
     return {
       turn: {
         response_id: String(result?.responseId || `agent_${crypto.randomUUID()}`),

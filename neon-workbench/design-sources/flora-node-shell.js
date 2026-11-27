@@ -133,6 +133,7 @@
     inverseCanvasScale = next;
   }
   const imagePreviewStates = new WeakMap();
+  const anchoredImagePreviews = new WeakSet();
   const imageInformationStates = new WeakMap();
   const FLORA_NODE_WIDTH = 400;
   const FLORA_NODE_HEIGHT = 400;
@@ -214,6 +215,16 @@
     else queueMicrotask(() => { if (node.isConnected) measure(); });
   }
 
+  function withImagePreviewBottomAnchor(node, choose) {
+    anchoredImagePreviews.add(node);
+    try {
+      choose();
+      syncImagePreviewDimensions(node, true);
+    } finally {
+      anchoredImagePreviews.delete(node);
+    }
+  }
+
   function syncImagePreviewDimensions(node, preferSelection = false) {
     if (!node || (node.dataset.floraKind !== "generator" && !node.classList.contains("canvas-node-comfy"))) return;
     const size = node.querySelector(".canvas-node-size");
@@ -262,6 +273,14 @@
     const changed = Number(node.dataset.width) !== width || Math.abs(Number(node.dataset.height) - height) > .001
       || node.style.getPropertyValue("--flora-node-height") !== `${height}px`;
     if (!changed) return;
+    const previousWidth = Number(node.dataset.width);
+    const previousHeight = Number(node.dataset.height);
+    if (anchoredImagePreviews.has(node) && previousWidth > 0 && previousHeight > 0) {
+      // The composer follows the node in world space. Preserve the shell's
+      // bottom center before the normal geometry update repaints the ports.
+      node.dataset.x = String(Number(node.dataset.x) + (previousWidth - width) / 2);
+      node.dataset.y = String(Number(node.dataset.y) + previousHeight - height);
+    }
     node.dataset.width = String(width);
     node.dataset.height = String(height);
     node.dataset.renderedWidth = String(width);
@@ -786,6 +805,7 @@
     const resultSelectors = [
       ".canvas-image-upload",
       ".canvas-node-result",
+      ".canvas-llm-output",
       ".canvas-media-shell",
       ".canvas-assets-body",
       ".canvas-grid-editor-shell",
@@ -844,6 +864,7 @@
   }
 
   function getAssetDisplayName(node) {
+    if (node.classList.contains("canvas-node-text")) return String(node.dataset.textName || "").trim();
     if (node.classList.contains('canvas-node-video') || node.classList.contains('canvas-node-audio')) return String(node.dataset.mediaName || '').trim();
     if (node.classList.contains("canvas-node-asset-single-image")) {
       return String(node.dataset.imageName || "").trim();
@@ -1296,7 +1317,7 @@
     };
   }
 
-  function dispatchMediaAction(node, kind, action) {
+  function dispatchMediaAction(node, kind, action, trigger) {
     const state = getMediaState(node, kind);
     root.dispatchEvent(new CustomEvent("flora-media-action", {
       detail: {
@@ -1306,6 +1327,7 @@
         image: state.media,
         media: state.media,
         memberId: state.activeMemberId,
+        trigger,
       },
     }));
   }
@@ -1329,7 +1351,7 @@
         toolbar.append(button);
         button.addEventListener("click", (event) => {
           event.stopPropagation();
-          dispatchMediaAction(node, kind, action);
+          dispatchMediaAction(node, kind, action, event.currentTarget);
         });
       }
       buttons.set(action, button);
@@ -1383,7 +1405,7 @@
         toolbar.append(button);
         button.addEventListener("click", (event) => {
           event.stopPropagation();
-          dispatchMediaAction(node, kind, action);
+          dispatchMediaAction(node, kind, action, event.currentTarget);
         });
       }
       buttons.push(button);
@@ -1469,7 +1491,7 @@
       download.addEventListener("click", (event) => {
         event.stopPropagation();
         root.dispatchEvent(new CustomEvent("flora-media-action", {
-          detail: { node, kind, action: "download" },
+          detail: { node, kind, action: "download", trigger: event.currentTarget },
         }));
       });
       // 图片生成节点与素材图片节点共用同一组图片工具（放大 / 抠图 / 裁剪 / 扩图 / 换角度）。
@@ -1529,7 +1551,7 @@
     const { kind, meta } = resolveMeta(node);
     // Text nodes carry the language-model composer now, so they mount the shared
     // operation area as well. The legacy llm kind stays for existing boards.
-    const composer = ["generator", "video-api", "minimax-h3", "llm", "audio-generator", "text"].includes(kind);
+    const composer = ["generator", "video-api", "minimax-h3", "midjourney", "llm", "audio-generator", "text"].includes(kind);
     if (!composer) root.FloraGeneratorComposer?.unmount?.(node);
     const isLegacyFrameless = node.classList.contains("canvas-node-frameless")
       && !node.classList.contains("canvas-node-image")
@@ -1767,6 +1789,7 @@
     playVideo: requestVideoPlayback,
     playMedia: requestMediaPlayback,
     syncImagePreview: syncImagePreviewDimensions,
+    withImagePreviewBottomAnchor,
     enhanceMedia: (node) => enhanceMediaNode(node, node.dataset.floraKind || getKind(node)),
     mount,
     unmount,
@@ -1776,5 +1799,388 @@
     syncToolbar: (node) => syncLiveState(node),
     syncLabel: (node) => syncShellLabel(node, META[getKind(node)]?.label || "节点"),
   });
+})(typeof window !== "undefined" ? window : globalThis);
+
+(function installCanvasNodeImageViewer(root) {
+  "use strict";
+
+  const preferenceKey = "ai-os.canvas-image-viewer.info";
+  let showInfo = true;
+  try { showInfo = root.localStorage.getItem(preferenceKey) !== "hidden"; } catch { /* Session state is still available. */ }
+  let currentDialog;
+
+  function fileFormat(mime, source) {
+    const type = String(mime || "").match(/^image\/([\w.+-]+)/i)?.[1];
+    const extension = String(source).split(/[?#]/)[0].match(/\.(png|jpe?g|webp|gif|avif|svg|bmp|tiff?)$/i)?.[1];
+    const format = (type || extension || "").toLowerCase();
+    return ({ jpg: "JPEG", "svg+xml": "SVG" })[format] || format.toUpperCase();
+  }
+
+  function fileSize(bytes) {
+    if (!Number.isFinite(bytes) || bytes <= 0) return "";
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 ** 2) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / 1024 ** 2).toFixed(2)} MB`;
+  }
+
+  function imageUrl(source) {
+    if (!source) return "";
+    try { return new URL(source, document.baseURI).href; } catch { return ""; }
+  }
+
+  function originalUrl(source) {
+    const address = imageUrl(source);
+    if (!address) return "";
+    const url = new URL(address);
+    if (url.protocol === "blob:" || /^data:image\//i.test(address)) return source;
+    if (!["http:", "https:"].includes(url.protocol)) return "";
+    if (/^\/(?:output\/thumbnails(?:\/|$)|api\/image-thumbnails(?:\/|$))/i.test(url.pathname)) return "";
+    return source;
+  }
+
+  async function resolveOriginal(item, signal) {
+    if (item.assetId) {
+      const response = await root.fetch(`/api/assets/${encodeURIComponent(item.assetId)}`, {
+        credentials: "same-origin", cache: "no-store", signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]),
+      });
+      if (response.ok) {
+        const { asset } = await response.json();
+        const url = asset?.kind === "image" && originalUrl(asset.url);
+        if (asset?.id === item.assetId && url) return url;
+      } else if (response.status !== 404) {
+        throw new Error(response.status === 401 || response.status === 403
+          ? "没有权限读取原图。" : "无法查询原图资源，请重试。");
+      }
+    }
+    // Older results identify the original through the stored result URL.
+    return originalUrl(item.savedUrl) || originalUrl(item.src);
+  }
+
+  function open({ node, source, history, resolveAsset, download, modelName }) {
+    currentDialog?.close();
+    const items = (history.generationHistory || []).filter(item => item.kind === "image" && (item.assetId || item.savedUrl || item.src));
+    const sourceMatches = item => (item.assetId && item.assetId === node.dataset.assetId)
+      || [item.src, item.savedUrl].some(url => url && imageUrl(url) === imageUrl(source));
+    const activeIndex = items.findIndex(item => item.id === history.currentGenerationId && (!source || sourceMatches(item)));
+    const initialIndex = activeIndex < 0 ? items.findIndex(sourceMatches) : activeIndex;
+    const fallback = { src: source, savedUrl: source, name: node.dataset.imageName, assetId: node.dataset.assetId };
+    const trigger = document.activeElement;
+    const dialog = document.createElement("dialog");
+    dialog.className = "canvas-image-viewer";
+    dialog.setAttribute("aria-label", "图片查看器");
+    const theme = root.getComputedStyle(node);
+    for (const token of ["bg", "card", "popover", "border", "text", "muted", "primary"]) {
+      const property = "--canvas-neon-" + token;
+      dialog.style.setProperty(property, theme.getPropertyValue(property));
+    }
+    dialog.innerHTML = `
+      <header class="canvas-image-viewer-toolbar">
+        <div class="canvas-image-viewer-navigation">
+          <button type="button" data-viewer="previous" aria-label="上一张" title="上一张"><i data-lucide="chevron-left"></i></button>
+          <output class="canvas-image-viewer-position" aria-label="当前图片序号"></output>
+          <button type="button" data-viewer="next" aria-label="下一张" title="下一张"><i data-lucide="chevron-right"></i></button>
+        </div>
+        <div class="canvas-image-viewer-actions">
+          <button type="button" data-viewer="fit" aria-label="适应窗口" title="适应窗口"><i data-lucide="scan"></i></button>
+          <button type="button" data-viewer="out" aria-label="缩小" title="缩小"><i data-lucide="minus"></i></button>
+          <button type="button" data-viewer="actual" aria-label="以 100% 查看" title="以 100% 查看">100%</button>
+          <button type="button" data-viewer="in" aria-label="放大" title="放大"><i data-lucide="plus"></i></button>
+          <span class="canvas-image-viewer-divider"></span>
+          <button type="button" data-viewer="download" aria-label="下载图片" title="下载图片"><i data-lucide="download"></i></button>
+          <button type="button" data-viewer="info" aria-label="隐藏图片信息" title="图片信息"><i data-lucide="info"></i></button>
+          <button type="button" data-viewer="close" aria-label="关闭预览" title="关闭预览"><i data-lucide="x"></i></button>
+        </div>
+      </header>
+      <div class="canvas-image-viewer-body">
+        <nav class="canvas-image-viewer-history" aria-label="节点历史图片">
+          <div class="canvas-image-viewer-history-heading">历史 <span></span></div>
+          <div class="canvas-image-viewer-thumbnails"></div>
+        </nav>
+        <div class="canvas-image-viewer-stage">
+          <div class="canvas-image-viewer-status" role="status"></div>
+        </div>
+        <aside class="canvas-image-viewer-info" aria-label="图片信息">
+          <h2>图片信息</h2><dl></dl>
+        </aside>
+      </div>`;
+    const button = key => dialog.querySelector(`[data-viewer="${key}"]`);
+    const position = dialog.querySelector(".canvas-image-viewer-position");
+    const rail = dialog.querySelector(".canvas-image-viewer-history");
+    const thumbs = rail.querySelector(".canvas-image-viewer-thumbnails");
+    const stage = dialog.querySelector(".canvas-image-viewer-stage");
+    const status = stage.querySelector(".canvas-image-viewer-status");
+    const panel = dialog.querySelector(".canvas-image-viewer-info");
+    const details = panel.querySelector("dl");
+    const zoomButtons = ["fit", "out", "actual", "in"].map(button);
+    rail.hidden = items.length === 0;
+    rail.querySelector("span").textContent = String(items.length);
+    button("previous").hidden = button("next").hidden = items.length < 2;
+    const cards = items.map((item, index) => {
+      const card = document.createElement("button");
+      card.type = "button";
+      card.setAttribute("aria-label", `查看第${index + 1}张历史图片`);
+      const image = document.createElement("img");
+      image.alt = "";
+      image.loading = "lazy";
+      image.decoding = "async";
+      card.append(image);
+      card.addEventListener("click", () => { void select(index); });
+      thumbs.append(card);
+      const url = item.src || item.savedUrl;
+      if (url) {
+        if (!originalUrl(url) || !root.imageResources?.observe) image.src = url;
+        else root.imageResources.observe(image, url, { maxQuality: "thumbnail" });
+      }
+      return card;
+    });
+    let index = initialIndex;
+    let active = fallback;
+    let selection;
+    let image;
+    let metadata;
+    let currentUrl = "";
+    let scale = 1, x = 0, y = 0, fitted = false, drag;
+
+    function renderDetails() {
+      const dimensions = image ? `${image.naturalWidth} × ${image.naturalHeight}` : "";
+      const taskId = active.generationTaskId
+        || /^(imgjob_[\w-]+|comfy:[\w-]+):\d+$/.exec(active.id || "")?.[1];
+      const date = active.createdAt ? new Date(active.createdAt) : null;
+      const size = fileSize(metadata?.bytes);
+      const format = fileFormat(metadata?.mime, currentUrl);
+      details.replaceChildren();
+      for (const [label, value] of [
+        ["尺寸", dimensions], ["文件大小", size], ["格式", format],
+        ["图片 ID", active.id || active.assetId || metadata?.assetId], ["Job ID", taskId],
+        ["模型", active.model && modelName(active.model)],
+        ["生成时间", date && Number.isFinite(date.getTime()) ? date.toLocaleString("zh-CN", { hour12: false }) : ""],
+      ]) {
+        if (!value) continue;
+        const row = document.createElement("div");
+        const term = document.createElement("dt");
+        const text = document.createElement("dd");
+        term.textContent = label;
+        text.textContent = value;
+        row.append(term, text);
+        details.append(row);
+      }
+    }
+
+    async function loadMetadata(url, request) {
+      if (!url || panel.hidden || request.metadataStarted) return;
+      request.metadataStarted = true;
+      const address = imageUrl(url);
+      if (!address) return;
+      const parsed = new URL(address);
+      if (parsed.origin !== root.location.origin) return;
+      const accept = extra => {
+        if (selection !== request || request.controller.signal.aborted) return;
+        metadata = { ...metadata, ...extra };
+        renderDetails();
+      };
+      try {
+        const signal = AbortSignal.any([request.controller.signal, AbortSignal.timeout(4000)]);
+        // The authorized output endpoint allows GET with byte ranges, not HEAD.
+        const response = await root.fetch(url, parsed.pathname.startsWith("/output/")
+          ? { headers: { Range: "bytes=0-0" }, signal }
+          : { method: "HEAD", signal });
+        const total = response.status === 206
+          ? response.headers.get("content-range")?.match(/\/(\d+)$/)?.[1]
+          : response.headers.get("content-length");
+        if (response.ok) accept({
+          bytes: Number(total),
+          mime: response.headers.get("content-type")?.split(";")[0],
+        });
+        void response.body?.cancel().catch(() => {});
+      } catch { /* Dimensions and the recorded fields remain usable. */ }
+      try {
+        if (request.controller.signal.aborted) return;
+        const asset = await resolveAsset(url);
+        if (asset?.kind === "image" || asset?.mimeType?.startsWith("image/")) {
+          accept({ assetId: asset.id, mime: metadata?.mime || asset.mimeType });
+        }
+      } catch { /* Older or unavailable asset registrations are optional. */ }
+    }
+
+    function draw() {
+      if (!image) return;
+      if (fitted) scale = Math.min(stage.clientWidth / image.naturalWidth, stage.clientHeight / image.naturalHeight);
+      const maxX = Math.max(0, (image.naturalWidth * scale - stage.clientWidth) / 2);
+      const maxY = Math.max(0, (image.naturalHeight * scale - stage.clientHeight) / 2);
+      x = Math.min(maxX, Math.max(-maxX, x));
+      y = Math.min(maxY, Math.max(-maxY, y));
+      stage.classList.toggle("is-pannable", maxX > 0 || maxY > 0);
+      image.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px) scale(${scale})`;
+      button("actual").textContent = `${Math.round(scale * 100)}%`;
+    }
+    function zoom(next, point) {
+      if (!image) return;
+      const minimum = Math.min(1, stage.clientWidth / image.naturalWidth, stage.clientHeight / image.naturalHeight);
+      const target = Math.max(minimum, Math.min(8, next));
+      const ratio = target / scale;
+      x = point ? point.x - (point.x - x) * ratio : x * ratio;
+      y = point ? point.y - (point.y - y) * ratio : y * ratio;
+      fitted = false;
+      scale = target;
+      draw();
+    }
+    function fit() {
+      fitted = true;
+      x = y = 0;
+      draw();
+    }
+
+    function commitSelection(next, url, loaded) {
+      index = next;
+      active = items[next] || fallback;
+      currentUrl = url;
+      image?.remove();
+      image = loaded;
+      metadata = null;
+      position.textContent = next < 0 ? "当前图片" : `${next + 1} / ${items.length}`;
+      cards.forEach((card, i) => {
+        if (i === next) card.setAttribute("aria-current", "true");
+        else card.removeAttribute("aria-current");
+      });
+      cards[next]?.scrollIntoView({ block: "nearest" });
+      zoomButtons.forEach(control => { control.disabled = !image; });
+      button("download").disabled = !image;
+      if (image) {
+        stage.append(image);
+        draw();
+      } else stage.classList.remove("is-pannable");
+      renderDetails();
+    }
+
+    async function select(next) {
+      if (selection?.index === next && (selection.pending || image)) return;
+      selection?.controller.abort();
+      const request = { index: next, controller: new AbortController(), pending: true };
+      const item = items[next] || fallback;
+      selection = request;
+      drag = null;
+      stage.classList.remove("is-dragging");
+      status.hidden = false;
+      status.textContent = "正在加载原图…";
+      stage.setAttribute("aria-busy", "true");
+      zoomButtons.forEach(control => { control.disabled = true; });
+      button("download").disabled = true;
+      try {
+        const url = await resolveOriginal(item, request.controller.signal);
+        if (selection !== request || request.controller.signal.aborted) return;
+        if (!url) throw new Error("原图资源缺失。");
+        const loaded = new Image();
+        loaded.className = "canvas-image-viewer-image";
+        loaded.alt = item.name || "图片原图";
+        loaded.draggable = false;
+        loaded.src = url;
+        await loaded.decode();
+        if (selection !== request || request.controller.signal.aborted) return;
+        loaded.width = loaded.naturalWidth;
+        loaded.height = loaded.naturalHeight;
+        commitSelection(next, url, loaded);
+        status.hidden = true;
+        void loadMetadata(url, request);
+      } catch (error) {
+        if (selection === request && !request.controller.signal.aborted) {
+          commitSelection(next, "", null);
+          status.textContent = error instanceof DOMException || error instanceof TypeError
+            ? "原图无法加载，请检查资源后重试。" : error.message;
+          const retry = document.createElement("button");
+          retry.type = "button";
+          retry.textContent = "重新加载";
+          retry.addEventListener("click", () => { void select(next); });
+          status.append(retry);
+        }
+      } finally {
+        request.pending = false;
+        if (selection === request) stage.setAttribute("aria-busy", "false");
+      }
+    }
+
+    function renderPanel() {
+      panel.hidden = !showInfo;
+      const toggle = button("info");
+      toggle.setAttribute("aria-label", showInfo ? "隐藏图片信息" : "显示图片信息");
+      toggle.setAttribute("aria-pressed", String(showInfo));
+      panel.id = "canvas-image-viewer-details";
+      toggle.setAttribute("aria-controls", panel.id);
+      if (showInfo && selection && !selection.pending) void loadMetadata(currentUrl, selection);
+    }
+    function step(direction) {
+      if (items.length < 2) return;
+      const current = selection?.index ?? index;
+      void select(current < 0 ? (direction > 0 ? 0 : items.length - 1) : (current + direction + items.length) % items.length);
+    }
+
+    button("previous").addEventListener("click", () => step(-1));
+    button("next").addEventListener("click", () => step(1));
+    button("fit").addEventListener("click", fit);
+    button("out").addEventListener("click", () => zoom(scale / 1.25));
+    button("in").addEventListener("click", () => zoom(scale * 1.25));
+    button("actual").addEventListener("click", () => { x = y = 0; zoom(1); });
+    button("close").addEventListener("click", () => dialog.close());
+    button("download").addEventListener("click", event => {
+      void download(currentUrl, active.name, metadata?.mime, event.currentTarget);
+    });
+    button("info").addEventListener("click", () => {
+      showInfo = !showInfo;
+      try { root.localStorage.setItem(preferenceKey, showInfo ? "shown" : "hidden"); } catch { /* Session state is enough. */ }
+      renderPanel();
+    });
+    dialog.addEventListener("keydown", event => {
+      if (!["Escape", "ArrowLeft", "ArrowRight"].includes(event.key)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (event.key === "Escape") dialog.close();
+      else step(event.key === "ArrowRight" ? 1 : -1);
+    });
+    stage.addEventListener("wheel", event => {
+      if (!image || !event.deltaY) return;
+      event.preventDefault();
+      const rect = stage.getBoundingClientRect();
+      zoom(scale * (event.deltaY < 0 ? 1.15 : 1 / 1.15), {
+        x: event.clientX - rect.left - rect.width / 2, y: event.clientY - rect.top - rect.height / 2,
+      });
+    }, { passive: false });
+    stage.addEventListener("dblclick", () => { if (fitted) zoom(Math.max(scale * 2, 1)); else fit(); });
+    stage.addEventListener("pointerdown", event => {
+      if (!stage.classList.contains("is-pannable") || ![0, 1].includes(event.button)) return;
+      event.preventDefault();
+      drag = { id: event.pointerId, startX: event.clientX - x, startY: event.clientY - y };
+      stage.setPointerCapture(event.pointerId);
+      stage.classList.add("is-dragging");
+    });
+    stage.addEventListener("pointermove", event => {
+      if (drag?.id !== event.pointerId) return;
+      x = event.clientX - drag.startX;
+      y = event.clientY - drag.startY;
+      draw();
+    });
+    stage.addEventListener("lostpointercapture", () => {
+      drag = null;
+      stage.classList.remove("is-dragging");
+    });
+    const resize = new ResizeObserver(draw);
+    dialog.addEventListener("close", () => {
+      selection?.controller.abort();
+      resize.disconnect();
+      root.imageResources?.disconnect?.(thumbs);
+      dialog.remove();
+      if (currentDialog !== dialog) return;
+      currentDialog = null;
+      if (trigger?.isConnected) trigger.focus({ preventScroll: true });
+    }, { once: true });
+    currentDialog = dialog;
+    (document.fullscreenElement || document.body).append(dialog);
+    renderPanel();
+    dialog.showModal();
+    resize.observe(stage);
+    dialog.focus();
+    root.lucide?.createIcons?.({ root: dialog });
+    void select(initialIndex);
+  }
+
+  root.CanvasNodeImageViewer = Object.freeze({ open });
 })(typeof window !== "undefined" ? window : globalThis);
 

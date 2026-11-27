@@ -9,7 +9,7 @@
   const CHUNK_SIZE = 4 * 1024 * 1024;
 
   const state = {
-    open: false,
+    get open() { return activePanel === "assets"; },
     scope: "mine",
     kind: "all",
     search: "",
@@ -28,6 +28,8 @@
   };
 
   const elements = {};
+  let activePanel;
+  let needsLoad = true;
 
   function currentContext() {
     return window.CanvasAssetBridge?.getCurrentContext?.() || { projectId: null, boardId: null };
@@ -69,7 +71,7 @@
 
     if (!document.querySelector("#canvasAssetLibraryPanel")) {
       workspace.insertAdjacentHTML("beforeend", `
-        <aside class="canvas-asset-library" id="canvasAssetLibraryPanel" aria-label="画布资产库" hidden>
+        <aside class="canvas-asset-library" id="canvasAssetLibraryPanel" aria-label="画布资产库" hidden inert>
           <header class="canvas-asset-header">
             <div>
               <p>媒体引用</p>
@@ -168,8 +170,8 @@
     card.className = "canvas-asset-card";
     card.dataset.assetId = asset.id;
     card.tabIndex = 0;
-    card.draggable = true;
-    card.title = "拖到画布，或双击插入";
+    card.draggable = !state.imagePicker;
+    card.title = state.imagePicker ? "双击选用此素材" : "拖到画布，或双击插入";
     if (asset.id === state.selectedId) card.classList.add("is-selected");
     card.append(mediaPreview(asset));
 
@@ -186,8 +188,9 @@
     const insert = document.createElement("button");
     insert.type = "button";
     insert.dataset.assetInsert = asset.id;
-    insert.textContent = "插入";
-    insert.setAttribute("aria-label", `插入 ${asset.name}`);
+    const action = state.imagePicker ? "选用" : "插入";
+    insert.textContent = action;
+    insert.setAttribute("aria-label", `${action} ${asset.name}`);
     actions.append(insert);
     body.append(actions);
     card.append(body);
@@ -262,6 +265,7 @@
 
   async function loadAssets({ append = false } = {}) {
     if (!ensureMarkup()) return;
+    needsLoad = false;
     const context = currentContext();
     elements.projectLabel.textContent = "仅展示已主动加入资产库的媒体";
     const requestId = ++state.requestId;
@@ -282,6 +286,7 @@
       renderItems();
     } catch (error) {
       if (requestId !== state.requestId) return;
+      needsLoad = true;
       state.items = append ? state.items : [];
       state.nextCursor = null;
       setLoading(false);
@@ -292,11 +297,23 @@
 
   async function insertAsset(asset, point) {
     if (!window.CanvasAssetBridge?.insertAsset) throw new Error("画布尚未准备完成。");
+    const picker = state.imagePicker;
     // Re-read on every insert so a revoked share cannot use a cached grant.
     const data = await request(ASSET_API + "?scope=" + state.scope);
     state.categories = data.categories || []; state.folders = data.folders || [];
     const current = (data.entries || []).map(adaptEntry).find(item => item?.id === asset.id);
     if (!current) throw new Error("该资产已被移除或您已失去访问权限。");
+    if (picker) {
+      if (state.imagePicker !== picker || picker.pending) return;
+      if (picker.imageOnly && current.kind !== "image") throw new Error("当前图位只接受图片素材。");
+      picker.pending = true;
+      try {
+        if (await picker.choose(current) && state.imagePicker === picker) close();
+      } finally {
+        picker.pending = false;
+      }
+      return;
+    }
     window.CanvasAssetBridge.insertAsset(current, point);
   }
 
@@ -376,24 +393,63 @@
     }
   }
 
-  function open() {
-    if (!ensureMarkup()) return;
-    state.open = true;
-    elements.panel.hidden = false;
-    elements.button.setAttribute("aria-expanded", "true");
-    loadAssets();
+  function open(options = {}) {
+    if (!ensureMarkup()) return false;
+    const imageOnly = typeof options.chooseImage === "function";
+    const choose = imageOnly ? options.chooseImage : options.chooseAsset;
+    if (typeof choose === "function") {
+      state.imagePicker = { choose, imageOnly, onClose: options.onClose, previousKind: state.imagePicker?.previousKind ?? state.kind };
+      state.kind = imageOnly ? "image" : "all";
+      setActiveFilters();
+      needsLoad = true;
+    }
+    setSidePanel("assets");
+    return true;
   }
 
-  function close() {
-    if (!ensureMarkup()) return;
-    state.open = false;
-    elements.panel.hidden = true;
-    elements.button.setAttribute("aria-expanded", "false");
+  function getSidePanel() {
+    // Agent can initialize before this optional module.
+    return activePanel === undefined
+      ? (document.querySelector(".canvas-workspace.canvas-agent-open") ? "agent" : null)
+      : activePanel;
+  }
+
+  function setSidePanel(next, { returnToPicker = false } = {}) {
+    if (!elements.panel) init();
+    if (!elements.panel) return false;
+    const previous = getSidePanel();
+    activePanel = next;
+    const picker = previous === "assets" && next !== "assets" ? state.imagePicker : null;
+    if (picker) {
+      state.imagePicker = null;
+      state.kind = picker.previousKind;
+      setActiveFilters();
+      needsLoad = true;
+    }
+    if (next !== "assets") {
+      elements.panel.hidden = true;
+      elements.panel.inert = true;
+    }
+    elements.button.setAttribute("aria-expanded", String(state.open));
+    if (next !== previous) {
+      window.dispatchEvent(new CustomEvent("canvas:side-panel-changed", { detail: next }));
+    }
+    if (state.open) {
+      elements.panel.hidden = false;
+      elements.panel.inert = false;
+      if (needsLoad) void loadAssets();
+    }
+    if (returnToPicker) picker?.onClose?.();
+    return true;
+  }
+
+  function close({ returnToPicker = true } = {}) {
+    if (state.open) setSidePanel(null, { returnToPicker });
   }
 
   function bindEvents() {
-    elements.button.addEventListener("click", () => state.open ? close() : open());
-    elements.close.addEventListener("click", close);
+    elements.button.addEventListener("click", () => state.open ? close({ returnToPicker: false }) : open());
+    elements.close.addEventListener("click", () => close());
     elements.importButton.addEventListener("click", () => elements.input.click());
     elements.input.addEventListener("change", () => importFiles(elements.input.files || []));
     elements.search.addEventListener("input", () => {
@@ -433,15 +489,12 @@
         toast(error.message);
       }
     });
-    window.addEventListener("canvas:board-changed", () => {
-      if (state.open) loadAssets();
-    });
-    window.addEventListener("ai-os-session", () => {
-      if (state.open) loadAssets();
-    });
-    window.addEventListener("ai-os-assets-changed", () => {
-      if (state.open) loadAssets();
-    });
+    for (const event of ["canvas:board-changed", "ai-os-session", "ai-os-assets-changed"]) {
+      window.addEventListener(event, () => {
+        needsLoad = true;
+        if (state.open) void loadAssets();
+      });
+    }
   }
 
   function init() {
@@ -451,7 +504,7 @@
     setActiveFilters();
   }
 
-  window.CanvasAssetLibrary = { state, init, open, close, load: loadAssets, insertAsset, renderCard };
+  window.CanvasAssetLibrary = { state, init, open, close, getSidePanel, setSidePanel, load: loadAssets, insertAsset, renderCard };
   init();
   document.addEventListener("DOMContentLoaded", init, { once: true });
 })();

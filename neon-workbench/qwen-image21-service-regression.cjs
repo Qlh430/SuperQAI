@@ -14,6 +14,7 @@ const SERVICE = process.env.COMFY_TASK_MODULE || path.join(__dirname, 'design-so
 const WORKFLOW_DIR = path.join(__dirname, 'design-sources/workflows')
 const EDIT_FILE = path.join(WORKFLOW_DIR, 'qwen-image21-edit.json')
 const GENERATE_FILE = path.join(WORKFLOW_DIR, 'qwen-image21-generate.json')
+const SEEDVR2_FILE = path.join(__dirname, '../host-sources/app/workflows/SeedVR2-upscale2.json')
 
 // design-sources 目录继承 neon-workbench 的 "type": "module"，而服务端模块是
 // CommonJS（运行时目录里就是 CJS）。这里按 CJS 编译源码，测的就是将要部署的那份。
@@ -25,7 +26,7 @@ function loadServiceModule() {
   return compiled.exports
 }
 
-function buildService({ onSubmit, requestBody = {}, onResponse, workflowOverrides = {} } = {}) {
+function buildService({ onSubmit, requestBody = {}, onResponse, workflowOverrides = {}, objectInfo = {} } = {}) {
   const { createComfyWorkflowTaskService } = loadServiceModule()
   const tasks = new Map()
   const submitted = []
@@ -33,6 +34,7 @@ function buildService({ onSubmit, requestBody = {}, onResponse, workflowOverride
   const registered = []
   const comfyClient = {
     normalizeUrl: (value) => String(value || 'http://127.0.0.1:8188'),
+    fetchObjectInfo: async () => objectInfo,
     uploadDataUrl: async (url, dataUrl, name) => {
       const uploaded = { name: `uploaded_${uploadedNames.length}_${name}`, url, dataUrl }
       uploadedNames.push(uploaded.name)
@@ -60,12 +62,13 @@ function buildService({ onSubmit, requestBody = {}, onResponse, workflowOverride
     },
     workflowFiles: {
       ttp: path.join(WORKFLOW_DIR, 'TTP-upscale.json'),
-      seedvr2: path.join(WORKFLOW_DIR, 'SeedVR2-upscale2.json'),
+      seedvr2: SEEDVR2_FILE,
       shoeSwap: path.join(WORKFLOW_DIR, 'shoe-swap.json'),
       outpaint: path.join(WORKFLOW_DIR, 'z-image-outpaint.json'),
       runninghubOutpaint: path.join(WORKFLOW_DIR, 'runninghub-outpaint.json'),
       flux2KleinEdit: path.join(WORKFLOW_DIR, 'flux2-klein-edit-9b.json'),
       qwenEditAngle: path.join(WORKFLOW_DIR, 'qwen-edit-angle-2511.json'),
+      qwenImage21Redraw: path.resolve(__dirname, 'design-sources/workflows/qwen-image21-redraw.json'),
       removeBackground: path.join(WORKFLOW_DIR, 'background-removal.json'),
       ...workflowOverrides,
     },
@@ -88,6 +91,20 @@ function readTemplate(file) {
 
 ;(async () => {
   const results = []
+  for (const reachable of [true, false]) {
+    const workflow = readTemplate(SEEDVR2_FILE)
+    const objectInfo = reachable ? Object.fromEntries(Object.values(workflow).map(node => [node.class_type, {}])) : {}
+    let response
+    const fixture = buildService({ objectInfo, onResponse: (status, body) => { response = { status, body } } })
+    await fixture.service.handleUpscale({ method: 'GET' }, {}, 'seedvr2')
+    assert.equal(response.status, reachable ? 200 : 503)
+    assert.equal(response.body.available, reachable)
+    if (reachable) assert.deepEqual(response.body.resolutions, [2048, 4096])
+    else assert.equal(response.body.code, 'plugin_unavailable')
+    assert.deepEqual(fixture.uploadedNames, [])
+    assert.deepEqual(fixture.submitted, [])
+  }
+  results.push('SeedVR2 capability probe checks workflow nodes without uploading or submitting')
   // 1. 模板本身：结构、注入点、不残留用户内容。
   const edit = readTemplate(EDIT_FILE)
   const generate = readTemplate(GENERATE_FILE)

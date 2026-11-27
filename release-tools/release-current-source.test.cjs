@@ -15,11 +15,20 @@ test('release deployment covers desktop updater fixes omitted from the old packa
   assert.ok(targets.every(file => !file.startsWith('data/') && !file.startsWith('output/')));
 });
 
-test('release assembly never skips source deployment when resuming an existing candidate', () => {
+test('release assembly never skips source deployment when resuming an existing candidate', async () => {
   const source = fs.readFileSync(path.join(root, 'release-tools/package-v304.cjs'), 'utf8');
   assert.ok(!source.includes('if(!resume)execFileSync'));
+  const { releaseComponents } = await import(pathToFileURL(path.join(root, 'neon-workbench/component-deploy.mjs')));
   for (const group of ['canvas-group-visual', 'canvas-final-adjustments', 'canvas-redraw-frontend', 'release-host-sync']) {
-    assert.ok(source.includes(group), group);
+    assert.ok(releaseComponents.includes(group), group);
   }
+  assert.match(source, /sourceLock\.componentGroups\.join/);
   assert.ok(source.includes('release-source-sync'));
+});
+
+test('release assembly binds fixed workbench entry files to the approved daily stage', () => {
+  const source = fs.readFileSync(path.join(root, 'release-tools/package-v304.cjs'), 'utf8');
+  assert.match(source, /stageRuntime/);
+  assert.match(source, /stageEntries/);
+  for (const file of ['index.html', 'module-manifest.js']) assert.ok(source.includes(`'${file}'`), file);
 });

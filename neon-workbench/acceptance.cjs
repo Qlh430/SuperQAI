@@ -1,6 +1,7 @@
 const { chromium } = require("playwright")
 const fs = require("node:fs")
 const path = require("node:path")
+const { installFixedStageRouting } = require("./test-fixtures/fixed-stage-routing.cjs")
 const baseUrl = process.env.AI_OS_TEST_URL || "http://127.0.0.1:3199"
 const output = process.env.AI_OS_ACCEPTANCE_DIR ? path.resolve(process.env.AI_OS_ACCEPTANCE_DIR) : path.join(__dirname, "acceptance")
 fs.mkdirSync(output, { recursive: true })
@@ -52,6 +53,7 @@ let browser
   const results = [], errors = []
   const context = await browser.newContext()
   const page = await context.newPage()
+  await installFixedStageRouting(page)
   page.on("pageerror", error => errors.push(error.message))
   await page.route("**/api/**", async route => {
     const request = route.request()
@@ -250,7 +252,7 @@ let browser
   await page.goto(`${baseUrl}/`, { waitUntil: "domcontentloaded" })
   await page.waitForTimeout(600)
   const login = await page.evaluate(() => ({ auth: document.documentElement.dataset.aiAuth, frame: Boolean(document.getElementById("aiOsNeonFrame")), literalNewline: document.body.innerText.includes("\\n"), newCssLoaded: [...document.styleSheets].some(sheet => sheet.href?.includes("neon-workbench")) }))
-  const report = { date: new Date().toISOString(), evidence: "独立页面使用模拟 API；真实运行时仅验证未登录入口。", results, stress, checks, errors, login, interactions: "项目创建、回收站、模拟生图与历史保存、模拟对话、返回概览、移动导航、设置六个子页、移动端编辑弹窗、素材共享已执行", requests }
+  const report = { date: new Date().toISOString(), evidence: process.env.AI_OS_TEST_FIXED_STAGE === "1" ? "固定 Stage 前端文件与模拟 API 的离线浏览器验收，未连接真实后端或登录会话。" : "独立页面使用模拟 API；真实运行时仅验证未登录入口。", results, stress, checks, errors, login, interactions: "项目创建、回收站、模拟生图与历史保存、模拟对话、返回概览、移动导航、设置六个子页、移动端编辑弹窗、素材共享已执行", requests }
   fs.writeFileSync(path.join(output, "report.json"), JSON.stringify(report, null, 2))
   console.log(JSON.stringify({ errors, overflow: results.filter(r => r.overflow.length), login, screenshots: results.length }, null, 2))
   await browser.close()

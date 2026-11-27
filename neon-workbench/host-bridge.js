@@ -13,6 +13,40 @@
   let assetDialogRequestId = "";
   let assetDialogState = null;
   let previousMaximizedChrome = null;
+  let skillDialog = null;
+  function closeSkillDialog(requestId) {
+    if (!skillDialog || requestId !== skillDialog.requestId) return;
+    const saved = skillDialog;
+    skillDialog = null;
+    message("neon:close-skill-square", { requestId });
+    if (frame) {
+      frame.hidden = saved.hidden;
+      frame.style.cssText = saved.frameStyle;
+    }
+    if (surface) surface.inert = saved.inert;
+    if (saved.revision === revision && saved.boardId === activeBoardId && saved.focus?.isConnected) saved.focus.focus({ preventScroll: true });
+  }
+  function openSkillDialog() {
+    const session = window.AiOsDesktop?.getSession?.();
+    if (!frame || !surface || surface.hidden || engineKind !== "canvas" || !activeBoardId || desktop.hidden
+      || session?.user?.id !== accountId || pending || skillDialog) return;
+    closeAssetDialog(assetDialogRequestId);
+    const requestId = `${revision}:${Date.now()}:${Math.random().toString(36).slice(2)}`;
+    skillDialog = { requestId, revision, accountId, boardId: activeBoardId, focus: document.activeElement, hidden: frame.hidden, frameStyle: frame.style.cssText, inert: surface.inert };
+    surface.inert = true;
+    frame.hidden = false;
+    frame.style.display = "block";
+    frame.style.zIndex = "2147483600";
+    frame.style.background = "transparent";
+    frame.focus({ preventScroll: true });
+    message("neon:skill-square", { requestId, boardId: activeBoardId });
+  }
+  function moduleLoadError(loaded) {
+    const report = window.AiOsModuleLoader?.getReport?.();
+    const failures = (report?.failures || []).map(item => `${item.componentLabel || item.componentId}（${item.src}）`);
+    const missing = loaded?.missing || [];
+    return new Error(`工具组件加载失败：${[...failures, ...missing].join("、") || Object.entries(loaded?.components || {}).map(([id, state]) => `${id}: ${state}`).join("、") || "组件加载器尚未就绪"}。请刷新后重试。`);
+  }
   function suppressHostChrome() {
     if (previousMaximizedChrome === null) {
       previousMaximizedChrome = document.documentElement.dataset.aiMaximizedChrome ?? "";
@@ -29,6 +63,7 @@
     document.body.classList.remove("canvas-surface-open");
   }
   function releaseSurface() {
+    closeSkillDialog(skillDialog?.requestId);
     closeAssetDialog(assetDialogRequestId);
     if (surface) {
       surface.querySelectorAll(":scope > :not(header)").forEach(node => { node.hidden = true; document.body.append(node); });
@@ -65,6 +100,7 @@
     }).map(item => ({ url: item.url.trim(), kind: item.kind, title: String(item.title || ({ image: "图片", video: "视频", audio: "音频" })[item.kind]), ...(typeof item.mimeType === "string" && item.mimeType.startsWith(`${item.kind}/`) ? { mimeType: item.mimeType } : {}) })) : [];
     if (!frame || !surface || surface.hidden || surface.style.display === "none" || engineKind !== "canvas" || !session?.user || desktop.hidden
       || accountId !== session.user.id || !activeBoardId || String(detail?.boardId || "") !== activeBoardId || !items.length) return;
+    closeSkillDialog(skillDialog?.requestId);
     closeAssetDialog(assetDialogRequestId);
     const focus = document.activeElement;
     const requestId = `${revision}:${Date.now()}:${Math.random().toString(36).slice(2)}`;
@@ -109,6 +145,7 @@
   }
   async function returnToWorkbench() {
     if (pending) return;
+    closeSkillDialog(skillDialog?.requestId);
     closeAssetDialog(assetDialogRequestId);
     const currentRevision = revision, button = returnButton;
     pending = true; button.disabled = true;
@@ -168,6 +205,20 @@
     if (event.data?.type !== "neon:action") return;
     const { action, params } = event.data;
     if (action === "logout" || action === "sessionExpired") { location.reload(); return; }
+    if (action === "closeSkillSquare") { closeSkillDialog(String(params?.requestId || "")); return; }
+    if (action === "useCanvasSkill") {
+      const current = skillDialog;
+      if (!current || current.requestId !== params?.requestId || current.revision !== revision || current.boardId !== activeBoardId || current.accountId !== accountId || current.busy) return;
+      current.busy = true;
+      try {
+        if (!window.CanvasAgentUi?.useSkill) throw new Error("Agent 尚未准备好，请关闭弹窗并重新打开 Agent。");
+        await window.CanvasAgentUi.useSkill(String(params.skillId || ""), { boardId: current.boardId });
+        if (skillDialog === current) { closeSkillDialog(current.requestId); document.querySelector("#canvasAgentPrompt")?.focus({ preventScroll: true }); }
+      } catch (error) {
+        if (skillDialog === current) message("neon:skill-error", { requestId: current.requestId, message: error.message || "Skill 载入失败。" });
+      } finally { current.busy = false; }
+      return;
+    }
       if (action === "assetDialogClosed") { closeAssetDialog(String(params?.requestId || "")); return; }
       if (action === "workbenchHome" || action === "hostDesktop") {
         closeAssetDialog(assetDialogRequestId);
@@ -193,7 +244,7 @@
       const modules = ["canvas-runtime"];
       const loaded = await window.AiOsModuleLoader?.ensure?.(modules);
       ensureCurrent();
-      if (loaded?.ok === false) throw new Error("工具组件加载失败，请重试。");
+      if (!loaded || loaded.ok === false) throw moduleLoadError(loaded);
       if (window.AiOsDesktop.openInlineApp) await window.AiOsDesktop.openInlineApp(kind);
       else window.AiOsDesktop.openApp(kind);
       ensureCurrent();
@@ -225,6 +276,13 @@
         if (!opened) throw new Error("画布打开失败，请检查访问权限后重试。");
       }
       createSurface(kind, node);
+      if (params?.skillId) {
+        await window.AiOsModuleLoader?.ensure?.(["canvas-agent-ui"]);
+        ensureCurrent();
+        if (!window.CanvasAgentUi?.useSkill) throw new Error("Agent 组件尚未准备好，请重新打开画布。");
+        await window.CanvasAgentUi.useSkill(String(params.skillId));
+        ensureCurrent();
+      }
     } catch (error) {
       if (currentRevision !== revision || frame !== currentFrame) return;
       if (surface) { surface.hidden = true; surface.style.display = "none"; }
@@ -238,9 +296,11 @@
     const nextBoardId = String(event.detail?.boardId || "");
     if (activeBoardId === nextBoardId) return;
     activeBoardId = nextBoardId;
+    closeSkillDialog(skillDialog?.requestId);
     closeAssetDialog(assetDialogRequestId);
   });
   window.addEventListener("neon:request-add-assets", event => openAssetDialog(event.detail));
+  window.addEventListener("neon:request-skill-square", openSkillDialog);
   window.addEventListener("message", event => void invoke(event));
   sync();
 })();

@@ -7,6 +7,7 @@ const mounted = { dataset: { id: 'group', groupMembers: '["a","b"]', groupLayout
 const context = {
   canvasPagedStore: { getMounted: () => mounted }, getCanvasNode: () => mounted,
   window: {}, syncCanvasNodeNameFromModel() {}, applyCanvasNodeSize() {}, updateCanvasNodePosition() {},
+  getCanvasNodeRefOrder: () => [], sameCanvasOperationValue: (left, right) => JSON.stringify(left) === JSON.stringify(right),
   syncCanvasNodeStacking() {}, scheduleCanvasSceneRender() {}, dispatchCanvasSelectionChange() {},
 };
 vm.createContext(context); vm.runInContext(region, context);

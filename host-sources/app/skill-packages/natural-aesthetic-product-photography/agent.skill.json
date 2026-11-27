@@ -1,0 +1,48 @@
+{
+  "format": "canvas-agent-skill/v1",
+  "mode": "guided",
+  "exposure": "manual",
+  "allowImplicitInvocation": false,
+  "limits": {
+    "maxRounds": 16,
+    "maxToolCalls": 12
+  },
+  "stages": [
+    {
+      "id": "planning",
+      "label": "产品分析与摄影策划",
+      "whenAny": [
+        "产品摄影",
+        "摄影策划",
+        "分析当前选中图片",
+        "自然美学"
+      ],
+      "mustRead": [
+        "references/photography-methods.md",
+        "references/visual-method-catalog.md"
+      ],
+      "tools": [
+        "activate_canvas_skill",
+        "read_skill_reference",
+        "request_design_brief"
+      ],
+      "deliverable": null
+    },
+    {
+      "id": "confirmed-execution",
+      "label": "用户确认后的节点创建",
+      "whenAny": [
+        "用户已确认策划",
+        "确认方案并创建图片节点",
+        "按已确认方案创建"
+      ],
+      "mustRead": [],
+      "tools": [
+        "activate_canvas_skill",
+        "read_skill_reference",
+        "create_image_node"
+      ],
+      "deliverable": null
+    }
+  ]
+}

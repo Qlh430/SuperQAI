@@ -37,6 +37,8 @@ const PARAMETER_KEYS = Object.freeze([
   "negative_prompt",
   "seed",
   "fps",
+  "commerce_mode",
+  "commerce_prompt_b",
 ]);
 
 function invalidInput(message) {

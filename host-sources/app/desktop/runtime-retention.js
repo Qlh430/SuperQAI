@@ -5,10 +5,11 @@ const path = require("node:path");
 const { inside, readJson, removeInside, runtimeName } = require("./update-files");
 const { COMPONENT_ROLLBACK_MARKER } = require("./update-install");
 const { effectiveComponentState } = require("./component-state");
-const { readRuntimeManifest } = require("./component-rollback");
+const { findRollbackSource } = require("./component-rollback");
 
-const DEFAULT_KEEP_RELEASES = 3;
-const DEFAULT_KEEP_COMPONENT_ROLLBACKS = 1;
+// Current, previous and referenced component snapshots are protected separately.
+const DEFAULT_KEEP_RELEASES = 0;
+const DEFAULT_KEEP_COMPONENT_ROLLBACKS = 0;
 const DEFAULT_MINIMUM_AGE_MS = 10 * 60_000;
 const RUNTIME_RE = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?-win-x64(?:--component-rollback-[a-f0-9]{12})?$/;
 
@@ -72,37 +73,36 @@ function prepareProtectedRuntimes(root, runtimes, active) {
   const protectedNames = new Set();
   const previous = readPointer(root, ".ai-runtime/.previous-runtime", "上一运行时指针");
   if (previous) protectedNames.add(previous);
+  const diagnostic = readOptionalJson(inside(root, "data/.logs/runtime-diagnostics.json"));
+  if (diagnostic?.runtimeName) protectedNames.add(runtimeName(diagnostic.runtimeName));
 
   const ready = readOptionalJson(inside(root, ".ai-runtime/updates/ready.json"));
   if (ready) {
     const candidate = runtimeName(String(ready.candidate || ""));
     if (runtimeKind(candidate)) protectedNames.add(candidate);
+    if (ready.componentRollback?.sourceRuntime) protectedNames.add(runtimeName(ready.componentRollback.sourceRuntime));
+  }
+  const result = readOptionalJson(inside(root, ".ai-runtime/updates/result.json"));
+  if (result) for (const name of [result.previous, result.candidate]) {
+    if (name) protectedNames.add(runtimeName(name));
+  }
+  // Recovery databases may require the matching old program to inspect them.
+  const rollback = require("./rollback-retention");
+  const retained = rollback.pruneRollbackSnapshots(root, { dryRun: true });
+  for (const id of retained.kept) {
+    const meta = readOptionalJson(inside(root, `.ai-runtime/rollback/${id}/components/meta.json`));
+    if (meta) for (const name of [meta.previousRuntime, meta.candidateRuntime]) {
+      if (name) protectedNames.add(runtimeName(name));
+    }
   }
 
   const state = effectiveComponentState(root, active);
-  const previousHashes = new Set(
-    state.components
-      .map((component) => String(component.previousHash || "").toLowerCase())
-      .filter((hash) => /^[a-f0-9]{64}$/.test(hash)),
-  );
-  if (previousHashes.size) {
-    const byHash = new Map([...previousHashes].map((hash) => [hash, []]));
-    for (const runtime of runtimes) {
-      if (runtime.name === active) continue;
-      let manifest;
-      try {
-        manifest = readRuntimeManifest(root, runtime.name);
-      } catch {
-        continue;
-      }
-      for (const component of manifest?.components || []) {
-        if (byHash.has(component.hash)) byHash.get(component.hash).push(runtime);
-      }
-    }
-    for (const candidates of byHash.values()) {
-      candidates.sort((left, right) => right.mtimeMs - left.mtimeMs);
-      if (candidates[0]) protectedNames.add(candidates[0].name);
-    }
+  for (const component of state.components) {
+    if (!/^[a-f0-9]{64}$/i.test(String(component.previousHash || ""))) continue;
+    // Use the rollback resolver's real file verification; a newer corrupt
+    // manifest must not displace the only usable older component snapshot.
+    try { protectedNames.add(findRollbackSource(root, component.id, component.previousHash, active).runtime); }
+    catch (error) { if (error.code !== "component_snapshot_missing") throw error; }
   }
 
   if (active) protectedNames.add(active);
@@ -117,13 +117,18 @@ function retentionCount(value, fallback, maximum) {
 
 function pruneRuntimeSnapshots(root, options = {}) {
   const portableRoot = path.resolve(root);
-  if (fs.existsSync(inside(portableRoot, ".ai-runtime/updates/install.json"))) {
+  if (fs.existsSync(inside(portableRoot, ".ai-runtime/updates/install.json")) ||
+      fs.existsSync(inside(portableRoot, ".ai-runtime/updates/helper.json"))) {
     return { skipped: "update-in-progress", protected: [], kept: [], removed: [], errors: [] };
   }
   const active = readPointer(portableRoot, ".ai-runtime/.active-runtime", "活动运行时指针");
   if (!active) return { skipped: "active-runtime-missing", protected: [], kept: [], removed: [], errors: [] };
 
   const runtimes = listRecognizedRuntimes(portableRoot);
+  const previous = readPointer(portableRoot, ".ai-runtime/.previous-runtime", "上一运行时指针");
+  if (runtimes.length > 1 && (!previous || !fs.existsSync(inside(portableRoot, `.ai-runtime/versions/${previous}`)))) {
+    return { skipped: "previous-runtime-unverified", protected: [active], kept: runtimes.map(runtime => runtime.name).sort(), removed: [], errors: [] };
+  }
   const protectedNames = prepareProtectedRuntimes(portableRoot, runtimes, active);
   const keepReleases = retentionCount(options.keepReleases, DEFAULT_KEEP_RELEASES, 100);
   const keepComponentRollbacks = retentionCount(options.keepComponentRollbacks, DEFAULT_KEEP_COMPONENT_ROLLBACKS, 100);
@@ -148,14 +153,14 @@ function pruneRuntimeSnapshots(root, options = {}) {
     .filter((runtime) => !keepNames.has(runtime.name))
     .sort((left, right) => left.mtimeMs - right.mtimeMs);
   for (const runtime of candidates) {
-    if (options.dryRun) {
-      removed.push(runtime.name);
-      continue;
-    }
     try {
+      // Unknown extras, embedded data and links must survive automatic retention.
+      require("./update-install").validateRuntime(portableRoot, runtime.name);
+      if (options.dryRun) { removed.push(runtime.name); continue; }
       removeInside(portableRoot, `.ai-runtime/versions/${runtime.name}`);
       removed.push(runtime.name);
     } catch (error) {
+      keepNames.add(runtime.name);
       errors.push({ name: runtime.name, message: String(error.message || error) });
     }
   }

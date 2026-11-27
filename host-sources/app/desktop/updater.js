@@ -126,7 +126,7 @@ function parseRelease(release, currentVersion) {
 }
 
 function validateManifest(manifest, releaseInfo) {
-  if (!manifest || manifest.format !== 1 || manifest.product !== "AI OS") throw new Error("AI OS 更新清单格式不受支持。");
+  if (!manifest || manifest.format !== 1 || manifest.product !== "AI OS") throw new Error("BenDo 更新清单格式不受支持。");
   if (!releaseInfo || compareVersions(manifest.version, releaseInfo.version) !== 0) throw new Error("更新清单版本与 Release 不一致。");
   if (manifest.platform !== "win32" || manifest.arch !== "x64") throw new Error("该更新不是 Windows x64 便携版更新。");
   if (!Number.isInteger(manifest.minUpdaterVersion) || manifest.minUpdaterVersion < 1 || manifest.minUpdaterVersion > UPDATER_VERSION) throw new Error("当前便携版更新器版本过低。");
@@ -164,7 +164,7 @@ function assertSafeRelativePath(value, label = "组件文件") {
 
 function validateComponentManifest(manifest, releaseInfo, assetInfo) {
   validateConstraints(manifest);
-  if (!manifest || manifest.format !== 1 || manifest.product !== "AI OS") throw new Error("AI OS 组件清单格式不受支持。");
+  if (!manifest || manifest.format !== 1 || manifest.product !== "AI OS") throw new Error("BenDo 组件清单格式不受支持。");
   if (!releaseInfo || compareVersions(manifest.version, releaseInfo.version) !== 0) throw new Error("组件清单版本与 Release 不一致。");
   if (manifest.platform !== "win32" || manifest.arch !== "x64") throw new Error("组件清单不是 Windows x64 版本。");
   if (!Array.isArray(manifest.components) || manifest.components.length < 1 || manifest.components.length > 256) throw new Error("组件清单内容无效。");
@@ -267,17 +267,55 @@ function preflightUpdateSpace(portableRoot, update, componentPlan) {
   install.assertAvailableSpace(required, install.portableFreeBytes(portableRoot));
   return required;
 }
-function pruneOrphanedUpdateArtifacts(portableRoot) {
+function pruneOrphanedUpdateArtifacts(portableRoot, options = {}) {
   if (fs.existsSync(inside(portableRoot, ".ai-runtime/updates/install.json")) ||
-      fs.existsSync(inside(portableRoot, ".ai-runtime/updates/helper.json"))) return [];
+      fs.existsSync(inside(portableRoot, ".ai-runtime/updates/helper.json")) ||
+      fs.existsSync(inside(portableRoot, ".ai-runtime/updates/ready.json"))) return [];
   const updates = inside(portableRoot, ".ai-runtime/updates");
   if (!fs.existsSync(updates)) return [];
+  let completedVersion = "";
+  try {
+    const result = readJson(inside(portableRoot, ".ai-runtime/updates/result.json"));
+    const active = fs.readFileSync(inside(portableRoot, ".ai-runtime/.active-runtime"), "utf8").trim();
+    const match = /^(\d+\.\d+\.\d+)-win-x64$/.exec(active);
+    if (result.status === "updated" && result.candidate === active && match) completedVersion = match[1];
+  } catch (error) { if (error.code !== "ENOENT") throw error; }
+  if (options.completedOnly && !completedVersion) return [];
+  const safeTree = directory => {
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      if (entry.isSymbolicLink() || /^(data|output|failed-data|\.env)$/i.test(entry.name) ||
+          /\.(sqlite|db)(-wal|-shm)?$/i.test(entry.name)) return false;
+      if (entry.isDirectory() && !safeTree(path.join(directory, entry.name))) return false;
+      if (!entry.isDirectory() && !entry.isFile()) return false;
+    }
+    return true;
+  };
   const removed = [];
+  const remove = relative => {
+    const target = inside(updates, relative);
+    if (fs.lstatSync(target).isDirectory() && !safeTree(target)) return;
+    if (!options.dryRun) removeInside(portableRoot, `.ai-runtime/updates/${relative}`);
+    removed.push(relative);
+  };
   for (const entry of fs.readdirSync(updates, { withFileTypes: true })) {
-    if (!/^stage-[A-Za-z0-9_-]+$/.test(entry.name) || entry.isSymbolicLink() || !entry.isDirectory()) continue;
-    const relative = `.ai-runtime/updates/${entry.name}`;
-    removeInside(portableRoot, relative);
-    removed.push(entry.name);
+    if (entry.isSymbolicLink()) continue;
+    if (/^(?:rollback-)?stage-[A-Za-z0-9_-]+$/.test(entry.name) && entry.isDirectory()) {
+      const minimumAgeMs = options.minimumAgeMs ?? (options.completedOnly ? 10 * 60_000 : 0);
+      if (Date.now() - fs.statSync(inside(updates, entry.name)).mtimeMs < minimumAgeMs) continue;
+      remove(entry.name);
+      continue;
+    }
+    if (!completedVersion) continue;
+    const zip = /^(?:AI-OS|BenDo)-Runtime-(\d+\.\d+\.\d+)-win-x64\.zip(?:\.[a-f0-9]{12}\.part)?$/.exec(entry.name);
+    if (zip && entry.isFile() && compareVersions(zip[1], completedVersion) <= 0) remove(entry.name);
+    if (entry.name === "components" && entry.isDirectory()) {
+      for (const version of fs.readdirSync(inside(updates, "components"), { withFileTypes: true })) {
+        if (!/^\d+\.\d+\.\d+$/.test(version.name) || version.isSymbolicLink() || !version.isDirectory() ||
+            compareVersions(version.name, completedVersion) > 0) continue;
+        const directory = inside(updates, `components/${version.name}`);
+        if (fs.readdirSync(directory, { withFileTypes: true }).every(entry => entry.isFile() && !entry.isSymbolicLink() && new RegExp(`^AI-OS-Component-${version.name.replaceAll(".", "\\.")}-[a-z0-9-]+\\.zip(?:\\.[a-f0-9]{12}\\.part)?$`).test(entry.name))) remove(`components/${version.name}`);
+      }
+    }
   }
   return removed;
 }
@@ -362,6 +400,13 @@ async function downloadFile(url, destination, manifest, options = {}) {
   await fsp.mkdir(path.dirname(target), { recursive: true });
   const expectedSize = manifest.size, expectedHash = manifest.sha256.toLowerCase();
   const temporary = `${target}.${expectedHash.slice(0, 12)}.part`;
+  try {
+    const completed = await fsp.stat(target);
+    if (completed.isFile() && completed.size === expectedSize && (await hashFilePrefix(target, completed.size)).digest("hex") === expectedHash) {
+      options.onProgress?.(1);
+      return { path: target, size: completed.size, sha256: expectedHash };
+    }
+  } catch (error) { if (error.code !== "ENOENT") throw error; }
   const attempts = Number.isInteger(options.attempts) && options.attempts > 0 ? Math.min(options.attempts, 10) : 4;
   const retryDelayMs = Number.isFinite(options.retryDelayMs) ? Math.max(0, options.retryDelayMs) : 1_500;
   let lastError;
@@ -611,8 +656,7 @@ function createUpdater(options = {}) {
   async function downloadComponentUpdate(plan) {
     const candidate = `${info.release.version}-win-x64`;
     const componentCache = `.ai-runtime/updates/components/${info.release.version}`;
-    const cachedRoot = inside(portableRoot, componentCache);
-    if (fs.existsSync(cachedRoot)) removeInside(portableRoot, componentCache);
+    // downloadFile validates or resumes each exact hash; keep interrupted downloads.
     publish({
       status: "downloading",
       progress: 0,

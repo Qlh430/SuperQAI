@@ -7,7 +7,9 @@
   if (root) root.CanvasAgentCore = api;
 })(typeof globalThis !== "undefined" ? globalThis : this, function createCanvasAgentCore(CanvasAgentCapabilities) {
   if (!CanvasAgentCapabilities) throw new Error("CanvasAgentCapabilities is required before CanvasAgentCore.");
-  const MAX_STEPS = 12;
+  const MAX_STEPS = 24;
+  const MAX_TOOL_CALLS = 48;
+  const MAX_CONTINUATIONS = 2;
   const MAX_CANVAS_NODES = 80;
   const MAX_TEXT_LENGTH = 2000;
   const COMPACT_TEXT_LENGTH = 320;
@@ -25,15 +27,17 @@
     "generate_image_to_gallery",
     "run_canvas_node",
     "organize_canvas_nodes",
-    "focus_canvas_nodes",
     "connect_nodes",
     "disconnect_nodes",
     "canvas_director3d_apply_animation",
+    "remove_canvas_image_background",
   ]);
   const DISCUSSION_IMAGE_TOOL_NAMES = new Set([
     "generate_image_to_gallery",
     "request_image_node_choice",
     "run_canvas_node",
+    "upscale_canvas_image",
+    "remove_canvas_image_background",
   ]);
 
   const TOOL_DEFINITIONS = Object.freeze(CanvasAgentCapabilities.CAPABILITY_REGISTRY.map((item) => item.tool));
@@ -75,17 +79,212 @@
     };
   }
 
-  function classifyImageGenerationIntent(prompt) {
+  function classifyAgentRequest(prompt) {
     const text = String(prompt || "").trim();
-    if (!text) return "neutral";
-    if (/不要生成|别生成|先不生成|暂不生成|不要出图|先别出图|只讨论|先讨论|先聊|先给我提示词|先看参数|先优化提示词|等我确认|先确认|只建节点|自己再调/.test(text)) {
-      return "discussion";
+    // Only the request envelope can authorize execution, not quoted examples or source text.
+    const instruction = text.replace(/```[\s\S]*?```|「[^」]*」|“[^”]*”|『[^』]*』/gu, " ");
+    const canvasObject = /(?:画布|节点|连线|端口|工作流|图集)/u;
+    const imageObject = /(?:图片|图像|照片|画面|图中|图里|(?:这张|该|选中的|这幅|原|参考|素材)图|背景|光影|清晰度)/u;
+    const imageActionVerb = /(?:修改|编辑|替换|改成|变成|换成|放在|放到|放进|置入|添加|加上|去掉|删除|移除|扩图|裁[切剪]|重绘|修复|美化|增强|放大|超分|超清|高清化|提升|提高|抠图|去背)/u;
+    const textDeliverable = /(?:润色|改写|重写|扩写|缩写|翻译|优化|修改|调整|编辑|改一下|写)[^，,。！？\n:：]{0,30}(?:提示词|文案|文字|文本|台词|脚本)/u;
+    const scope = textDeliverable.test(instruction.split(/[:：\n]/u)[0])
+      ? instruction.split(/[:：\n]/u)[0] : instruction;
+    const hold = /(?:先(?:讨论|聊|别执行|不执行|只看|给我建议|说一下)|只(?:讨论|聊|提供建议)|等(?:我|用户)确认(?:后|再)?(?:执行|生成|出图)?|尚未授权)/u.test(scope);
+    const noImage = /(?:不要|不需要|无需|不用|别|禁止|不得|不能|不执行|暂不|先不|不提交)(?:实际|真实|自动|直接|立即|任何|付费|图片|图像|视频|的|执行|运行|调用|触发|进行|开始|提交|[/／\s])*(?:生成|生图|出图|编辑(?:图片|图像))/u.test(scope)
+      || /只(?:创建|新建|建|搭建)(?:必要|所需)?节点/u.test(scope);
+    const clauses = scope.split(/[，,。！？!?；;\n]/u).filter(clause => (
+      !/(?:不要|不想|不需要|无需|不用|请勿|禁止|切勿|暂不|先不|不执行|别执行|等我确认)/u.test(clause)
+      && !/(?:^(?:请|帮我|我想|我想先|想|先|只|仅|\s)*(?:讨论|聊聊|解释|介绍|分析|请教|了解|讲讲)|应该|应当|如何|怎么|为什么|什么是|有什么|是否(?:支持|可行|合适)|能否说明|建议如何)/u.test(clause)
+    ));
+    const actionable = clauses.join("，");
+    const canvasWritePrompt = clauses.some(clause => /提示词/u.test(clause) && (
+      /(?:写入|填入|保存到|应用到|更新到|替换到)[^，。]{0,18}(?:画布|节点)/u.test(clause)
+      || /(?:这个|该|当前|选中的?).{0,12}节点.{0,12}提示词/u.test(clause)
+        && /修改|更新|调整|编辑|改写|改一下|改成|改为|删掉|去掉/u.test(clause)
+        && !/(?:发|给|返回|贴)[^，。]{0,14}(?:聊天|看看|我看)/u.test(clause)
+    ));
+    const canvas = !hold && (canvasWritePrompt || clauses.some(clause =>
+      /(?:创建|新建|建|新增|添加|搭建|配置|整理|排列|移动|拖动|连接|断开|连线|删除|移除|复制|重命名|改名|修改|更新|编辑|填充|执行|运行|定位|查找|搜索|聚焦|高亮|选中|选择|复核|核对|检查).{0,22}(?:画布|节点|连线|端口|工作流|图集)|(?:画布|节点|图集).{0,18}(?:创建|移动|连接|删除|更新|修改|编辑|整理|聚焦|定位|改[成为名]|重命名|设[为置])/u.test(clause)
+      && (!textDeliverable.test(clause) || /(?:在|到|入|当前|选中)[^，。]{0,10}(?:画布|节点)/u.test(clause))));
+    const workflow = !hold && (canvas && /工作流|流程/u.test(actionable)
+      || /(?:启动|执行|运行|开始|按).{0,28}(?:专业流程|标准工作流|(?:Skill|技能).{0,12}(?:流程|工作流))|(?:调用|使用|按|按照|根据|依据).{0,45}(?:Skill|技能).{0,35}(?:策划|交付|完成.{0,10}方案)/iu.test(actionable));
+    const requestsOnlyText = /(?:只(?:是|需|要)?|仅)(?:让|请|给我|想让|需要|帮我|做|\s)*(?:修改|改写|优化|润色|翻译|写|返回|输出)[^，。]{0,26}(?:提示词|文字|文本|文案|脚本)/u.test(scope);
+    const imageClauses = clauses.filter(clause => (!textDeliverable.test(clause) || /(?:然后|之后|再|并)(?:帮我|用它|直接|据此|\s)*(?:生成|出图)/u.test(clause))
+      && !/(?:生成|图片|图像|视频|海报|插画)(?:生成器?)?(?:节点|工作流|流程|参数|教程|说明|技巧|方案)|(?:编写|撰写|给我|讨论)[^，。]{0,22}(?:提示词|教程|说明|建议|方案)/u.test(clause));
+    const imageAction = imageClauses.join("，");
+    const standaloneImageAction = /^(?:请|帮我|直接|现在|\s)*(?:抠图|去背|换背景|扩图|裁[切剪]|重绘|放大|超分|超清|提高清晰度)(?:吧|一下)?$/u.test(imageAction.trim());
+    const isCutoutClause = clause => (
+      /抠图|抠(?:取|出|一下)|去背|(?:去掉|去除|移除|删除|清除).{0,18}背景|(?:图片|图像|照片|画面|这张图)的?背景.{0,8}(?:去掉|去除|移除|删除|清除)/u.test(clause)
+      || /(?:提取|分离|分割).{0,10}(?:主体|产品|商品)|(?:主体|产品|商品).{0,10}(?:单独|独立)(?:提取|分离|保留)|(?:只|仅)保留.{0,6}(?:主体|产品|商品)/u.test(clause)
+      || /(?:做成|处理成|导出|保存|转成|转换为|改成|变成).{0,12}(?:透明背景|透明\s*PNG)/iu.test(clause));
+    const imageCutout = !hold && !noImage && !requestsOnlyText && imageClauses.some(clause =>
+      isCutoutClause(clause) && !/(?:教程|教学|示例|技巧|方法|步骤|原理|是否|能不能|可不可以|能.{0,22}吗\s*$|(?:别|不用|不必|无需)(?:再|给我|帮我|\s)*(?:抠|去背|去掉|移除|提取))/u.test(clause));
+    const imageUtility = imageCutout || !hold && !noImage && !requestsOnlyText
+      && (standaloneImageAction || imageObject.test(imageAction) || /抠图|去背|扩图|超分/u.test(imageAction))
+      && /放大|超分|超清|高清化|提(?:升|高).{0,12}清晰度|裁[切剪]|扩图/u.test(imageAction)
+      && !/生成|生图|出图|设计|策划|创作|工作流/u.test(imageAction);
+    const edit = !hold && !noImage && !requestsOnlyText && (
+      imageUtility || imageClauses.some(clause => imageObject.test(clause) && imageActionVerb.test(clause)
+        && !canvasObject.test(clause) && !isCutoutClause(clause))
+      || standaloneImageAction && !isCutoutClause(imageAction));
+    const generate = !hold && !noImage && !requestsOnlyText && (
+      /(?:生成|绘制|画一张|创作一张|做一张|做一套|出一张|出图|生图).{0,38}(?:图|图像|图片|照片|海报|主视觉|插画|壁纸)/u.test(imageAction)
+      || imageClauses.some(clause => /^(?:请|帮我|就|直接|现在|开始|继续|\s)*(?:生成|出图|生图)\s*$/u.test(clause)
+        || /^(?:请|帮我|就|直接|现在|开始|\s)*按.{0,24}(?:方案|方向|上面|刚才|这个).{0,16}(?:生成|出图|生图)\s*$/u.test(clause))
+      || imageClauses.some(clause => /(?:用|把|让)(?:这个|当前|选中|上传的)?(?:产品|商品|素材|图片|照片|参考图)?.{0,18}(?:直接|现在|立即)?(?:生成|出图|生图)\s*$/u.test(clause))
+      || /(?:我)?(?:想要|要)(?:一张|1\s*张|一幅).{0,22}(?:图|照片|海报|插画)/u.test(imageAction));
+    const video = !hold && !noImage && !requestsOnlyText && imageClauses.some(clause =>
+      /(?:生成|制作|创作|做|执行|运行|提交|配置|搭建).{0,26}(?:视频|短片|出片)|(?:h3|带货视频).{0,14}(?:生成|制作|配置|出片)/iu.test(clause));
+    const skillReference = !isSkillInvocationProhibited(text)
+      && /(?:参考|借鉴|借助|按|按照|使用|调用|根据|依据|结合).{0,55}(?:Skill\b|技能)/iu.test(scope);
+    const professional = !isSkillInvocationProhibited(text) && (workflow || edit && !imageUtility || generate || video);
+    return { canvas, canvasWritePrompt, workflow, edit, imageUtility, imageCutout, generate, video, professional, skillReference, noImage, hold,
+      textRevision: textDeliverable.test(scope),
+      visual: !canvas && !professional && /图片|图像|照片|这张图|图中|图里|看图|识图|截图/u.test(scope),
+      execution: canvas || professional || edit || generate || video,
+    };
+  }
+
+  function getCanvasExecutionOutcome(outputs = []) {
+    const results = outputs.filter(Boolean);
+    for (const state of ["waiting-input", "waiting-confirmation", "running", "unavailable", "cancelled"]) {
+      if (results.some(result => result.state === state
+        || state === "waiting-input" && result.editor_open
+        || state === "waiting-confirmation" && result.decision_required
+        || state === "running" && ["queued", "submitted"].includes(result.state)
+        || state === "unavailable" && ["unsupported_tool", "plugin_unavailable", "model_unavailable"].includes(result.code)
+        || state === "cancelled" && ["user_declined", "cancelled"].includes(result.code))) return state;
     }
-    if (/怎么|如何|为什么|能不能|是否|可以吗|可不可以|[?？]\s*$/.test(text)) return "neutral";
-    const explicitExecute = /(?:我)?(?:想要|要)(?:一张|1\s*张)|(?:直接|现在|开始)(?:生成|出图|画)|(?:生成|出图|画一张)\s*[。！!]*$/.test(text);
-    const directImage = /(想要|要|生成|画|绘制|出图|做)(?:一张|1\s*张|一个)?[^。！？]{0,28}(图|图片|海报|主视觉|插画)/.test(text);
-    const contextualExecute = /(?:就|直接|现在|开始|请)?按[^。！？]{0,24}(方案|方向|刚才|上面|这个)[^。！？]{0,16}(生成|出图|做)/.test(text);
-    return explicitExecute || directImage || contextualExecute ? "execute" : "neutral";
+    if (results.some(result => result.ok === false)) return "failed";
+    const completed = results.some(result => {
+      if (result.ok !== true) return false;
+      if (result.tool === "upscale_canvas_image") return result.state === "succeeded" && result.persisted === true
+        && Boolean(result.node_id && result.task_id) && result.width > 0 && result.height > 0;
+      if (result.tool === "remove_canvas_image_background") return result.state === "succeeded" && result.persisted === true
+        && Boolean(result.node_id && result.source_node_id && result.result_url) && result.width > 0 && result.height > 0;
+      if (["activate_canvas_skill", "read_skill_reference", "request_design_brief"].includes(result.tool)) return false;
+      if (result.tool === "run_canvas_node") return Boolean(result.output?.url || result.output?.text || result.image_count > 0);
+      return Boolean(result.persisted === true || result.node_id || result.node_ids?.length
+        || result.from_id && result.to_id || result.group_id || result.organized_count > 0);
+    });
+    return completed ? "completed" : "not-executed";
+  }
+
+  function isPosterDesignRequest(prompt) {
+    const text = String(prompt || "").replace(/```[\s\S]*?```|「[^」]*」|“[^”]*”/gu, " ");
+    const route = classifyAgentRequest(text);
+    if (route.hold || route.textRevision || route.video || isSkillInvocationProhibited(text)) return false;
+    return text.split(/[，,。！？!?；;\n]/u).some(clause =>
+      !/如何|怎么|是否|为什么|什么是|对比|介绍|不要|不想|无需|别/u.test(clause)
+      && /(?:设计|策划|制作|创作|生成|做一张|画一张).{0,32}(?:海报|活动主视觉)/u.test(clause)
+      && !/(?:用(?:作|于)|适用于|供后期|作为).{0,12}(?:海报|活动主视觉)|海报(?:风格|提示词|教程|工作流|节点|用|的?(?:摄影|产品照|纯摄影|底图))/u.test(clause));
+  }
+
+  function resolveSkillInvocation(catalog, { selectedId = "", lockedId = "", prompt = "", canvas } = {}) {
+    const skills = Array.isArray(catalog) ? catalog.filter(skill => skill?.id && skill.enabled !== false) : [];
+    const text = String(prompt).trim().toLowerCase().replace(/```[\s\S]*?```|“[^”]*”|『[^』]*』/gu, " ");
+    if (!lockedId && isSkillInvocationProhibited(text)) return { skill: null, reason: "general" };
+    const normalize = value => String(value || "").toLowerCase().replace(/\s+/gu, "");
+    const compact = normalize(text);
+    if (lockedId) {
+      const lockedSkill = skills.find(skill => skill.id === lockedId) || null;
+      if (!text) return { skill: lockedSkill, reason: "locked", unavailable: !lockedSkill };
+    } else if (selectedId && !text) {
+      const selected = skills.find(skill => skill.id === selectedId) || null;
+      return { skill: selected, reason: "selected", unavailable: !selected };
+    }
+    const aliasesFor = skill => [skill.id, skill.label, skill.canvas?.label,
+      /^#\s+(.{1,80})$/m.exec(skill.instructions || "")?.[1]?.trim(), ...(skill.aliases || [])];
+    const explicitAliasMatch = skill => aliasesFor(skill).some(alias => {
+      const name = normalize(alias);
+      if (!name || !compact.includes(name)) return false;
+      const index = compact.indexOf(name);
+      const before = compact.slice(Math.max(0, index - 24), index);
+      return /(?:用|按|调用|启用|切换到|改用|选择|结合|搭配)[^，。；]{0,18}$/u.test(before)
+        && !/(?:不要|不用|不使用|别用|不调用|不用切换)/u.test(before)
+        && (/(?:skill\b|技能|专业流程)/iu.test(text) || before.length > 0 && name.length >= 4);
+    });
+    const named = skills.filter(explicitAliasMatch);
+    const switchRequested = /(?:切换|改用|换成|转到|更换).{0,16}(?:skill|技能|流程)/iu.test(text);
+    const combinationRequested = /(?:同时|一起|组合|结合).{0,32}(?:skill|技能|工作流|流程)/iu.test(text)
+      || /(?:skill|技能|工作流|流程).{0,24}(?:同时|一起|组合|结合)/iu.test(text);
+    if (lockedId) {
+      const lockedSkill = skills.find(skill => skill.id === lockedId) || null;
+      const requested = named.find(skill => skill.id !== lockedId) || null;
+      return {
+        skill: lockedSkill, reason: "locked", unavailable: !lockedSkill,
+        ...(switchRequested && requested ? { requestedSwitch: requested } : {}),
+        ...(combinationRequested && named.length > 1 ? { combination: named } : {}),
+      };
+    }
+    if (selectedId && !switchRequested && !combinationRequested) {
+      const selected = skills.find(skill => skill.id === selectedId) || null;
+      return { skill: selected, reason: "selected", unavailable: !selected };
+    }
+    if (selectedId && switchRequested && named.length === 1) return { skill: named[0], reason: "switch_requested" };
+    if (selectedId && combinationRequested && named.length) {
+      const selected = skills.find(skill => skill.id === selectedId) || null;
+      const candidates = [...new Map([selected, ...named].filter(Boolean).map(skill => [skill.id, skill])).values()];
+      if (candidates.length > 1) return { skill: selected, reason: "combination_requested", combination: candidates };
+    }
+    if (selectedId) {
+      const selected = skills.find(skill => skill.id === selectedId) || null;
+      return { skill: selected, reason: "selected", unavailable: !selected };
+    }
+    if (named.length === 1) return { skill: named[0], reason: "named" };
+    if (named.length > 1) return { skill: null, reason: "ambiguous", candidates: named };
+    const route = classifyAgentRequest(text);
+    const planningRequest = /(?:设计|策划|制作|制定|创作).{0,32}(?:产品摄影|商业摄影|海报设计|主视觉).{0,10}(?:方案|创意|策划)/u.test(text);
+    if (!(route.professional && route.execution || planningRequest) || route.hold
+      || (route.canvas && !route.generate && !route.edit && !route.video)
+      || /^(?:如何|怎么|什么是|是否|能不能|介绍|讨论)/u.test(text)) return { skill: null, reason: "general" };
+    const inputKinds = new Set([...(canvas?.agent_materials || []), ...(canvas?.nodes || [])].map(item => item?.type || item?.kind));
+    const matches = skills.filter(skill => skill.execution?.exposure === "agent").map(skill => {
+      const triggers = skill.triggers || skill.canvas?.triggers || [];
+      const phrases = [skill.label || skill.canvas?.label, ...triggers].map(normalize)
+        .filter(trigger => trigger.length >= 4 && compact.includes(trigger));
+      const category = skill.category || skill.canvas?.category;
+      const requirement = skill.required_selection || skill.canvas?.required_selection;
+      if (inputKinds.size && ["image", "video", "audio"].includes(requirement) && !inputKinds.has(requirement)) return null;
+      if (category === "video" && !route.video || category !== "video" && route.video) return null;
+      if (!phrases.length) return null;
+      const description = normalize(skill.description);
+      return { skill, score: Math.max(...phrases.map(trigger => trigger.length))
+        + Number(phrases.some(trigger => description.includes(trigger))) + Number(inputKinds.has(requirement)) };
+    }).filter(Boolean).sort((a, b) => b.score - a.score);
+    const scored = matches.filter(({ skill }) => canAutoInvokeSkill(skill));
+    if (!scored.length) {
+      const recommendations = matches.filter(({ skill }) => ["unverified", "partial"].includes(skill.validation_status)
+        && !skill.unresolvedDependencies?.length && !skill.unresolved_dependencies?.length)
+        .slice(0, 3).map(({ skill }) => skill);
+      return { skill: null, reason: "general", ...(recommendations.length ? { recommendations } : {}) };
+    }
+    if (scored[1] && scored[0].score - scored[1].score < 2) {
+      return { skill: null, reason: "ambiguous", candidates: scored.filter(item => scored[0].score - item.score < 2).map(item => item.skill) };
+    }
+    return { skill: scored[0].skill, reason: "matched" };
+  }
+
+  function canAutoInvokeSkill(skill) {
+    return skill?.enabled === true && skill.validation_status === "verified" && !skill.unresolvedDependencies?.length
+      && !skill.unresolved_dependencies?.length
+      && skill.compatibility?.status !== "缺少外部依赖"
+      && skill.execution?.exposure === "agent" && skill.execution.allowImplicitInvocation === true;
+  }
+
+  function inspectSkillInvocation(lock, tool, targetId) {
+    if (tool === "read_skill_reference") return lock?.skillId && (targetId === lock.skillId
+      || lock.approvedSkillIds?.includes(targetId)) ? "allow" : "deny";
+    if (tool === "activate_canvas_skill") return targetId === lock?.skillId ? "allow"
+      : lock?.approvedSkillIds?.includes(targetId) ? "allow" : "approval";
+    return "allow";
+  }
+
+  function classifyImageGenerationIntent(prompt) {
+    const route = classifyAgentRequest(prompt);
+    if (route.noImage || route.hold) return "discussion";
+    if (route.generate) return "execute";
+    return "neutral";
   }
 
   function shouldBlockCanvasToolForDiscussion(intent, toolName) {
@@ -125,10 +324,8 @@
   }
 
   function getSelectedImageEditGenerationAllowance(prompt, hasSelectedImage = false) {
-    if (!hasSelectedImage || classifyImageGenerationIntent(prompt) === "discussion") return 0;
-    const text = String(prompt || "").trim();
-    if (!text) return 0;
-    return /(编辑|修改|替换|改成|变成|换成|放在|放到|放进|置入|移到|添加|加上|去掉|删除|移除|扩图|裁切|重绘|修复|美化|增强)/.test(text) ? 1 : 0;
+    const route = classifyAgentRequest(prompt);
+    return hasSelectedImage && route.edit && !route.imageUtility ? 1 : 0;
   }
 
   function parseDirectImageFallbackIntent(prompt, canvas = {}, options = {}) {
@@ -163,7 +360,7 @@
     return 1;
   }
 
-  function summarizeCanvasBoard(board = {}, selectedIds = []) {
+  function summarizeCanvasBoard(board = {}, selectedIds = [], options = {}) {
     const sourceNodes = Array.isArray(board.nodes) ? board.nodes : [];
     const sourceById = new Map(sourceNodes.map((node) => [String(node?.id || ""), node]));
     const requestedSelected = Array.from(new Set((Array.isArray(selectedIds) ? selectedIds : []).map(String)))
@@ -194,7 +391,8 @@
       ...sourceNodes.map((node) => String(node?.id || "")),
     ])].filter((id) => sourceById.has(id)).slice(0, MAX_CANVAS_NODES);
     const detailedIds = new Set([...requestedSelected, ...connectedIds]);
-    const nodes = orderedIds.map((id) => summarizeCanvasNode(sourceById.get(id), detailedIds.has(id)));
+    const nodes = orderedIds.map(id => summarizeCanvasNode(sourceById.get(id),
+      detailedIds.has(id), options.fullSelectedText === true && selectedSet.size === 1 && selectedSet.has(id)));
     const nodeIds = new Set(nodes.map((node) => node.id));
     const selected = requestedSelected.filter((id) => nodeIds.has(id));
     const connections = (Array.isArray(board.connections) ? board.connections : [])
@@ -217,8 +415,8 @@
     };
   }
 
-  function summarizeCanvasNode(node = {}, detailed = false) {
-    const textLimit = detailed ? MAX_TEXT_LENGTH : COMPACT_TEXT_LENGTH;
+  function summarizeCanvasNode(node = {}, detailed = false, fullText = false) {
+    const textLimit = fullText ? 12000 : detailed ? MAX_TEXT_LENGTH : COMPACT_TEXT_LENGTH;
     const kind = String(node.kind || "unknown");
     const summary = {
       id: String(node.id || ""),
@@ -267,6 +465,15 @@
       summary.steps = finiteNumber(node.minimaxH3Steps);
       summary.mode = trimText(node.minimaxH3Mode, 40);
       summary.reference_counts = { images: countItems(node.minimaxH3ImageOrder), videos: countItems(node.minimaxH3VideoOrder), audios: countItems(node.minimaxH3AudioOrder) };
+      if (node.minimaxH3Model === "h3-commerce") {
+        summary.model = "h3-commerce";
+        summary.prompt_a_filled = Boolean(String(node.h3CommercePromptA || "").trim());
+        summary.prompt_b_filled = Boolean(String(node.h3CommercePromptB || "").trim());
+        summary.commerce_images = Array.from({ length: 4 }, (_, index) => {
+          const image = node.h3CommerceImages?.[index];
+          return image?.url ? { name: trimText(image.name, 120), source_node_id: String(image.sourceNodeId || "") } : null;
+        });
+      }
     }
     if (kind === "audio-generator") {
       const audio = node.audioGeneration || {};
@@ -405,6 +612,20 @@
     return TERMINAL_TOOL_NAMES.has(String(list[0]?.name || ""));
   }
 
+  function isSkillInvocationProhibited(prompt) {
+    return /(?:不要|不需要|无需|请勿|禁止|切勿|暂不|先不)\s*(?:调用|使用|启用|选择)?\s*(?:当前|任何|这个)?\s*(?:业务)?Skill\b/i
+      .test(String(prompt || ""));
+  }
+
+  function isCanvasOperationRequested(prompt) {
+    return classifyAgentRequest(prompt).canvas;
+  }
+
+  function isReadOnlyImageQuestion(prompt, imageCount) {
+    const route = classifyAgentRequest(prompt);
+    return Number(imageCount) > 0 && !route.execution && route.visual;
+  }
+
   function normalizeAgentReferences(candidates, limit = 15) {
     const maximum = Math.max(0, Math.min(40, Number(limit) || 0));
     const references = [];
@@ -485,6 +706,20 @@
       const row = layout === "row" ? 0 : layout === "grid" ? Math.floor(index / columns) : index;
       return { x: column * cellWidth, y: row * cellHeight };
     });
+  }
+
+  function planGridOffsets(items, columns = 2, gap = 90) {
+    const sizes = (Array.isArray(items) ? items : []).map(item => ({
+      width: Math.max(1, Number(item?.width) || 320),
+      height: Math.max(1, Number(item?.height) || 380),
+    }));
+    const count = Math.max(1, Math.min(sizes.length || 1, Math.trunc(Number(columns) || 2)));
+    const cellWidth = Math.max(...sizes.map(size => size.width), 320) + Math.max(0, Number(gap) || 0);
+    const cellHeight = Math.max(...sizes.map(size => size.height), 380) + Math.max(0, Number(gap) || 0);
+    return sizes.map((_, index) => ({
+      x: (index % count) * cellWidth,
+      y: Math.floor(index / count) * cellHeight,
+    }));
   }
 
   function planWorkflowArrangement(items, connections, gap = 80) {
@@ -582,21 +817,25 @@
     const prompt = trimText(input.prompt, 12000);
     const imageGenerationIntent = classifyImageGenerationIntent(prompt);
     const maxSteps = Number.isSafeInteger(input.maxSteps) && input.maxSteps > 0
-      ? Math.min(24, input.maxSteps)
+      ? Math.min(MAX_STEPS, input.maxSteps)
       : MAX_STEPS;
     const maxToolCalls = Number.isSafeInteger(input.maxToolCalls) && input.maxToolCalls > 0
       ? Math.min(64, input.maxToolCalls)
-      : null;
+      : MAX_TOOL_CALLS;
     return {
       id: String(input.id || `agent_${Date.now()}`),
+      requestId: String(input.requestId || ""),
+      messageId: String(input.messageId || ""),
       prompt,
       skillId: String(input.skillId || ""),
       imageGenerationIntent,
       status: "running",
       step: 0,
+      totalSteps: Math.max(0, Number(input.totalSteps) || 0),
       maxSteps,
       maxToolCalls,
       toolCallsUsed: 0,
+      totalToolCalls: Math.max(0, Number(input.totalToolCalls) || 0),
       approvedPaidTools: false,
       paidAllowances: input.paidAllowances && typeof input.paidAllowances === "object"
         ? {
@@ -632,7 +871,9 @@
     return {
       ...current,
       step: Number(current.step || 0) + 1,
+      totalSteps: Number(current.totalSteps || 0) + 1,
       toolCallsUsed: toolCallsUsed + toolCalls.length,
+      totalToolCalls: Number(current.totalToolCalls || 0) + toolCalls.length,
       status: toolCalls.length ? "running" : "completed",
       previousResponseId: String(turn.responseId || turn.response_id || current.previousResponseId || ""),
       pendingToolCalls: toolCalls,
@@ -647,12 +888,19 @@
 
   return {
     MAX_STEPS,
+    MAX_TOOL_CALLS,
+    MAX_CONTINUATIONS,
     MAX_CANVAS_NODES,
     CANVAS_AGENT_RECOVERY_DELAYS_MS,
     TOOL_DEFINITIONS,
     TOOL_NAME_SET,
     requiresApproval,
     buildApprovalPlan,
+    classifyAgentRequest,
+    isPosterDesignRequest,
+    resolveSkillInvocation,
+    canAutoInvokeSkill,
+    inspectSkillInvocation,
     classifyImageGenerationIntent,
     shouldBlockCanvasToolForDiscussion,
     getCanvasAgentRecoveryDelay,
@@ -665,10 +913,15 @@
     isFiniteCoordinate,
     normalizeAgentReferences,
     planArrangementOffsets,
+    planGridOffsets,
     planWorkflowArrangement,
     planCenteredRowLayout,
     summarizeCanvasBoard,
     shouldUseTerminalToolRun,
+    getCanvasExecutionOutcome,
+    isSkillInvocationProhibited,
+    isCanvasOperationRequested,
+    isReadOnlyImageQuestion,
     createRunState,
     advanceRunState,
     getToolDefinition,

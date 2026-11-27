@@ -9,7 +9,7 @@ const { app, BrowserWindow, Menu, Tray, clipboard, dialog, ipcMain, nativeImage,
 const { getAutostart, setAutostart } = require("./autostart");
 const { resolveDesktopPaths, getServerEnvironment, seedPortableWorkflows } = require("./runtime-paths");
 const { preparePortableData } = require("./portable-setup");
-const { createUpdater, createUpdateFetcher } = require("./updater");
+const { createUpdater, createUpdateFetcher, pruneOrphanedUpdateArtifacts } = require("./updater");
 const { prepareInstall, writeCandidateStatus, assertAvailableSpace, portableFreeBytes, requiredInstallSpace } = require("./update-install");
 const { registerUpdateIpc } = require("./update-ipc");
 const { pruneRuntimeSnapshots } = require("./runtime-retention");
@@ -23,6 +23,9 @@ const runtimePaths = resolveDesktopPaths({
   resourcesPath: process.resourcesPath, isPackaged: app.isPackaged,
   userDataPath: app.getPath("userData"), exePath: process.execPath,
 });
+// Capture once before starting the backend; later diagnostics must not relabel
+// changed on-disk code as the code this process started with.
+const loadedProgramFiles = require("./update-files").programFiles(runtimePaths.appRoot);
 if (runtimePaths.portableRoot) {
   process.env.AI_OS_PORTABLE_ROOT = runtimePaths.portableRoot;
   fs.mkdirSync(runtimePaths.userDataDir, { recursive: true });
@@ -32,6 +35,8 @@ if (runtimePaths.portableRoot) {
   app.setPath("logs", path.join(runtimePaths.dataDir, ".logs"));
   app.setPath("crashDumps", path.join(runtimePaths.dataDir, ".logs", "crashes"));
 }
+
+app.setName("BenDo");
 
 const hasSingleInstanceLock = app.requestSingleInstanceLock();
 if (!hasSingleInstanceLock) app.quit();
@@ -166,7 +171,7 @@ async function startServer() {
   serverProcess.once("error", error => rememberServerOutput(`\nService error: ${error.message}`));
   if (process.env.AI_OS_UPDATE_ID) writeCandidateStatus(runtimePaths.portableRoot, currentRuntimeName, "process", {serverPid:serverProcess.pid});
   serverProcess.once("exit", (code) => {
-    rememberServerOutput(`\nAI OS service exited with code ${code}.`);
+    rememberServerOutput(`\nBenDo service exited with code ${code}.`);
     if (serverProcess === child) serverProcess = null;
     rebuildTrayMenu();
   });
@@ -182,7 +187,7 @@ async function waitForHealth(timeoutMs = 30_000) {
     expectedVersion: currentVersion,
     expectedPid: serverProcess?.pid,
     isServiceRunning: () => Boolean(serverProcess && serverProcess.exitCode === null),
-    getStoppedError: () => new Error(serverOutput || "AI OS service stopped during startup."),
+    getStoppedError: () => new Error(serverOutput || "BenDo service stopped during startup."),
   });
   lanUrls = Array.isArray(ready.lanUrls) ? ready.lanUrls : lanUrls;
   return ready;
@@ -207,7 +212,7 @@ function publishDevReloadStatus(message) {
   if (!mainWindow || mainWindow.isDestroyed()) return;
   const webContents = mainWindow.webContents;
   if (!webContents || webContents.isDestroyed()) return;
-  tray?.setToolTip(text ? `AI OS Host · ${text}` : "AI OS Host · 局域网服务运行中");
+  tray?.setToolTip(text ? `BenDo · ${text}` : "BenDo · 局域网服务运行中");
   webContents.send("host.devReloadStatus", devReloadStatus);
   if (!/(?:已启用|已热替换|已刷新|刷新完成|重启|失败)/.test(text)) return;
   webContents.executeJavaScript(`window.AiOsDesktop?.toast?.(${JSON.stringify(text)})`, true).catch(() => {});
@@ -317,7 +322,7 @@ async function createStartupWindow() {
     maximizable: false,
     show: false,
     frame: false,
-    title: "正在启动 AI OS",
+    title: "正在启动 BenDo",
     icon: path.join(__dirname, "icon.ico"),
     backgroundColor: "#080a0e",
     webPreferences: {
@@ -394,7 +399,7 @@ async function createWindow({ startupError = "" } = {}) {
     minWidth: 980,
     minHeight: 680,
     show: false,
-    title: "AI OS",
+    title: "BenDo",
     icon: path.join(__dirname, "icon.ico"),
     backgroundColor: "#080a0e",
     autoHideMenuBar: true,
@@ -449,7 +454,7 @@ async function createWindow({ startupError = "" } = {}) {
   if (startupError) {
     const detail = escapeHtml(startupError);
     try {
-      await mainWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(`<!doctype html><meta charset="utf-8"><style>body{margin:0;background:#dbe8f4;color:#172033;font:16px system-ui;padding:48px}main{max-width:720px;margin:10vh auto;background:#fff;border-radius:18px;padding:28px;box-shadow:0 16px 50px #8190a033}h1{font-size:22px}pre{white-space:pre-wrap;background:#f1f5f9;padding:16px;border-radius:10px;font-size:13px}button{border:0;border-radius:10px;background:#2563eb;color:white;padding:10px 16px;font-weight:700}button:disabled{opacity:.65}#retryStatus{margin-left:12px;color:#64748b;font-size:13px}</style><main><h1>AI OS 服务启动失败</h1><p>本地服务暂时没有完成启动，AI OS 会自动重新连接。</p><pre>${detail}</pre><button id="retryService" type="button">重新连接</button><span id="retryStatus" role="status">正在等待服务…</span></main><script>const button=document.querySelector('#retryService');const status=document.querySelector('#retryStatus');button.addEventListener('click',async()=>{button.disabled=true;status.textContent='正在重新连接…';try{await window.aiOsHost.retryService()}catch(error){status.textContent=error.message||'重新连接失败';button.disabled=false}})</script>`)}`);
+      await mainWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(`<!doctype html><meta charset="utf-8"><style>body{margin:0;background:#dbe8f4;color:#172033;font:16px system-ui;padding:48px}main{max-width:720px;margin:10vh auto;background:#fff;border-radius:18px;padding:28px;box-shadow:0 16px 50px #8190a033}h1{font-size:22px}pre{white-space:pre-wrap;background:#f1f5f9;padding:16px;border-radius:10px;font-size:13px}button{border:0;border-radius:10px;background:#2563eb;color:white;padding:10px 16px;font-weight:700}button:disabled{opacity:.65}#retryStatus{margin-left:12px;color:#64748b;font-size:13px}</style><main><h1>BenDo 服务启动失败</h1><p>本地服务暂时没有完成启动，BenDo 会自动重新连接。</p><pre>${detail}</pre><button id="retryService" type="button">重新连接</button><span id="retryStatus" role="status">正在等待服务…</span></main><script>const button=document.querySelector('#retryService');const status=document.querySelector('#retryStatus');button.addEventListener('click',async()=>{button.disabled=true;status.textContent='正在重新连接…';try{await window.aiOsHost.retryService()}catch(error){status.textContent=error.message||'重新连接失败';button.disabled=false}})</script>`)}`);
     } catch (error) {
       // A renderer launch failure must not create an unhandled rejection and
       // hide the actionable service error from the host process.
@@ -474,7 +479,7 @@ function rebuildTrayMenu() {
   if (!tray) return;
   const auto = getAutostart(app);
   tray.setContextMenu(Menu.buildFromTemplate([
-    { label: "打开 AI OS", click: showWindow },
+    { label: "打开 BenDo", click: showWindow },
     { label: "在默认浏览器中打开", click: () => shell.openExternal(localUrl) },
     ...(runtimePaths.portableRoot ? [{ label: "打开数据目录", click: () => shell.openPath(dataDirectory()) }] : []),
     { type: "separator" },
@@ -508,7 +513,7 @@ function writeRuntimeDiagnostics() {
   const report = {
     createdAt: new Date().toISOString(), pid: process.pid, serverPid: serverProcess?.pid || null,
     appRoot: projectRoot(), runtimeName: currentRuntimeName, dataDirectory: dataDirectory(), nodeExecutable: nodeRuntime(),
-    localUrl, isPackaged: app.isPackaged, versions: process.versions,
+    localUrl, isPackaged: app.isPackaged, versions: process.versions, loadedProgramFiles,
     gpuFeatureStatus: app.getGPUFeatureStatus(),
   };
   try { fs.writeFileSync(path.join(dataDirectory(), ".logs", "runtime-diagnostics.json"), JSON.stringify(report, null, 2)); } catch {}
@@ -517,7 +522,7 @@ function writeRuntimeDiagnostics() {
 function createTray() {
   const iconPath = path.join(__dirname, "icon.ico");
   tray = new Tray(nativeImage.createFromPath(iconPath));
-  tray.setToolTip("AI OS Host · 局域网服务运行中");
+  tray.setToolTip("BenDo · 局域网服务运行中");
   tray.on("double-click", showWindow);
   rebuildTrayMenu();
 }
@@ -628,7 +633,7 @@ if (hasSingleInstanceLock) {
       if (!hiddenLaunch && startupWindow && !startupWindow.isDestroyed()) startupWindow.show();
       setStartupStatus("正在准备本地数据", "初始化工作流与桌面运行目录…", 0.22);
       seedPortableWorkflows(runtimePaths);
-      setStartupStatus("正在启动本地服务", "AI OS 服务正在绑定本机端口…", 0.38);
+      setStartupStatus("正在启动本地服务", "BenDo 服务正在绑定本机端口…", 0.38);
       await startServer();
       setStartupStatus("正在等待服务就绪", "检查接口、数据库与局域网访问状态…", 0.62);
       await waitForHealth();
@@ -640,7 +645,20 @@ if (hasSingleInstanceLock) {
       if (process.env.AI_OS_UPDATE_ID) writeCandidateStatus(runtimePaths.portableRoot, currentRuntimeName, "health", {serverPid:serverProcess?.pid,localUrl,version:currentVersion});
       delete process.env.AI_OS_UPDATE_ID;
       if (runtimePaths.portableRoot) {
-        setImmediate(() => {
+        const maintain = (attempt = 0) => {
+          const updates = path.join(runtimePaths.portableRoot, ".ai-runtime/updates");
+          if (["downloading", "preparing", "restarting"].includes(updater.getStatus().status) ||
+              ["install.json", "helper.json"].some(name => fs.existsSync(path.join(updates, name)))) {
+            // Also handles an upgrade performed by an older helper without
+            // post-transaction maintenance. Never race its database snapshot.
+            if (attempt < 30) setTimeout(() => maintain(attempt + 1), 2000).unref();
+            return;
+          }
+          try {
+            pruneOrphanedUpdateArtifacts(runtimePaths.portableRoot, { completedOnly: true });
+          } catch (error) {
+            rememberServerOutput(`\nUpdate cache cleanup skipped: ${error.message}`);
+          }
           try {
             const result = pruneRuntimeSnapshots(runtimePaths.portableRoot);
             if (result.errors.length) rememberServerOutput(`\nRuntime retention completed with ${result.errors.length} cleanup error(s).`);
@@ -653,7 +671,8 @@ if (hasSingleInstanceLock) {
           } catch (error) {
             rememberServerOutput(`\nRollback retention skipped: ${error.message}`);
           }
-        });
+        };
+        setImmediate(maintain);
       }
       app.once("gpu-info-update", writeRuntimeDiagnostics);
     } catch (error) {

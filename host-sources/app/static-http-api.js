@@ -262,6 +262,7 @@ function createStaticHttpApi({
     publicHandle: handlePublic,
     resolveOutputPath,
     serveOutput,
+    serveFile,
     serveStatic,
   });
 }

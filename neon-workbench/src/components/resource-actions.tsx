@@ -11,6 +11,7 @@ import { renameCanvas } from "@/lib/canvas-naming"
 import { assetMedia } from "@/lib/asset-media"
 import { candidateFromResource, openAssetRegistration } from "@/lib/asset-library"
 import { downloadMedia } from "@/lib/media-download"
+import { LoaderCircle } from "lucide-react"
 
 type SharedProps = { refresh: () => Promise<void>; notify: (s: string) => void }
 export function AssetActions({ entry, refresh, notify, onClose, onDelete, onContinue }: SharedProps & { entry: Resource; onClose: () => void; onDelete?: () => Promise<void>; onContinue?: () => void }) {
@@ -18,9 +19,10 @@ export function AssetActions({ entry, refresh, notify, onClose, onDelete, onCont
   const [password, setPassword] = useState("")
   const [title, setTitle] = useState(() => textOf(entry.resource.title))
   const [saving, setSaving] = useState(false)
+  const [downloading, setDownloading] = useState(false)
   const [error, setError] = useState("")
   const downloadUrl = assetMedia(entry)?.url
-  useEffect(() => { setMode(""); setPassword(""); setTitle(textOf(entry.resource.title)); setError("") }, [entry.resource.id, entry.resource.title])
+  useEffect(() => { setMode(""); setPassword(""); setTitle(textOf(entry.resource.title)); setError(""); setDownloading(false) }, [entry.resource.id, entry.resource.title])
   const action = async (task: () => Promise<unknown>, success: string) => {
     setSaving(true); setError("")
     try { await task(); onClose(); await refresh(); notify(success) } catch (e) { setError((e as Error).message) } finally { setSaving(false) }
@@ -39,7 +41,7 @@ export function AssetActions({ entry, refresh, notify, onClose, onDelete, onCont
         {candidate && (!asset || entry.access.capabilities?.share) && <Button variant="outline" disabled={saving} onClick={() => { onClose(); openAssetRegistration([candidate]) }}>{asset ? "更改归类" : "加入资产库"}</Button>}
         {onContinue && <Button variant="outline" onClick={onContinue}>继续创作</Button>}
         {entry.resource.type === "canvas" && <Button onClick={() => { try { hostAction("canvas", { resourceId: entry.resource.id }); onClose() } catch (e) { notify((e as Error).message) } }}>打开画布</Button>}
-        {downloadUrl && <Button variant="outline" disabled={saving} onClick={async () => { setSaving(true); setError(""); try { await downloadMedia(downloadUrl, textOf(entry.resource.title)) } catch (e) { setError((e as Error).message) } finally { setSaving(false) } }}>下载文件</Button>}
+        {downloadUrl && <Button variant="outline" disabled={saving || downloading} aria-busy={downloading} onClick={async () => { setDownloading(true); setError(""); try { await downloadMedia(downloadUrl, textOf(entry.resource.title)) } catch (e) { setError((e as Error).message) } finally { setDownloading(false) } }}>{downloading ? <><LoaderCircle className="size-4 animate-spin" />正在下载…</> : "下载文件"}</Button>}
       </div>
     </>}
     {error && <p role="alert" className="text-sm text-destructive">{error}</p>}

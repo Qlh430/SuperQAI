@@ -8,6 +8,7 @@
   const PLACEHOLDER = "写下一个想法";
   const editors = new WeakMap();
   const selectionDocuments = new WeakSet();
+  let markdownModule;
   function ensureSelectionListener(document) {
     if (selectionDocuments.has(document)) return;
     selectionDocuments.add(document);
@@ -92,23 +93,38 @@
     text.dataset.empty = String(value).trim() ? "false" : "true";
   }
 
-  const TEXT_BODY_MIN_HEIGHT = 142;
+  const TEXT_BODY_MIN_HEIGHT = 400;
   const TEXT_BODY_MAX_HEIGHT = 1200;
 
   function syncAutoSize(text, { persist = false } = {}) {
-    const node = text?.closest?.(".canvas-node-text");
-    if (!node || node.dataset.mediaSizeMode === "manual") return false;
-    const measured = Math.ceil(Number(text.scrollHeight) || 0);
-    if (!measured) return false;
-    const nextHeight = Math.max(TEXT_BODY_MIN_HEIGHT, Math.min(TEXT_BODY_MAX_HEIGHT, measured));
+    const node = text?.closest?.(".canvas-node-text, .canvas-node-llm");
+    if (!node || node.dataset.textProjectionProbe === "true" || node.dataset.mediaSizeMode === "manual") return false;
+    const saved = Number(node.dataset.height) || parseFloat(node.style.getPropertyValue("--flora-node-height")) || 400;
+    const content = text.querySelector(":scope > .canvas-text-markdown");
+    const standalone = node.classList.contains("canvas-node-text");
+    const source = text.dataset.markdownSource || "";
+    const width = standalone ? Math.min(480, 400 + Math.floor(source.length / 10)) : 0;
+    const widthChanged = standalone && (Number(node.dataset.width) !== width
+      || node.style.getPropertyValue("--flora-node-width") !== `${width}px`);
+    if (widthChanged) {
+      node.dataset.width = String(width);
+      node.style.setProperty("--flora-node-width", `${width}px`);
+    }
+    const minimum = standalone ? source.trim() ? 112 : 96 : TEXT_BODY_MIN_HEIGHT;
+    const measured = content && text.clientWidth > 0 ? standalone
+      ? content.offsetHeight + 56
+      : Math.ceil(content.getBoundingClientRect().height / (text.getBoundingClientRect().width / text.offsetWidth || 1)) + 64
+      : saved;
+    const nextHeight = Math.max(minimum, Math.min(standalone ? 760 : TEXT_BODY_MAX_HEIGHT, measured));
+    const contentHeight = Math.max(1, nextHeight - 16);
     const next = String(nextHeight);
-    const changed = node.dataset.height !== next
+    const changed = widthChanged || node.dataset.height !== next
       || node.style.getPropertyValue("--flora-node-height") !== `${nextHeight}px`;
     node.dataset.height = next;
     node.dataset.renderedHeight = String(nextHeight + 48);
     node.style.setProperty("--flora-node-height", `${nextHeight}px`);
-    node.style.setProperty("--canvas-node-text-height", `${nextHeight}px`);
-    text.dataset.textOverflow = String(measured > TEXT_BODY_MAX_HEIGHT);
+    node.style.setProperty("--canvas-node-text-height", `${contentHeight}px`);
+    text.dataset.textOverflow = String(text.scrollHeight > text.clientHeight);
     if (changed) {
       const context = editors.get(text)?.context;
       context?.scheduleCanvasConnectionRender?.({ trailing: false });
@@ -156,6 +172,9 @@
 
   function htmlToMarkdown(document, html) {
     const container = document.createElement("div"); container.innerHTML = html;
+    if (!container.querySelector(":not(p,div,br)")) {
+      return readPlainClipboardLines(container);
+    }
     function read(node) {
       if (node.nodeType === 3) return node.textContent.replace(/\u00a0/g, " ");
       const tag = node.localName;
@@ -183,11 +202,30 @@
     return [...container.childNodes].map(read).join("").replace(/\n{3,}/g, "\n\n").trim();
   }
 
+  function readPlainClipboardLines(container) {
+    let output = "";
+    let previousBlock = false;
+    for (const child of container.childNodes) {
+      const block = child.nodeType === 1 && child.matches("p,div");
+      if (previousBlock || (block && output && !output.endsWith("\n"))) output += "\n";
+      if (block) {
+        const line = readPlainClipboardLines(child);
+        output += line === "\n" ? "" : line;
+      } else if (child.nodeName === "BR") {
+        output += "\n";
+      } else {
+        output += child.textContent;
+      }
+      previousBlock = block;
+    }
+    return output;
+  }
+
   function getRichHtml(target) {
     const text = resolveText(target);
     if (!text) return "";
     if (!text.textContent.trim() && !text.querySelector("hr,table,pre")) return "";
-    const html = [...text.childNodes].map(child => child.nodeType === 1 && child.classList.contains("canvas-text-markdown")
+    const html = [...text.childNodes].filter(child => !child.classList?.contains("flora-text-empty-icon")).map(child => child.nodeType === 1 && child.classList.contains("canvas-text-markdown")
       ? child.innerHTML : child.nodeType === 3 ? escapeHtml(child.textContent) : child.outerHTML || "").join("");
     return sanitizeHtml(text.ownerDocument, html);
   }
@@ -201,7 +239,8 @@
     }
     text.dataset.richHtml = html;
     const node = text.closest(".canvas-node");
-    if (node) node.dataset.textRichHtml = html;
+    if (node?.classList.contains("canvas-node-llm")) node.dataset.llmOutput = text.dataset.markdownSource;
+    else if (node) node.dataset.textRichHtml = html;
     markEmptyState(text, text.textContent.trim() || (text.querySelector("hr,table,pre") ? "结构内容" : ""));
     syncToolbar(text);
   }
@@ -210,9 +249,12 @@
     if (!text) return "";
     const value = normalizeSource(source);
     const markdown = markdownApi(text);
-    const rendered = richHtml !== undefined ? sanitizeHtml(text.ownerDocument, richHtml) : markdown?.renderMarkdown
+    let rendered = richHtml !== undefined ? sanitizeHtml(text.ownerDocument, richHtml) : markdown?.renderMarkdown
       ? markdown.renderMarkdown(value)
       : renderFallbackMarkdown(value);
+    if (richHtml === undefined && value.includes("\n") && !/<(?!\/?p>|br>)[a-z/]/i.test(rendered)) {
+      rendered = value.split("\n").map(line => `<div>${escapeHtml(line) || "<br>"}</div>`).join("");
+    }
     const scrollTop = Number(text.scrollTop) || 0;
     text.dataset.markdownSource = value;
     text.dataset.editing = "false";
@@ -222,10 +264,22 @@
     markEmptyState(text, value);
     text.dataset.placeholder = "双击开始编辑…";
     text.innerHTML = `<div class="canvas-agent-markdown canvas-text-markdown">${rendered || "<p><br></p>"}</div>`;
+    if (!value) {
+      const icon = text.ownerDocument.createElement("div");
+      icon.className = "flora-text-empty-icon";
+      icon.setAttribute("aria-hidden", "true");
+      icon.contentEditable = "false";
+      const glyph = text.ownerDocument.createElement("i");
+      glyph.dataset.lucide = "text";
+      icon.append(glyph);
+      text.append(icon);
+      queueMicrotask(() => { if (icon.isConnected) globalThis.lucide?.createIcons?.({ root: icon }); });
+    }
     text.dataset.richHtml = getRichHtml(text);
     text.dataset.richOverride = String(richHtml !== undefined);
     const node = text.closest(".canvas-node");
-    if (node) node.dataset.textRichHtml = text.dataset.richHtml;
+    if (node?.classList.contains("canvas-node-llm")) node.dataset.llmOutput = value;
+    else if (node) node.dataset.textRichHtml = text.dataset.richHtml;
     text.title = value ? "双击编辑" : "";
     text.setAttribute("role", "textbox"); text.setAttribute("aria-multiline", "true");
     text.setAttribute("aria-label", "文字内容，双击编辑");
@@ -342,9 +396,10 @@
   function applyFormat(text, command) {
     if (text.dataset.editing !== "true") return;
     const state = editors.get(text), document = text.ownerDocument;
+    const range = selectionRange(text)?.cloneRange() || state?.range;
     text.focus({ preventScroll: true });
-    if (state?.range && text.contains(state.range.commonAncestorContainer)) {
-      const selection = document.getSelection(); selection.removeAllRanges(); selection.addRange(state.range);
+    if (range && text.contains(range.commonAncestorContainer)) {
+      const selection = document.getSelection(); selection.removeAllRanges(); selection.addRange(range);
     }
     // Browser editing transactions preserve native caret and undo semantics.
     document.execCommand("styleWithCSS", false, false);
@@ -362,7 +417,12 @@
     for (const [command, title, icon] of FORMATS) {
       const button = document.defaultView.CanvasNodeActionBar.createButton({ id: `text-${command}`, title, icon, modifierClass: "flora-node-action flora-node-icon-action flora-text-format-action" });
       button.dataset.textFormat = command; button.setAttribute("aria-pressed", "false");
-      button.addEventListener("pointerdown", event => { event.preventDefault(); event.stopPropagation(); });
+      button.addEventListener("pointerdown", event => {
+        const range = selectionRange(text);
+        if (range) editors.get(text).range = range.cloneRange();
+        event.preventDefault();
+        event.stopPropagation();
+      });
       button.addEventListener("click", event => { event.stopPropagation(); applyFormat(text, command); });
       button.addEventListener("keydown", event => { if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); commitEdit(text); } });
       group.append(button);
@@ -444,30 +504,19 @@
     return [images, prompt, ...(presets ? [presets] : []), controls];
   }
 
-  function render(node, content, context = {}) {
+  function createResult(node, content, context = {}) {
     const document = context.document || globalThis.document;
-    const {
-      createCanvasNodeBar,
-      createCanvasPort,
-      createCanvasResizeHandle,
-      scheduleCanvasConnectionRender,
-      scheduleCanvasSave,
-      stopCanvasTextWheel,
-      syncCanvasLlmPromptState,
-      syncCanvasTextFromLlmInputs,
-    } = context;
-    if (!document || !createCanvasNodeBar || !createCanvasPort || !createCanvasResizeHandle) {
-      throw new Error("Canvas text node renderer context is incomplete.");
-    }
-
-    node.innerHTML = "";
-    const inputPort = createCanvasPort("input");
-    const outputPort = createCanvasPort("output");
+    const { scheduleCanvasSave, stopCanvasTextWheel } = context;
     const text = document.createElement("div");
-    text.className = "canvas-text";
+    text.className = node.classList.contains("canvas-node-llm") ? "canvas-text canvas-llm-output" : "canvas-text";
     editors.set(text, { context });
     const initial = normalizeSource(content);
     renderPreview(text, initial === PLACEHOLDER ? "" : initial, node.dataset.textRichHtml);
+    if (document.defaultView && !markdownApi(text)?.renderMarkdown && !markdownModule) {
+      markdownModule = import("/canvas-agent-markdown.js?v=20260928-agent-resize")
+        .then(() => refreshMarkdown(document.defaultView))
+        .catch(error => { markdownModule = null; console.warn("Canvas Markdown module failed to load.", error); });
+    }
     ensureSelectionListener(document);
     text.addEventListener("pointerdown", (event) => {
       // Preview follows the canvas's normal selection and drag path. While
@@ -488,8 +537,14 @@
       if (text.dataset.editing !== "true" || !data) return;
       event.preventDefault(); event.stopPropagation();
       const html = data.getData("text/html");
-      const safe = html ? sanitizeHtml(document, html) : escapeHtml(data.getData("text/plain")).replace(/\n/g, "<br>");
-      document.execCommand("insertHTML", false, safe);
+      const selection = document.getSelection();
+      if (!selection?.rangeCount || !text.contains(selection.getRangeAt(0).commonAncestorContainer)) return;
+      const safe = html ? sanitizeHtml(document, html) : "";
+      if (safe) document.execCommand("insertHTML", false, safe);
+      else {
+        const plain = normalizeSource(data.getData("text/plain"));
+        if (plain) document.execCommand("insertText", false, plain);
+      }
       syncContent(text);
     };
     text.addEventListener("paste", event => insert(event, event.clipboardData));
@@ -515,6 +570,34 @@
         text.blur();
       }
     });
+    queueMicrotask(() => {
+      if (!text.isConnected) return;
+      syncAutoSize(text, { persist: true });
+    });
+    return text;
+  }
+
+
+  function render(node, content, context = {}) {
+    const document = context.document || globalThis.document;
+    const {
+      createCanvasNodeBar,
+      createCanvasPort,
+      createCanvasResizeHandle,
+      scheduleCanvasConnectionRender,
+      scheduleCanvasSave,
+      stopCanvasTextWheel,
+      syncCanvasLlmPromptState,
+      syncCanvasTextFromLlmInputs,
+    } = context;
+    if (!document || !createCanvasNodeBar || !createCanvasPort || !createCanvasResizeHandle) {
+      throw new Error("Canvas text node renderer context is incomplete.");
+    }
+
+    node.innerHTML = "";
+    const inputPort = createCanvasPort("input");
+    const outputPort = createCanvasPort("output");
+    const text = createResult(node, content, context);
     const textName = String(node.dataset.textName || "文字").replace(/\s+/g, " ").trim().slice(0, 80) || "文字";
     node.dataset.textName = textName;
     // The language-model composer lives under the text node now: the LLM node
@@ -538,6 +621,8 @@
 
   return Object.freeze({
     render,
+    createResult,
+    syncAutoSize: node => syncAutoSize(resolveText(node), { persist: true }),
     beginEdit,
     commitEdit,
     getValue,

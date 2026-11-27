@@ -1,0 +1,1383 @@
+{
+  "version": 1,
+  "presets": [
+    {
+      "id": "gender-male",
+      "type": "character",
+      "group": "gender",
+      "name": "男性",
+      "thumbnail": "asset:visual-presets/role/gender/role_gender_male.png",
+      "description": "偏男性化的性别表达",
+      "selectionMode": "single",
+      "promptPositive": "男性。",
+      "promptNegative": "",
+      "order": 1,
+      "tags": [
+        "男性"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "subgroup": "gender"
+    },
+    {
+      "id": "gender-female",
+      "type": "character",
+      "group": "gender",
+      "name": "女性",
+      "thumbnail": "asset:visual-presets/role/gender/role_gender_female.png",
+      "description": "偏女性化的性别表达",
+      "selectionMode": "single",
+      "promptPositive": "女性。",
+      "promptNegative": "",
+      "order": 2,
+      "tags": [
+        "女性"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "subgroup": "gender"
+    },
+    {
+      "id": "gender-androgynous",
+      "hiddenFromPicker": true,
+      "type": "character",
+      "group": "gender",
+      "name": "中性",
+      "thumbnail": "asset:visual-presets/role/gender/role_gender_androgynous.png",
+      "description": "克制、非单一性别的表达",
+      "selectionMode": "single",
+      "promptPositive": "中性人物表达",
+      "promptNegative": "",
+      "order": 3,
+      "tags": [
+        "中性"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "subgroup": "gender"
+    },
+    {
+      "id": "gender-nonbinary",
+      "hiddenFromPicker": true,
+      "type": "character",
+      "group": "gender",
+      "name": "非二元",
+      "thumbnail": "asset:visual-presets/role/gender/role_gender_nonbinary.png",
+      "description": "不强调二元性别的表达",
+      "selectionMode": "single",
+      "promptPositive": "非二元性别表达",
+      "promptNegative": "",
+      "order": 4,
+      "tags": [
+        "非二元"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "subgroup": "gender"
+    },
+    {
+      "id": "age-child-6-12",
+      "type": "character",
+      "group": "age",
+      "name": "儿童 6-12",
+      "thumbnail": "asset:visual-presets/role/age/role_age_child_6_12.png",
+      "description": "儿童年龄段",
+      "selectionMode": "single",
+      "promptPositive": "6-12 岁儿童年龄段",
+      "promptNegative": "避免成人化面部特征",
+      "order": 1,
+      "tags": [
+        "儿童"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "subgroup": "age"
+    },
+    {
+      "id": "age-teen-13-17",
+      "type": "character",
+      "group": "age",
+      "name": "少年 13-17",
+      "thumbnail": "asset:visual-presets/role/age/role_age_teen_13_17.png",
+      "description": "青少年年龄段",
+      "selectionMode": "single",
+      "promptPositive": "13-17 岁青少年年龄段",
+      "promptNegative": "避免明显成人化特征",
+      "order": 2,
+      "tags": [
+        "少年"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "subgroup": "age"
+    },
+    {
+      "id": "age-youth-18-25",
+      "type": "character",
+      "group": "age",
+      "name": "青年 18-25",
+      "thumbnail": "asset:visual-presets/role/age/role_age_youth_18_25.png",
+      "description": "年轻成人年龄段",
+      "selectionMode": "single",
+      "promptPositive": "18-25 岁青年年龄段",
+      "promptNegative": "",
+      "order": 3,
+      "tags": [
+        "青年"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "subgroup": "age"
+    },
+    {
+      "id": "age-mature-26-35",
+      "type": "character",
+      "group": "age",
+      "name": "青壮年 26-35",
+      "thumbnail": "asset:visual-presets/role/age/role_age_mature_26_35.png",
+      "description": "成熟青年年龄段",
+      "selectionMode": "single",
+      "promptPositive": "26-35 岁青壮年年龄段",
+      "promptNegative": "",
+      "order": 4,
+      "tags": [
+        "青壮年"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "subgroup": "age"
+    },
+    {
+      "id": "age-mid-36-50",
+      "type": "character",
+      "group": "age",
+      "name": "中年 36-50",
+      "thumbnail": "asset:visual-presets/role/age/role_age_mid_36_50.png",
+      "description": "中年年龄段",
+      "selectionMode": "single",
+      "promptPositive": "36-50 岁中年年龄段",
+      "promptNegative": "",
+      "order": 5,
+      "tags": [
+        "中年"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "subgroup": "age"
+    },
+    {
+      "id": "age-senior-51-65",
+      "type": "character",
+      "group": "age",
+      "name": "熟龄 51-65",
+      "thumbnail": "asset:visual-presets/role/age/role_age_senior_51_65.png",
+      "description": "熟龄年龄段",
+      "selectionMode": "single",
+      "promptPositive": "51-65 岁熟龄年龄段",
+      "promptNegative": "",
+      "order": 6,
+      "tags": [
+        "熟龄"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "subgroup": "age"
+    },
+    {
+      "id": "age-elder-65-plus",
+      "type": "character",
+      "group": "age",
+      "name": "长者 65+",
+      "thumbnail": "asset:visual-presets/role/age/role_age_elder_65_plus.png",
+      "description": "长者年龄段",
+      "selectionMode": "single",
+      "promptPositive": "65 岁以上长者年龄段",
+      "promptNegative": "",
+      "order": 7,
+      "tags": [
+        "长者"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "subgroup": "age"
+    },
+    {
+      "id": "ethnicity-east-asian",
+      "type": "character",
+      "group": "ethnicity",
+      "name": "东亚面部",
+      "thumbnail": "asset:visual-presets/role/ethnicity/role_ethnicity_east_asian.png",
+      "description": "东亚面部特征参考",
+      "selectionMode": "single",
+      "promptPositive": "东亚面部特征参考",
+      "promptNegative": "",
+      "order": 1,
+      "tags": [
+        "东亚"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "subgroup": "ethnicity"
+    },
+    {
+      "id": "ethnicity-southeast-asian",
+      "type": "character",
+      "group": "ethnicity",
+      "name": "东南亚面部",
+      "thumbnail": "asset:visual-presets/role/ethnicity/role_ethnicity_southeast_asian.png",
+      "description": "东南亚面部特征参考",
+      "selectionMode": "single",
+      "promptPositive": "东南亚面部特征参考",
+      "promptNegative": "",
+      "order": 2,
+      "tags": [
+        "东南亚"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "subgroup": "ethnicity"
+    },
+    {
+      "id": "ethnicity-south-asian",
+      "type": "character",
+      "group": "ethnicity",
+      "name": "南亚面部",
+      "thumbnail": "asset:visual-presets/role/ethnicity/role_ethnicity_south_asian.png",
+      "description": "南亚面部特征参考",
+      "selectionMode": "single",
+      "promptPositive": "南亚面部特征参考",
+      "promptNegative": "",
+      "order": 3,
+      "tags": [
+        "南亚"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "subgroup": "ethnicity"
+    },
+    {
+      "id": "ethnicity-african",
+      "type": "character",
+      "group": "ethnicity",
+      "name": "非洲面部",
+      "thumbnail": "asset:visual-presets/role/ethnicity/role_ethnicity_african.png",
+      "description": "非洲面部特征参考",
+      "selectionMode": "single",
+      "promptPositive": "非洲面部特征参考",
+      "promptNegative": "",
+      "order": 4,
+      "tags": [
+        "非洲"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "subgroup": "ethnicity"
+    },
+    {
+      "id": "ethnicity-european",
+      "type": "character",
+      "group": "ethnicity",
+      "name": "欧洲面部",
+      "thumbnail": "asset:visual-presets/role/ethnicity/role_ethnicity_european.png",
+      "description": "欧洲面部特征参考",
+      "selectionMode": "single",
+      "promptPositive": "欧洲面部特征参考",
+      "promptNegative": "",
+      "order": 5,
+      "tags": [
+        "欧洲"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "subgroup": "ethnicity"
+    },
+    {
+      "id": "ethnicity-latino",
+      "type": "character",
+      "group": "ethnicity",
+      "name": "拉丁面部",
+      "thumbnail": "asset:visual-presets/role/ethnicity/role_ethnicity_latino.png",
+      "description": "拉丁面部特征参考",
+      "selectionMode": "single",
+      "promptPositive": "拉丁美洲面部特征参考",
+      "promptNegative": "",
+      "order": 6,
+      "tags": [
+        "拉丁"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "subgroup": "ethnicity"
+    },
+    {
+      "id": "ethnicity-mena",
+      "type": "character",
+      "group": "ethnicity",
+      "name": "中东 / 北非面部",
+      "thumbnail": "asset:visual-presets/role/ethnicity/role_ethnicity_mena.png",
+      "description": "中东及北非面部特征参考",
+      "selectionMode": "single",
+      "promptPositive": "中东及北非面部特征参考",
+      "promptNegative": "",
+      "order": 7,
+      "tags": [
+        "中东",
+        "北非"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "subgroup": "ethnicity"
+    },
+    {
+      "id": "ethnicity-mixed",
+      "type": "character",
+      "group": "ethnicity",
+      "name": "混合面部",
+      "thumbnail": "asset:visual-presets/role/ethnicity/role_ethnicity_mixed.png",
+      "description": "混合面部特征参考",
+      "selectionMode": "single",
+      "promptPositive": "混合面部特征参考",
+      "promptNegative": "",
+      "order": 8,
+      "tags": [
+        "混合"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "subgroup": "ethnicity"
+    },
+    {
+      "id": "profession-designer",
+      "type": "character",
+      "group": "profession",
+      "name": "设计师",
+      "thumbnail": "asset:visual-presets/role/profession/role_profession_designer.png",
+      "description": "创意与设计工作者",
+      "selectionMode": "single",
+      "promptPositive": "设计师人物角色",
+      "promptNegative": "",
+      "order": 1,
+      "tags": [
+        "设计师"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "subgroup": "profession"
+    },
+    {
+      "id": "profession-photographer",
+      "type": "character",
+      "group": "profession",
+      "name": "摄影师",
+      "thumbnail": "asset:visual-presets/role/profession/role_profession_photographer.png",
+      "description": "影像创作者",
+      "selectionMode": "single",
+      "promptPositive": "摄影师人物角色",
+      "promptNegative": "",
+      "order": 2,
+      "tags": [
+        "摄影师"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "subgroup": "profession"
+    },
+    {
+      "id": "profession-chef",
+      "type": "character",
+      "group": "profession",
+      "name": "厨师",
+      "thumbnail": "asset:visual-presets/role/profession/role_profession_chef.png",
+      "description": "餐饮与烹饪工作者",
+      "selectionMode": "single",
+      "promptPositive": "厨师人物角色",
+      "promptNegative": "",
+      "order": 3,
+      "tags": [
+        "厨师"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "subgroup": "profession"
+    },
+    {
+      "id": "profession-office-worker",
+      "type": "character",
+      "group": "profession",
+      "name": "办公室职员",
+      "thumbnail": "asset:visual-presets/role/profession/role_profession_office_worker.png",
+      "description": "城市办公场景人物",
+      "selectionMode": "single",
+      "promptPositive": "办公室职员人物角色",
+      "promptNegative": "",
+      "order": 4,
+      "tags": [
+        "办公"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "subgroup": "profession"
+    },
+    {
+      "id": "profession-athlete",
+      "type": "character",
+      "group": "profession",
+      "name": "运动者",
+      "thumbnail": "asset:visual-presets/role/profession/role_profession_athlete.png",
+      "description": "运动与户外场景人物",
+      "selectionMode": "single",
+      "promptPositive": "运动者人物角色",
+      "promptNegative": "",
+      "order": 5,
+      "tags": [
+        "运动"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "subgroup": "profession"
+    },
+    {
+      "id": "profession-musician",
+      "type": "character",
+      "group": "profession",
+      "name": "音乐人",
+      "thumbnail": "asset:visual-presets/role/profession/role_profession_musician.png",
+      "description": "音乐与舞台场景人物",
+      "selectionMode": "single",
+      "promptPositive": "音乐人人物角色",
+      "promptNegative": "",
+      "order": 6,
+      "tags": [
+        "音乐"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "subgroup": "profession"
+    },
+    {
+      "id": "profession-artist",
+      "type": "character",
+      "group": "profession",
+      "name": "艺术家",
+      "description": "艺术创作者",
+      "promptPositive": "艺术创作者，简洁的工作服饰和自然姿态",
+      "order": 7,
+      "subgroup": "profession",
+      "selectionMode": "single",
+      "promptNegative": "",
+      "tags": [
+        "艺术家"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "thumbnail": "asset:visual-presets/role/profession/role_profession_artist.png"
+    },
+    {
+      "id": "profession-business-elite",
+      "type": "character",
+      "group": "profession",
+      "name": "商务人士",
+      "description": "商务职业形象",
+      "promptPositive": "商务人士，合身职业服饰和自信自然的姿态",
+      "order": 8,
+      "subgroup": "profession",
+      "selectionMode": "single",
+      "promptNegative": "",
+      "tags": [
+        "商务人士"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "thumbnail": "asset:visual-presets/role/profession/role_profession_business_elite.png"
+    },
+    {
+      "id": "profession-doctor",
+      "type": "character",
+      "group": "profession",
+      "name": "医生",
+      "description": "医疗职业形象",
+      "promptPositive": "医生职业形象，整洁医疗服饰",
+      "order": 9,
+      "subgroup": "profession",
+      "selectionMode": "single",
+      "promptNegative": "",
+      "tags": [
+        "医生"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "thumbnail": "asset:visual-presets/role/profession/role_profession_doctor.png"
+    },
+    {
+      "id": "profession-firefighter",
+      "type": "character",
+      "group": "profession",
+      "name": "消防员",
+      "description": "消防职业形象",
+      "promptPositive": "消防员职业形象，合乎场景的防护服饰",
+      "order": 10,
+      "subgroup": "profession",
+      "selectionMode": "single",
+      "promptNegative": "",
+      "tags": [
+        "消防员"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "thumbnail": "asset:visual-presets/role/profession/role_profession_firefighter.png"
+    },
+    {
+      "id": "profession-lawyer",
+      "type": "character",
+      "group": "profession",
+      "name": "律师",
+      "description": "法律从业者",
+      "promptPositive": "律师职业形象，整洁正式服饰",
+      "order": 11,
+      "subgroup": "profession",
+      "selectionMode": "single",
+      "promptNegative": "",
+      "tags": [
+        "律师"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "thumbnail": "asset:visual-presets/role/profession/role_profession_lawyer.png"
+    },
+    {
+      "id": "profession-nurse",
+      "type": "character",
+      "group": "profession",
+      "name": "护士",
+      "description": "护理职业形象",
+      "promptPositive": "护士职业形象，干净的护理工作服",
+      "order": 12,
+      "subgroup": "profession",
+      "selectionMode": "single",
+      "promptNegative": "",
+      "tags": [
+        "护士"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "thumbnail": "asset:visual-presets/role/profession/role_profession_nurse.png"
+    },
+    {
+      "id": "profession-police",
+      "type": "character",
+      "group": "profession",
+      "name": "警务人员",
+      "description": "警务职业形象",
+      "promptPositive": "警务人员职业形象，适合场景的制服",
+      "order": 13,
+      "subgroup": "profession",
+      "selectionMode": "single",
+      "promptNegative": "",
+      "tags": [
+        "警务人员"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "thumbnail": "asset:visual-presets/role/profession/role_profession_police.png"
+    },
+    {
+      "id": "profession-service-worker",
+      "type": "character",
+      "group": "profession",
+      "name": "服务人员",
+      "description": "服务行业工作者",
+      "promptPositive": "服务行业工作者，整洁工作服饰",
+      "order": 14,
+      "subgroup": "profession",
+      "selectionMode": "single",
+      "promptNegative": "",
+      "tags": [
+        "服务人员"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "thumbnail": "asset:visual-presets/role/profession/role_profession_service_worker.png"
+    },
+    {
+      "id": "profession-soldier",
+      "type": "character",
+      "group": "profession",
+      "name": "军人",
+      "description": "军人职业形象",
+      "promptPositive": "军人职业形象，整洁制服和自然姿态",
+      "order": 15,
+      "subgroup": "profession",
+      "selectionMode": "single",
+      "promptNegative": "",
+      "tags": [
+        "军人"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "thumbnail": "asset:visual-presets/role/profession/role_profession_soldier.png"
+    },
+    {
+      "id": "profession-student",
+      "type": "character",
+      "group": "profession",
+      "name": "学生",
+      "description": "校园学习场景",
+      "promptPositive": "学生人物角色，适龄校园服饰",
+      "order": 16,
+      "subgroup": "profession",
+      "selectionMode": "single",
+      "promptNegative": "",
+      "tags": [
+        "学生"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "thumbnail": "asset:visual-presets/role/profession/role_profession_student.png"
+    },
+    {
+      "id": "profession-teacher",
+      "type": "character",
+      "group": "profession",
+      "name": "教师",
+      "description": "教育工作者",
+      "promptPositive": "教师职业形象，自然得体的服饰与姿态",
+      "order": 17,
+      "subgroup": "profession",
+      "selectionMode": "single",
+      "promptNegative": "",
+      "tags": [
+        "教师"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "thumbnail": "asset:visual-presets/role/profession/role_profession_teacher.png"
+    },
+    {
+      "id": "profession-traveler",
+      "type": "character",
+      "group": "profession",
+      "name": "旅行者",
+      "description": "旅行生活场景",
+      "promptPositive": "旅行者人物角色，实用旅行服饰和放松姿态",
+      "order": 18,
+      "subgroup": "profession",
+      "selectionMode": "single",
+      "promptNegative": "",
+      "tags": [
+        "旅行者"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "thumbnail": "asset:visual-presets/role/profession/role_profession_traveler.png"
+    },
+    {
+      "id": "era-modern",
+      "type": "character",
+      "group": "era",
+      "name": "现代",
+      "description": "当代日常服饰",
+      "promptPositive": "当代服饰、发型和生活细节；当代写实城市背景，清晰玻璃幕墙、步行广场、城市绿化与现代公共交通，采用自然日光和当代真实材质",
+      "order": 1,
+      "subgroup": "era",
+      "selectionMode": "single",
+      "promptNegative": "避免老式蒸汽交通、未来全息与废墟",
+      "tags": [
+        "现代"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "thumbnail": "asset:visual-presets/role/era/role_era_modern.png"
+    },
+    {
+      "id": "era-1920s",
+      "type": "character",
+      "group": "era",
+      "name": "1920 年代",
+      "description": "二十世纪二十年代服饰参考",
+      "promptPositive": "1920 年代服饰、发型及环境统一；装饰艺术石砌街廓、早期汽车与电车、铜制灯具和温暖胶片光线",
+      "order": 2,
+      "subgroup": "era",
+      "selectionMode": "single",
+      "promptNegative": "避免现代车辆、数字屏幕和玻璃高楼",
+      "tags": [
+        "1920 年代"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "thumbnail": "asset:visual-presets/role/era/role_era_1920s.png"
+    },
+    {
+      "id": "era-1950s",
+      "type": "character",
+      "group": "era",
+      "name": "1950 年代",
+      "description": "二十世纪五十年代服饰参考",
+      "promptPositive": "1950 年代服饰、发型及环境统一；奶油与薄荷绿的战后商业街、镀铬圆尾汽车、弧形路边餐厅与晴朗日光",
+      "order": 3,
+      "subgroup": "era",
+      "selectionMode": "single",
+      "promptNegative": "避免智能手机及当代汽车",
+      "tags": [
+        "1950 年代"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "thumbnail": "asset:visual-presets/role/era/role_era_1950s.png"
+    },
+    {
+      "id": "era-1970s",
+      "type": "character",
+      "group": "era",
+      "name": "1970 年代",
+      "description": "二十世纪七十年代服饰参考",
+      "promptPositive": "1970 年代服饰、发型及环境统一；赭棕砖砌街区、方盒车、唱片店橱窗与暖橙色午后胶片",
+      "order": 4,
+      "subgroup": "era",
+      "selectionMode": "single",
+      "promptNegative": "避免智能手机与当代玻璃幕墙",
+      "tags": [
+        "1970 年代"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "thumbnail": "asset:visual-presets/role/era/role_era_1970s.png"
+    },
+    {
+      "id": "era-1980s",
+      "type": "character",
+      "group": "era",
+      "name": "1980 年代",
+      "description": "二十世纪八十年代服饰参考",
+      "promptPositive": "1980 年代服饰、发型及环境统一；街机厅、彩色荧光灯管、方正汽车、反光地砖与模拟霓虹夜色",
+      "order": 5,
+      "subgroup": "era",
+      "selectionMode": "single",
+      "promptNegative": "避免科幻全息投影与触屏手机",
+      "tags": [
+        "1980 年代"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "thumbnail": "asset:visual-presets/role/era/role_era_1980s.png"
+    },
+    {
+      "id": "era-1990s",
+      "type": "character",
+      "group": "era",
+      "name": "1990 年代",
+      "description": "二十世纪九十年代服饰参考",
+      "promptPositive": "1990 年代服饰、发型及环境统一；阴天的混凝土社区街角、录像带橱窗、公用电话、实用型掀背车与淡青灰胶片",
+      "order": 6,
+      "subgroup": "era",
+      "selectionMode": "single",
+      "promptNegative": "避免智能手机、LED 大屏与复古蒸汽车",
+      "tags": [
+        "1990 年代"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "thumbnail": "asset:visual-presets/role/era/role_era_1990s.png"
+    },
+    {
+      "id": "era-2000s",
+      "type": "character",
+      "group": "era",
+      "name": "2000 年代",
+      "description": "千禧年代服饰参考",
+      "promptPositive": "2000 年代服饰、发型及环境统一；千禧年代购物中心、银色金属和半透明塑料、早期液晶机与折叠手机、亮青白照明",
+      "order": 7,
+      "subgroup": "era",
+      "selectionMode": "single",
+      "promptNegative": "避免当代无边框手机、赛博全息与远未来装置",
+      "tags": [
+        "2000 年代"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "thumbnail": "asset:visual-presets/role/era/role_era_2000s.png"
+    },
+    {
+      "id": "era-near-future",
+      "type": "character",
+      "group": "era",
+      "name": "近未来",
+      "description": "克制的未来服饰概念",
+      "promptPositive": "近未来人物服饰，简洁实用的设计和可信材质；可实现的近未来生态城区，光伏玻璃、垂直绿化、电动轻轨和安静的指示光线",
+      "order": 8,
+      "subgroup": "era",
+      "selectionMode": "single",
+      "promptNegative": "避免废墟、太空巨构和夸张全息广告",
+      "tags": [
+        "近未来"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "thumbnail": "asset:visual-presets/role/era/role_era_near_future.png"
+    },
+    {
+      "id": "era-pre-qin",
+      "type": "character",
+      "group": "era",
+      "name": "先秦",
+      "description": "先秦东方古城与山川",
+      "promptPositive": "先秦时期的东方古城与山川，夯土城墙、低矮木构、灰瓦、青铜礼器与朴素织物；清晨山雾和赭土色自然光；人物服饰贴合先秦语境",
+      "order": 9,
+      "subgroup": "era",
+      "selectionMode": "single",
+      "promptNegative": "避免后世宫殿装饰、现代道路和玻璃建筑",
+      "tags": [
+        "先秦"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "thumbnail": "asset:visual-presets/role/era/role_era_pre_qin.png"
+    },
+    {
+      "id": "era-medieval",
+      "type": "character",
+      "group": "era",
+      "name": "中世纪",
+      "description": "欧洲石砌城堡与街巷",
+      "promptPositive": "欧洲中世纪城镇背景，厚重石砌城堡、尖塔教堂、狭窄鹅卵石街巷、铁制灯架与烛光；冷灰湿石质感，人物服饰采用中世纪织物与层叠裁剪",
+      "order": 10,
+      "subgroup": "era",
+      "selectionMode": "single",
+      "promptNegative": "避免现代汽车、电线、霓虹和高层玻璃建筑",
+      "tags": [
+        "中世纪"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "thumbnail": "asset:visual-presets/role/era/role_era_medieval.png"
+    },
+    {
+      "id": "era-industrial",
+      "type": "character",
+      "group": "era",
+      "name": "近现代",
+      "description": "早期工业城市与铁路",
+      "promptPositive": "近现代工业化时期的城市背景，蒸汽机车、铁轨、红砖厂房、铸铁雨棚、烟囱与煤烟；暗铜和灰褐色工业光，人物装束符合早期工业社会",
+      "order": 11,
+      "subgroup": "era",
+      "selectionMode": "single",
+      "promptNegative": "避免智能设备、未来全息科技及中世纪城堡",
+      "tags": [
+        "近现代"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "thumbnail": "asset:visual-presets/role/era/role_era_industrial.png"
+    },
+    {
+      "id": "era-cyberpunk",
+      "type": "character",
+      "group": "era",
+      "name": "近未来赛博",
+      "description": "霓虹高密度城市",
+      "promptPositive": "近未来赛博城市夜景，高密度高楼叠层、紫蓝与洋红霓虹、电子屏、贴地蒸汽和雨水路面镜面反射；人物可采用技术机能服饰，保持可信城市尺度",
+      "order": 12,
+      "subgroup": "era",
+      "selectionMode": "single",
+      "promptNegative": "避免古典石城、自然田园和白日商业广场",
+      "tags": [
+        "近未来赛博"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "thumbnail": "asset:visual-presets/role/era/role_era_cyberpunk.png"
+    },
+    {
+      "id": "era-far-future",
+      "type": "character",
+      "group": "era",
+      "name": "远未来科幻",
+      "description": "太空巨构与远未来城市",
+      "promptPositive": "远未来科幻文明背景，轨道环和停泊航天器、悬浮交通、巨尺度白银复合材料建筑与行星地平线；通透冷白科技光，人物装备可有先进材料结构",
+      "order": 13,
+      "subgroup": "era",
+      "selectionMode": "single",
+      "promptNegative": "避免现当代道路、普通商业街或蒸汽时代设备",
+      "tags": [
+        "远未来科幻"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "thumbnail": "asset:visual-presets/role/era/role_era_far_future.png"
+    },
+    {
+      "id": "era-wasteland",
+      "type": "character",
+      "group": "era",
+      "name": "末日废土",
+      "description": "荒漠废墟与求生环境",
+      "promptPositive": "末日废土场景，尘土覆盖的断裂高架、破败混凝土楼、被沙埋的车辆、锈蚀金属、节制的求生设施与低能见度沙尘；人物穿耐磨的修补布料与实用装备",
+      "order": 14,
+      "subgroup": "era",
+      "selectionMode": "single",
+      "promptNegative": "避免完好繁华商业区、鲜艳霓虹或洁净未来建筑",
+      "tags": [
+        "末日废土"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "thumbnail": "asset:visual-presets/role/era/role_era_wasteland.png"
+    },
+    {
+      "id": "era-alternate",
+      "type": "character",
+      "group": "era",
+      "name": "架空时代",
+      "description": "虚构文明的山地城市",
+      "promptPositive": "架空幻想文明，山谷中成层叠布置的乳白雕刻楼阁、非现实轨道浮桥与巨大的环形钟楼；非地球历史的建筑比例和材料工艺，以绿松石与日落金色形成世界观；人物服饰和道具沿用这套虚构文明语言",
+      "order": 15,
+      "subgroup": "era",
+      "selectionMode": "single",
+      "promptNegative": "避免复制真实朝代制服、现代品牌或常见城市天际线",
+      "tags": [
+        "架空时代"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "thumbnail": "asset:visual-presets/role/era/role_era_alternate.png"
+    },
+    {
+      "id": "style-natural-lifestyle",
+      "type": "style",
+      "group": "stylePreset",
+      "name": "自然生活方式",
+      "thumbnail": "asset:visual-presets/style/style_natural_lifestyle.png",
+      "description": "自然光、生活化环境与克制的商业质感",
+      "selectionMode": "single",
+      "promptPositive": "自然生活方式商业摄影，真实环境叙事，柔和自然光与克制色彩",
+      "promptNegative": "避免过度棚拍、过度饱和和虚假布景",
+      "order": 1,
+      "tags": [
+        "自然",
+        "生活方式"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "subgroup": "stylePreset"
+    },
+    {
+      "id": "style-documentary-cinematic",
+      "type": "style",
+      "group": "stylePreset",
+      "name": "纪实电影感",
+      "thumbnail": "asset:visual-presets/style/style_documentary_cinematic.png",
+      "description": "有环境信息的纪实构图与电影光线",
+      "selectionMode": "single",
+      "promptPositive": "纪实电影感商业摄影，环境叙事，层次光影与自然瞬间",
+      "promptNegative": "避免塑料感、过度磨皮和僵硬摆拍",
+      "order": 2,
+      "tags": [
+        "纪实",
+        "电影感"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "subgroup": "stylePreset"
+    },
+    {
+      "id": "style-minimal-commercial",
+      "type": "style",
+      "group": "stylePreset",
+      "name": "极简商业",
+      "thumbnail": "asset:visual-presets/style/style_minimal_commercial.png",
+      "description": "清晰主体、干净背景和有控制的留白",
+      "selectionMode": "single",
+      "promptPositive": "极简商业广告摄影，清晰主体，干净背景与精准留白",
+      "promptNegative": "避免杂乱道具和多余视觉主体",
+      "order": 3,
+      "tags": [
+        "极简",
+        "广告"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "subgroup": "stylePreset"
+    },
+    {
+      "id": "style-film-grain",
+      "type": "style",
+      "group": "stylePreset",
+      "name": "胶片颗粒",
+      "thumbnail": "asset:visual-presets/style/style_film_grain.png",
+      "description": "细腻颗粒、柔和高光和低对比色彩",
+      "selectionMode": "single",
+      "promptPositive": "细腻胶片颗粒质感，柔和高光，低对比色彩与自然层次",
+      "promptNegative": "避免粗糙噪点和失控偏色",
+      "order": 4,
+      "tags": [
+        "胶片",
+        "颗粒"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "subgroup": "stylePreset"
+    },
+    {
+      "id": "style-3d-concept",
+      "type": "style",
+      "group": "stylePreset",
+      "name": "三维概念",
+      "thumbnail": "asset:visual-presets/style/style_3d_concept.png",
+      "description": "可控的空间结构与概念化视觉",
+      "selectionMode": "single",
+      "promptPositive": "高质量三维概念视觉，清晰空间结构，材质和光线可控",
+      "promptNegative": "避免产品结构失真和无意义装饰",
+      "order": 5,
+      "tags": [
+        "三维",
+        "概念"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "subgroup": "stylePreset"
+    },
+    {
+      "id": "filter-original",
+      "type": "filter",
+      "group": "filterPreset",
+      "name": "原片",
+      "thumbnail": "asset:visual-presets/filter/filter_original.png",
+      "description": "保持真实色彩和自然对比",
+      "selectionMode": "single",
+      "promptPositive": "真实原片色彩，自然对比与中性白平衡",
+      "promptNegative": "避免明显滤镜色偏",
+      "order": 1,
+      "tags": [
+        "原片"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "subgroup": "filterPreset"
+    },
+    {
+      "id": "filter-soft-film",
+      "type": "filter",
+      "group": "filterPreset",
+      "name": "柔和胶片",
+      "thumbnail": "asset:visual-presets/filter/filter_soft_film.png",
+      "description": "柔和高光与细腻胶片色彩",
+      "selectionMode": "single",
+      "promptPositive": "柔和胶片色调，细腻高光与轻微颗粒",
+      "promptNegative": "避免过重褪色和强烈色偏",
+      "order": 2,
+      "tags": [
+        "柔和",
+        "胶片"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "subgroup": "filterPreset"
+    },
+    {
+      "id": "filter-cinematic-light",
+      "type": "filter",
+      "group": "filterPreset",
+      "name": "电影光影",
+      "thumbnail": "asset:visual-presets/filter/filter_cinematic_light.png",
+      "description": "强调光影方向和层次",
+      "selectionMode": "single",
+      "promptPositive": "电影级光影层次，方向明确的高光与阴影",
+      "promptNegative": "避免死黑阴影和过度戏剧化",
+      "order": 3,
+      "tags": [
+        "电影",
+        "光影"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "subgroup": "filterPreset"
+    },
+    {
+      "id": "filter-hdr",
+      "type": "filter",
+      "group": "filterPreset",
+      "name": "HDR",
+      "thumbnail": "asset:visual-presets/filter/filter_hdr.png",
+      "description": "提升细节但保持材质真实",
+      "selectionMode": "single",
+      "promptPositive": "适度 HDR 细节表现，保留真实材质层次",
+      "promptNegative": "避免过度锐化和光晕",
+      "order": 4,
+      "tags": [
+        "HDR"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "subgroup": "filterPreset"
+    },
+    {
+      "id": "filter-vintage",
+      "type": "filter",
+      "group": "filterPreset",
+      "name": "复古色调",
+      "thumbnail": "asset:visual-presets/filter/filter_vintage.png",
+      "description": "低饱和复古色彩与柔和对比",
+      "selectionMode": "single",
+      "promptPositive": "低饱和复古色调，柔和对比与轻微年代感",
+      "promptNegative": "避免把现代产品处理成旧损状态",
+      "order": 5,
+      "tags": [
+        "复古"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "subgroup": "filterPreset"
+    },
+    {
+      "id": "camera-hasselblad",
+      "type": "camera",
+      "group": "camera",
+      "name": "Hasselblad",
+      "thumbnail": "asset:visual-presets/camera/camera/camera_body_hasselblad.png",
+      "description": "细腻中画幅质感",
+      "selectionMode": "single",
+      "promptPositive": "中画幅相机质感，细腻层次与自然肤质",
+      "promptNegative": "",
+      "order": 1,
+      "tags": [
+        "中画幅"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "subgroup": "camera"
+    },
+    {
+      "id": "camera-leica",
+      "type": "camera",
+      "group": "camera",
+      "name": "Leica",
+      "thumbnail": "asset:visual-presets/camera/camera/camera_body_leica.png",
+      "description": "自然色彩与纪实锐度",
+      "selectionMode": "single",
+      "promptPositive": "纪实相机质感，自然色彩和克制锐度",
+      "promptNegative": "",
+      "order": 2,
+      "tags": [
+        "纪实"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "subgroup": "camera"
+    },
+    {
+      "id": "camera-arri",
+      "type": "camera",
+      "group": "camera",
+      "name": "ARRI",
+      "thumbnail": "asset:visual-presets/camera/camera/camera_body_arri.png",
+      "description": "电影级宽容度和高光过渡",
+      "selectionMode": "single",
+      "promptPositive": "电影摄影机宽容度，高光过渡自然，阴影保留细节",
+      "promptNegative": "",
+      "order": 3,
+      "tags": [
+        "电影摄影"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "subgroup": "camera"
+    },
+    {
+      "id": "lens-panavision-primo",
+      "type": "lens",
+      "group": "lens",
+      "name": "Panavision Primo",
+      "thumbnail": "asset:visual-presets/camera/lens/camera_lens_panavision_primo.png",
+      "description": "柔和而有层次的商业镜头语言",
+      "selectionMode": "single",
+      "promptPositive": "Panavision Primo 镜头语言，柔和高光和自然层次",
+      "promptNegative": "",
+      "order": 1,
+      "tags": [
+        "商业镜头"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "subgroup": "lens"
+    },
+    {
+      "id": "lens-hawk-class-x",
+      "type": "lens",
+      "group": "lens",
+      "name": "Hawk Class-X",
+      "thumbnail": "asset:visual-presets/camera/lens/camera_lens_hawk_class_x.png",
+      "description": "宽银幕空间感与轻微光晕",
+      "selectionMode": "single",
+      "promptPositive": "Hawk Class-X 镜头语言，宽银幕空间感与克制光晕",
+      "promptNegative": "避免明显畸变",
+      "order": 2,
+      "tags": [
+        "宽银幕"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "subgroup": "lens"
+    },
+    {
+      "id": "lens-zeiss-ultra-prime",
+      "type": "lens",
+      "group": "lens",
+      "name": "Zeiss Ultra Prime",
+      "thumbnail": "asset:visual-presets/camera/lens/camera_lens_zeiss_ultra_prime.png",
+      "description": "清晰锐利且边缘控制稳定",
+      "selectionMode": "single",
+      "promptPositive": "Zeiss Ultra Prime 镜头语言，清晰锐利，边缘控制稳定",
+      "promptNegative": "避免过度锐化",
+      "order": 3,
+      "tags": [
+        "清晰"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "subgroup": "lens"
+    },
+    {
+      "id": "focal-24",
+      "type": "focalLength",
+      "group": "focalLength",
+      "name": "24mm",
+      "thumbnail": "asset:visual-presets/camera/focal-length/camera_focal_24mm.png",
+      "description": "更强环境叙事和空间延展",
+      "selectionMode": "single",
+      "promptPositive": "24mm 广角视角，强调环境叙事和空间延展",
+      "promptNegative": "避免近距离边缘变形",
+      "order": 1,
+      "tags": [
+        "广角"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "subgroup": "focalLength"
+    },
+    {
+      "id": "focal-35",
+      "type": "focalLength",
+      "group": "focalLength",
+      "name": "35mm",
+      "thumbnail": "asset:visual-presets/camera/focal-length/camera_focal_35mm.png",
+      "description": "兼顾主体与环境的自然视角",
+      "selectionMode": "single",
+      "promptPositive": "35mm 自然视角，兼顾主体和环境关系",
+      "promptNegative": "",
+      "order": 2,
+      "tags": [
+        "自然视角"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "subgroup": "focalLength"
+    },
+    {
+      "id": "focal-50",
+      "type": "focalLength",
+      "group": "focalLength",
+      "name": "50mm",
+      "thumbnail": "asset:visual-presets/camera/focal-length/camera_focal_50mm.png",
+      "description": "自然比例和均衡透视",
+      "selectionMode": "single",
+      "promptPositive": "50mm 标准视角，自然比例和均衡透视",
+      "promptNegative": "",
+      "order": 3,
+      "tags": [
+        "标准"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "subgroup": "focalLength"
+    },
+    {
+      "id": "focal-85",
+      "type": "focalLength",
+      "group": "focalLength",
+      "name": "85mm",
+      "thumbnail": "asset:visual-presets/camera/focal-length/camera_focal_85mm.png",
+      "description": "压缩背景并突出主体",
+      "selectionMode": "single",
+      "promptPositive": "85mm 中长焦视角，压缩背景并突出主体",
+      "promptNegative": "避免背景过度压缩导致空间信息缺失",
+      "order": 4,
+      "tags": [
+        "中长焦"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "subgroup": "focalLength"
+    },
+    {
+      "id": "aperture-f1-4",
+      "type": "aperture",
+      "group": "aperture",
+      "name": "f/1.4",
+      "thumbnail": "asset:visual-presets/camera/aperture/camera_aperture_f1.4.png",
+      "description": "浅景深和明显焦外",
+      "selectionMode": "single",
+      "promptPositive": "f/1.4 大光圈，浅景深与柔和焦外",
+      "promptNegative": "避免产品关键结构脱离焦点",
+      "order": 1,
+      "tags": [
+        "浅景深"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "subgroup": "aperture"
+    },
+    {
+      "id": "aperture-f2-8",
+      "type": "aperture",
+      "group": "aperture",
+      "name": "f/2.8",
+      "thumbnail": "asset:visual-presets/camera/aperture/camera_aperture_f2_8.png",
+      "description": "主体清晰与背景分离平衡",
+      "selectionMode": "single",
+      "promptPositive": "f/2.8 光圈，主体清晰并适度分离背景",
+      "promptNegative": "",
+      "order": 2,
+      "tags": [
+        "平衡"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "subgroup": "aperture"
+    },
+    {
+      "id": "aperture-f4",
+      "type": "aperture",
+      "group": "aperture",
+      "name": "f/4",
+      "thumbnail": "asset:visual-presets/camera/aperture/camera_aperture_f4.png",
+      "description": "更多主体细节保持清晰",
+      "selectionMode": "single",
+      "promptPositive": "f/4 光圈，保持更多产品结构细节清晰",
+      "promptNegative": "",
+      "order": 3,
+      "tags": [
+        "细节"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "subgroup": "aperture"
+    },
+    {
+      "id": "aperture-f8",
+      "type": "aperture",
+      "group": "aperture",
+      "name": "f/8",
+      "thumbnail": "asset:visual-presets/camera/aperture/camera_aperture_f8.png",
+      "description": "较深景深和完整场景清晰度",
+      "selectionMode": "single",
+      "promptPositive": "f/8 光圈，较深景深和完整场景清晰度",
+      "promptNegative": "避免画面过于平直",
+      "order": 4,
+      "tags": [
+        "深景深"
+      ],
+      "sourceType": "original",
+      "sourceNote": "AI OS 内部方法示例",
+      "subgroup": "aperture"
+    }
+  ]
+}

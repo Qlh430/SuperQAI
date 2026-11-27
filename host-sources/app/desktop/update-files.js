@@ -49,6 +49,22 @@ function hashFile(file) {
   }
   return hash.digest("hex");
 }
+function programFiles(appRoot) {
+  const files = [];
+  const visit = (directory, prefix = "") => {
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      const relative = prefix + entry.name;
+      if (entry.isSymbolicLink()) throw Error("Program fingerprints must not follow links");
+      if (entry.isDirectory()) {
+        if (prefix || ["desktop", "server-components", "core", "workflows", "canvas-features"].includes(entry.name)) visit(path.join(directory, entry.name), relative + "/");
+      } else if (entry.isFile() && /\.(js|cjs|mjs|json|html)$/.test(entry.name)) {
+        files.push({ path: relative, size: fs.statSync(path.join(directory, entry.name)).size, sha256: hashFile(path.join(directory, entry.name)) });
+      }
+    }
+  };
+  visit(appRoot);
+  return files.sort((a, b) => a.path < b.path ? -1 : a.path > b.path ? 1 : 0);
+}
 function copyFileVerified(source, destination, expected = {}) {
   const sourceStat = fs.lstatSync(source);
   if (!sourceStat.isFile()) throw Error("Update source must be a regular file");
@@ -105,4 +121,4 @@ function transaction(root) {
   if (!["waiting", "snapshotting", "snapshotted", "switching", "starting", "confirmed", "restoring"].includes(tx.phase)) throw Error("Invalid update transaction phase");
   return tx;
 }
-module.exports = { inside, atomicWrite, readJson, copyTree, hashFile, copyFileVerified, removePathStrict, removeInside, runtimeName, transaction };
+module.exports = { inside, atomicWrite, readJson, copyTree, hashFile, programFiles, copyFileVerified, removePathStrict, removeInside, runtimeName, transaction };

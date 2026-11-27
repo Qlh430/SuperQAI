@@ -92,7 +92,7 @@
       scope: "system",
       required: false,
       optionalDependencies: ["provider-settings", "comfyui-settings", "local-models"],
-      scripts: ["./system-settings-ui.js?v=20260917-capability-skills"],
+      scripts: ["./system-settings-ui.js?v=20261104-local-skill-library"],
     },
     {
       id: "os-shell",

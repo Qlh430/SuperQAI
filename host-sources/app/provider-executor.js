@@ -154,7 +154,7 @@ function createProviderExecutor({ resolver, engine, onAttemptResult = null } = {
     if (!candidates.length) resolver.resolve(requestQuery(request));
     return {
       pinned,
-      candidates: pinned || (!request?.forceFallback && !resolver.getAutoFallback()) ? candidates.slice(0, 1) : candidates,
+      candidates: pinned || !resolver.getAutoFallback() ? candidates.slice(0, 1) : candidates,
     };
   }
 
@@ -216,7 +216,7 @@ function createProviderExecutor({ resolver, engine, onAttemptResult = null } = {
               attemptInput,
               request.params || {},
               (event) => {
-                if (event?.type !== "done") emitted = true;
+                if (event?.type !== "done" && !(request.intent === "llm.tools" && request.bufferedToolTurn === true)) emitted = true;
                 onDelta?.(event);
               },
               request.options || {},

@@ -7,6 +7,7 @@
     "dev": "vite",
     "dev:workbench": "vite --configLoader native --mode daily",
     "update:workbench": "node deploy.mjs --daily-workbench",
+    "status:workbench": "node ../release-tools/release-source-sync.cjs status",
     "build": "tsc -b && vite build --configLoader native && node build-document-reader.mjs",
     "lint": "oxlint",
     "preview": "vite preview"

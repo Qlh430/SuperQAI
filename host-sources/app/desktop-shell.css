@@ -718,7 +718,7 @@ body::after {
 .ai-os-toast { max-width: 340px; border: 1px solid rgba(255,255,255,.65); border-radius: 12px; color: var(--os-ink); background: rgba(248,250,253,.92); padding: 11px 14px; box-shadow: 0 12px 35px rgba(35,48,70,.18); backdrop-filter: blur(18px); animation: ai-os-toast-in 180ms ease both; }
 
 button:focus-visible,
-input:focus-visible,
+input:not(.flora-visual-presets-search-style):focus-visible,
 select:focus-visible,
 textarea:focus-visible,
 a:focus-visible {

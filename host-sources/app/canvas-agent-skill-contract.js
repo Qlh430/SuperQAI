@@ -184,13 +184,25 @@
     if (deliverable && configuredToolNames.length) {
       deliverable.toolNames = configuredToolNames;
     }
-    const requiresReferenceBeforeTextDeliverable = options.manualActivated === true
+    const skillToolNames = skill?.canvas?.toolBindingDeclared
+      ? normalizeStringArray(skill.canvas.tools)
+      : skill?.allowedToolsDeclared === true
+        ? normalizeStringArray(skill.allowedTools)
+        : [];
+    const requiredReferenceTools = requiredReferences.length ? ["read_skill_reference"] : [];
+    const stageToolsDeclared = stageDefinition?.toolsDeclared === true;
+    const allowedTools = stageToolsDeclared
+      ? Array.from(new Set([...configuredToolNames, ...requiredReferenceTools]))
+      : skillToolNames;
+    const requiresReferenceBeforeTextDeliverable = (options.manualActivated === true || skillId === "h3-commerce-video")
       && (requiredReferences.length > 0 || !skill?.execution && references.length > 0);
     return {
       skillId,
       skillLabel: String(skill?.label || skill?.canvas?.label || skillId),
       manual: options.manualActivated === true,
       stage,
+      toolRestrictionsDeclared: Boolean(stageToolsDeclared || skill?.canvas?.toolBindingDeclared || skill?.allowedToolsDeclared),
+      allowedTools,
       references,
       requiredReferences,
       readReferences: [],
@@ -212,7 +224,14 @@
     const skillId = String(skill?.id || skillOrId || "");
     const stages = getExecutionStages(skill);
     if (stages.length) {
-      const matched = stages.find((stage) => matchesStage(stage, prompt));
+      // The confirmation request appends the approved photography prompt.
+      // Its subject keywords must not select the earlier planning stage.
+      const text = String(prompt || "").trim();
+      const stagePrompt = skillId === "natural-aesthetic-product-photography"
+        && text.startsWith("用户已确认策划。")
+        ? text.split("\n", 1)[0]
+        : text;
+      const matched = stages.find((stage) => matchesStage(stage, stagePrompt));
       return String(matched?.id || "general");
     }
     if (String(skillId || "") !== "ai-video-director") return "general";
@@ -274,6 +293,34 @@
 
   function inspectToolCall(contract, call) {
     const name = String(call?.name || "").trim();
+    if (contract?.skillId === "h3-commerce-video" && name === "read_skill_reference"
+      && call?.arguments?.skill_id !== contract.skillId) {
+      return { contract, violation: {
+        code: "skill_reference_mismatch", skillId: contract.skillId,
+        message: "请选择当前 H3 带货 Skill 的参考文档。", blockedBeforeExecution: true,
+      } };
+    }
+    if (contract?.toolRestrictionsDeclared && !normalizeStringArray(contract.allowedTools).includes(name)) {
+      const allowedTools = normalizeStringArray(contract.allowedTools);
+      const missing = [allowedTools.length
+        ? `当前阶段仅允许调用：${allowedTools.join("、")}`
+        : "当前 Skill 声明的工具白名单为空"];
+      return {
+        contract,
+        violation: {
+          code: "skill_tool_not_allowed",
+          skillId: String(contract.skillId || ""),
+          stage: String(contract.stage || ""),
+          missing,
+          message: `“${String(contract.skillLabel || contract.skillId || "当前 Skill")}”不允许调用工具「${name}」，本次操作未执行。`,
+          blockedBeforeExecution: true,
+        },
+      };
+    }
+    if (contract?.skillId === "h3-commerce-video" && ["save_h3_commerce_package", "fill_h3_commerce_node"].includes(name)) {
+      const gate = validateReferenceGate(contract);
+      return { contract, violation: gate.ok ? null : { ...gate, blockedBeforeExecution: true } };
+    }
     if (!contract || !getDeliverableToolNames(contract).includes(name)) {
       return { contract, violation: null };
     }
@@ -427,6 +474,9 @@
       "【Skill 执行闸门未通过】",
       `用户明确选择了“${String(violation?.skillId || "当前 Skill")}”，本次交付尚未满足该 Skill 规定的完成条件。`,
     ];
+    if (violation?.code === "skill_tool_not_allowed") {
+      lines.push("刚才请求的工具不在当前 Skill 或阶段的白名单内，操作未执行。改用允许的工具完成任务；如果确实缺少能力，明确告诉用户当前 Skill 无法执行该操作。");
+    }
     if (missing.length) {
       lines.push(`必须补齐：${missing.map((item) => `“${item}”`).join("、")}。`);
     }
@@ -483,6 +533,7 @@
     return {
       ...contract,
       references: Array.isArray(contract?.references) ? [...contract.references] : [],
+      allowedTools: Array.isArray(contract?.allowedTools) ? [...contract.allowedTools] : [],
       requiredReferences: Array.isArray(contract?.requiredReferences) ? [...contract.requiredReferences] : [],
       readReferences: Array.isArray(contract?.readReferences) ? [...contract.readReferences] : [],
       deliverable: contract?.deliverable

@@ -4,7 +4,7 @@ const vm = require('node:vm');
 const assert = require('node:assert/strict');
 const sourcePath = process.env.GROUP_LAYOUT_SOURCE || path.join(__dirname, 'design-sources/script-before-save-bridge.js');
 const source = fs.readFileSync(sourcePath, 'utf8');
-const region = source.slice(source.indexOf('const CANVAS_GROUP_LAYOUT_GAP = 32;'), source.indexOf('function ungroupCanvasNode('));
+const region = source.slice(source.indexOf('function resolveCanvasGroupMemberFrame('), source.indexOf('function ungroupCanvasNode('));
 const copy = value => JSON.parse(JSON.stringify(value));
 const union = rects => rects.length ? {left:Math.min(...rects.map(r=>r.left)),top:Math.min(...rects.map(r=>r.top)),right:Math.max(...rects.map(r=>r.right)),bottom:Math.max(...rects.map(r=>r.bottom))} : null;
 function fixture(nodes, mountedIds = nodes.map(n=>n.id)) {
@@ -18,6 +18,11 @@ function fixture(nodes, mountedIds = nodes.map(n=>n.id)) {
     getCanvasGroupModel:value=>models.get(String(value?.dataset?.id||value?.id||value)),
     getCanvasNode:id=>mounted.get(String(id)),
     getCanvasGroupMemberIds:node=>JSON.parse(node.dataset.groupMembers),
+    applyCanvasGroupModel(after) {
+      models.set(after.id, copy(after));
+      const node = mounted.get(after.id);
+      if (node) Object.assign(node.dataset, Object.fromEntries(['x', 'y', 'width', 'height'].map(key => [key, String(after[key])])));
+    },
     getCanvasGroupSubjectBounds(value){const m=context.getCanvasGroupModel(value);return m?{left:m.x,top:m.y-(m.kind==='text'?30:0),right:m.x+m.width,bottom:m.y+m.height+(m.kind==='group'?0:48)}:null;},
     getCanvasNodeBox:node=>context.getCanvasGroupSubjectBounds(node),
     getCanvasNodesBounds:items=>union(items.map(context.getCanvasGroupSubjectBounds)),

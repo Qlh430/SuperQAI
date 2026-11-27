@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from "react"
-import { Bot, CheckCircle2, CircleMinus, Cpu, Network, Puzzle, RefreshCw } from "lucide-react"
+import { useCallback, useEffect, useRef, useState } from "react"
+import { Bot, CheckCircle2, CircleMinus, Cpu, FileUp, FolderOpen, Network, PackageOpen, Puzzle, RefreshCw, Trash2, Upload } from "lucide-react"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -8,6 +8,8 @@ import { NativeSelect } from "@/components/ui/native-select"
 import { Switch } from "@/components/ui/switch"
 import { Busy, Empty, ErrorPanel, SearchBox } from "@/components/workbench"
 import { dateLabel, request } from "@/lib/api"
+import { SkillShowcaseEditor } from "@/components/skill-showcase-editor"
+import { compareSkills } from "@/lib/skill-showcase"
 
 type Props = { notify: (s: string) => void }
 type Selection = { providerId: string; modelId: string }
@@ -33,15 +35,235 @@ export function AgentSettings({ notify }: Props) {
 
 type Skill = { id: string; label: string; description: string; enabled: boolean; origin?: string }
 type SkillsData = { groups?: { id: string; label: string; skills: Skill[] }[] }
-export function SkillsSettings({ notify }: Props) {
+type SkillInstall = { sourceType?: string; source?: string; version?: string; license?: string; scope?: string; compatibility?: { status?: string; detail?: string; dependencies?: string[] }; dependencies?: string[] }
+type InstalledSkill = Skill & { scope?: string; published?: boolean; install?: SkillInstall }
+type SkillsResponse = { skills?: InstalledSkill[] }
+type SkillPreview = {
+  previewToken: string
+  id: string
+  name: string
+  description: string
+  version?: string
+  license?: string
+  scope?: string
+  source?: string
+  sourceType?: string
+  files?: { path: string; bytes: number }[]
+  compatibility?: { status?: string; detail?: string; dependencies?: string[] }
+  executesScripts?: boolean
+}
+
+async function skillFileBase64(file: File) {
+  if (file.size > 8 * 1024 * 1024) throw new Error(`文件「${file.name}」超过 8 MiB 限制。`)
+  const bytes = new Uint8Array(await file.arrayBuffer())
+  let binary = ""
+  for (let offset = 0; offset < bytes.length; offset += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000))
+  }
+  return btoa(binary)
+}
+
+export function SkillsSettings({ notify, admin = false }: Props & { admin?: boolean }) {
+  const [showcase, setShowcase] = useState<{ id: string; scope: string } | null>(null)
+  const [showcaseNotice, setShowcaseNotice] = useState("")
   const [data, setData] = useState<SkillsData | null>(null)
+  const [personalSkills, setPersonalSkills] = useState<InstalledSkill[] | null>(null)
+  const [publicSkills, setPublicSkills] = useState<InstalledSkill[]>([])
   const [error, setError] = useState("")
   const [query, setQuery] = useState("")
   const [busy, setBusy] = useState("")
-  const load = useCallback(async () => { setError(""); try { setData(await request("/api/skills")) } catch (e) { setError((e as Error).message) } }, [])
+  const [importScope, setImportScope] = useState<"personal" | "public">("personal")
+  const [preview, setPreview] = useState<SkillPreview | null>(null)
+  const [previewError, setPreviewError] = useState("")
+  const fileInput = useRef<HTMLInputElement>(null)
+  const folderInput = useRef<HTMLInputElement>(null)
+  const load = useCallback(async () => {
+    setError("")
+    try {
+      const [personal, shared, catalog] = await Promise.all([
+        request<SkillsResponse>("/api/skills/mine"),
+        request<SkillsResponse>("/api/skills/public"),
+        admin ? request<SkillsData>("/api/skills") : Promise.resolve(null),
+      ])
+      setPersonalSkills(personal.skills || [])
+      setPublicSkills(shared.skills || [])
+      setData(catalog)
+    } catch (e) { setError((e as Error).message) }
+  }, [admin])
   useEffect(() => { void load() }, [load])
-  const groups = (data?.groups || []).map(group => ({ ...group, skills: group.skills.filter(skill => `${skill.label}${skill.description}`.includes(query)) })).filter(group => group.skills.length)
-  return error ? <ErrorPanel message={error} onRetry={() => void load()} /> : !data ? <Busy /> : <><div className="mb-6"><SearchBox value={query} onChange={setQuery} placeholder="搜索智能助手技能" /></div>{groups.length ? <div className="space-y-8">{groups.map(group => <section key={group.id}><h2 className="mb-4 text-base font-medium">{group.label}</h2><div className="grid gap-4 lg:grid-cols-2">{group.skills.map(skill => <Card key={skill.id}><CardHeader><div className="flex items-center justify-between gap-4"><CardTitle className="text-base">{skill.label}</CardTitle><Switch aria-label={`启用技能 ${skill.label}`} checked={skill.enabled} disabled={Boolean(busy)} onCheckedChange={async enabled => { setBusy(skill.id); try { setData(await request("/api/skills/enabled", "POST", { id: skill.id, enabled })); notify(enabled ? "技能已启用。" : "技能已停用。") } catch (e) { notify((e as Error).message) } finally { setBusy("") } }} /></div><CardDescription className="leading-6">{skill.description}</CardDescription></CardHeader></Card>)}</div></section>)}</div> : <Empty icon={<Puzzle />} title={query ? "没有匹配的技能" : "暂无技能"} description="安装的能力将在这里显示。" />}</>
+  useEffect(() => { folderInput.current?.setAttribute("webkitdirectory", "") }, [])
+
+  const matches = (skill: Skill) => `${skill.label} ${skill.description} ${skill.id}`.toLowerCase().includes(query.trim().toLowerCase())
+  const visiblePublicSkills = publicSkills.filter(matches).sort(compareSkills)
+  const visiblePersonalSkills = (personalSkills || []).filter(matches).sort(compareSkills)
+  const sharedGroups = (data?.groups || []).map(group => ({
+    ...group,
+    skills: group.skills.filter(skill => !(skill as InstalledSkill).install?.scope && matches(skill)).sort(compareSkills),
+  })).filter(group => group.skills.length)
+
+  const updateEnabled = async (skill: InstalledSkill, scope: "personal" | "shared", enabled: boolean) => {
+    setBusy(skill.id)
+    try {
+      if (scope === "personal") {
+        const result = await request<SkillsResponse>("/api/skills/mine/enabled", "POST", { id: skill.id, enabled })
+        setPersonalSkills(result.skills || [])
+      } else {
+        setData(await request<SkillsData>("/api/skills/enabled", "POST", { id: skill.id, enabled }))
+        if (scope === "shared" && skill.install?.scope === "public") {
+          setPublicSkills(await request<SkillsResponse>("/api/skills/public").then(result => result.skills || []))
+        }
+      }
+      notify(enabled ? "技能已启用。" : "技能已停用。")
+    } catch (e) { notify((e as Error).message) } finally { setBusy("") }
+  }
+
+  const uninstall = async (skill: InstalledSkill, scope: "personal" | "public") => {
+    const label = scope === "public" ? "本机公共库" : "个人账户"
+    if (!window.confirm(`从${label}卸载「${skill.label}」？`)) return
+    setBusy(skill.id); setPreviewError("")
+    try {
+      if (scope === "personal") {
+        const result = await request<SkillsResponse>(`/api/skills/mine/${encodeURIComponent(skill.id)}`, "DELETE")
+        setPersonalSkills(result.skills || [])
+      } else {
+        await request(`/api/skills/public/${encodeURIComponent(skill.id)}`, "DELETE")
+        setPublicSkills(await request<SkillsResponse>("/api/skills/public").then(result => result.skills || []))
+        setData(await request<SkillsData>("/api/skills"))
+      }
+      notify(`已从${label}卸载「${skill.label}」。`)
+    } catch (e) { setPreviewError((e as Error).message) } finally { setBusy("") }
+  }
+
+  const publish = async (skill: InstalledSkill) => {
+    if (!window.confirm(`发布「${skill.label}」到本机公共 Skill 库？同一部署实例的账户都能使用。`)) return
+    setBusy(skill.id); setPreviewError("")
+    try {
+      const result = await request<{ skills?: InstalledSkill[]; publicSkills?: InstalledSkill[] }>(`/api/skills/mine/${encodeURIComponent(skill.id)}/publish`, "POST", {})
+      setPersonalSkills(result.skills || [])
+      setPublicSkills(result.publicSkills || await request<SkillsResponse>("/api/skills/public").then(data => data.skills || []))
+      if (admin) setData(await request<SkillsData>("/api/skills"))
+      notify(`已将「${skill.label}」发布到本机公共库。`)
+    } catch (e) { setPreviewError((e as Error).message) } finally { setBusy("") }
+  }
+
+  const previewFiles = async (fileList: FileList | null) => {
+    const files = [...(fileList || [])]
+    if (!files.length) return
+    setBusy("import"); setPreviewError(""); setPreview(null)
+    try {
+      if (files.length > 256) throw new Error("一次最多导入 256 个文件。")
+      const totalBytes = files.reduce((sum, file) => sum + file.size, 0)
+      if (totalBytes > 40 * 1024 * 1024) throw new Error("Skill 文件总体积不能超过 40 MiB。")
+      const archives = files.filter(file => /\.(?:zip|skill)$/i.test(file.name))
+      let payload: Record<string, unknown>
+      if (archives.length) {
+        if (files.length !== 1) throw new Error("ZIP 或 .skill 压缩包请单独导入。")
+        if (archives[0].size > 24 * 1024 * 1024) throw new Error("压缩包不能超过 24 MiB。")
+        payload = { archive: await skillFileBase64(archives[0]), archiveName: archives[0].name, source: { type: "upload", label: archives[0].name } }
+      } else {
+        const encoded = []
+        for (const file of files) encoded.push({ path: file.webkitRelativePath || file.name, content: await skillFileBase64(file) })
+        payload = { files: encoded, source: { type: "upload", label: files.length === 1 ? files[0].name : "本地 Skill 文件夹" } }
+      }
+      const result = await request<SkillPreview>("/api/skills/install/preview", "POST", { ...payload, scope: importScope })
+      setPreview(result)
+    } catch (e) { setPreviewError((e as Error).message || "Skill 预检失败。") }
+    finally { setBusy("") }
+  }
+
+  const cancelPreview = async () => {
+    const token = preview?.previewToken
+    setBusy("import")
+    try { if (token) await request("/api/skills/install/cancel", "POST", { previewToken: token }) }
+    catch { /* The preview token expires automatically. */ }
+    setPreview(null); setPreviewError(""); setImportScope("personal"); setBusy("")
+  }
+
+  const confirmInstall = async () => {
+    if (!preview || busy) return
+    setBusy("import"); setPreviewError("")
+    try {
+      const result = await request<{ skill: InstalledSkill; skills?: InstalledSkill[]; publicSkills?: InstalledSkill[] }>("/api/skills/install/confirm", "POST", { previewToken: preview.previewToken })
+      setPersonalSkills(result.skills || [])
+      setPublicSkills(result.publicSkills || await request<SkillsResponse>("/api/skills/public").then(data => data.skills || []))
+      if (admin) setData(await request<SkillsData>("/api/skills"))
+      setPreview(null); setImportScope("personal")
+      notify(`已安装「${result.skill.label}」。`)
+    } catch (e) { setPreviewError((e as Error).message || "安装失败，现有 Skill 未被覆盖。") }
+    finally { setBusy("") }
+  }
+
+  const skillCard = (skill: InstalledSkill, scope: "personal" | "public" | "shared") => {
+    const install = skill.install
+    const dependencies = install?.dependencies || install?.compatibility?.dependencies || []
+    const ownerScope = scope === "personal"
+    const publicScope = scope === "public"
+    return <Card key={`${scope}:${skill.id}`}><CardHeader className="space-y-3">
+      <div className="flex min-w-0 flex-wrap items-center gap-3"><CardTitle className="min-w-0 flex-1 text-base">{skill.label}</CardTitle>
+        {install && <Badge variant={install.compatibility?.status === "缺少外部依赖" ? "outline" : "secondary"}>{install.compatibility?.status || (publicScope ? "本机公共库" : "私人")}</Badge>}
+        {(scope !== "public" || admin) && <Switch aria-label={`启用技能 ${skill.label}`} checked={skill.enabled} disabled={Boolean(busy)} onCheckedChange={enabled => void updateEnabled(skill, ownerScope ? "personal" : "shared", enabled)} />}
+      </div>
+      <CardDescription className="leading-6">{skill.description}</CardDescription>
+      {scope === "shared" && admin && <Button size="sm" variant="outline" className="w-fit" disabled={Boolean(busy)} onClick={() => { setShowcaseNotice(""); setShowcase({ id: skill.id, scope: "public" }) }}>展示资料</Button>}
+      {install && <details className="text-sm">
+        <summary className="w-fit cursor-pointer text-muted-foreground">来源、许可与依赖</summary>
+        <dl className="mt-3 grid grid-cols-[minmax(5rem,auto)_minmax(0,1fr)] gap-x-3 gap-y-2 text-xs leading-5">
+          <dt className="text-muted-foreground">来源</dt><dd className="min-w-0 break-words">{install.source || "本地导入"}</dd>
+          <dt className="text-muted-foreground">版本 / 许可</dt><dd className="min-w-0 break-words">{install.version || "未声明"} · {install.license || "未声明"}</dd>
+          <dt className="text-muted-foreground">外部依赖</dt><dd className="min-w-0 break-words">{dependencies.join("、") || "未检测到"}</dd>
+          <dt className="text-muted-foreground">兼容说明</dt><dd className="min-w-0 break-words">{install.compatibility?.detail || "具体任务仍取决于现有 Agent 工具能力。"}</dd>
+        </dl>
+        <p className="mt-2 text-xs text-muted-foreground">包内脚本只保留，不会自动执行。</p>
+      </details>}
+    </CardHeader>{(ownerScope || publicScope && admin) && <CardContent className="flex flex-wrap gap-2">
+      <Button size="sm" variant="outline" disabled={Boolean(busy)} onClick={() => { setShowcaseNotice(""); setShowcase({ id: skill.id, scope: ownerScope ? "personal" : "public" }) }}>展示资料</Button>
+      {ownerScope && !skill.published && <Button size="sm" variant="outline" disabled={Boolean(busy)} onClick={() => void publish(skill)}><Upload className="size-4" />发布到本机公共库</Button>}
+      {(ownerScope || publicScope) && <Button size="sm" variant="destructive" disabled={Boolean(busy)} onClick={() => void uninstall(skill, publicScope ? "public" : "personal")}><Trash2 className="size-4" />卸载</Button>}
+      {skill.published && ownerScope && <Badge variant="outline">已发布到本机公共库</Badge>}
+    </CardContent>}</Card>
+  }
+
+  if (error) return <ErrorPanel message={error} onRetry={() => void load()} />
+  if (!personalSkills || admin && !data) return <Busy />
+  const filteredGroups = sharedGroups.map(group => ({ ...group, skills: group.skills.filter(skill => matches(skill as Skill)) })).filter(group => group.skills.length)
+  return <div className="space-y-8">
+    {showcaseNotice && <p role="status" className="text-sm text-muted-foreground">{showcaseNotice}</p>}
+    {showcase && <SkillShowcaseEditor skillId={showcase.id} scope={showcase.scope} onClose={() => setShowcase(null)} onSaved={() => { setShowcaseNotice("展示资料已保存，广场将使用新的简介与案例。"); void load() }} />}
+    <section className="space-y-4">
+      <div><h2 className="text-base font-medium">导入 Skill</h2><p className="mt-1 text-sm text-muted-foreground">支持标准 SKILL.md、文件夹和 ZIP。预检只读取内容，不执行包内脚本。</p></div>
+      <div className="flex flex-wrap items-end gap-3">
+        {admin && <label className="grid gap-2 text-sm">安装范围<NativeSelect className="w-44" value={importScope} disabled={Boolean(busy)} onChange={event => setImportScope(event.target.value === "public" ? "public" : "personal")}><option value="personal">私人</option><option value="public">本机公共库</option></NativeSelect></label>}
+        <Button type="button" variant="outline" disabled={Boolean(busy)} onClick={() => fileInput.current?.click()}><FileUp className="size-4" />选择文件</Button>
+        <Button type="button" variant="outline" disabled={Boolean(busy)} onClick={() => folderInput.current?.click()}><FolderOpen className="size-4" />选择文件夹</Button>
+        <input ref={fileInput} className="hidden" type="file" accept=".md,.zip,.skill" onChange={event => { void previewFiles(event.currentTarget.files); event.currentTarget.value = "" }} />
+        <input ref={folderInput} className="hidden" type="file" multiple onChange={event => { void previewFiles(event.currentTarget.files); event.currentTarget.value = "" }} />
+      </div>
+      {previewError && <p role="alert" className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-foreground">{previewError}</p>}
+      {preview && <Card><CardHeader><CardTitle>{preview.name}</CardTitle><CardDescription>{preview.description}</CardDescription></CardHeader><CardContent className="space-y-4">
+        <dl className="grid grid-cols-[minmax(6rem,auto)_minmax(0,1fr)] gap-x-3 gap-y-2 text-sm">
+          <dt className="text-muted-foreground">安装范围</dt><dd>{preview.scope === "public" ? "本机公共 Skill 库" : "私人 Skill"}</dd>
+          <dt className="text-muted-foreground">兼容状态</dt><dd>{preview.compatibility?.status || "待检查"}</dd>
+          <dt className="text-muted-foreground">版本 / 许可</dt><dd>{preview.version || "未声明"} · {preview.license || "未声明"}</dd>
+          <dt className="text-muted-foreground">外部依赖</dt><dd className="break-words">{preview.compatibility?.dependencies?.join("、") || "未检测到"}</dd>
+          <dt className="text-muted-foreground">文件</dt><dd>{preview.files?.length || 0} 个；脚本不会自动执行</dd>
+        </dl>
+        <p className="text-sm text-muted-foreground">{preview.compatibility?.detail}</p>
+        <div className="flex flex-wrap gap-3"><Button disabled={Boolean(busy)} onClick={() => void confirmInstall()}><PackageOpen className="size-4" />确认安装</Button><Button variant="outline" disabled={Boolean(busy)} onClick={() => void cancelPreview()}>取消</Button></div>
+      </CardContent></Card>}
+    </section>
+    <section className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-base font-medium">我的私人 Skill</h2><p className="mt-1 text-sm text-muted-foreground">仅当前账户的 Agent 可见。</p></div><SearchBox value={query} onChange={setQuery} placeholder="搜索 Skill" /></div>
+      {visiblePersonalSkills.length ? <div className="grid gap-3 lg:grid-cols-2">{visiblePersonalSkills.map(skill => skillCard(skill, "personal"))}</div> : <Empty icon={<Puzzle />} title={query ? "没有匹配的私人 Skill" : "尚未安装私人 Skill"} description="导入本地 Skill 后，它只会在当前账户中可用。" />}
+    </section>
+    <section className="space-y-4">
+      <div><h2 className="text-base font-medium">本机公共 Skill 库</h2><p className="mt-1 text-sm text-muted-foreground">此部署实例中的账户都可使用。</p></div>
+      {visiblePublicSkills.length ? <div className="grid gap-3 lg:grid-cols-2">{visiblePublicSkills.map(skill => skillCard(skill, "public"))}</div> : <Empty icon={<Puzzle />} title={query ? "没有匹配的公共 Skill" : "公共库暂时为空"} description={admin ? "可在导入范围中选择“本机公共库”。" : "管理员可将 Skill 安装或发布到本机公共库。"} />}
+    </section>
+    {admin && <section className="space-y-4">
+      <div><h2 className="text-base font-medium">系统与共享 Skill</h2><p className="mt-1 text-sm text-muted-foreground">保留现有 Skill 注册与启用管理。</p></div>
+      {filteredGroups.length ? <div className="space-y-6">{filteredGroups.map(group => <div key={group.id}><h3 className="mb-3 text-sm font-medium">{group.label}</h3><div className="grid gap-3 lg:grid-cols-2">{group.skills.map(skill => skillCard(skill as InstalledSkill, "shared"))}</div></div>)}</div> : <p className="text-sm text-muted-foreground">{query ? "没有匹配的系统或共享 Skill。" : "没有其它系统或共享 Skill。"}</p>}
+    </section>}
+  </div>
 }
 
 export function BackupSettings({ notify }: Props) {

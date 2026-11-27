@@ -13,6 +13,7 @@
   const LIMIT = 4096, MAX_TEXT = 12000;
   const MAX_POSTER_PIXELS = 12 * 1024 * 1024;
   let layoutHits = 0, layoutMisses = 0, paintCount = 0;
+  let imagePlaceholderPaths;
   const register = (kinds, renderer, label, semantics) => kinds.forEach(kind => renderers.set(kind, { renderer, label, semantics }));
   register(['image-generator','generator','midjourney','comfy'], 'image-generator', '图片生成', ['image-placeholder','image-result']);
   register(['image','upload'], 'image', '图片', ['image-content']);
@@ -54,7 +55,7 @@
     return {
       ...meta, kind, icon:meta.renderer === 'script-generator' ? 'text' : '',
       source:src, posterSource, mediaSource:text(model.mediaSrc || model.videoSrc || model.audioSrc || model.generationVideoSrc || result.url || result.src),
-      body:text(model.text || model.llmResult || model.resultText || result.text || current.text),
+      body:text(kind === 'llm' ? (model.llmOutput ?? model.llmResult ?? model.resultText ?? current.text ?? "") : (model.text ?? result.text ?? current.text ?? "")),
       textPreview:kind==='text'&&typeof model.textRichHtml==='string'?richText(model.textRichHtml):null,
       richHtml:kind==='text'&&typeof model.textRichHtml==='string'?model.textRichHtml:null,
       prompt:text(model.prompt || model.llmPrompt || model.minimaxH3Prompt || model.apiVideoPrompt || model.comfyPrompt || model.midjourneyPrompt || audio.prompt),
@@ -198,7 +199,8 @@
       for(const run of glyphs){let line=wrappedLines.find(line=>Math.abs(line.baseline-run.y)<.3);if(!line){line={top:run.top,baseline:run.y,runs:[]};wrappedLines.push(line);}line.runs.push(run);}
       const contentRect=rect(content.getBoundingClientRect());
       const styleSignature=JSON.stringify([...styleCache.values()].map(({font,lineHeight,letterSpacing,textAlign})=>({font,lineHeight,letterSpacing,textAlign})).concat(blocks.map(({marginTop,marginBottom})=>({marginTop,marginBottom}))));
-      const result={cacheKey:key+'|'+styleSignature,authority:'Full computed layout',contentBounds:contentRect,padding:{top:parseFloat(ts.paddingTop),right:parseFloat(ts.paddingRight),bottom:parseFloat(ts.paddingBottom),left:parseFloat(ts.paddingLeft)},fontFamily:cs.fontFamily,baseFontSize:parseFloat(cs.fontSize),lineHeight:parseFloat(cs.lineHeight),paragraphGap:blocks.find(b=>b.type==='p')?.marginBottom||0,letterSpacing:cs.letterSpacing,textAlign:cs.textAlign,blocks,runs:glyphs,glyphs,wrappedLines,baselinePositions:wrappedLines.map(l=>l.baseline),decorations};
+      const clientHeight=Math.max(0,text.clientHeight),scrollHeight=Math.max(clientHeight,text.scrollHeight);
+      const result={cacheKey:key+'|'+styleSignature,authority:'Full computed layout',contentBounds:contentRect,clientHeight,scrollHeight,maxScroll:Math.max(0,scrollHeight-clientHeight),padding:{top:parseFloat(ts.paddingTop),right:parseFloat(ts.paddingRight),bottom:parseFloat(ts.paddingBottom),left:parseFloat(ts.paddingLeft)},fontFamily:cs.fontFamily,baseFontSize:parseFloat(cs.fontSize),lineHeight:parseFloat(cs.lineHeight),paragraphGap:blocks.find(b=>b.type==='p')?.marginBottom||0,letterSpacing:cs.letterSpacing,textAlign:cs.textAlign,blocks,runs:glyphs,glyphs,wrappedLines,baselinePositions:wrappedLines.map(l=>l.baseline),decorations};
       if(layouts.size>=LIMIT)layouts.delete(layouts.keys().next().value);
       if(textLayoutIndex.size>=LIMIT)textLayoutIndex.delete(textLayoutIndex.keys().next().value);
       textLayoutIndex.set(key,result.cacheKey);layouts.set(result.cacheKey,result);return result;
@@ -266,6 +268,15 @@
       const cx=width/2,top=(height-iconSize)/2;
       context.save();context.translate(cx-iconSize/2,top);context.scale(iconSize/24,iconSize/24);
       context.strokeStyle=muted;context.lineWidth=1.5;context.lineJoin='round';context.lineCap='round';
+      if (visual.renderer === 'image-generator') {
+        // Use the same Lucide image glyph as the full Flora node.
+        const paths = getImagePlaceholderPaths();
+        if (paths) {
+          paths.forEach(path => context.stroke(path));
+          context.restore();
+          return;
+        }
+      }
       context.beginPath();context.roundRect(video?2:3,video?4:3,video?20:18,video?16:18,video?5:2);context.stroke();
       if(video){context.beginPath();context.moveTo(9.4,8.2);context.quadraticCurveTo(8.5,7.7,8.5,8.8);context.lineTo(8.5,15.2);context.quadraticCurveTo(8.5,16.3,9.4,15.8);context.lineTo(15.6,12.4);context.quadraticCurveTo(16.6,12,15.6,11.6);context.closePath();context.stroke();}
       else {context.beginPath();context.arc(9,9,2,0,Math.PI*2);context.stroke();context.beginPath();context.moveTo(21,15);context.lineTo(16,10);context.lineTo(5,21);context.stroke();}
@@ -306,8 +317,29 @@
         paragraph(visual.body||'写点什么…',16,32,width-32,height-48,14,21.7);break;
       }
       case 'text':case 'llm': {
-        const body=visual.body||(visual.renderer==='text'?'双击输入文字':visual.renderer==='note'?'记录想法…':visual.prompt||'生成的文本将在这里显示');
-        if(visual.renderer==='text'){
+        const body=visual.body;
+        if (!body) {
+          const icon = globalThis.lucide?.icons?.Text?.[2] || [];
+          const size = 64;
+          context.save();
+          context.translate((width - size) / 2, (height - size) / 2);
+          context.scale(size / 24, size / 24);
+          context.strokeStyle = muted;
+          context.lineWidth = 1.8;
+          context.lineCap = 'round';
+          for (const [tag, attributes] of icon) {
+            if (tag === 'path') context.stroke(new Path2D(attributes.d));
+            if (tag === 'line') {
+              context.beginPath();
+              context.moveTo(Number(attributes.x1), Number(attributes.y1));
+              context.lineTo(Number(attributes.x2), Number(attributes.y2));
+              context.stroke();
+            }
+          }
+          context.restore();
+          break;
+        }
+        {
           const layout=(options.node?.id && globalThis.resolveTextVisualLayout?.(options.node)) || layoutRichText(context,{...visual,body},width,height);
           context.save();
           context.translate(0,-Math.max(0,Number(options.textScrollTop)||0));
@@ -322,7 +354,7 @@
           for(const run of layout.glyphs){context.fillStyle=run.color||ink;context.font=run.font;context.letterSpacing=run.letterSpacing==='normal'?'0px':run.letterSpacing;context.fillText(run.text,run.x,run.y);if(run.underline||run.strike){context.strokeStyle=ink;context.lineWidth=.7;context.beginPath();context.moveTo(run.x,run.y+(run.strike?-4:2));context.lineTo(run.end,run.y+(run.strike?-4:2));context.stroke();}}
           context.restore();
         }
-        else paragraph(body,16,30,width-32,height-42,16,22);break;
+        break;
       }
       case 'script-generator': {
         // Match the existing .canvas-script-preview flex composition. The
@@ -339,6 +371,24 @@
       default: centered(visual.label,height*.3,20,ink);paragraph(visual.body||visual.prompt||'双击打开节点',20,height*.45,width-40,height*.45,14,20);
     }
     context.restore();
+  }
+  function getImagePlaceholderPaths() {
+    if (imagePlaceholderPaths) return imagePlaceholderPaths;
+    const shapes = globalThis.lucide?.icons?.Image?.[2];
+    if (!shapes || typeof Path2D !== 'function') return null;
+    imagePlaceholderPaths = shapes.map(([tag, attributes]) => {
+      if (tag === 'path') return new Path2D(attributes.d);
+      const path = new Path2D();
+      if (tag === 'rect') {
+        const { x, y, width, height, rx } = attributes;
+        path.roundRect(Number(x), Number(y), Number(width), Number(height), Number(rx || 0));
+      } else if (tag === 'circle') {
+        const { cx, cy, r } = attributes;
+        path.arc(Number(cx), Number(cy), Number(r), 0, 2 * Math.PI);
+      }
+      return path;
+    });
+    return imagePlaceholderPaths;
   }
   return Object.freeze({ textLayoutVersion:2, project, paint, layoutText, layoutRichText, list:()=>[...renderers.keys()], clear(){layouts.clear();textLayoutIndex.clear();waves.clear();posterEpoch++;posterQueue.length=0;for(const cancel of [...posterJobs])cancel();posters.clear();posterPixels=0;layoutHits=layoutMisses=paintCount=0;},diagnostics:()=>({layoutEntries:layouts.size,layoutLimit:LIMIT,layoutHits,layoutMisses,waveformEntries:waves.size,waveformLimit:256,posterEntries:posters.size,posterLimit:64,posterPixels,posterPixelLimit:MAX_POSTER_PIXELS,posterJobs:posterJobs.size,posterQueue:posterQueue.length,paintCount}) });
 });

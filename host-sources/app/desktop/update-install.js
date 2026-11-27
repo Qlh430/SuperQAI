@@ -145,8 +145,8 @@ function finish(root, tx, status, error) {
       ? `${error || '更新失败'} 已恢复上一版本。更新期间的数据库保存在 ${path.join(root, databasePath)}，请保留整个目录，不要直接覆盖当前数据库。`
       : `${error || '更新失败'} 已恢复上一版本。更新期间的数据已单独保留在 ${path.join(root, preserved)}。请保留整个目录，不要直接覆盖当前 data；可在独立副本中恢复访问。`;
     atomicWrite(inside(root, `.ai-runtime/rollback/${tx.id}/RECOVERY.txt`), hasFailedDatabases
-      ? '上一版本已恢复；Portable data 目录及生成媒体保持原位。\n数据库快照保留更新前状态；failed-*.sqlite 和对应 sidecar 保留更新期间的数据库状态，不会自动删除。\n如需恢复检查，请先正常退出 AI OS 并复制整个安装目录到新的独立副本，只在副本中操作；不要将单个数据库直接覆盖回原安装。\n'
-      : '上一版本已恢复；当前 data 是更新前快照。\nfailed-data 保留更新期间的全部数据，未与当前数据库自动合并，且不会自动清理。\n恢复时请先正常退出 AI OS，复制整个安装目录到新的独立目录，再仅在该副本中把 data 改名为 data-before-recovery，并将 failed-data 的完整副本作为该副本的 data。使用兼容该数据格式的运行时打开；失败时保留原件寻求支持。禁止将单个数据库直接覆盖回原安装。\n');
+      ? '上一版本已恢复；Portable data 目录及生成媒体保持原位。\n数据库快照保留更新前状态；failed-*.sqlite 和对应 sidecar 保留更新期间的数据库状态，不会自动删除。\n如需恢复检查，请先正常退出 BenDo 并复制整个安装目录到新的独立副本，只在副本中操作；不要将单个数据库直接覆盖回原安装。\n'
+      : '上一版本已恢复；当前 data 是更新前快照。\nfailed-data 保留更新期间的全部数据，未与当前数据库自动合并，且不会自动清理。\n恢复时请先正常退出 BenDo，复制整个安装目录到新的独立目录，再仅在该副本中把 data 改名为 data-before-recovery，并将 failed-data 的完整副本作为该副本的 data。使用兼容该数据格式的运行时打开；失败时保留原件寻求支持。禁止将单个数据库直接覆盖回原安装。\n');
   }
   atomicWrite(inside(root, ".ai-runtime/updates/result.json"), result);
   // Keep the journal until both the result and cleanup are durable.
@@ -200,7 +200,6 @@ async function performInstall(root, hooks) {
       save("snapshotted");
       componentState.beginComponentTransition(root, tx);
       validateRuntime(root, tx.candidate);
-      atomicWrite(inside(root, ".ai-runtime/.previous-runtime"), `${tx.previous}\n`);
       save("switching");
       atomicWrite(inside(root, ".ai-runtime/.active-runtime"), `${tx.candidate}\n`);
       save("starting");
@@ -211,6 +210,9 @@ async function performInstall(root, hooks) {
     } else if (tx.phase !== "confirmed") {
       throw Error("上次更新被中断，正在恢复上一版本。");
     }
+    // A failed candidate must not replace the previous known-good pointer.
+    // Retrying a confirmed journal also completes this durable write.
+    atomicWrite(inside(root, ".ai-runtime/.previous-runtime"), `${tx.previous}\n`);
     const result = finish(root, tx, "updated");
     if (recoveringConfirmed) await hooks.launch(tx.candidate, { ...tx, rollback: true });
     return result;

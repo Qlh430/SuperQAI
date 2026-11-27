@@ -5,12 +5,55 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
+  function optionalModule(globalName, requestPath, fallback) {
+    if (globalThis[globalName]) return globalThis[globalName];
+    if (typeof require === "function") {
+      try { return require(requestPath); } catch {}
+    }
+    return fallback;
+  }
+
   const display = globalThis.AiOsDisplay || require("./ai-os-display");
-  const protocolUi = globalThis.AiOsProtocolCenter || require("./protocol-center-ui");
-  const modelParameters = globalThis.AiOsModelParameters || require("./model-parameter-controls");
-  const modelTestUi = globalThis.AiOsModelTestUi || require("./model-test-ui");
-  const comfyUi = globalThis.AiOsComfySettings || require("./comfyui-settings-ui");
-  const localModelsUi = globalThis.AiOsLocalModels || require("./local-models-ui");
+  const protocolUi = optionalModule("AiOsProtocolCenter", "./protocol-center-ui", {
+    normalizeCatalog: () => ({ platformProtocols: [], modelProtocols: [], capabilities: [], editable: false }),
+    createProtocolCenter: () => ({
+      setCatalog() {},
+      markup: () => '<section class="settings-page"><p role="status">协议设置组件暂不可用。</p></section>',
+      onClick: () => false,
+      onChange: () => false,
+      onSubmit: () => {},
+    }),
+  });
+  const modelParameters = optionalModule("AiOsModelParameters", "./model-parameter-controls", {
+    markup: () => "",
+    read: (_row, previous) => previous || {},
+    validate: () => true,
+  });
+  const modelTestUi = optionalModule("AiOsModelTestUi", "./model-test-ui", {
+    modesForModel: () => [],
+    createModelTestDialog: () => ({ close() {}, destroy() {}, open() {} }),
+  });
+  const comfyUi = optionalModule("AiOsComfySettings", "./comfyui-settings-ui", {
+    create: () => ({
+      markup: () => '<section class="settings-page"><p role="status">ComfyUI 设置组件暂不可用。</p></section>',
+      load: async () => {},
+      leave() {},
+      destroy() {},
+      input() {},
+      change() {},
+      action: async () => {},
+      save() {},
+    }),
+  });
+  const localModelsUi = optionalModule("AiOsLocalModels", "./local-models-ui", {
+    create: () => ({
+      markup: () => '<section class="settings-page"><p role="status">本地模型设置组件暂不可用。</p></section>',
+      load: async () => {},
+      leave() {},
+      dispose() {},
+      onClick: async () => false,
+    }),
+  });
   const { THEMES, SCALES, DEFAULT_PREFERENCES, normalizePreferences, resolveTheme, applyPreferences } = display;
   const CAPABILITIES = Object.freeze([
     ["llm.chat", "对话"],
@@ -36,7 +79,7 @@
     { id: "host", label: "主机管理", icon: "⌂", group: "管理", admin: true },
     { id: "providers", label: "API 设置", icon: "✦", group: "管理", admin: true },
     { id: "agent", label: "Agent 设置", icon: "◇", group: "管理", admin: true },
-    { id: "skills", label: "Skill 管理", icon: "◈", group: "管理", admin: true },
+    { id: "skills", label: "Skill 管理", icon: "◈", group: "个人" },
     { id: "comfyui", label: "ComfyUI", icon: "↗", group: "管理", admin: true },
     { id: "models", label: "本地模型", icon: "▤", group: "管理", admin: true },
     { id: "protocols", label: "协议中心", icon: "⇄", group: "管理", admin: true },
@@ -372,9 +415,17 @@
       agentPrimaryOpen: false,
       agentSaving: false,
       skills: null,
+      personalSkills: null,
       skillFilter: "all",
       skillGroupsOpen: {},
       skillBusyId: "",
+      skillImportBusy: false,
+      skillImportError: "",
+      skillImportPreview: null,
+      skillImportScope: "personal",
+      skillUninstallConfirm: "",
+      skillPublicUninstallConfirm: "",
+      skillPublishConfirm: "",
       recommendationsOpen: false,
       providerRequestRevision: 0,
       protocolChangeRevision: 0,
@@ -449,7 +500,8 @@
       render();
       try {
         const requests = [options.request("/api/preferences"), options.request("/api/system/health")];
-        if (isAdmin()) {
+        const admin = isAdmin();
+        if (admin) {
           requests.push(options.request("/api/providers"));
           requests.push(options.request("/api/protocols"));
           requests.push(options.request("/api/providers/auto-fallback"));
@@ -457,10 +509,15 @@
           requests.push(options.request("/api/providers/agent-settings"));
           requests.push(options.request("/api/skills"));
         }
-        const [preferences, health, providers, protocols, fallback, backup, agentModels, skills] = await Promise.all(requests);
+        requests.push(options.request("/api/skills/mine"));
+        const results = await Promise.all(requests);
+        const personalSkills = results.pop();
+        const [preferences, health] = results;
         state.preferences = normalizePreferences(preferences.preferences || preferences);
         state.health = health;
-        if (isAdmin()) {
+        state.personalSkills = Array.isArray(personalSkills?.skills) ? personalSkills.skills : [];
+        if (admin) {
+          const [providers, protocols, fallback, backup, agentModels, skills] = results.slice(2);
           state.providers = Array.isArray(providers?.providers) ? providers.providers : [];
           updateProtocolCatalog(protocols);
           state.autoFallback = fallback?.enabled !== false;
@@ -1148,11 +1205,16 @@
 
     const SKILL_FILTERS = Object.freeze([
       ["all", "全部"],
-      ["system", "系统 Skill"],
-      ["custom", "功能 Skill"],
+      ["system", "系统内置"],
+      ["custom", "实例共享"],
+      ["review", "待验证"],
     ]);
 
-    function skillCardMarkup(skill) {
+    const SKILL_REVIEW_LABELS = Object.freeze({
+      unverified: "未验证", testing: "测试中", partial: "部分验证", verified: "已验证", needs_fix: "存在问题", deprecated: "已弃用",
+    });
+
+    function skillCardMarkup(skill, scope = "shared") {
       // 与 DX OS 一致：文本类内置 Skill 属于「官方预设」，图像/视频等原子能力属于「系统能力」。
       const isPresetSkill = (item) => ["text", "general"].includes(String(item.category || "").toLowerCase());
       const busy = state.skillBusyId === skill.id;
@@ -1162,62 +1224,324 @@
           ${skill.builtin
             ? `<em class="settings-skill-badge">${isPresetSkill(skill) ? "官方预设" : "系统能力"}</em>`
             : '<em class="settings-skill-badge is-custom">功能</em>'}
-          <label class="settings-skill-toggle"><input type="checkbox" data-skill-toggle data-skill-id="${escapeHtml(skill.id)}" ${skill.enabled ? "checked" : ""} ${busy ? "disabled" : ""} /><i></i><span>启用</span></label>
+          <label class="settings-skill-toggle"><input type="checkbox" data-skill-toggle data-skill-id="${escapeHtml(skill.id)}" data-skill-scope="${scope}" ${skill.enabled ? "checked" : ""} ${busy || skill.locked ? "disabled" : ""} /><i></i><span>启用</span></label>
         </header>
         <p>${escapeHtml(skill.description)}</p>
-        <code>${escapeHtml(skill.id)}</code>
+        <div class="settings-skill-meta">
+          <span>${escapeHtml(skill.origin === "system" ? "系统内置" : scope === "personal" ? "私人安装" : "实例共享")}</span>
+          <span>${escapeHtml(skill.categoryLabel || skill.category || "通用")}</span>
+          <span>${escapeHtml(SKILL_REVIEW_LABELS[skill.validation_status] || "未验证")}</span>
+          <span>${skill.autoInvocationAllowed ? "允许自动调用" : "仅手动调用"}</span>
+          ${skill.autoInvocationAllowed && skill.invocation_mode !== "automatic" ? "<span>暂未参与自动匹配</span>" : ""}
+        </div>
+        <details class="settings-skill-details"><summary>专业资料与执行流程</summary>
+          <dl>
+            <dt>版本</dt><dd>${escapeHtml(skill.version || skill.install?.version || "未声明")}</dd>
+            <dt>信息收集</dt><dd>${skill.interaction_mode === "collection" ? "信息收集卡" : "标准会话"}</dd>
+            <dt>工具权限</dt><dd>${escapeHtml((skill.tools || []).join("、") || "按现有 Agent 权限")}</dd>
+            <dt>最近测试</dt><dd>${escapeHtml(skill.last_tested_at || "暂无记录")}</dd>
+            <dt>执行阶段</dt><dd>${escapeHtml((skill.execution_stages || []).join(" → ") || "沿用标准会话")}</dd>
+            <dt>素材要求</dt><dd>${escapeHtml(({ image: "图片", video: "视频", audio: "音频" })[skill.requiredSelection] || "按需求")}</dd>
+            ${(skill.unresolvedDependencies || []).length ? `<dt>待解决依赖</dt><dd>${escapeHtml(skill.unresolvedDependencies.join("、"))}</dd>` : ""}
+          </dl>
+          ${(skill.references || []).filter(item => typeof item === "string").map(reference => {
+            const query = new URLSearchParams({ skill_id: skill.id, path: reference });
+            return `<p><a href="/api/skills/reference?${escapeHtml(query.toString())}" target="_blank" rel="noopener">${escapeHtml(reference.replace(/^references\//, ""))}</a></p>`;
+          }).join("")}
+        </details>
+        ${skill.enabled && !skill.locked ? `<div class="settings-skill-actions"><button type="button" data-skill-trial="${escapeHtml(skill.id)}">在当前画布试运行</button></div>` : ""}
+          ${scope === "personal" || scope === "public" ? personalSkillDetailsMarkup(skill, scope) : ""}
       </article>`;
+    }
+
+    function personalSkillDetailsMarkup(skill, scope) {
+      const install = skill.install || {};
+      const compatibility = install.compatibility || {};
+      const dependencyLabels = Array.isArray(install.dependencies) ? install.dependencies : [];
+      const sourceLabels = { upload: "本地导入", github: "GitHub", modelscope: "ModelScope" };
+      const sourceLabel = sourceLabels[install.sourceType] || "未知来源";
+      const isPublic = scope === "public";
+      const uninstallConfirm = (isPublic ? state.skillPublicUninstallConfirm : state.skillUninstallConfirm) === skill.id;
+      const publishConfirm = !isPublic && state.skillPublishConfirm === skill.id;
+      const busy = state.skillBusyId === skill.id;
+      return `<div class="settings-skill-meta">
+        <span>${isPublic || skill.published ? "本机公共库" : "私人"}</span>
+        <span>${escapeHtml(compatibility.status || "尚未验证能力")}</span>
+        <span>${install.version ? `版本 ${escapeHtml(install.version)}` : sourceLabel}</span>
+      </div>
+      <details class="settings-skill-details"><summary>来源、许可与依赖</summary>
+        <dl>
+          <dt>来源</dt><dd>${escapeHtml(sourceLabel)} · ${escapeHtml(install.source || "未记录")}</dd>
+          <dt>许可证</dt><dd>${escapeHtml(install.license || skill.license || "未声明")}</dd>
+          <dt>版本 / 修订</dt><dd>${escapeHtml(install.version || install.revision || "未声明")}</dd>
+          <dt>依赖</dt><dd>${escapeHtml(dependencyLabels.join("、") || "未检测到")}</dd>
+          <dt>兼容说明</dt><dd>${escapeHtml(compatibility.detail || "具体任务仍取决于当前 Agent 工具能力。")}</dd>
+        </dl>
+      </details>
+      <div class="settings-skill-actions">
+        ${isPublic || skill.published ? "" : `<button type="button" data-skill-publish="${escapeHtml(skill.id)}" ${busy ? "disabled" : ""}>${publishConfirm ? "取消发布" : "发布到本机公共库"}</button>${publishConfirm ? `<button type="button" class="is-danger" data-skill-publish-confirm="${escapeHtml(skill.id)}" ${busy ? "disabled" : ""}>确认发布</button>` : ""}`}
+        <button type="button" ${isPublic ? "data-skill-public-uninstall" : "data-skill-uninstall"}="${escapeHtml(skill.id)}" ${busy ? "disabled" : ""}>${uninstallConfirm ? "取消卸载" : "卸载"}</button>
+        ${uninstallConfirm ? `<button type="button" class="is-danger" ${isPublic ? "data-skill-public-uninstall-confirm" : "data-skill-uninstall-confirm"}="${escapeHtml(skill.id)}" ${busy ? "disabled" : ""}>确认卸载</button>` : ""}
+      </div>`;
+    }
+
+    function skillImportMarkup() {
+      const preview = state.skillImportPreview;
+      const busy = state.skillImportBusy;
+      let review = "";
+      if (preview?.status === "ready") {
+        const compatibility = preview.compatibility || {};
+        review = `<div class="settings-skill-review">
+          <strong>${escapeHtml(preview.name)} · ${escapeHtml(compatibility.status || "待检查")}</strong>
+          <p>${escapeHtml(preview.description)}</p>
+          <dl>
+            <dt>安装范围</dt><dd>${preview.scope === "public" ? "本机公共库" : "私人"}</dd>
+            <dt>来源</dt><dd>${escapeHtml(preview.sourceType)} · ${escapeHtml(preview.source || "本地导入")}</dd>
+            <dt>版本 / 许可</dt><dd>${escapeHtml(preview.version || "未声明")} · ${escapeHtml(preview.license || "未声明")}</dd>
+            <dt>依赖</dt><dd>${escapeHtml((compatibility.dependencies || []).join("、") || "未检测到")}</dd>
+            <dt>文件</dt><dd>${(preview.files || []).length} 个；脚本不会自动执行</dd>
+          </dl>
+          <p>${escapeHtml(compatibility.detail || "")}</p>
+          <div class="settings-skill-actions"><button type="button" data-skill-import-confirm ${busy ? "disabled" : ""}>确认安装</button><button type="button" data-skill-import-cancel>取消</button></div>
+        </div>`;
+      }
+      return `<section class="settings-skill-import">
+        <div class="settings-skill-import-heading"><div><strong>导入 Skill</strong><span>支持本地 SKILL.md、Skill 文件夹和 ZIP。</span></div>
+          <div class="settings-skill-actions">
+            ${isAdmin() ? `<label class="settings-skill-scope">安装范围<select data-skill-import-scope><option value="personal" ${state.skillImportScope === "personal" ? "selected" : ""}>私人</option><option value="public" ${state.skillImportScope === "public" ? "selected" : ""}>本机公共库</option></select></label>` : ""}
+            <button type="button" data-skill-import-file-pick ${busy ? "disabled" : ""}>选择文件</button><button type="button" data-skill-import-folder-pick ${busy ? "disabled" : ""}>选择文件夹</button>
+          </div>
+        </div>
+        <input type="file" hidden data-skill-import-file accept=".md,.zip,.skill" />
+        <input type="file" hidden data-skill-import-folder webkitdirectory directory multiple />
+        ${state.skillImportError ? `<p class="settings-skill-error" role="alert">${escapeHtml(state.skillImportError)}</p>` : ""}
+        ${review}
+
+      </section>`;
     }
 
     function skillsMarkup() {
       const catalog = state.skills;
-      if (!catalog) {
+      if (state.personalSkills === null || isAdmin() && !catalog) {
         return `<section class="settings-page settings-skill-page" data-settings-section="skills">
           <header><p>SKILLS</p><h2>Skill 管理</h2><span>控制画布 Agent 能自动调用哪些专业能力。</span></header>
           <p class="settings-skill-empty">Skill 目录读取中，请稍候…</p>
         </section>`;
       }
       const filter = SKILL_FILTERS.some(([id]) => id === state.skillFilter) ? state.skillFilter : "all";
-      const groups = (catalog.groups || []).map(group => ({
+      const groups = isAdmin() ? (catalog?.groups || []).map(group => ({
         ...group,
         skills: (group.skills || []).filter(skill => (
-          filter === "all" || (filter === "system" ? skill.origin === "system" : skill.origin === "custom")
+          filter === "all" || (filter === "review" ? skill.validation_status !== "verified"
+            : skill.origin === filter)
         )),
-      })).filter(group => group.skills.length);
-      const counts = { all: catalog.totalCount || 0, system: catalog.systemCount || 0, custom: catalog.customCount || 0 };
+      })).filter(group => group.skills.length) : [];
+      const counts = { all: catalog?.totalCount || 0, system: catalog?.systemCount || 0, custom: catalog?.customCount || 0,
+        review: (catalog?.groups || []).flatMap(group => group.skills || []).filter(skill => skill.validation_status !== "verified").length };
+      const personal = state.personalSkills || [];
       return `<section class="settings-page settings-skill-page" data-settings-section="skills">
-        <header><p>SKILLS</p><h2>Skill 管理</h2><span>系统 Skill 默认启用；功能 Skill 按安装包分组，每一项都能单独启用。</span></header>
-        <div class="settings-skill-toolbar">
-          <div class="settings-skill-filters" role="tablist" aria-label="Skill 分类">${SKILL_FILTERS.map(([id, label]) => `<button type="button" role="tab" data-skill-filter="${id}" aria-selected="${filter === id}" class="${filter === id ? "active" : ""}">${label}<em>${counts[id]}</em></button>`).join("")}</div>
-          <span>已启用 ${catalog.enabledCount || 0} / ${catalog.totalCount || 0}</span>
-        </div>
-        <div class="settings-skill-groups">
-          ${groups.map(group => {
+        <header><p>SKILLS</p><h2>Skill 管理</h2><span>个人导入的 Skill 仅对当前账户可见；安装前会检查内容、来源和外部依赖。</span></header>
+        ${skillImportMarkup()}
+        <section class="settings-skill-library">
+          <div class="settings-skill-library-heading"><strong>我的 Skill</strong><span>${personal.filter(skill => skill.enabled).length} / ${personal.length} 已启用</span></div>
+          <div class="settings-skill-grid">${personal.map(skill => skillCardMarkup(skill, "personal")).join("") || '<p class="settings-skill-empty">尚未安装个人 Skill。</p>'}</div>
+        </section>
+        ${isAdmin() ? `<section class="settings-skill-library settings-skill-shared">
+          <div class="settings-skill-library-heading"><strong>系统与共享 Skill</strong><span>系统 ${counts.system} · 共享 ${counts.custom} · 已启用 ${catalog.enabledCount || 0} / ${catalog.totalCount || 0}</span></div>
+          <div class="settings-skill-filters" role="tablist" aria-label="共享 Skill 分类">${SKILL_FILTERS.map(([id, label]) => `<button type="button" role="tab" data-skill-filter="${id}" aria-selected="${filter === id}" class="${filter === id ? "active" : ""}">${label}<em>${counts[id]}</em></button>`).join("")}</div>
+          <div class="settings-skill-groups">${groups.map(group => {
             const open = state.skillGroupsOpen?.[group.id] !== false;
             const groupBadge = group.kind === "custom" ? (group.standalone ? "单独添加" : "安装包") : "";
             return `<section class="settings-skill-group${open ? " is-open" : ""}" data-skill-group-panel="${escapeHtml(group.id)}" data-skill-group-kind="${escapeHtml(group.kind || "system")}">
-              <button type="button" class="settings-skill-group-head" data-skill-group="${escapeHtml(group.id)}" aria-expanded="${open}">
-                <span><strong>${escapeHtml(group.label)}</strong>${groupBadge ? `<b class="settings-skill-group-kind">${groupBadge}</b>` : ""}<em>${group.skills.length} 个 Skill</em></span>
-                <small>${escapeHtml(group.description || "")}</small>
-                <i aria-hidden="true">${open ? "⌃" : "⌄"}</i>
-              </button>
-              <div class="settings-skill-grid">${group.skills.map(skillCardMarkup).join("")}</div>
+              <button type="button" class="settings-skill-group-head" data-skill-group="${escapeHtml(group.id)}" aria-expanded="${open}"><span><strong>${escapeHtml(group.label)}</strong>${groupBadge ? `<b class="settings-skill-group-kind">${groupBadge}</b>` : ""}<em>${group.skills.length} 个 Skill</em></span><small>${escapeHtml(group.description || "")}</small><i aria-hidden="true">${open ? "⌃" : "⌄"}</i></button>
+              <div class="settings-skill-grid">${group.skills.map(skill => skillCardMarkup(
+                skill,
+                skill.install?.scope === "public" ? "public" : skill.scope || "shared",
+              )).join("")}</div>
             </section>`;
-          }).join("") || '<p class="settings-skill-empty">当前分类下没有 Skill。</p>'}
-        </div>
-        <p class="settings-skill-hint">Skill 只影响画布 Agent 的专业能力路由，不影响单节点手动操作。</p>
+          }).join("") || '<p class="settings-skill-empty">当前分类下没有 Skill。</p>'}</div>
+        </section>` : ""}
+        <p class="settings-skill-hint">Skill 提供专业知识与流程；实际操作仍由 Agent 和现有权限工具完成。安装不会执行包内脚本。</p>
       </section>`;
     }
 
-    async function toggleSkill(id, enabled, label) {
+    async function toggleSkill(id, enabled, label, scope = "shared") {
       if (!id || state.skillBusyId) return;
       state.skillBusyId = id;
       render();
       try {
-        state.skills = await options.request("/api/skills/enabled", { method: "POST", body: { id, enabled } });
+        const response = await options.request(scope === "personal" ? "/api/skills/mine/enabled" : "/api/skills/enabled", {
+          method: "POST", body: { id, enabled },
+        });
+        if (scope === "personal") state.personalSkills = response.skills || state.personalSkills;
+        else state.skills = response;
         notify(enabled ? `已启用「${label || id}」` : `已停用「${label || id}」`);
       } catch (error) {
         notify(error.message);
+      } finally {
+        state.skillBusyId = "";
+        render();
+      }
+    }
+
+    async function encodeSkillFile(file) {
+      if (file.size > 8 * 1024 * 1024) throw new Error(`文件「${file.name}」超过 8 MiB 限制。`);
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      let binary = "";
+      for (let offset = 0; offset < bytes.length; offset += 0x8000) {
+        binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
+      }
+      return btoa(binary);
+    }
+
+    async function requestSkillPreview(payload) {
+      state.skillImportBusy = true;
+      state.skillImportError = "";
+      state.skillImportPreview = null;
+      render();
+      try {
+        const preview = await options.request("/api/skills/install/preview", { method: "POST", body: payload });
+        state.skillImportPreview = preview;
+      } catch (error) {
+        state.skillImportError = error.message || "预检失败，请检查来源和文件。";
+      } finally {
+        state.skillImportBusy = false;
+        render();
+      }
+    }
+
+    async function importSkillFiles(input) {
+      const selected = [...(input.files || [])];
+      input.value = "";
+      if (!selected.length) return;
+      try {
+        if (selected.length > 256) throw new Error("一次最多导入 256 个文件。");
+        const totalBytes = selected.reduce((sum, file) => sum + file.size, 0);
+        if (totalBytes > 40 * 1024 * 1024) throw new Error("Skill 文件总体积不能超过 40 MiB。");
+        const archives = selected.filter((file) => /\.(?:zip|skill)$/i.test(file.name));
+        if (archives.length) {
+          if (selected.length !== 1) throw new Error("ZIP 或 .skill 压缩包请单独导入。");
+          if (archives[0].size > 24 * 1024 * 1024) throw new Error("压缩包不能超过 24 MiB。");
+          await requestSkillPreview({
+            archive: await encodeSkillFile(archives[0]),
+            archiveName: archives[0].name,
+            scope: state.skillImportScope,
+            source: { type: "upload", label: archives[0].name },
+          });
+          return;
+        }
+        const files = [];
+        for (const file of selected) {
+          files.push({
+            path: String(file.webkitRelativePath || file.name),
+            content: await encodeSkillFile(file),
+          });
+        }
+        await requestSkillPreview({
+          files,
+          scope: state.skillImportScope,
+          source: { type: "upload", label: selected.length === 1 ? selected[0].name : "本地 Skill 文件夹" },
+        });
+      } catch (error) {
+        state.skillImportError = error.message || "无法读取所选 Skill 文件。";
+        render();
+      }
+    }
+
+    async function cancelSkillImport() {
+      const token = state.skillImportPreview?.previewToken;
+      state.skillImportBusy = true;
+      try {
+        if (token) await options.request("/api/skills/install/cancel", { method: "POST", body: { previewToken: token } });
+      } catch {}
+      state.skillImportPreview = null;
+      state.skillImportError = "";
+      state.skillImportScope = "personal";
+      state.skillImportBusy = false;
+      render();
+    }
+
+    async function confirmSkillImport() {
+      const token = state.skillImportPreview?.previewToken;
+      if (!token || state.skillImportBusy) return;
+      state.skillImportBusy = true;
+      state.skillImportError = "";
+      render();
+      try {
+        const result = await options.request("/api/skills/install/confirm", {
+          method: "POST", body: { previewToken: token },
+        });
+        state.personalSkills = result.skills || state.personalSkills;
+        if (isAdmin() && result.skill?.install?.scope === "public") {
+          try { state.skills = await options.request("/api/skills"); }
+          catch (error) { notify(`Skill 已安装到本机公共库，但列表刷新失败：${error.message || "请重新加载设置。"}`); }
+        }
+        state.skillImportPreview = null;
+        state.skillImportScope = "personal";
+        notify(`已安装「${result.skill?.label || result.skill?.id || "Skill"}」`);
+      } catch (error) {
+        state.skillImportError = error.message || "安装失败；现有 Skill 未被覆盖。";
+      } finally {
+        state.skillImportBusy = false;
+        render();
+      }
+    }
+
+    async function uninstallPersonalSkill(id, scope = "personal") {
+      const skill = (state.personalSkills || []).find((entry) => entry.id === id);
+      const sharedSkill = (state.skills?.groups || []).flatMap((group) => group.skills || []).find((entry) => entry.id === id);
+      if (scope === "personal" && !skill || scope === "public" && !sharedSkill) return;
+      const isPublic = scope === "public";
+      const confirmedId = isPublic ? state.skillPublicUninstallConfirm : state.skillUninstallConfirm;
+      if (confirmedId !== id) {
+        if (isPublic) state.skillPublicUninstallConfirm = id;
+        else state.skillUninstallConfirm = id;
+        render();
+        return;
+      }
+      state.skillBusyId = id;
+      state.skillImportError = "";
+      render();
+      try {
+        if (isPublic) {
+          await options.request(`/api/skills/public/${encodeURIComponent(id)}`, { method: "DELETE" });
+          state.skills = await options.request("/api/skills");
+          state.skillPublicUninstallConfirm = "";
+        } else {
+          const result = await options.request(`/api/skills/mine/${encodeURIComponent(id)}`, { method: "DELETE" });
+          state.personalSkills = result.skills || state.personalSkills.filter((entry) => entry.id !== id);
+          state.skillUninstallConfirm = "";
+        }
+        notify(`已卸载「${(isPublic ? sharedSkill : skill).label || id}」`);
+      } catch (error) {
+        state.skillImportError = error.message || "卸载失败；原有 Skill 文件已保留。";
+      } finally {
+        state.skillBusyId = "";
+        render();
+      }
+    }
+
+    async function publishPersonalSkill(id) {
+      if (state.skillBusyId) return;
+      if (state.skillPublishConfirm !== id) {
+        state.skillPublishConfirm = id;
+        render();
+        return;
+      }
+      state.skillBusyId = id;
+      state.skillImportError = "";
+      render();
+      try {
+        const result = await options.request(`/api/skills/mine/${encodeURIComponent(id)}/publish`, { method: "POST", body: {} });
+        state.personalSkills = result.skills || state.personalSkills;
+        state.skillPublishConfirm = "";
+        if (isAdmin()) {
+          try { state.skills = await options.request("/api/skills"); }
+          catch (error) { notify(`Skill 已发布到本机公共库，但列表刷新失败：${error.message || "请重新加载设置。"}`); }
+        }
+        notify(`已将「${result.skill?.label || id}」发布到本机公共库`);
+      } catch (error) {
+        state.skillImportError = error.message || "发布失败；私人 Skill 保持不变。";
       } finally {
         state.skillBusyId = "";
         render();
@@ -1232,7 +1556,7 @@
       if (state.section === "host" && isAdmin()) return hostMarkup();
       if (state.section === "providers" && isAdmin()) return providersMarkup();
       if (state.section === "agent" && isAdmin()) return agentSettingsMarkup();
-      if (state.section === "skills" && isAdmin()) return skillsMarkup();
+      if (state.section === "skills") return skillsMarkup();
       if (state.section === "comfyui" && isAdmin()) return comfySettings.markup();
       if (state.section === "models" && isAdmin()) return localModels.markup();
       if (state.section === "protocols" && isAdmin()) return protocolCenter.markup();
@@ -1536,7 +1860,7 @@
         if (state.section === "comfyui" && isAdmin()) { render(); await comfySettings.load(); }
         else if (state.section === "models" && isAdmin()) { render(); await localModels.load(); }
         else if (state.section === "agent" && isAdmin()) { render(); await reloadAgentModels(); render(); }
-        else if (state.section === "skills" && isAdmin()) { render(); if (!state.skills) await load(); }
+        else if (state.section === "skills") { render(); if (state.personalSkills === null || isAdmin() && !state.skills) await load(); }
         else if (["providers", "protocols"].includes(state.section) && isAdmin() && !state.protocolCatalog.platformProtocols.length) await load();
         else render();
         return;
@@ -1602,8 +1926,48 @@
       if (event.target.closest("[data-agent-coverage-saved]")) { await checkAgentCoverage(false); return; }
       if (event.target.closest("[data-agent-coverage-live]")) { await checkAgentCoverage(true); return; }
       if (event.target.closest("[data-agent-save]")) { await saveAgentSettings(); return; }
+      if (event.target.closest("[data-skill-import-file-pick]")) { host.querySelector("[data-skill-import-file]")?.click(); return; }
+      if (event.target.closest("[data-skill-import-folder-pick]")) { host.querySelector("[data-skill-import-folder]")?.click(); return; }
+      if (event.target.closest("[data-skill-import-confirm]")) { await confirmSkillImport(); return; }
+      if (event.target.closest("[data-skill-import-cancel]")) { await cancelSkillImport(); return; }
+      const publishConfirm = event.target.closest("[data-skill-publish-confirm]");
+      if (publishConfirm) { await publishPersonalSkill(publishConfirm.dataset.skillPublishConfirm); return; }
+      const publish = event.target.closest("[data-skill-publish]");
+      if (publish) {
+        const id = publish.dataset.skillPublish;
+        if (state.skillPublishConfirm === id) { state.skillPublishConfirm = ""; render(); }
+        else await publishPersonalSkill(id);
+        return;
+      }
+      const publicUninstallConfirm = event.target.closest("[data-skill-public-uninstall-confirm]");
+      if (publicUninstallConfirm) { await uninstallPersonalSkill(publicUninstallConfirm.dataset.skillPublicUninstallConfirm, "public"); return; }
+      const uninstallConfirm = event.target.closest("[data-skill-uninstall-confirm]");
+      if (uninstallConfirm) { await uninstallPersonalSkill(uninstallConfirm.dataset.skillUninstallConfirm); return; }
+      const publicUninstall = event.target.closest("[data-skill-public-uninstall]");
+      if (publicUninstall) {
+        const id = publicUninstall.dataset.skillPublicUninstall;
+        if (state.skillPublicUninstallConfirm === id) { state.skillPublicUninstallConfirm = ""; render(); }
+        else await uninstallPersonalSkill(id, "public");
+        return;
+      }
+      const uninstall = event.target.closest("[data-skill-uninstall]");
+      if (uninstall) {
+        const id = uninstall.dataset.skillUninstall;
+        if (state.skillUninstallConfirm === id) { state.skillUninstallConfirm = ""; render(); }
+        else await uninstallPersonalSkill(id);
+        return;
+      }
       const skillFilter = event.target.closest("[data-skill-filter]");
       if (skillFilter) { state.skillFilter = skillFilter.dataset.skillFilter || "all"; render(); return; }
+      const skillTrial = event.target.closest("[data-skill-trial]");
+      if (skillTrial) {
+        try {
+          if (!window.getActiveCanvasBoardInfo?.()?.id || !window.CanvasAgentUi?.useSkill) throw new Error("请先打开要试验的画布。");
+          await window.CanvasAgentUi.useSkill(skillTrial.dataset.skillTrial);
+          notify("已在 Agent 中选中 Skill，请在画布核对资料后发送。");
+        } catch (error) { notify(error.message); }
+        return;
+      }
       const skillGroup = event.target.closest("[data-skill-group]");
       if (skillGroup) {
         const id = skillGroup.dataset.skillGroup;
@@ -1668,6 +2032,15 @@
     }
 
     async function onChange(event) {
+      if (event.target.matches("[data-skill-import-file], [data-skill-import-folder]")) {
+        await importSkillFiles(event.target);
+        return;
+      }
+      if (event.target.matches("[data-skill-import-scope]")) {
+        state.skillImportScope = event.target.value === "public" && isAdmin() ? "public" : "personal";
+        return;
+      }
+
       if (isAdmin() && state.section === "comfyui" && event.target.closest("[data-comfy-form]")) {
         comfySettings.change(event);
         return;
@@ -1781,7 +2154,7 @@
       if (event.target.matches("[data-skill-toggle]")) {
         const id = event.target.dataset.skillId;
         const card = event.target.closest("[data-skill-card]");
-        await toggleSkill(id, event.target.checked, card?.querySelector("strong")?.textContent || id);
+        await toggleSkill(id, event.target.checked, card?.querySelector("strong")?.textContent || id, event.target.dataset.skillScope || "shared");
         return;
       }
       if (event.target.matches("[data-host-autostart]") && options.hostBridge?.setAutostart) {
@@ -1819,6 +2192,7 @@
     }
 
     function onInput(event) {
+
       if (event.target.matches("[data-coverage-search]") && state.agentCoverage) {
         state.agentCoverage.query = event.target.value;
         state.agentCoverage.page = 0;

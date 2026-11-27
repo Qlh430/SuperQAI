@@ -3,7 +3,7 @@
   // One release policy serves UI menus, commands and the Agent catalog. It
   // governs creation only; historical renderers and persisted data stay valid.
   const retired = new Set(['gallery', 'gallery-container', 'crop-gallery', 'loop']);
-  const retiredTools = new Set(['create_gallery_node', 'create_loop_node', 'generate_image_to_gallery', 'extract_grid_to_gallery']);
+  const retiredTools = new Set(['create_gallery_node', 'create_loop_node', 'extract_grid_to_gallery']);
   const isNodeCreationAllowed = (id, flags = {}) => !retired.has(String(id)) && (id !== 'script-production' || flags.scriptNodes === true);
   const isCapabilityAvailable = name => !retiredTools.has(String(name));
   root.CanvasNodeCreationPolicy = Object.freeze({ isNodeCreationAllowed, isCapabilityAvailable });
@@ -33,6 +33,13 @@
       async openTool(id, context) {
         try { const tool = tools.get(id); if (!tool) throw new Error('该工具组件未启用。'); return await tool.open(context); }
         catch (error) { context?.onError?.(error); return false; }
+      },
+      async callTool(id, method, context) {
+        const tool = tools.get(id);
+        if (!['inspect', 'execute'].includes(method) || typeof tool?.[method] !== 'function') {
+          return { ok: false, state: 'unavailable', code: 'plugin_unavailable', error: '该画布工具暂不可用。' };
+        }
+        return tool[method](context);
       },
       closeViews(onError) { for (const definition of tools.values()) closeOne(definition, onError); },
       createNode(id, point, options) { if (!available(id)) throw new Error(id === 'script-production' ? '本版本暂未开放脚本节点创建。' : '该节点已停用，请使用标准组与独立素材节点。'); const node = nodes.get(id); if (!node) throw new Error('该节点组件未启用。'); return node.create(point, options); },

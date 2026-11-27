@@ -12,6 +12,8 @@ function createMediaGenerationHttpApi({
   handleApiVideo,
   handleApiVideoResume,
   handleMinimaxH3Video,
+  handleH3CommerceCapabilities,
+  handleH3CommerceVideo,
   handleQwenImage21,
   handleQwenImage21Redraw,
   handleUpscale,
@@ -43,6 +45,14 @@ function createMediaGenerationHttpApi({
   async function handle(req, res) {
     const pathname = requestPathname(req);
 
+    if (pathname === "/api/minimax-h3-video/commerce-v1") {
+      const handler = req.method === "GET" ? handleH3CommerceCapabilities
+        : req.method === "POST" ? handleH3CommerceVideo : null;
+      if (typeof handler !== "function") return false;
+      await handler(req, res);
+      return true;
+    }
+
     if (req.method === "POST" && pathname === "/api/minimax-h3-video") {
       await handleMinimaxH3Video(req, res);
       return true;
@@ -71,7 +81,7 @@ function createMediaGenerationHttpApi({
       return true;
     }
 
-    if (req.method === "POST" && upscaleRoutes.has(pathname)) {
+    if ((req.method === "POST" || req.method === "GET" && pathname === "/api/upscale2") && upscaleRoutes.has(pathname)) {
       await handleUpscale(req, res, upscaleRoutes.get(pathname));
       return true;
     }

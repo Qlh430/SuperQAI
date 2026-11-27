@@ -155,6 +155,7 @@ const SERVER_COMPONENT_MANIFEST = Object.freeze([
       "/api/qwen-edit-angle",
       "/api/comfy-remove-background",
       "/api/minimax-h3-video",
+      "/api/minimax-h3-video/commerce-v1",
     ],
   }),
   Object.freeze({

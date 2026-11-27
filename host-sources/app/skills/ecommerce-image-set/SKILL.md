@@ -7,7 +7,7 @@ canvas:
   icon: shopping-cart
   required_context: image
   triggers: [电商套图, 电商图, 商品主图, 卖点图, 场景图, UGC 实拍]
-  capabilities: [node.image.create, node.gallery.create, node.update, node.connect, node.arrange, node.run]
+  capabilities: [node.image.create, node.update, node.connect, node.arrange, node.run]
 ---
 
 # 电商套图

@@ -13,6 +13,7 @@ function createChatHttpApi({
   getPublicProviderModelCatalog,
   findPublicProviderCatalogModel,
   providerExecutor,
+  agentModelSettings,
   normalizeChatImageResponse,
   saveGeneratedImages,
   providerExecutionHttpStatus,
@@ -85,10 +86,17 @@ function createChatHttpApi({
         requestedModel,
         String(payload.providerId || payload.provider_id || "").trim(),
       );
+      const primary = {
+        providerId: String(payload.providerId || payload.provider_id || requestedCatalogModel?.providerId || "").trim(),
+        modelId: String(requestedCatalogModel?.modelId || requestedModel).trim(),
+      };
+      const route = agentModelSettings?.getRoute({ primary, requiredCapabilities: [intent] });
       const result = await providerExecutor.execute({
         intent,
-        preferredProviderId: String(payload.providerId || payload.provider_id || requestedCatalogModel?.providerId || "").trim(),
-        preferredModelId: String(requestedCatalogModel?.modelId || requestedModel).trim(),
+        ...(route ? { candidateOrder: route.candidateOrder } : {
+          preferredProviderId: primary.providerId,
+          preferredModelId: primary.modelId,
+        }),
         input: { messages },
         // Omitted fields use the configured model/provider defaults. Injecting
         // 1200 tokens here silently cut every long canvas/script reply short.

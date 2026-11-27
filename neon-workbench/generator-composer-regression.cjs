@@ -2,11 +2,13 @@ const { chromium } = require('playwright')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
+const ratioOnly = process.env.GENERATOR_RATIO_QA === '1'
 
 ;(async () => {
   const browser = await chromium.launch({ headless: true, executablePath: 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe' })
   try {
     const page = await browser.newPage({ viewport: { width: 1440, height: 1050 } })
+    if (ratioOnly) page.setDefaultTimeout(8000)
     const errors = [], records = [], states = []
     let uploadFail = false, uploads = 0, comfyFail = false, comfyRelease = null
     const comfyRequests = []
@@ -16,9 +18,49 @@ const path = require('node:path')
       { id: 'qa-station-b-gpt2', modelId: 'gpt-image-2', providerId: 'qa-station-b', providerName: '测试中转站 B', capabilities: ['image.generate'], resolutions: ['1', '2'], state: 'online', family: 'gpt-image-2' },
       { id: 'qa-station-b-gpt1', modelId: 'gpt-image-1', providerId: 'qa-station-b', providerName: '测试中转站 B', capabilities: ['image.generate', 'image.edit'], resolutions: ['1', '2', '4'], state: 'online', family: 'gpt-image-1' },
     ]
+    const imageJobs = []
+    const savedNodes = new Map()
+    if (ratioOnly) {
+      Object.assign(qaModelCatalogFixture[0], { id: 'qa-gpt-image-2', platform: 'openai', providerProtocol: 'openai-images' })
+      qaModelCatalogFixture.push({ ...qaModelCatalogFixture[0],
+        id: 'qa-gpt-image-2-apimart', providerId: 'qa-apimart', providerProtocol: 'apimart',
+      })
+      await page.routeWebSocket('**/*', socket => socket.close())
+    }
     page.on('pageerror', error => errors.push(error.message))
     await page.route('**/api/**', route => route.fulfill({ contentType: 'application/json', body: JSON.stringify({ authenticated: false, boards: [], projects: [], resources: [], records: [], models: [], providers: [], preferences: {}, settings: {} }) }))
     await page.route('**/api/image-models*', route => route.fulfill({ contentType: 'application/json', body: JSON.stringify({ models: qaModelCatalogFixture, candidates: [], revision: 1, instanceId: 'qa-isolated-models' }) }))
+    if (ratioOnly) {
+      await page.route('**/output/qa-actual.svg', route => route.fulfill({
+        contentType: 'image/svg+xml',
+        body: '<svg xmlns="http://www.w3.org/2000/svg" width="1254" height="960"><rect width="100%" height="100%" fill="#86a88e"/></svg>',
+      }))
+      await page.route('**/api/image-jobs**', route => {
+        if (route.request().method() === 'POST') {
+          const request = route.request().postDataJSON()
+          const job = { id: `qa-job-${imageJobs.length + 1}`, boardId: request.board_id, nodeId: request.node_id, model: request.model }
+          imageJobs.push({ request, job })
+          return route.fulfill({ status: 202, json: { job: { ...job, state: 'queued' } } })
+        }
+        const entry = imageJobs.find(({ job }) => route.request().url().endsWith('/' + job.id))
+        if (!entry) return route.fulfill({ status: 404, json: {} })
+        const { job, request } = entry
+        const result = job.id === 'qa-job-1' ? { state: 'failed', code: 'IMAGE_SIZE_NOT_SUPPORTED', httpStatus: 400,
+          error: '当前接口拒绝 1:1 的 4K 图片尺寸' }
+          : { state: 'completed', result: { model: request.model, data: [{ url: '/output/qa-actual.svg', width: 1254, height: 960 }] } }
+        return route.fulfill({ json: { job: { ...job, ...result } } })
+      })
+      await page.route('**/api/canvas/boards/qa-isolated-board/operations', route => {
+        const { operations, baseRevision } = route.request().postDataJSON()
+        for (const operation of operations) {
+          if (operation.type === 'node.upsert') savedNodes.set(operation.entityId, operation.after)
+        }
+        return route.fulfill({ json: {
+          success: true, boardRevision: Number(baseRevision || 0) + 1,
+          results: operations.map(operation => ({ operationId: operation.operationId, entityId: operation.entityId, status: 'applied' })),
+        } })
+      })
+    }
     const referenceImage = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aJ1sAAAAASUVORK5CYII='
     await page.route('**/api/flux2-klein-edit', async route => {
       comfyRequests.push(route.request().postDataJSON())
@@ -43,7 +85,7 @@ const path = require('node:path')
         if (fs.existsSync(path.join(process.env.GENERATOR_SOURCE, name)) && !(await page.evaluate(key => Boolean(window[key]), globalName))) await page.addScriptTag({ path: path.join(process.env.GENERATOR_SOURCE, name) })
       }
     }
-    await page.evaluate(async (qaModelCatalogFixture) => {
+    const setup = saved => page.evaluate(async ({ qaModelCatalogFixture, ratioOnly, saved }) => {
       const modules = await AiOsModuleLoader.ensure(['canvas-runtime', 'canvas-node-generator', 'canvas-node-comfy', 'canvas-node-asset-collection'])
       if (modules?.ok === false) throw new Error(JSON.stringify(modules))
       await loadCanvasBoards(); canvasState.activeBoardId = 'qa-isolated-board'
@@ -60,20 +102,232 @@ const path = require('node:path')
       imageModelInput.replaceChildren(...qaModelCatalog.map(model => { const option = document.createElement('option'); option.value = model.id; option.textContent = `${model.modelId} · ${model.providerName}`; return option }))
       qaModelCatalog.forEach(model => { IMAGE_MODEL_PLATFORMS[model.id] = model.id.includes('gemini') ? 'google' : 'openai'; IMAGE_MODEL_FAMILIES[model.id] = model.family })
       imageModelInput.value = qaModelCatalog[0].id
-      runCanvasImageEdit = async node => {
+      if (!ratioOnly) runCanvasImageEdit = async node => {
         qaRuns.push({ id: node.dataset.id, prompt: node.querySelector('.canvas-node-prompt').value })
         if (window.qaFail) { setCanvasNodeStatus(node, '生成失败：测试接口暂不可用'); return }
         const image = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400"><rect width="400" height="400" fill="#202323"/><circle cx="200" cy="200" r="100" fill="#b8ddba"/></svg>')
         updateCanvasGenerationResult(node, { src: image }); setCanvasNodeStatus(node, '完成')
       }
-      const first = addCanvasImageGeneratorNode({ x: 120, y: 60 }); first.dataset.qaGenerator = 'first'
+      const first = saved
+        ? restoreCanvasBoardNode(saved, { id: canvasState.activeBoardId }, { usedIds: new Set(), maxId: 0 })
+        : addCanvasImageGeneratorNode({ x: 120, y: 60 })
+      first.dataset.qaGenerator = 'first'
       window.qaInitialGenerator = serializeCanvasNode(first)
       const second = addCanvasImageGeneratorNode({ x: 720, y: 60 }); second.dataset.qaGenerator = 'second'
       showCanvasEditor(); clearCanvasSelection()
       canvasState.scale = 1; canvasState.x = 0; canvasState.y = 0; applyCanvasTransformNow()
-    }, qaModelCatalogFixture)
+      if (ratioOnly) {
+        canvasState.activeBoardPersisted = true
+        pinCanvasNode(first.dataset.id)
+        selectCanvasNode(first)
+        if (!saved) connectCanvasNodes(first.dataset.id, second.dataset.id)
+      }
+    }, { qaModelCatalogFixture, ratioOnly, saved })
+    await setup()
     const first = page.locator('[data-qa-generator=first]'), second = page.locator('[data-qa-generator=second]')
     const panel = first.locator('.flora-generator-composer')
+    if (ratioOnly) {
+      const popover = first.locator('.flora-generator-parameter-popover:not(.flora-midjourney-settings-popover)')
+      const trigger = panel.locator('.flora-generator-parameter-trigger:not([data-flora-midjourney-settings])')
+      const geometry = () => first.evaluate(async node => {
+        for (let frame = 0; frame < 4; frame++) await new Promise(requestAnimationFrame)
+        const rect = selector => node.querySelector(selector).getBoundingClientRect().toJSON()
+        const edge = canvasState.connections.find(item => item.from === node.dataset.id)
+        const target = edge && document.querySelector(`.canvas-connection-hit[data-connection-from="${CSS.escape(node.dataset.id)}"]`)
+        return {
+          shell: rect('.flora-node-shell'), composer: rect('.flora-generator-composer'),
+          popup: rect('.flora-generator-parameter-popover'),
+          title: rect('.flora-node-label'), toolbar: rect('.flora-node-toolbar'),
+          card: rect('.flora-node-card'), icon: rect('.flora-generator-placeholder svg'),
+          resize: rect('.canvas-resize-handle'),
+          selected: node.querySelector('.flora-node-shell').classList.contains('is-selected'),
+          ports: ['input', 'output'].map(kind => getCanvasConnectionPortPoint(node.dataset.id, kind)),
+          wire: target?.getAttribute('d'),
+          camera: [canvasState.x, canvasState.y, canvasState.scale],
+          node: [node.dataset.x, node.dataset.y, node.dataset.width, node.dataset.height],
+        }
+      })
+      const evidence = process.env.GENERATOR_RATIO_EVIDENCE
+      if (evidence) fs.mkdirSync(evidence, { recursive: true })
+      const layouts = []
+      const arrangeForRatio = async (width, scale) => {
+        await page.setViewportSize({ width, height: width === 1440 && evidence ? 1240 : 1040 })
+        await first.evaluate((node, scale) => {
+          selectCanvasNode(node)
+          canvasState.scale = scale
+          const center = innerWidth * (innerWidth === 1728 ? 0.82 : innerWidth === 768 ? 0.38 : 0.5)
+          canvasState.x = center - (Number(node.dataset.x) + Number(node.dataset.width) / 2) * scale
+          canvasState.y = innerHeight - 375 - (Number(node.dataset.y) + Number(node.dataset.height) + 48) * scale
+          applyCanvasTransformNow()
+          setCanvasStatus('')
+        }, scale)
+      }
+      for (const [width, scale] of [[1440, 1], [390, 0.65], [768, 1], [1728, 1.5]]) {
+        await arrangeForRatio(width, scale)
+        await trigger.click()
+        const ratio = value => popover.locator(`[data-param-kind=size][data-param-value="${value}"]`)
+        await ratio('1:1').click()
+        const start = await geometry()
+        assert.deepEqual(await popover.locator('[data-param-kind=size]').allTextContents(),
+          ['自适应', '1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9', '自定义'])
+        const samples = []
+        for (const value of ['2:3', '9:16', '16:9', '21:9', '1:1']) {
+          await popover.evaluate(element => {
+            element.addEventListener('click', () => {
+              const anchor = element.closest('.canvas-node').querySelector('.flora-generator-composer')
+              const samples = []
+              window.qaRatioFrames = new Promise(resolve => {
+                function sample() {
+                  setTimeout(() => {
+                    samples.push([anchor.getBoundingClientRect().top, element.getBoundingClientRect().top])
+                    if (samples.length === 4) resolve(samples)
+                    else requestAnimationFrame(sample)
+                  }, 0)
+                }
+                requestAnimationFrame(sample)
+              })
+            }, { once: true, capture: true })
+          })
+          await ratio(value).click().catch(async error => {
+            const details = await page.evaluate(() => [...document.querySelectorAll('.canvas-node-generator')].map(node => ({
+              kind: node.className, qa: node.dataset.qaGenerator, model: node.dataset.canvasModel,
+              ratios: [...node.querySelectorAll('[data-param-kind=size]')].map(button => button.dataset.paramValue),
+            })))
+            throw new Error(`${width}px / ${scale} / ${value}：${JSON.stringify(details)}`, { cause: error })
+          })
+          samples.push({ value, ...await geometry(), frames: await page.evaluate(() => window.qaRatioFrames) })
+          if (evidence && width === 1440 && value === '9:16') await page.screenshot({ path: path.join(evidence, 'portrait.png') })
+        }
+        if (evidence && width === 1440) await page.screenshot({ path: path.join(evidence, 'square.png') })
+        const drift = Math.max(...samples.flatMap(sample => ['composer', 'popup'].flatMap(key =>
+          ['x', 'y'].map(axis => Math.abs(sample[key][axis] - start[key][axis])))))
+        const positions = [start, ...samples].map(({ value, shell, composer, popup, camera, node }) =>
+          ({ value: value || 'start', shell: [shell.y, shell.bottom], composer: [composer.x, composer.y],
+            popup: [popup.x, popup.y, popup.height], camera, node }))
+        assert.ok(drift < 1, `${width}px: 操作区或弹窗偏移 ${drift}px，${JSON.stringify(positions)}`)
+        for (const sample of samples) {
+          const [w, h] = sample.value.split(':').map(Number)
+          assert.ok(Math.abs(sample.shell.width / sample.shell.height - w / h) < 0.01)
+          assert.ok(Math.abs(sample.composer.top - sample.shell.bottom - 16) < 1)
+          assert.ok(Math.abs(sample.composer.x + sample.composer.width / 2 - sample.shell.x - sample.shell.width / 2) < 1)
+          assert.deepEqual(sample.camera, start.camera)
+          assert.ok(sample.popup.left >= 15 && sample.popup.right <= width - 15
+            && sample.popup.bottom <= page.viewportSize().height - 15)
+          assert.ok(sample.frames.every(([composer, popup]) =>
+            Math.abs(composer - start.composer.top) < 1 && Math.abs(popup - start.popup.top) < 1),
+          `${width}px ${sample.value} 逐帧位置 ${JSON.stringify(sample.frames)}`)
+          assert.ok(sample.title.bottom <= sample.card.top + 1 && sample.toolbar.bottom <= sample.card.top + 1)
+          assert.ok(Math.abs(sample.icon.width - sample.icon.height) < 1)
+          assert.ok(sample.selected && sample.resize.width > 0)
+          assert.ok(sample.ports.every(port => Number.isFinite(port?.x) && Number.isFinite(port?.y)))
+          if (width === 1440 && sample.value !== '1:1') {
+            assert.ok(start.wire && sample.wire)
+            assert.notEqual(sample.wire, start.wire)
+          }
+        }
+        const labels = popover.locator('[data-param-kind=resolution]')
+        assert.deepEqual(await labels.allTextContents(), ['1K', '2K', '4K'])
+        assert.equal(await popover.locator('[data-param-value="4"]').isEnabled(), true)
+        await popover.locator('[data-param-value="4"]').click()
+        assert.equal(await first.locator('.canvas-node-resolution').inputValue(), '4')
+        assert.match(await trigger.innerText(), /1:1 · 4K/)
+        assert.doesNotMatch(await popover.innerText(), /最大兼容尺寸|最大方图|无法生成标准/)
+        const afterResolution = await geometry()
+        assert.ok(Math.abs(afterResolution.popup.y - start.popup.y) < 1)
+        if (width === 1440) {
+          await page.evaluate(() => {
+            canvasState.x += 35
+            canvasState.y -= 30
+            applyCanvasTransformNow()
+          })
+          const panned = await geometry()
+          for (const rect of ['composer', 'popup']) {
+            assert.ok(Math.abs(panned[rect].x - afterResolution[rect].x - 35) < 1)
+            assert.ok(Math.abs(panned[rect].y - afterResolution[rect].y + 30) < 1)
+          }
+          await page.evaluate(() => {
+            canvasState.scale = 0.9
+            applyCanvasTransformNow()
+          })
+          const zoomed = await geometry()
+          assert.ok(Math.abs(zoomed.composer.top - zoomed.shell.bottom - 16) < 1)
+          assert.notEqual(zoomed.popup.y, panned.popup.y)
+        }
+        layouts.push({ width, scale, drift })
+        await page.keyboard.press('Escape')
+      }
+      await arrangeForRatio(1440, 1)
+      await first.evaluate(node => {
+        const model = node.querySelector('.canvas-node-model')
+        model.dataset.modelSelection = node.dataset.modelSelection = 'exact'
+        node.querySelector('.canvas-node-prompt').value = '隔离验收：生成茶叶礼盒。'
+      })
+      const rejected = await first.evaluate(node => runCanvasImageEdit(node))
+      assert.equal(rejected.code, 'request_parameters_unsupported')
+      assert.match(rejected.error, /当前接口拒绝 1:1 的 4K 图片尺寸/)
+      assert.deepEqual([imageJobs[0].request.model, imageJobs[0].request.size, imageJobs[0].request.resolution],
+        ['qa-gpt-image-2', '1:1', '4k'])
+      assert.equal(await first.locator('.canvas-node-resolution').inputValue(), '4')
+      await trigger.click()
+      await popover.locator('[data-param-kind=size][data-param-value="2:3"]').click()
+      await page.keyboard.press('Escape')
+      const saved = await first.evaluate(async node => {
+        scheduleCanvasSave(node)
+        await saveCanvasBoardNow({ recordUndo: false })
+        return serializeCanvasNode(node)
+      })
+      const persisted = savedNodes.get(saved.id)
+      assert.ok(persisted, '画布保存接口收到节点更新')
+      assert.equal(saved.y, -140)
+      assert.equal(saved.size, '2:3')
+      assert.equal(saved.resolution, '4')
+      for (const key of ['x', 'y', 'width', 'height', 'size', 'resolution']) assert.equal(persisted[key], saved[key], key)
+      await page.reload({ waitUntil: 'domcontentloaded' })
+      await setup(persisted)
+      const restored = await first.evaluate(node => serializeCanvasNode(node))
+      for (const key of ['x', 'y', 'width', 'height', 'size', 'resolution']) assert.equal(restored[key], saved[key], key)
+      await arrangeForRatio(1440, 1)
+      await first.evaluate(node => {
+        const model = node.querySelector('.canvas-node-model')
+        model.value = 'qa-gpt-image-2-apimart'
+        model.dispatchEvent(new Event('change', { bubbles: true }))
+      })
+      await trigger.click()
+      await popover.locator('[data-param-kind=size][data-param-value="1:1"]').click()
+      await page.keyboard.press('Escape')
+      const generated = await first.evaluate(node => runCanvasImageEdit(node))
+      assert.equal(generated.ok, true, JSON.stringify(generated))
+      assert.deepEqual([imageJobs[1].request.model, imageJobs[1].request.size, imageJobs[1].request.resolution],
+        ['qa-gpt-image-2-apimart', '1:1', '4k'])
+      assert.deepEqual([generated.image.width, generated.image.height], [1254, 960])
+      await first.locator('.canvas-node-result img').evaluate(img => img.decode())
+      assert.deepEqual(await first.locator('.canvas-node-result img').evaluate(img => [img.naturalWidth, img.naturalHeight]), [1254, 960])
+      const result = await first.evaluate(node => serializeCanvasNode(node).generationHistory.at(-1))
+      assert.deepEqual(result.actualSize, { width: 1254, height: 960 })
+      await arrangeForRatio(1440, 1)
+      await first.evaluate(node => {
+        const model = node.querySelector('.canvas-node-model')
+        model.value = 'qa-gpt-image-2'
+        model.dispatchEvent(new Event('change', { bubbles: true }))
+      })
+      await trigger.click()
+      await popover.locator('[data-param-kind=size][data-param-value="custom"]').click()
+      const custom = popover.locator('.canvas-custom-size-field')
+      await custom.waitFor({ state: 'visible' })
+      await custom.locator('input[data-size-axis="width"]').fill('1600')
+      await custom.locator('input[data-size-axis="height"]').fill('1024')
+      assert.equal(await first.evaluate(node => getCanvasOutputSize(node)), '1600x1024')
+      await popover.locator('[data-param-kind=size][data-param-value="16:9"]').click()
+      await page.keyboard.press('Escape')
+      assert.equal((await first.evaluate(node => runCanvasImageEdit(node))).ok, true)
+      assert.deepEqual([imageJobs[2].request.model, imageJobs[2].request.size, imageJobs[2].request.resolution],
+        ['qa-gpt-image-2', '3840x2160', '4k'])
+      assert.deepEqual(errors, [])
+      console.log(JSON.stringify({ layouts, saved: [saved.x, saved.y, saved.size, saved.resolution],
+        requests: imageJobs.map(({ request }) => [request.model, request.size, request.resolution]),
+        returned: [generated.image.width, generated.image.height], errors }))
+      return
+    }
     fs.mkdirSync(path.join(__dirname, 'acceptance'), { recursive: true })
     const captureScript = fs.readFileSync(path.join(__dirname, 'design-audits/audio-spacing-capture.js'), 'utf8')
     async function captureState(name) {
@@ -257,7 +511,7 @@ const path = require('node:path')
     assert.equal(await modelPopup.count(), 0, '取消选中清理模型浮层')
     await page.evaluate(() => selectCanvasNode(document.querySelector('[data-qa-generator=first]')))
     async function promptForEngineSwitch() {
-      await first.locator('.canvas-node-prompt').fill('引擎切换保留的提示词')
+      await first.locator('.flora-prompt-mention-editor').fill('引擎切换保留的提示词')
       await panel.locator('.flora-generation-mode').selectOption('comfyui')
       await page.waitForFunction(() => document.querySelector('[data-qa-generator=first]').dataset.canvasEngine === 'comfyui', null, { timeout: 3000 }).catch(async error => {
         console.error({ errors, node: await first.evaluate(node => ({ classes: node.className, dataset: { ...node.dataset }, switch: node.querySelector('.canvas-engine-switch')?.outerHTML, content: node.textContent.slice(0, 400) })) })
@@ -320,7 +574,7 @@ const path = require('node:path')
     const shellBox = await first.locator('.flora-node-shell').boundingBox(), panelBox = await panel.boundingBox()
     assert.ok(panelBox.y >= shellBox.y + shellBox.height + 12, '操作区应位于节点正下方')
     assert.ok(panelBox.width > shellBox.width, '桌面操作区应比预览节点宽')
-    const prompt = first.locator('.canvas-node-prompt')
+    const prompt = first.locator('.flora-prompt-mention-editor')
     const before = await first.evaluate(element => ({ x: element.dataset.x, y: element.dataset.y }))
     await prompt.fill('第一张图片的提示词')
     await prompt.click(); await prompt.press('Control+A')
@@ -328,9 +582,9 @@ const path = require('node:path')
     await page.evaluate(() => selectCanvasNode(document.querySelector('[data-qa-generator=second]')))
     await second.locator('.flora-generator-composer').waitFor({ state: 'visible' })
     assert.equal(await panel.isVisible(), false)
-    await second.locator('.canvas-node-prompt').fill('第二张图片的提示词')
+    await second.locator('.flora-prompt-mention-editor').fill('第二张图片的提示词')
     await page.evaluate(() => selectCanvasNode(document.querySelector('[data-qa-generator=first]')))
-    assert.equal(await prompt.inputValue(), '第一张图片的提示词')
+    assert.equal(await first.locator('.canvas-node-prompt').inputValue(), '第一张图片的提示词')
     const parameters = await first.evaluate(node => {
       const size = node.querySelector('.canvas-node-size'), model = node.querySelector('.canvas-node-model')
       const option = [...size.options].find(option => option.value !== size.value && option.value !== 'custom')
