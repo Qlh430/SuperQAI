@@ -22,9 +22,18 @@ const resume=fs.existsSync(portable);
 if(fs.existsSync(release))throw Error('Release output already exists; use a new AI_OS_RELEASE_OUTPUT to preserve prior artifacts');
 if(!resume)fs.mkdirSync(portable,{recursive:true});
 fs.mkdirSync(release,{recursive:false});
-const runtime=path.join(portable,'.ai-runtime/versions',runtimeId),copyTree=(src,dst)=>{for(const f of A.records(src)){const from=path.join(src,...f.path.split('/')),to=path.join(dst,...f.path.split('/'));fs.mkdirSync(path.dirname(to),{recursive:true});fs.copyFileSync(from,to,fs.constants.COPYFILE_EXCL);if(fs.statSync(to).size!==f.size||sha(to)!==f.sha256)throw Error('Runtime copy mismatch: '+f.path)}};
+const runtime=path.join(portable,'.ai-runtime/versions',runtimeId);
+function copyLockedRuntime(src, dst) {
+ const appFiles=A.records(path.join(src,'resources/app')).map(file=>({...file,path:'resources/app/'+file.path}));
+ for(const file of [...sourceLock.nativeFiles,...appFiles]){
+  const from=path.join(src,file.path),to=path.join(dst,file.path);
+  fs.mkdirSync(path.dirname(to),{recursive:true});
+  fs.copyFileSync(from,to,fs.constants.COPYFILE_EXCL);
+  if(fs.statSync(to).size!==file.size||sha(to)!==file.sha256)throw Error('Runtime copy mismatch: '+file.path);
+ }
+}
 if(!resume){
- copyTree(sourceRuntime,runtime);
+ copyLockedRuntime(sourceRuntime,runtime);
  fs.copyFileSync(path.join(home,'BenDo.exe'),path.join(portable,'BenDo.exe'),fs.constants.COPYFILE_EXCL);
  fs.mkdirSync(path.join(portable,'.ai-runtime'),{recursive:true});fs.writeFileSync(path.join(portable,'.ai-runtime/.active-runtime'),runtimeId+'\n',{flag:'wx'});
  write(path.join(portable,'ai-os-portable.json'),{product:'AI OS',version,format:1,portable:true,dataDirectory:'data',runtimeDirectory:'.ai-runtime/versions/'+runtimeId,versionsDirectory:'.ai-runtime/versions',activePointer:'.ai-runtime/.active-runtime'});

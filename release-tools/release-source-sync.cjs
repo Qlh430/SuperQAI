@@ -40,6 +40,10 @@ function verifyRecords(root, records) {
     if (fs.statSync(file).size !== record.size || P.hashFile(file) !== record.sha256) throw Error('Locked file changed: ' + record.path);
   }
 }
+function nativeReleasePaths(runtime) {
+  // Chromium writes this diagnostic next to the running executable.
+  return P.listTree(runtime).filter(file => !file.startsWith('resources/app/') && file !== 'debug.log');
+}
 function syncOwned(root, app) {
   P.isolated(root, app);
   const ownership = JSON.parse(fs.readFileSync(path.join(root, 'release-tools/ownership.json'), 'utf8'));
@@ -139,7 +143,7 @@ async function lockDevelopment(root, version) {
   const dev = await development(root);
   if (dev.status !== '一致且已验证') throw Error('Development baseline is not synchronized: ' + JSON.stringify({ pending: dev.pending, processState: dev.processState, processError: dev.processError }));
   const checkpoint = assertCheckpoint(root, dev.gitInputs, process.env.AI_OS_RELEASE_COMMIT);
-  const nativeFiles = fileRecords(dev.runtime, P.listTree(dev.runtime).filter(file => !file.startsWith('resources/app/')));
+  const nativeFiles = fileRecords(dev.runtime, nativeReleasePaths(dev.runtime));
   const lock = { ...dev, version, checkpoint, nativeFiles, launcher: fileRecords(path.dirname(path.dirname(path.dirname(dev.runtime))), ['BenDo.exe']), createdAt: new Date().toISOString() };
   const file = path.join(root, '.planning/release-' + version, 'source-lock.json');
   fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -150,7 +154,7 @@ function verifyLock(root, lock) {
   if (lock.format !== 1 || lock.root !== path.resolve(root) || !lock.checkpoint?.commit || lock.status !== '一致且已验证') throw Error('Invalid release source lock');
   assertCheckpoint(root, lock.gitInputs, lock.checkpoint.commit);
   verifyRecords(root, lock.inputs);
-  const nativePaths = P.listTree(lock.runtime).filter(file => !file.startsWith('resources/app/'));
+  const nativePaths = nativeReleasePaths(lock.runtime);
   if (JSON.stringify(nativePaths) !== JSON.stringify(lock.nativeFiles.map(file => file.path))) throw Error('Locked native file set changed');
   verifyRecords(lock.runtime, lock.nativeFiles);
   const portable = path.dirname(path.dirname(path.dirname(lock.runtime)));
