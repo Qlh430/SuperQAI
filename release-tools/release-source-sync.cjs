@@ -67,7 +67,7 @@ function assertCheckpoint(root, inputs, expectedCommit) {
     committedInputs.forEach((file, index) => { if (hashes[index] !== tree.get(file) && !uncommitted.includes(file)) uncommitted.push(file); });
   }
   const watched = ['host-sources/app/', 'neon-workbench/src/', 'neon-workbench/design-sources/'];
-  for (const file of [...dirty, ...git(['ls-files', '--others', '--exclude-standard', '-z']).split('\0')]) {
+  for (const file of [...dirty, ...git(['ls-files', '--others', '--exclude-standard', '-z', '--', ...watched]).split('\0')]) {
     if (watched.some(prefix => file.startsWith(prefix)) && !uncommitted.includes(file)) uncommitted.push(file);
   }
   if (uncommitted.length) throw Error('Uncommitted release inputs: ' + uncommitted.join(', '));
